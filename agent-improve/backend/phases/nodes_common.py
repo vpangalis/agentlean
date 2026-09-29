@@ -1436,7 +1436,11 @@ def _fallback_reply(phase: str, plan: Optional[CoachingPlan]) -> CoachingRespons
 
 #: G-117 — a sentence that says a value was stored. A negated or conditional one ("nothing is
 #: stored until you confirm") is not a claim and stays.
-_STORE_CLAIM = re.compile(r"(?<![A-Za-z])(recorded|stored|saved|logged)(?![A-Za-z])", re.I)
+_STORE_CLAIM = re.compile(r"(?<![A-Za-z])(recorded|stored|saved|logged)(?![A-Za-z])"
+                          # G-136 (2026-09-29): "has been successfully captured" — the passive only;
+                          # "here is what I've captured" opens every read-back and is no claim.
+                          r"|(?<![A-Za-z])(has|have|is|are|was|were)\s+(now\s+)?(been\s+)?(successfully\s+)?captured(?![A-Za-z])",
+                          re.I)
 _NOT_A_CLAIM = re.compile(r"(?<![A-Za-z])(not|nothing|until|only if|unless|once you|when you|before)(?![A-Za-z])", re.I)
 _SENTENCE_END = re.compile(r"(?<=[.!?])[ \t]+")
 

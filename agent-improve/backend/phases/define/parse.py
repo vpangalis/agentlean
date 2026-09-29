@@ -35,9 +35,11 @@ def parse_limit(text: str) -> Optional[dict[str, Any]]:
     """`{number, unit, direction}` of the first number in `text` ("below", "above" or "equal"),
     or None when there is no number."""
     t = (text or "").lower()
-    m = re.search(_NUMBER + _UNIT, t)
-    if not m:
+    found = list(re.finditer(_NUMBER + _UNIT, t))
+    if not found:
         return None
+    # G-135: a bare year ("January to June 2026") is not the figure when another one is there.
+    m = next((f for f in found if not _is_year(f)), found[0])
     before = t[:m.start()]
     direction = "equal"
     for words, name in ((_BELOW, "below"), (_ABOVE, "above")):
@@ -48,12 +50,23 @@ def parse_limit(text: str) -> Optional[dict[str, Any]]:
             "direction": direction}
 
 
+def _is_year(m: "re.Match[str]") -> bool:
+    """G-135 (2026-09-29): a four-digit 1900-2099 with no unit of its own is a year — "January
+    to June 2026" — never a baseline or a target. The run-through read "2026" as the baseline
+    when the read-back carried no metric unit (IMPR-2026-02C, turn 13)."""
+    word = (m.group(2) or "").strip().lower()
+    known = word in ("%", "percent", "per cent", "prozent") or word in _UNIT_OF_WORD
+    return bool(re.fullmatch(r"(?:19|20)[0-9]{2}", m.group(1))) and not known
+
+
 def number_in(text: str, unit: str) -> Optional[dict[str, Any]]:
     """The first figure in `text` written in `unit` (as `parse_limit` reads it), else the first
     figure at all. G-132: "paid more than 30 days after … about 23% today" is 23 %, not 30."""
     t = (text or "").lower()
     first = None
     for m in re.finditer(_NUMBER + _UNIT, t):
+        if _is_year(m):
+            continue                                          # G-135: a year is not the figure
         # The figure itself, with the words before it (digits removed) for its direction.
         prefix = re.sub(r"\d", "", t[max(0, m.start() - 24):m.start()])
         found = parse_limit(prefix + t[m.start():m.end()])

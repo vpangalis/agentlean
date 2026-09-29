@@ -473,6 +473,10 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
     for f in pending.get("fields") or [field]:
         if phase == "define" and f in parse.METRIC_FIELDS:
             unit = parse.primary_unit(known)
+            if f == "baseline_estimate" and not unit:
+                # G-135: without the metric's unit there is nothing to read the baseline by — the
+                # first figure could be "30 days" or a year. Nothing is stored; the Confirm names it.
+                continue
             if f == "target_value" and known.get("baseline_estimate"):
                 unit = parse.as_metric(known["baseline_estimate"], unit=unit)["unit"] or unit
             # The figure of the Belt's LATEST message that holds one (a correction wins over the

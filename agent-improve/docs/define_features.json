@@ -237,7 +237,9 @@
      "3",
      "27"
     ],
-    "gaps": []
+    "gaps": [
+     "G-138"
+    ]
    },
    "requirement": "R2",
    "belt_impact": "dead_end",
@@ -366,7 +368,8 @@
     ],
     "capability_rows": [],
     "gaps": [
-     "G-122"
+     "G-122",
+     "G-137"
     ],
     "notes_6_66": [
      "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
@@ -3298,7 +3301,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-135"
+    ]
    },
    "requirement": "R7",
    "belt_impact": "wrong_data",
@@ -5583,7 +5588,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-117"
+     "G-117",
+     "G-136"
     ]
    },
    "requirement": "R16",

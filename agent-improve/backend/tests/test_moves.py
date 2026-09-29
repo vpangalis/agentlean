@@ -377,3 +377,32 @@ def test_section_5_leaves_out_what_this_turns_move_does_not_do() -> None:
     fb["grader"]["move"] = "read_back"
     assert "nothing that applies to this turn's move" in section_5("teach")
 
+
+
+def test_g135_a_year_is_never_the_baseline_and_no_unit_stores_no_baseline() -> None:
+    """G-135 (run-through IMPR-2026-02C, turn 13): with no metric unit in the read-back, the
+    reading line showed the year "2026" as the baseline. A bare year is never the figure, and
+    without the registry's unit the baseline is not stored — the Confirm names it as missing."""
+    from backend.phases.define import parse
+    words = ("Late payment rate, in %: invoices paid more than 30 days late. About 23% today, from the "
+             "AP ledger for January to June 2026.")
+    assert parse.metric_value(words, unit="%")["value"] == 23.0
+    assert parse.metric_value(words)["value"] != 2026.0
+    assert parse.metric_value("by 2027 under 5%", target=True)["value"] == 5.0
+    pending = {"field": "baseline_estimate", "fields": ["baseline_estimate", "metric_definitions"],
+               "belt_words": words, "messages": 1}
+    assert "baseline_estimate" not in moves.pending_store("define", pending, {})
+    registry = [{"name": "late_payment_rate", "unit": "%", "meaning": "paid late"}]
+    stored = moves.pending_store("define", pending, {"metric_definitions": registry})
+    assert stored["baseline_estimate"]["value"] == 23.0
+
+
+def test_g136_a_passive_captured_claim_is_removed_and_a_read_back_intro_kept() -> None:
+    """G-136 (run-through IMPR-2026-02C, turn 14): "Your baseline estimate has been successfully
+    captured" reached the Belt under code's "Nothing was stored" note. The passive claim is
+    removed; "here is what I've captured" (every read-back's opening) is not a claim."""
+    from backend.phases.nodes_common import _without_store_claims
+    got = _without_store_claims("Nothing was stored yet. Your baseline estimate has been successfully "
+                                "captured. Here is what I've captured for your baseline.")
+    assert "successfully captured" not in got
+    assert "Nothing was stored yet." in got and "what I've captured" in got

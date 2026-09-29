@@ -1,0 +1,3341 @@
+[
+ {
+  "kind": "turn",
+  "n": 1,
+  "why": "opening",
+  "belt": "Hi — I'm ready to start Define on our project.",
+  "action": null,
+  "http": 200,
+  "seconds": 12.4,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "teach",
+  "field": "business_case",
+  "status": "not taught",
+  "verdict": null,
+  "stored_field": null,
+  "stored_keys": [],
+  "stored_types": {},
+  "reply": {
+   "answer": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet's start with the **business case**. This explains why your project deserves time and people: what is going wrong, where and since when, how big it is today, and what it costs. It earns the project its support and helps people outside the team understand and size it — it's the first thing the Define report shows.",
+   "explanation": "The business case explains why the project matters and earns its support.",
+   "example": "During January to June 2026, 12% of invoices produced by UK billing were returned for correction, against 3% for the rest of the group. The rework and delayed payments cost about €35k a month.",
+   "prompt": "Why is your project worth doing? Tell me what is going wrong, where and since when, how big it is today, and roughly what it costs.",
+   "progress": "Define · Step 1 of 13",
+   "move": "teach",
+   "move_field": "business_case",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 2,
+  "why": "good answer",
+  "belt": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+  "action": null,
+  "http": 200,
+  "seconds": 15.2,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence",
+   "grader"
+  ],
+  "move": "read_back",
+  "field": "business_case",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [],
+  "stored_types": {},
+  "reply": {
+   "answer": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock. Is this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 1 of 13",
+   "move": "read_back",
+   "move_field": "business_case",
+   "grader_warning": "My quality check flagged this reply as weaker than it should be. If it doesn't help, tell me and I'll try again.",
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 3,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 11.7,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "team",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "business_case",
+  "stored_keys": [
+   "business_case"
+  ],
+  "stored_types": {
+   "business_case": "str"
+  },
+  "reply": {
+   "answer": "Stored: Business case.\n\nNow that the business case is confirmed, let's move to the next step: identifying the project team. This is about who leads, who sponsors, who owns the process, and who does the work. Each person needs a name, a role, and what they will do.\n\nWhy this matters: A project needs people before it needs work. The champion clears obstacles, and the process owner keeps the result after the project ends; without them, a good fix fades.\n\nHere's an illustration to guide you:\n\"Leader: Anna (Green Belt, runs the project). Champion: Mark, Finance Director (approves, removes blockers). Process owner: Jo, Billing Manager (owns the process). Members: two billing clerks (know the work). Training: the clerks need a half-day on data collection before Measure.\"\n\nWho leads the project? Who is the champion who can approve and clear obstacles? Who owns the process? Who else is on the team — and does anyone need training to take part fully?",
+   "explanation": "The project team defines roles and responsibilities for success. It ensures clear leadership, sponsorship, and ownership.",
+   "example": "Leader: Anna (Green Belt, runs the project). Champion: Mark, Finance Director (approves, removes blockers). Process owner: Jo, Billing Manager (owns the process). Members: two billing clerks (know the work). Training: the clerks need a half-day on data collection before Measure.",
+   "prompt": "Who leads the project? Who is the champion who can approve and clear obstacles? Who owns the process? Who else is on the team — and does anyone need training to take part fully?",
+   "progress": "Define · Step 2 of 13",
+   "move": "store_and_advance",
+   "move_field": "team",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "business_case",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 4,
+  "why": "good answer",
+  "belt": "I'm leading it — Priya Shah, Green Belt, running it day to day. Sponsor: Tom Okafor, Finance Director, who signs off and clears blockers. Process owner: Lena Hart, Accounts Payable Manager. Members: Dev Patel and Amira Khan, two AP clerks who process the invoices. Training: Dev and Amira need a half-day on data collection before Measure; nobody else needs any.",
+  "action": null,
+  "http": 200,
+  "seconds": 14.5,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence",
+   "grader"
+  ],
+  "move": "read_back",
+  "field": "team",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "business_case"
+  ],
+  "stored_types": {
+   "business_case": "str"
+  },
+  "reply": {
+   "answer": "Here's the team as you've described it:\n\n- Leader: Priya Shah (Green Belt, running it day to day)\n- Sponsor: Tom Okafor (Finance Director, who signs off and clears blockers)\n- Process owner: Lena Hart (Accounts Payable Manager)\n- Members: Dev Patel and Amira Khan (two AP clerks who process the invoices; they need a half-day on data collection before Measure)\n\nIs this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 2 of 13",
+   "move": "read_back",
+   "move_field": "team",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 5,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 11.9,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "voc_summary",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "team",
+  "stored_keys": [
+   "business_case",
+   "team"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list"
+  },
+  "reply": {
+   "answer": "Stored: Team.\n\nNow let's move on to the next step: the Voice of the Customer (VOC). This is about understanding who receives the output of your process, what they need, and how you measure meeting those needs.\n\n**What it is:** The Voice of the Customer: who receives what your process produces — inside the company, outside, or both — what they need, and the Critical-to-Quality requirements (CTQs): each need turned into something you can measure.\n\n**Why it matters:** It keeps the project honest. We improve what matters to the people receiving the output, and a CTQ is how \"they want it accurate\" becomes a requirement you can check.\n\n**Illustration:** \"Customers: client finance teams (external) and our credit control (internal). They need invoices that are correct and on time; the top complaint is wrong amounts. CTQs: invoice amount matches the agreed price on 100% of lines; invoice sent within 2 working days of the order.\"\n\n**Ask:** Who are the customers of your process, and what do they need or complain about most? For each need, how would you measure that it is met?",
+   "explanation": "Voice of the Customer (VOC) identifies who receives the process output, what they need, and measurable requirements (CTQs).",
+   "example": "Customers: client finance teams (external) and our credit control (internal). They need invoices that are correct and on time; the top complaint is wrong amounts. CTQs: invoice amount matches the agreed price on 100% of lines; invoice sent within 2 working days of the order.",
+   "prompt": "Who are the customers of your process, and what do they need or complain about most? For each need, how would you measure that it is met?",
+   "progress": "Define · Step 3 of 13",
+   "move": "store_and_advance",
+   "move_field": "voc_summary",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "team",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 6,
+  "why": "good answer",
+  "belt": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. CTQs: suppliers — paid within 30 days of the invoice date on every invoice; ward managers — no supplier puts us on stop in a quarter.",
+  "action": null,
+  "http": 200,
+  "seconds": 15.0,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence",
+   "grader"
+  ],
+  "move": "read_back",
+  "field": "voc_summary",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "team"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list"
+  },
+  "reply": {
+   "answer": "Here's the Voice of the Customer as you described:\n\n- Customers: Suppliers (external) and ward managers (internal)\n- Needs:\n  - Suppliers: need paying on the agreed 30-day terms\n  - Ward managers: need stock to keep arriving\n- Complaints:\n  - Suppliers: payments arriving late and not knowing when they will be paid\n  - Ward managers: deliveries being held\n- CTQs:\n  - Suppliers: paid within 30 days of the invoice date on every invoice\n  - Ward managers: no supplier puts us on stop in a quarter\n\nIs this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 3 of 13",
+   "move": "read_back",
+   "move_field": "voc_summary",
+   "grader_warning": "My quality check flagged this reply as weaker than it should be. If it doesn't help, tell me and I'll try again.",
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 7,
+  "why": "probe: Change click",
+  "belt": "Change",
+  "action": "change",
+  "http": 200,
+  "seconds": 4.6,
+  "model_calls": [],
+  "move": "challenge",
+  "field": "voc_summary",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "team"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list"
+  },
+  "reply": {
+   "answer": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. CTQs: suppliers — paid within 30 days of the invoice date on every invoice; ward managers — no supplier puts us on stop in a quarter.\n\nWhat would you like to change?",
+   "explanation": "",
+   "example": "",
+   "prompt": "What would you like to change?",
+   "progress": "Define · Step 3 of 13",
+   "move": "challenge",
+   "move_field": "voc_summary",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 8,
+  "why": "revised answer after Change",
+  "belt": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+  "action": null,
+  "http": 200,
+  "seconds": 14.0,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "challenge",
+  "field": "voc_summary",
+  "status": "asked",
+  "verdict": "insufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "team"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list"
+  },
+  "reply": {
+   "answer": "Thank you for adding the information about suppliers needing to see the status of an invoice once it is submitted. However, the measurable Critical-to-Quality requirement (CTQ) for this need is missing. A CTQ turns a customer need into something you can check and measure.\n\nFor example, if suppliers need visibility into invoice status, a CTQ might be: \"Suppliers can access the status of any invoice within 1 business day of submission via the portal.\" This is measurable and actionable.\n\nWhat measurable CTQ would show that suppliers can see the status of an invoice once it is submitted?",
+   "explanation": "The Voice of the Customer identifies who receives the process output, what they need, and how to measure meeting those needs.",
+   "example": "Illustration: \"Customers: client finance teams (external) and our credit control (internal). They need invoices that are correct and on time; the top complaint is wrong amounts. CTQs: invoice amount matches the agreed price on 100% of lines; invoice sent within 2 working days of the order.\"",
+   "prompt": "What measurable CTQ would show that suppliers can see the status of an invoice once it is submitted?",
+   "progress": "Define · Step 3 of 13",
+   "move": "challenge",
+   "move_field": "voc_summary",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 9,
+  "why": "revised answer after Change",
+  "belt": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+  "action": null,
+  "http": 200,
+  "seconds": 15.1,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence",
+   "grader"
+  ],
+  "move": "read_back",
+  "field": "voc_summary",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "team"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list"
+  },
+  "reply": {
+   "answer": "Here's the Voice of the Customer as you described:\n\n- Customers: Suppliers (external) and ward managers (internal)\n- Needs:\n  - Suppliers: need paying on the agreed 30-day terms\n  - Ward managers: need stock to keep arriving\n- Complaints:\n  - Suppliers: payments arriving late, not knowing when they will be paid, and not being able to see the status of an invoice once it is submitted\n  - Ward managers: deliveries being held\n- CTQs:\n  - Suppliers: paid within 30 days of the invoice date on every invoice\n  - Ward managers: no supplier puts us on stop in a quarter\n\nIs this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 3 of 13",
+   "move": "read_back",
+   "move_field": "voc_summary",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 10,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 14.1,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "problem_statement",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "voc_summary",
+  "stored_keys": [
+   "business_case",
+   "critical_to_quality",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list"
+  },
+  "reply": {
+   "answer": "Stored: Voice of the customer and CTQs.\n\nNow let's move to the next step: defining the problem statement. This is the heart of the Define phase. It describes the pain precisely — what is happening, where, since when, how much, and how you know. It keeps the team focused on the problem itself, avoiding causes or solutions.\n\n**What it is:** One clear statement of the problem, built from seven short questions — the 5W2H: What, Where, When, Who, Why, How, and How Much.\n\n**Why it matters:** It states the pain precisely, so the team works on the same problem — and it describes the problem only, never its cause or its fix.\n\n**Illustration:**\n| Question | How it is formulated | Example |\n|---|---|---|\n| What | the defect, in one noun phrase | invoices returned for correction |\n| Where | the process and place | UK billing, order to invoice |\n| When | the period, or since when | January to June 2026 |\n| Who | who is affected | client finance teams, credit control |\n| Why | why it matters to them | wrong amounts delay payment and trust |\n| How | how the defect shows up | clients return the invoice or dispute it |\n| How much | the size, against a requirement | 12% of invoices, against 3% elsewhere |\n\n**Composed Statement Example:** \"From January to June 2026, 12% of invoices produced by UK billing were returned by clients for correction — four times the 3% seen elsewhere — delaying payment for client finance teams and credit control.\"\n\n**Ask:** Let's answer the seven questions for your project: What is going wrong? Where? When, or since when? Who is affected? Why does it matter to them? How does it show up? How much — a rough number?",
+   "explanation": "The problem statement defines the pain precisely, keeping the team focused on the problem itself without jumping to causes or solutions.",
+   "example": "| Question | How it is formulated | Example |\n|---|---|---|\n| What | the defect, in one noun phrase | invoices returned for correction |\n| Where | the process and place | UK billing, order to invoice |\n| When | the period, or since when | January to June 2026 |\n| Who | who is affected | client finance teams, credit control |\n| Why | why it matters to them | wrong amounts delay payment and trust |\n| How | how the defect shows up | clients return the invoice or dispute it |\n| How much | the size, against a requirement | 12% of invoices, against 3% elsewhere |\n\nComposed Statement Example: \"From January to June 2026, 12% of invoices produced by UK billing were returned by clients for correction — four times the 3% seen elsewhere — delaying payment for client finance teams and credit control.\"",
+   "prompt": "Let's answer the seven questions for your project: What is going wrong? Where? When, or since when? Who is affected? Why does it matter to them? How does it show up? How much — a rough number?",
+   "progress": "Define · Step 4 of 13",
+   "move": "store_and_advance",
+   "move_field": "problem_statement",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "voc_summary",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 11,
+  "why": "probe: weak first answer",
+  "belt": "The problem is basically that paying suppliers is slow and messy.",
+  "action": null,
+  "http": 200,
+  "seconds": 15.1,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "challenge",
+  "field": "problem_statement",
+  "status": "asked",
+  "verdict": "insufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "critical_to_quality",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list"
+  },
+  "reply": {
+   "answer": "The problem you described — \"paying suppliers is slow and messy\" — is a general issue but does not yet meet the 5W2H criteria. To make it precise, we need to answer seven questions: What is happening? Where is it happening? When or since when? Who is affected? Why does it matter to them? How does the issue show up? How much — a rough number or size against a requirement? For example, \"From January to June 2026, 12% of invoices produced by UK billing were returned by clients for correction — four times the 3% seen elsewhere — delaying payment for client finance teams and credit control.\"",
+   "explanation": "The problem statement needs to answer the seven 5W2H questions to describe the pain precisely.",
+   "example": "| Question | How it is formulated | Example |\n|---|---|---|\n| What | the defect, in one noun phrase | invoices returned for correction |\n| Where | the process and place | UK billing, order to invoice |\n| When | the period, or since when | January to June 2026 |\n| Who | who is affected | client finance teams, credit control |\n| Why | why it matters to them | wrong amounts delay payment and trust |\n| How | how the defect shows up | clients return the invoice or dispute it |\n| How much | the size, against a requirement | 12% of invoices, against 3% elsewhere |",
+   "prompt": "Let's answer the seven 5W2H questions for your project: What is happening? Where is it happening? When or since when? Who is affected? Why does it matter to them? How does the issue show up? How much — a rough number or size against a requirement?",
+   "progress": "Define · Step 4 of 13",
+   "move": "challenge",
+   "move_field": "problem_statement",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 12,
+  "why": "good answer",
+  "belt": "What: supplier invoices are paid after their 30-day terms. Where: the accounts payable team across our three hospital sites. When: every month since January 2026 — I measured January to June. Who: the suppliers, and the ward managers whose stock gets held. Why it matters: interest, lost discounts and supplier stops. How much: 23% of invoices were paid late over January to June 2026 — one measure, the late payment rate. How it shows: suppliers chase us by phone and email, and some put us on stop.",
+  "action": null,
+  "http": 200,
+  "seconds": 18.2,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence",
+   "grader"
+  ],
+  "move": "read_back",
+  "field": "problem_statement",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "critical_to_quality",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list"
+  },
+  "reply": {
+   "answer": "Here's the problem statement and 5W2H as you've described:\n\n**Problem Statement:** \"From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms — delaying payments to suppliers, causing £62,000 in late-payment interest and lost discounts last year, and leading to supplier stops that held up ward stock.\"\n\n**5W2H:**\n- What: supplier invoices are paid after their 30-day terms\n- Where: the accounts payable team across our three hospital sites\n- When: every month since January 2026 — measured January to June\n- Who: the suppliers, and the ward managers whose stock gets held\n- Why: interest, lost discounts, and supplier stops\n- How: suppliers chase us by phone and email, and some put us on stop\n- How much: 23% of invoices were paid late over January to June 2026 — one measure, the late payment rate\n\nIs this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 4 of 13",
+   "move": "read_back",
+   "move_field": "problem_statement",
+   "grader_warning": "My quality check flagged this reply as weaker than it should be. If it doesn't help, tell me and I'll try again.",
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "mindmap_5w2h",
+    "what": "supplier invoices are paid after their 30-day terms",
+    "where": "the accounts payable team across our three hospital sites",
+    "when": "every month since January 2026 — measured January to June",
+    "who_affected": "the suppliers, and the ward managers whose stock gets held",
+    "why": "interest, lost discounts, and supplier stops",
+    "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate",
+    "how_often": "suppliers chase us by phone and email, and some put us on stop",
+    "filled_count": 7,
+    "total_count": 7,
+    "confirmed": false,
+    "label": "not yet confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 13,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 15.2,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "baseline_estimate",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "problem_statement",
+  "stored_keys": [
+   "business_case",
+   "critical_to_quality",
+   "problem_5w2h",
+   "problem_statement",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict"
+  },
+  "reply": {
+   "answer": "Stored: Problem statement from 5W2H.\n\nNow let's move to the next step: identifying the baseline estimate. This is about defining the project's primary metric — the one measure of the defect that will say whether the project succeeded — and where it stands today. Any other measures you track are registered as secondary.\n\n**What it is:** The project's ONE primary metric — the measure of the defect that says whether the project succeeded — and where it stands today. Any other measure you track is registered too, as secondary.\n\n**Why it matters:** One primary metric keeps the project focused and is how victory is claimed. It links the project to a business measure (a KPI) people already watch, and it must rest on real data, because a best guess cannot be checked.\n\n**Illustration:** \"Primary metric: invoice error rate — %, the share of invoices returned by clients for correction. Baseline: 12%, January to June 2026, from the collections log. It feeds the finance KPI days-sales-outstanding.\"\n\n**Ask:** What is the one measure of the defect that will say whether the project succeeded? What unit is it in, what exactly does it count, and which business KPI does it feed? Where does it stand today — and which data is that number from?",
+   "explanation": "Baseline estimate: the project's primary metric and its current value.",
+   "example": "Primary metric: invoice error rate — %, the share of invoices returned by clients for correction. Baseline: 12%, January to June 2026, from the collections log. It feeds the finance KPI days-sales-outstanding.",
+   "prompt": "What is the one measure of the defect that will say whether the project succeeded? What unit is it in, what exactly does it count, and which business KPI does it feed? Where does it stand today — and which data is that number from?",
+   "progress": "Define · Step 5 of 13",
+   "move": "store_and_advance",
+   "move_field": "baseline_estimate",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "mindmap_5w2h",
+    "what": "supplier invoices are paid after their 30-day terms",
+    "where": "the accounts payable team across our three hospital sites",
+    "when": "every month since January 2026 — measured January to June",
+    "who_affected": "the suppliers, and the ward managers whose stock gets held",
+    "why": "interest, lost discounts, and supplier stops",
+    "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate",
+    "how_often": "suppliers chase us by phone and email, and some put us on stop",
+    "filled_count": 7,
+    "total_count": 7,
+    "confirmed": true,
+    "label": "confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "problem_statement",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 14,
+  "why": "good answer",
+  "belt": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days.",
+  "action": null,
+  "http": 200,
+  "seconds": 14.8,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "baseline_estimate",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "critical_to_quality",
+   "problem_5w2h",
+   "problem_statement",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict"
+  },
+  "reply": {
+   "answer": "Here's the baseline estimate as you described:\n\n- **Primary Metric:** Late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date.\n- **Baseline:** About 23% today, from the AP ledger for January to June 2026.\n- **Linked KPI:** Finance KPI, creditor days.\n\nIs this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 5 of 13",
+   "move": "read_back",
+   "move_field": "baseline_estimate",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "visual_check": {
+   "field": "baseline_estimate",
+   "present": false,
+   "not_yet_confirmed": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 15,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 14.7,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "baseline_estimate",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": null,
+  "stored_keys": [
+   "business_case",
+   "critical_to_quality",
+   "problem_5w2h",
+   "problem_statement",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict"
+  },
+  "reply": {
+   "answer": "Nothing was stored for Primary metric and baseline yet: the read-back did not include the baseline estimate and the metric definitions. Please check the version below.\n\nHere's the baseline estimate as you described:\n\n- **Primary Metric:** Late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date.\n- **Baseline:** About 23% today, from the AP ledger for January to June 2026.\n- **Linked KPI:** Finance KPI, creditor days.\n\nIs this right?\n\nRead as a number — Primary metric and baseline: 23%",
+   "explanation": "The baseline estimate defines the project's primary metric and its current value, linking it to a KPI and ensuring it rests on real data.",
+   "example": "Primary metric: invoice error rate — %, the share of invoices returned by clients for correction. Baseline: 12%, January to June 2026, from the collections log. It feeds the finance KPI days-sales-outstanding.",
+   "prompt": "What is the one measure of the defect that will say whether the project succeeded? What unit is it in, what exactly does it count, and which business KPI does it feed? Where does it stand today — and which data is that number from?",
+   "progress": "Define · Step 5 of 13",
+   "move": "read_back",
+   "move_field": "baseline_estimate",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": null,
+    "direction": "equal",
+    "target_date": null,
+    "confirmed": false,
+    "label": "not yet confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "visual_check": {
+   "field": "baseline_estimate",
+   "present": true,
+   "not_yet_confirmed": true
+  },
+  "confirm_check": {
+   "field": "baseline_estimate",
+   "advanced": false,
+   "stored": false,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 16,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 13.6,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "project_scope",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "baseline_estimate",
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list"
+  },
+  "reply": {
+   "answer": "Stored: Primary metric and baseline.",
+   "explanation": "The project's boundaries: where the process starts and ends, what is in, and — just as important — what is out.",
+   "example": "In: UK invoice generation, from order received to invoice sent. Out: payment collection, non-UK regions, the pricing database.",
+   "prompt": "Where does your process start and end? What is deliberately out of scope?",
+   "progress": "Define · Step 6 of 13",
+   "move": "store_and_advance",
+   "move_field": "project_scope",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": null,
+    "direction": "equal",
+    "target_date": null,
+    "confirmed": true,
+    "label": "confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "baseline_estimate",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 17,
+  "why": "probe: where do we stand",
+  "belt": "Where do we stand?",
+  "action": null,
+  "http": 200,
+  "seconds": 15.6,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "respond",
+  "field": "project_scope",
+  "status": "asked",
+  "verdict": "not_an_answer",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list"
+  },
+  "reply": {
+   "answer": "Right now, you're in the Define phase, working on step 6 of 13 — project_scope. This step is about setting clear boundaries for your project: where the process starts and ends, what is in scope, and what is out of scope.",
+   "explanation": "Project scope sets the boundaries of what the team will and will not address, keeping the work focused.",
+   "example": "In: UK invoice generation, from order received to invoice sent. Out: payment collection, non-UK regions, the pricing database.",
+   "prompt": "Where does your process start and end? What is deliberately out of scope?",
+   "progress": "Define · Step 6 of 13",
+   "move": "respond",
+   "move_field": "project_scope",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 18,
+  "why": "good answer",
+  "belt": "In scope: invoice receipt to payment release for purchase-order invoices at our three hospital sites. Out of scope: non-PO invoices, payroll, procurement tendering, and the ERP system itself.",
+  "action": null,
+  "http": 200,
+  "seconds": 16.5,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "project_scope",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list"
+  },
+  "reply": {
+   "answer": "Here's the project scope as you described:\n\n- **In Scope:** Invoice receipt to payment release for purchase-order invoices at our three hospital sites.\n- **Out of Scope:** Non-PO invoices, payroll, procurement tendering, and the ERP system itself.\n\nIs this right?",
+   "explanation": "The project's boundaries: where the process starts and ends, what is in, and — just as important — what is out.",
+   "example": "In: UK invoice generation, from order received to invoice sent. Out: payment collection, non-UK regions, the pricing database.",
+   "prompt": "Where does your process start and end? What is deliberately out of scope?",
+   "progress": "Define · Step 6 of 13",
+   "move": "read_back",
+   "move_field": "project_scope",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 19,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 16.1,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "goal_statement",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "project_scope",
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict"
+  },
+  "reply": {
+   "answer": "Stored: Scope.\n\nNow let's move on to the next step: defining the goal statement. This is about setting the improvement target for your project. The goal statement describes how much improvement you aim to achieve on the primary metric, and by when. It mirrors the problem statement, using the same metric, so everyone knows when \"done\" means success.\n\n**What it is:** The objective statement: how much improvement the project will deliver, on the primary metric, by when.\n\n**Why it matters:** It makes success unambiguous. It mirrors the problem — same metric — so everyone knows what \"done\" means.\n\n**Illustration:** \"Reduce the invoice error rate from 12% to under 3% by 30 September 2026.\"\n\n**Ask:** Taking your primary metric — from where to where, and by when?",
+   "explanation": "The goal statement sets the improvement target for the project, using the primary metric from the problem statement.",
+   "example": "\"Reduce the invoice error rate from 12% to under 3% by 30 September 2026.\"",
+   "prompt": "Taking your primary metric — from where to where, and by when?",
+   "progress": "Define · Step 7 of 13",
+   "move": "store_and_advance",
+   "move_field": "goal_statement",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "project_scope",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 20,
+  "why": "good answer",
+  "belt": "Reduce the late payment rate from 23% to under 5% by 31 March 2027.",
+  "action": null,
+  "http": 200,
+  "seconds": 16.3,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "goal_statement",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict"
+  },
+  "reply": {
+   "answer": "Reduce the late payment rate from 23% to under 5% by 31 March 2027. Is this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 7 of 13",
+   "move": "read_back",
+   "move_field": "goal_statement",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": 5.0,
+    "direction": "below",
+    "target_date": null,
+    "confirmed": false,
+    "label": "not yet confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "visual_check": {
+   "field": "goal_statement",
+   "present": true,
+   "not_yet_confirmed": true
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 21,
+  "why": "probe: typed correction",
+  "belt": "Nearly — reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.",
+  "action": null,
+  "http": 200,
+  "seconds": 16.5,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "goal_statement",
+  "status": "answered",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict"
+  },
+  "reply": {
+   "answer": "Reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that. Is this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 7 of 13",
+   "move": "read_back",
+   "move_field": "goal_statement",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": 5.0,
+    "direction": "below",
+    "target_date": null,
+    "confirmed": false,
+    "label": "not yet confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "visual_check": {
+   "field": "goal_statement",
+   "present": true,
+   "not_yet_confirmed": true
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 22,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 16.2,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "target_value",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "goal_statement",
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str"
+  },
+  "reply": {
+   "answer": "Stored: Goal (objective).\n\nNow let's move on to the next step: defining the target value. This is about setting the improvement target as a number — the value of the primary metric that says \"done.\" The target value is carried forward to the Control phase, where it is compared against the achieved results.\n\n**What it is:** The target as a number — the value of the primary metric that says \"done.\"\n\n**Why it matters:** It is carried to Control, which compares what you achieved against it. Only a number in the same unit as the baseline can be compared.\n\n**Illustration:** \"Invoice error rate: under 3%.\"\n\n**Ask:** What is the target figure for your primary metric, in the same unit as the baseline?",
+   "explanation": "The target value is the improvement target as a number, carried forward to Control to compare against achieved results.",
+   "example": "Invoice error rate: under 3%.",
+   "prompt": "What is the target figure for your primary metric, in the same unit as the baseline?",
+   "progress": "Define · Step 8 of 13",
+   "move": "store_and_advance",
+   "move_field": "target_value",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": 5.0,
+    "direction": "below",
+    "target_date": null,
+    "confirmed": true,
+    "label": "confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "goal_statement",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 23,
+  "why": "good answer",
+  "belt": "Late payment rate: under 5% of supplier invoices.",
+  "action": null,
+  "http": 200,
+  "seconds": 15.1,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "target_value",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str"
+  },
+  "reply": {
+   "answer": "Late payment rate: under 5% of supplier invoices. Is this right?\n\nRead as a number — Target: at most 5%",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 8 of 13",
+   "move": "read_back",
+   "move_field": "target_value",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": 5.0,
+    "direction": "below",
+    "target_date": null,
+    "confirmed": false,
+    "label": "not yet confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "visual_check": {
+   "field": "target_value",
+   "present": true,
+   "not_yet_confirmed": true
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 24,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 17.9,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "target_date",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "target_value",
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict"
+  },
+  "reply": {
+   "answer": "Stored: Target.\n\nNow let's move to the next step: defining the target completion date. This is about setting the date your project plans to finish. It makes the project a project rather than an intention, and if the date slips, that does not change whether the improvement worked.\n\n**What it is:** The date the project plans to finish.\n\n**Why it matters:** A stated date makes the project a project rather than an intention. If it slips, that does not change whether the improvement worked.\n\n**Illustration:** \"30 September 2026.\"\n\n**Ask:** What is your planned completion date?",
+   "explanation": "Set the date your project plans to finish.",
+   "example": "30 September 2026.",
+   "prompt": "What is your planned completion date?",
+   "progress": "Define · Step 9 of 13",
+   "move": "store_and_advance",
+   "move_field": "target_date",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": 5.0,
+    "direction": "below",
+    "target_date": null,
+    "confirmed": true,
+    "label": "confirmed"
+   }
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "target_value",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 25,
+  "why": "good answer",
+  "belt": "We plan to finish the project by 31 March 2027 (2027-03-31).",
+  "action": null,
+  "http": 200,
+  "seconds": 17.7,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "target_date",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict"
+  },
+  "reply": {
+   "answer": "We plan to finish the project by 31 March 2027 (2027-03-31). Is this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 9 of 13",
+   "move": "read_back",
+   "move_field": "target_date",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 26,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 18.5,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "benefits_analysis",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "target_date",
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str"
+  },
+  "reply": {
+   "answer": "Stored: Target date.\n\nNow let's move to the next step: the benefits analysis. This step is about quantifying the project's value in financial terms — what the gap costs today, whether the saving is sustainable (every year) or one-off, when the money will start showing, and who in finance validates the figure.\n\n**What it is:** The benefits analysis: what the gap costs today (the cost of poor quality), whether the gain is sustainable (every year) or one-off, when the money will be realised, and who in finance validates the figure.\n\n**Why it matters:** It establishes the value of the project in terms finance will accept. A figure a finance representative has checked is one the champion can defend.\n\n**Illustration:** \"Cost of the gap: about €11k a year in rework (4,200 invoices, 12% → 3%, about €30 each), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from Q4 2026, about €2.7k a quarter. Finance contact: Priya Shah, management accountant.\"\n\n**Ask:** What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When would it start to show, period by period? Who in finance will validate it?",
+   "explanation": "The benefits analysis quantifies the project's value in financial terms, making it defensible to stakeholders.",
+   "example": "Cost of the gap: about €11k a year in rework (4,200 invoices, 12% → 3%, about €30 each), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from Q4 2026, about €2.7k a quarter. Finance contact: Priya Shah, management accountant.",
+   "prompt": "What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When would it start to show, period by period? Who in finance will validate it?",
+   "progress": "Define · Step 10 of 13",
+   "move": "store_and_advance",
+   "move_field": "benefits_analysis",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "target_date",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 27,
+  "why": "probe: savings figures",
+  "belt": "Roughly, each late invoice costs us about £9 in interest and lost discount, and we pay around 42,000 supplier invoices a year.",
+  "action": null,
+  "http": 200,
+  "seconds": 20.2,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "challenge",
+  "field": "benefits_analysis",
+  "status": "asked",
+  "verdict": "insufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str"
+  },
+  "reply": {
+   "answer": "Your answer provides a cost estimate, which is a great start. However, it is missing key details required for the benefits analysis to meet the acceptance criteria. Specifically, we need:\n\n1. **Impact type:** Is the saving sustainable (every year) or one-off?\n2. **Realisation schedule:** When would the savings start to show, period by period?\n3. **Finance contact:** Who in finance will validate this figure?\n\nCan you provide those details?",
+   "explanation": "The benefits analysis quantifies the project's financial value, ensuring it is defensible and validated by finance.",
+   "example": "Cost of the gap: about €11k a year in rework (4,200 invoices, 12% → 3%, about €30 each), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from Q4 2026, about €2.7k a quarter. Finance contact: Priya Shah, management accountant.",
+   "prompt": "What is the impact type (sustainable or one-off)? When would the savings start to show, period by period? Who in finance will validate this figure?",
+   "progress": "Define · Step 10 of 13",
+   "move": "challenge",
+   "move_field": "benefits_analysis",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 28,
+  "why": "good answer",
+  "belt": "Cost of the gap: about £68,000 a year in interest and lost discounts, from the savings calculation. It is sustainable — every year, not one-off. It would start in Q2 2027 at about £17,000 a quarter. Our finance contact is Sam Reid, management accountant, who will validate it.",
+  "action": null,
+  "http": 200,
+  "seconds": 21.4,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence",
+   "grader"
+  ],
+  "move": "read_back",
+  "field": "benefits_analysis",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str"
+  },
+  "reply": {
+   "answer": "Here's the benefits analysis as you described:\n\n- **Cost of the Gap:** About £68,000 a year in interest and lost discounts, from the savings calculation.\n- **Impact Type:** Sustainable — every year, not one-off.\n- **Realisation Schedule:** It would start in Q2 2027 at about £17,000 a quarter.\n- **Finance Contact:** Sam Reid, management accountant, who will validate it.\n\nIs this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 10 of 13",
+   "move": "read_back",
+   "move_field": "benefits_analysis",
+   "grader_warning": "My quality check flagged this reply as weaker than it should be. If it doesn't help, tell me and I'll try again.",
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 29,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 18.3,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "secondary_metrics",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "benefits_analysis",
+  "stored_keys": [
+   "baseline_estimate",
+   "benefits_analysis",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str",
+   "benefits_analysis": "dict"
+  },
+  "reply": {
+   "answer": "Stored: Benefits analysis.\n\nNow let's move to the next step: identifying secondary metrics. This step is about naming what else could change — usually for the worse — when the primary metric improves. Almost every fix pushes something else, and watching these metrics ensures you don't solve one problem by creating another.\n\n**What it is:** The secondary metrics: what else could change — usually for the worse — when the primary metric improves.\n\n**Why it matters:** Almost every fix pushes something else. Watching it is how you avoid solving one problem by creating another. Charting these over time is Measure's job; here we only name them.\n\n**Illustration:** \"Invoice cycle time (extra checks could slow it), billing team overtime, and client satisfaction with invoicing.\"\n\n**Ask:** If your fix works, what else might it affect? What will you watch to be sure you haven't traded one problem for another?",
+   "explanation": "Secondary metrics identify potential side effects of improving the primary metric.",
+   "example": "\"Invoice cycle time (extra checks could slow it), billing team overtime, and client satisfaction with invoicing.\"",
+   "prompt": "If your fix works, what else might it affect? What will you watch to be sure you haven't traded one problem for another?",
+   "progress": "Define · Step 11 of 13",
+   "move": "store_and_advance",
+   "move_field": "secondary_metrics",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "benefits_analysis",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 30,
+  "why": "good answer",
+  "belt": "Two things must not get worse: the number of supplier payment queries the AP team handles each month, and AP staff overtime hours. Both should stay at or below today's levels.",
+  "action": null,
+  "http": 200,
+  "seconds": 19.3,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "secondary_metrics",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "benefits_analysis",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str",
+   "benefits_analysis": "dict"
+  },
+  "reply": {
+   "answer": "Two things must not get worse: the number of supplier payment queries the AP team handles each month, and AP staff overtime hours. Both should stay at or below today's levels. Is this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 11 of 13",
+   "move": "read_back",
+   "move_field": "secondary_metrics",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 31,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 29.0,
+  "model_calls": [
+   "coach",
+   "other",
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "process_map_sipoc",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "secondary_metrics",
+  "stored_keys": [
+   "baseline_estimate",
+   "benefits_analysis",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "secondary_metrics",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str",
+   "benefits_analysis": "dict",
+   "secondary_metrics": "str"
+  },
+  "reply": {
+   "answer": "Stored: Secondary metrics.\n\nLet's work on the SIPOC diagram, which gives a high-level view of your process as it runs today. It maps Suppliers, Inputs, Process steps, Outputs, and Customers on one page. This helps the team agree on where it starts and ends, who provides what goes in, what comes out, and who receives it.\n\n**Why it matters:** It puts the whole process on one page, so the team agrees where it starts and ends and who it serves. It maps the process as it IS, not as it should be — an ideal map hides the problem.\n\n**Illustration:**\n| Suppliers      | Inputs          | Process Steps       | Outputs       | Customers          |\n|----------------|-----------------|---------------------|---------------|--------------------|\n| Sales team     | Signed order    | 1. Receive order    | Invoice (PDF) | Client finance team|\n| Pricing database| Price list     | 2. Look up prices   | Payment request| Credit control     |\n| Client         | Client details  | 3. Generate invoice | Audit record  |                    |\n|                |                 | 4. Review and approve|              |                    |\n|                |                 | 5. Send to client   |               |                    |\n\nEach part is formulated as follows: suppliers are who provides; inputs and outputs are things (nouns); each process step starts with a verb; customers are who receives the outputs. Measured on the outputs: invoice error rate, cycle time.\n\n**Ask:** Let's build yours as it runs today: the main steps from start to end, then who supplies what goes in, what comes out, and who receives it. What do you measure on those outputs? You can also upload a map if you have one.",
+   "explanation": "",
+   "example": "| Suppliers      | Inputs          | Process Steps       | Outputs       | Customers          |\n|----------------|-----------------|---------------------|---------------|--------------------|\n| Sales team     | Signed order    | 1. Receive order    | Invoice (PDF) | Client finance team|\n| Pricing database| Price list     | 2. Look up prices   | Payment request| Credit control     |\n| Client         | Client details  | 3. Generate invoice | Audit record  |                    |\n|                |                 | 4. Review and approve|              |                    |\n|                |                 | 5. Send to client   |               |                    |",
+   "prompt": "Let's build your SIPOC as it runs today. What are the main steps from start to end, who supplies what goes in, what comes out, and who receives it? What do you measure on those outputs?",
+   "progress": "Define · Step 12 of 13",
+   "move": "store_and_advance",
+   "move_field": "process_map_sipoc",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "secondary_metrics",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "upload",
+  "http": 200,
+  "seconds": 5.2,
+  "model_calls": [
+   "other"
+  ],
+  "body": {
+   "file": {
+    "file_id": "7135663eef47b725",
+    "filename": "ap_late_payments_jan_jun_2026.csv",
+    "phase": "define",
+    "purpose": "Data file",
+    "blob_url": "uploads/IMPR-2026-84B/ap_late_payments_jan_jun_2026.csv",
+    "uploaded_at": "2026-09-29T11:40:15.473641+00:00",
+    "uploaded_by": "define-runthrough-6.66",
+    "size_bytes": 171
+   },
+   "blob_path": "uploads/IMPR-2026-84B/ap_late_payments_jan_jun_2026.csv",
+   "filename": "ap_late_payments_jan_jun_2026.csv",
+   "content_type": "spreadsheet",
+   "summary": "[!] INTERPRETATION UNAVAILABLE — 'ap_late_payments_jan_jun_2026.csv' was read and its structure recorded (table, 4 columns, 6 rows), but the description of what it CONTAINS did not run. Nothing here says what is in this file. Ask the team what it shows; do not treat this line as a summary of it.",
+   "sipoc_columns": null,
+   "indexed": true,
+   "kind": "evidence",
+   "role": "baseline defect data",
+   "shape_match": "unsolicited",
+   "missing_columns": [],
+   "content_digest": "5246bdab2fae86e9978bc08d181a753d6cf1ab52dbb13f027dafbe3cd65b953f",
+   "version": 1,
+   "ask_id": null,
+   "evidence_index_id": "0907bb2ea200b53f0f3b1c55e3376003",
+   "structure": "table",
+   "columns": [
+    "month",
+    "invoices",
+    "paid_late",
+    "late_rate_pct"
+   ],
+   "row_count": 6,
+   "column_types": {
+    "month": "text",
+    "invoices": "whole number",
+    "paid_late": "whole number",
+    "late_rate_pct": "decimal"
+   },
+   "column_ranges": {
+    "month": {
+     "count": 6,
+     "empty": 0,
+     "distinct": 6,
+     "examples": [
+      "2026-01",
+      "2026-02",
+      "2026-03",
+      "2026-04",
+      "2026-05",
+      "2026-06"
+     ]
+    },
+    "invoices": {
+     "count": 6,
+     "empty": 0,
+     "min": 3390,
+     "max": 3620
+    },
+    "paid_late": {
+     "count": 6,
+     "empty": 0,
+     "min": 770,
+     "max": 850
+    },
+    "late_rate_pct": {
+     "count": 6,
+     "empty": 0,
+     "min": 22.5,
+     "max": 23.5
+    }
+   },
+   "interpretation": {
+    "summary": "[!] INTERPRETATION UNAVAILABLE — 'ap_late_payments_jan_jun_2026.csv' was read and its structure recorded (table, 4 columns, 6 rows), but the description of what it CONTAINS did not run. Nothing here says what is in this file. Ask the team what it shows; do not treat this line as a summary of it.",
+    "supports": [],
+    "caveats": [
+     "The automatic description of this file did not run — its contents have not been summarised by anything."
+    ],
+    "source_filename": "ap_late_payments_jan_jun_2026.csv",
+    "source_blob_path": "uploads/IMPR-2026-84B/ap_late_payments_jan_jun_2026.csv"
+   },
+   "used_by_coach": true,
+   "message": null
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 32,
+  "why": "good answer",
+  "belt": "Suppliers: our medical and general suppliers, and the purchasing team who raise the purchase orders. Inputs: supplier invoices, purchase orders and goods-received notes. Process: receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment. Outputs: paid invoices and remittance advice. Customers: the suppliers, and our ward managers who rely on their deliveries. Process metrics: days from invoice receipt to payment release, and the share of invoices with a match exception.",
+  "action": null,
+  "http": 200,
+  "seconds": 22.3,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence",
+   "grader"
+  ],
+  "move": "read_back",
+  "field": "process_map_sipoc",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "benefits_analysis",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "project_scope",
+   "secondary_metrics",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str",
+   "benefits_analysis": "dict",
+   "secondary_metrics": "str"
+  },
+  "reply": {
+   "answer": "Here's the SIPOC map as you described:\n\n- **Suppliers:** Our medical and general suppliers, and the purchasing team who raise the purchase orders.\n- **Inputs:** Supplier invoices, purchase orders, and goods-received notes.\n- **Process Steps:** Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment.\n- **Outputs:** Paid invoices and remittance advice.\n- **Customers:** The suppliers, and our ward managers who rely on their deliveries.\n- **Process Metrics:** Days from invoice receipt to payment release, and the share of invoices with a match exception.\n\nIs this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 12 of 13",
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "grader_warning": null,
+   "sipoc_diagram": {
+    "suppliers": [
+     "Our medical and general suppliers, and the purchasing team who raise the purchase orders."
+    ],
+    "inputs": [
+     "Supplier invoices, purchase orders, and goods-received notes."
+    ],
+    "process_steps": [
+     "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment."
+    ],
+    "outputs": [
+     "Paid invoices and remittance advice."
+    ],
+    "customers": [
+     "The suppliers, and our ward managers who rely on their deliveries."
+    ],
+    "draft": true,
+    "source": "generated",
+    "confirmed": false,
+    "label": "not yet confirmed"
+   },
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "visual_check": {
+   "field": "process_map_sipoc",
+   "present": true,
+   "not_yet_confirmed": true
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 33,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 20.9,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": "issues_and_barriers",
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "process_map_sipoc",
+  "stored_keys": [
+   "baseline_estimate",
+   "benefits_analysis",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "process_map_sipoc",
+   "project_scope",
+   "secondary_metrics",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str",
+   "benefits_analysis": "dict",
+   "secondary_metrics": "str",
+   "process_map_sipoc": "dict"
+  },
+  "reply": {
+   "answer": "Stored: High-level process (SIPOC, as-is).\n\nNow let's move to the final step of the Define phase: identifying issues and barriers. This is about naming what could get in the way of your project — data, people, systems, or time.\n\n**What it is:** The issues and barriers: what could get in the way of the project — data, people, systems, time.\n\n**Why it matters:** Naming roadblocks now is what separates projects that finish from projects that stall. The usual ones: no historical data, no time to collect it, figures that are only a best guess, poor systems, a scope that is too broad.\n\n**Illustration:** \"No clean historical error data before January — we may need to collect it. Two team members on leave in August. The pricing database is owned by IT, so any change needs their sign-off.\"\n\n**Ask:** What could get in the way — data, people, systems, time? If genuinely none, \"none identified at this stage\" is a fine answer, but have a think first.",
+   "explanation": "Identify potential roadblocks — data, people, systems, or time — that could hinder the project.",
+   "example": "\"No clean historical error data before January — we may need to collect it. Two team members on leave in August. The pricing database is owned by IT, so any change needs their sign-off.\"",
+   "prompt": "What could get in the way — data, people, systems, time? If genuinely none, \"none identified at this stage\" is a fine answer, but have a think first.",
+   "progress": "Define · Step 13 of 13",
+   "move": "store_and_advance",
+   "move_field": "issues_and_barriers",
+   "grader_warning": null,
+   "sipoc_diagram": {
+    "suppliers": [
+     "Our medical and general suppliers, and the purchasing team who raise the purchase orders."
+    ],
+    "inputs": [
+     "Supplier invoices, purchase orders, and goods-received notes."
+    ],
+    "process_steps": [
+     "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment."
+    ],
+    "outputs": [
+     "Paid invoices and remittance advice."
+    ],
+    "customers": [
+     "The suppliers, and our ward managers who rely on their deliveries."
+    ],
+    "draft": false,
+    "source": "generated",
+    "confirmed": true,
+    "label": "confirmed"
+   },
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "process_map_sipoc",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "turn",
+  "n": 34,
+  "why": "good answer",
+  "belt": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter.",
+  "action": null,
+  "http": 200,
+  "seconds": 20.9,
+  "model_calls": [
+   "planner-judgment",
+   "coach",
+   "coherence"
+  ],
+  "move": "read_back",
+  "field": "issues_and_barriers",
+  "status": "asked",
+  "verdict": "sufficient",
+  "stored_field": null,
+  "stored_keys": [
+   "baseline_estimate",
+   "benefits_analysis",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "process_map_sipoc",
+   "project_scope",
+   "secondary_metrics",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str",
+   "benefits_analysis": "dict",
+   "secondary_metrics": "str",
+   "process_map_sipoc": "dict"
+  },
+  "reply": {
+   "answer": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter. Is this right?",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 13 of 13",
+   "move": "read_back",
+   "move_field": "issues_and_barriers",
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null
+ },
+ {
+  "kind": "turn",
+  "n": 35,
+  "why": "confirm click",
+  "belt": "Confirm",
+  "action": "confirm",
+  "http": 200,
+  "seconds": 19.9,
+  "model_calls": [
+   "coach",
+   "coherence"
+  ],
+  "move": "store_and_advance",
+  "field": null,
+  "status": "answered",
+  "verdict": null,
+  "stored_field": "issues_and_barriers",
+  "stored_keys": [
+   "baseline_estimate",
+   "benefits_analysis",
+   "business_case",
+   "critical_to_quality",
+   "goal_statement",
+   "issues_and_barriers",
+   "metric_definitions",
+   "problem_5w2h",
+   "problem_statement",
+   "process_map_sipoc",
+   "project_scope",
+   "secondary_metrics",
+   "target_date",
+   "target_value",
+   "team",
+   "voc_summary"
+  ],
+  "stored_types": {
+   "business_case": "str",
+   "team": "list",
+   "voc_summary": "str",
+   "critical_to_quality": "list",
+   "problem_statement": "str",
+   "problem_5w2h": "dict",
+   "baseline_estimate": "dict",
+   "metric_definitions": "list",
+   "project_scope": "dict",
+   "goal_statement": "str",
+   "target_value": "dict",
+   "target_date": "str",
+   "benefits_analysis": "dict",
+   "secondary_metrics": "str",
+   "process_map_sipoc": "dict",
+   "issues_and_barriers": "str"
+  },
+  "reply": {
+   "answer": "Stored: Issues and barriers.\n\nEvery field of the Define phase is now confirmed, and the gate document is ready for your review. You and your team can read through the Define report, approve it, or name what needs to change. If approved, we move forward; if changes are needed, we'll revisit those parts together.",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": "Define · Step 13 of 13",
+   "move": "store_and_advance",
+   "move_field": null,
+   "grader_warning": null,
+   "sipoc_diagram": null,
+   "visualisation": null
+  },
+  "gate_status": {
+   "phase": "define",
+   "passed": false,
+   "attempts": 0,
+   "missing_fields": []
+  },
+  "fallback": false,
+  "error": null,
+  "confirm_check": {
+   "field": "issues_and_barriers",
+   "advanced": true,
+   "stored": true,
+   "lost": false
+  }
+ },
+ {
+  "kind": "gate_review",
+  "http": 200,
+  "body": {
+   "phase": "define",
+   "passed": true,
+   "missing_fields": [],
+   "fields": [
+    {
+     "field": "business_case",
+     "label": "business case",
+     "tier": 1,
+     "value": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+     "present": true,
+     "structured": false
+    },
+    {
+     "field": "team",
+     "label": "team",
+     "tier": 1,
+     "value": [
+      {
+       "name": "Priya Shah",
+       "role": "Leader",
+       "function": "Green Belt, running it day to day"
+      },
+      {
+       "name": "Tom Okafor",
+       "role": "Sponsor",
+       "function": "Finance Director, who signs off and clears blockers"
+      },
+      {
+       "name": "Lena Hart",
+       "role": "Process Owner",
+       "function": "Accounts Payable Manager"
+      },
+      {
+       "name": "Dev Patel",
+       "role": "Member",
+       "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+      },
+      {
+       "name": "Amira Khan",
+       "role": "Member",
+       "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+      }
+     ],
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "voc_summary",
+     "label": "voc summary",
+     "tier": 1,
+     "value": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+     "present": true,
+     "structured": false
+    },
+    {
+     "field": "problem_statement",
+     "label": "problem statement",
+     "tier": 1,
+     "value": "From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms — delaying payments to suppliers, causing £62,000 in late-payment interest and lost discounts last year, and leading to supplier stops that held up ward stock.",
+     "present": true,
+     "structured": false
+    },
+    {
+     "field": "baseline_estimate",
+     "label": "baseline estimate",
+     "tier": 1,
+     "value": {
+      "value": 23.0,
+      "unit": "%",
+      "direction": null,
+      "is_estimate": false,
+      "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+     },
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "project_scope",
+     "label": "project scope",
+     "tier": 1,
+     "value": {
+      "in_scope": "invoice receipt to payment release for purchase-order invoices at our three hospital sites",
+      "out_scope": "non-PO invoices, payroll, procurement tendering, and the ERP system itself"
+     },
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "goal_statement",
+     "label": "goal statement",
+     "tier": 1,
+     "value": "Reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.",
+     "present": true,
+     "structured": false
+    },
+    {
+     "field": "target_value",
+     "label": "target value",
+     "tier": 1,
+     "value": {
+      "value": 5.0,
+      "unit": "%",
+      "direction": "<=",
+      "is_estimate": false,
+      "raw": "Late payment rate: under 5% of supplier invoices."
+     },
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "target_date",
+     "label": "target date",
+     "tier": 1,
+     "value": "We plan to finish the project by 31 March 2027 (2027-03-31).",
+     "present": true,
+     "structured": false
+    },
+    {
+     "field": "benefits_analysis",
+     "label": "benefits analysis",
+     "tier": 1,
+     "value": {
+      "cost_of_gap": "About £68,000 a year in interest and lost discounts, from the savings calculation.",
+      "impact_type": "Sustainable — every year, not one-off.",
+      "realisation_schedule": "It would start in Q2 2027 at about £17,000 a quarter.",
+      "finance_contact": "Sam Reid, management accountant, who will validate it."
+     },
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "secondary_metrics",
+     "label": "secondary metrics",
+     "tier": 1,
+     "value": "Two things must not get worse: the number of supplier payment queries the AP team handles each month, and AP staff overtime hours. Both should stay at or below today's levels.",
+     "present": true,
+     "structured": false
+    },
+    {
+     "field": "process_map_sipoc",
+     "label": "process map sipoc",
+     "tier": 1,
+     "value": {
+      "suppliers": "Our medical and general suppliers, and the purchasing team who raise the purchase orders.",
+      "inputs": "Supplier invoices, purchase orders, and goods-received notes.",
+      "process_steps": "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment.",
+      "outputs": "Paid invoices and remittance advice.",
+      "customers": "The suppliers, and our ward managers who rely on their deliveries.",
+      "process_metrics": "Days from invoice receipt to payment release, and the share of invoices with a match exception."
+     },
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "issues_and_barriers",
+     "label": "issues and barriers",
+     "tier": 1,
+     "value": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter.",
+     "present": true,
+     "structured": false
+    },
+    {
+     "field": "metric_definitions",
+     "label": "metric definitions",
+     "tier": 1,
+     "value": [
+      {
+       "name": "late_payment_rate",
+       "unit": "%",
+       "meaning": "The share of supplier invoices paid more than 30 days after the invoice date."
+      }
+     ],
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "critical_to_quality",
+     "label": "critical to quality",
+     "tier": 1,
+     "value": [
+      {
+       "customer": "Suppliers",
+       "need": "need paying on the agreed 30-day terms",
+       "requirement": "paid within 30 days of the invoice date on every invoice"
+      },
+      {
+       "customer": "Ward managers",
+       "need": "need stock to keep arriving",
+       "requirement": "no supplier puts us on stop in a quarter"
+      }
+     ],
+     "present": true,
+     "structured": true
+    },
+    {
+     "field": "problem_5w2h",
+     "label": "problem 5w2h",
+     "tier": 1,
+     "value": {
+      "what": "supplier invoices are paid after their 30-day terms",
+      "where": "the accounts payable team across our three hospital sites",
+      "when": "every month since January 2026 — measured January to June",
+      "who": "the suppliers, and the ward managers whose stock gets held",
+      "why": "interest, lost discounts, and supplier stops",
+      "how": "suppliers chase us by phone and email, and some put us on stop",
+      "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate"
+     },
+     "present": true,
+     "structured": true
+    }
+   ],
+   "acknowledged_gaps": [],
+   "document": {
+    "business_case": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+    "team": [
+     {
+      "name": "Priya Shah",
+      "role": "Leader",
+      "function": "Green Belt, running it day to day"
+     },
+     {
+      "name": "Tom Okafor",
+      "role": "Sponsor",
+      "function": "Finance Director, who signs off and clears blockers"
+     },
+     {
+      "name": "Lena Hart",
+      "role": "Process Owner",
+      "function": "Accounts Payable Manager"
+     },
+     {
+      "name": "Dev Patel",
+      "role": "Member",
+      "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+     },
+     {
+      "name": "Amira Khan",
+      "role": "Member",
+      "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+     }
+    ],
+    "voc_summary": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+    "problem_statement": "From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms — delaying payments to suppliers, causing £62,000 in late-payment interest and lost discounts last year, and leading to supplier stops that held up ward stock.",
+    "baseline_estimate": {
+     "value": 23.0,
+     "unit": "%",
+     "direction": null,
+     "is_estimate": false,
+     "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+    },
+    "project_scope": {
+     "in_scope": "invoice receipt to payment release for purchase-order invoices at our three hospital sites",
+     "out_scope": "non-PO invoices, payroll, procurement tendering, and the ERP system itself"
+    },
+    "goal_statement": "Reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.",
+    "target_value": {
+     "value": 5.0,
+     "unit": "%",
+     "direction": "<=",
+     "is_estimate": false,
+     "raw": "Late payment rate: under 5% of supplier invoices."
+    },
+    "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31).",
+    "benefits_analysis": {
+     "cost_of_gap": "About £68,000 a year in interest and lost discounts, from the savings calculation.",
+     "impact_type": "Sustainable — every year, not one-off.",
+     "realisation_schedule": "It would start in Q2 2027 at about £17,000 a quarter.",
+     "finance_contact": "Sam Reid, management accountant, who will validate it."
+    },
+    "secondary_metrics": "Two things must not get worse: the number of supplier payment queries the AP team handles each month, and AP staff overtime hours. Both should stay at or below today's levels.",
+    "process_map_sipoc": {
+     "suppliers": "Our medical and general suppliers, and the purchasing team who raise the purchase orders.",
+     "inputs": "Supplier invoices, purchase orders, and goods-received notes.",
+     "process_steps": "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment.",
+     "outputs": "Paid invoices and remittance advice.",
+     "customers": "The suppliers, and our ward managers who rely on their deliveries.",
+     "process_metrics": "Days from invoice receipt to payment release, and the share of invoices with a match exception."
+    },
+    "issues_and_barriers": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter.",
+    "critical_to_quality": [
+     {
+      "customer": "Suppliers",
+      "need": "need paying on the agreed 30-day terms",
+      "requirement": "paid within 30 days of the invoice date on every invoice"
+     },
+     {
+      "customer": "Ward managers",
+      "need": "need stock to keep arriving",
+      "requirement": "no supplier puts us on stop in a quarter"
+     }
+    ],
+    "problem_5w2h": {
+     "what": "supplier invoices are paid after their 30-day terms",
+     "where": "the accounts payable team across our three hospital sites",
+     "when": "every month since January 2026 — measured January to June",
+     "who": "the suppliers, and the ward managers whose stock gets held",
+     "why": "interest, lost discounts, and supplier stops",
+     "how": "suppliers chase us by phone and email, and some put us on stop",
+     "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate"
+    },
+    "metric_definitions": [
+     {
+      "name": "late_payment_rate",
+      "unit": "%",
+      "meaning": "The share of supplier invoices paid more than 30 days after the invoice date."
+     }
+    ],
+    "phase_metrics": [
+     {
+      "name": "late_payment_rate",
+      "unit": "%",
+      "baseline_estimate": {
+       "value": 23.0,
+       "unit": "%",
+       "direction": null,
+       "is_estimate": false,
+       "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+      },
+      "target_value": {
+       "value": 5.0,
+       "unit": "%",
+       "direction": "<=",
+       "is_estimate": false,
+       "raw": "Late payment rate: under 5% of supplier invoices."
+      },
+      "source": "stated"
+     }
+    ],
+    "computation_results": [],
+    "acknowledged_gaps": [],
+    "citations": [],
+    "uploads": [
+     {
+      "filename": "ap_late_payments_jan_jun_2026.csv",
+      "blob_path": "uploads/IMPR-2026-84B/ap_late_payments_jan_jun_2026.csv",
+      "uploaded_by": "define-runthrough-6.66",
+      "uploaded_at": "2026-09-29T11:40:15.473641+00:00",
+      "classification": "purpose=Data file · spreadsheet · indexed",
+      "rows": 6,
+      "role": "baseline defect data",
+      "shape_match": "unsolicited",
+      "content_digest": "5246bdab2fae86e9978bc08d181a753d6cf1ab52dbb13f027dafbe3cd65b953f",
+      "kind": "evidence",
+      "evidence_index_id": "0907bb2ea200b53f0f3b1c55e3376003",
+      "summary": "[!] INTERPRETATION UNAVAILABLE — 'ap_late_payments_jan_jun_2026.csv' was read and its structure recorded (table, 4 columns, 6 rows), but the description of what it CONTAINS did not run. Nothing here says what is in this file. Ask the team what it shows; do not treat this line as a summary of it.",
+      "interpretation": {
+       "summary": "[!] INTERPRETATION UNAVAILABLE — 'ap_late_payments_jan_jun_2026.csv' was read and its structure recorded (table, 4 columns, 6 rows), but the description of what it CONTAINS did not run. Nothing here says what is in this file. Ask the team what it shows; do not treat this line as a summary of it.",
+       "supports": [],
+       "caveats": [
+        "The automatic description of this file did not run — its contents have not been summarised by anything."
+       ],
+       "source_filename": "ap_late_payments_jan_jun_2026.csv",
+       "source_blob_path": "uploads/IMPR-2026-84B/ap_late_payments_jan_jun_2026.csv"
+      },
+      "used_by_coach": true,
+      "not_used_reason": null,
+      "refusal_reason": null,
+      "consumed_at": null,
+      "ask_id": null,
+      "version": 1
+     }
+    ]
+   },
+   "field_counts": {
+    "total": 16,
+    "tier_1": 16,
+    "tier_2": 0,
+    "captured": 16
+   },
+   "report": {
+    "sections": [
+     {
+      "n": 1,
+      "title": "Project and team",
+      "fields": [
+       "team"
+      ],
+      "complete": true,
+      "project": {
+       "case_id": "IMPR-2026-84B",
+       "title": "DEFINE RUN-THROUGH — step 6.66, do not use for other proofs",
+       "leader": "Priya Shah",
+       "belt_level": "green",
+       "department": "Finance — Accounts Payable",
+       "target_date": "2027-03-31"
+      },
+      "team": [
+       {
+        "name": "Priya Shah",
+        "role": "Leader",
+        "function": "Green Belt, running it day to day"
+       },
+       {
+        "name": "Tom Okafor",
+        "role": "Sponsor",
+        "function": "Finance Director, who signs off and clears blockers"
+       },
+       {
+        "name": "Lena Hart",
+        "role": "Process Owner",
+        "function": "Accounts Payable Manager"
+       },
+       {
+        "name": "Dev Patel",
+        "role": "Member",
+        "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+       },
+       {
+        "name": "Amira Khan",
+        "role": "Member",
+        "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+       }
+      ]
+     },
+     {
+      "n": 2,
+      "title": "Business case and benefits",
+      "fields": [
+       "business_case",
+       "benefits_analysis"
+      ],
+      "complete": true,
+      "business_case": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+      "benefits": {
+       "cost_of_gap": "About £68,000 a year in interest and lost discounts, from the savings calculation.",
+       "impact_type": "Sustainable — every year, not one-off.",
+       "realisation_schedule": "It would start in Q2 2027 at about £17,000 a quarter.",
+       "finance_contact": "Sam Reid, management accountant, who will validate it."
+      },
+      "savings": null
+     },
+     {
+      "n": 3,
+      "title": "Problem, objective and scope",
+      "fields": [
+       "problem_5w2h",
+       "problem_statement",
+       "goal_statement",
+       "project_scope"
+      ],
+      "complete": true,
+      "five_w_two_h": [
+       {
+        "key": "what",
+        "question": "What is going wrong?",
+        "answer": "supplier invoices are paid after their 30-day terms"
+       },
+       {
+        "key": "where",
+        "question": "Where?",
+        "answer": "the accounts payable team across our three hospital sites"
+       },
+       {
+        "key": "when",
+        "question": "When, or since when?",
+        "answer": "every month since January 2026 — measured January to June"
+       },
+       {
+        "key": "who",
+        "question": "Who is affected?",
+        "answer": "the suppliers, and the ward managers whose stock gets held"
+       },
+       {
+        "key": "why",
+        "question": "Why does it matter?",
+        "answer": "interest, lost discounts, and supplier stops"
+       },
+       {
+        "key": "how",
+        "question": "How does it show up?",
+        "answer": "suppliers chase us by phone and email, and some put us on stop"
+       },
+       {
+        "key": "how_much",
+        "question": "How much?",
+        "answer": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate"
+       }
+      ],
+      "problem_statement": "From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms — delaying payments to suppliers, causing £62,000 in late-payment interest and lost discounts last year, and leading to supplier stops that held up ward stock.",
+      "objective": "Reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.",
+      "scope": {
+       "in_scope": "invoice receipt to payment release for purchase-order invoices at our three hospital sites",
+       "out_scope": "non-PO invoices, payroll, procurement tendering, and the ERP system itself"
+      }
+     },
+     {
+      "n": 4,
+      "title": "Voice of the customer and CTQs",
+      "fields": [
+       "voc_summary",
+       "critical_to_quality"
+      ],
+      "complete": true,
+      "voc_summary": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+      "ctqs": [
+       {
+        "customer": "Suppliers",
+        "need": "need paying on the agreed 30-day terms",
+        "requirement": "paid within 30 days of the invoice date on every invoice"
+       },
+       {
+        "customer": "Ward managers",
+        "need": "need stock to keep arriving",
+        "requirement": "no supplier puts us on stop in a quarter"
+       }
+      ]
+     },
+     {
+      "n": 5,
+      "title": "Metrics",
+      "fields": [
+       "metric_definitions",
+       "baseline_estimate",
+       "target_value",
+       "target_date",
+       "secondary_metrics"
+      ],
+      "complete": true,
+      "primary": {
+       "name": "late_payment_rate",
+       "unit": "%",
+       "meaning": "The share of supplier invoices paid more than 30 days after the invoice date."
+      },
+      "baseline": "23%",
+      "target": "at most 5%",
+      "baseline_value": {
+       "value": 23.0,
+       "unit": "%",
+       "direction": null,
+       "is_estimate": false,
+       "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+      },
+      "target_value": {
+       "value": 5.0,
+       "unit": "%",
+       "direction": "<=",
+       "is_estimate": false,
+       "raw": "Late payment rate: under 5% of supplier invoices."
+      },
+      "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31).",
+      "secondary_metrics": "Two things must not get worse: the number of supplier payment queries the AP team handles each month, and AP staff overtime hours. Both should stay at or below today's levels.",
+      "other_registered": []
+     },
+     {
+      "n": 6,
+      "title": "High-level process (as-is)",
+      "fields": [
+       "process_map_sipoc"
+      ],
+      "complete": true,
+      "sipoc": {
+       "suppliers": "Our medical and general suppliers, and the purchasing team who raise the purchase orders.",
+       "inputs": "Supplier invoices, purchase orders, and goods-received notes.",
+       "process_steps": "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment.",
+       "outputs": "Paid invoices and remittance advice.",
+       "customers": "The suppliers, and our ward managers who rely on their deliveries.",
+       "process_metrics": "Days from invoice receipt to payment release, and the share of invoices with a match exception."
+      }
+     },
+     {
+      "n": 7,
+      "title": "Issues and barriers",
+      "fields": [
+       "issues_and_barriers"
+      ],
+      "complete": true,
+      "issues_and_barriers": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter."
+     }
+    ],
+    "complete": true,
+    "missing": [],
+    "elements": [
+     {
+      "field": "business_case",
+      "confirmed": true
+     },
+     {
+      "field": "team",
+      "confirmed": true
+     },
+     {
+      "field": "voc_summary",
+      "confirmed": true
+     },
+     {
+      "field": "problem_statement",
+      "confirmed": true
+     },
+     {
+      "field": "baseline_estimate",
+      "confirmed": true
+     },
+     {
+      "field": "project_scope",
+      "confirmed": true
+     },
+     {
+      "field": "goal_statement",
+      "confirmed": true
+     },
+     {
+      "field": "target_value",
+      "confirmed": true
+     },
+     {
+      "field": "target_date",
+      "confirmed": true
+     },
+     {
+      "field": "benefits_analysis",
+      "confirmed": true
+     },
+     {
+      "field": "secondary_metrics",
+      "confirmed": true
+     },
+     {
+      "field": "process_map_sipoc",
+      "confirmed": true
+     },
+     {
+      "field": "issues_and_barriers",
+      "confirmed": true
+     }
+    ],
+    "history": {},
+    "visuals": {
+     "mindmap_5w2h": {
+      "type": "mindmap_5w2h",
+      "what": "supplier invoices are paid after their 30-day terms",
+      "where": "the accounts payable team across our three hospital sites",
+      "when": "every month since January 2026 — measured January to June",
+      "who_affected": "the suppliers, and the ward managers whose stock gets held",
+      "why": "interest, lost discounts, and supplier stops",
+      "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate",
+      "how_often": "suppliers chase us by phone and email, and some put us on stop",
+      "filled_count": 7,
+      "total_count": 7,
+      "confirmed": true,
+      "label": "confirmed"
+     },
+     "baseline_target": {
+      "type": "baseline_target",
+      "metric": "late_payment_rate",
+      "unit": "%",
+      "baseline": 23.0,
+      "target": 5.0,
+      "direction": "below",
+      "target_date": "2027-03-31",
+      "confirmed": true,
+      "label": "confirmed"
+     },
+     "sipoc": {
+      "suppliers": [
+       "Our medical and general suppliers, and the purchasing team who raise the purchase orders."
+      ],
+      "inputs": [
+       "Supplier invoices, purchase orders, and goods-received notes."
+      ],
+      "process_steps": [
+       "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment."
+      ],
+      "outputs": [
+       "Paid invoices and remittance advice."
+      ],
+      "customers": [
+       "The suppliers, and our ward managers who rely on their deliveries."
+      ],
+      "draft": false,
+      "source": "generated",
+      "confirmed": true,
+      "label": "confirmed"
+     }
+    }
+   },
+   "awaiting_decision": false
+  }
+ },
+ {
+  "kind": "gate_submit",
+  "http": 200,
+  "body": {
+   "passed": true,
+   "phase": "define",
+   "missing_fields": [],
+   "message": "The Define report is ready for your team's review. Approve it, or reject it naming what needs to change.",
+   "next_phase": null,
+   "awaiting_acceptance": true
+  }
+ },
+ {
+  "kind": "gate_decision",
+  "http": 200,
+  "seconds": 5.1,
+  "model_calls": [],
+  "body": {
+   "decision": "approve",
+   "phase": "define",
+   "message": "The Define report is approved. Moving to measure",
+   "next_phase": "measure",
+   "reopened": [],
+   "answer": "",
+   "explanation": "",
+   "example": "",
+   "prompt": "",
+   "progress": ""
+  }
+ },
+ {
+  "kind": "measure_turn",
+  "http": 200,
+  "seconds": 30.8,
+  "model_calls": [
+   "coach",
+   "coach",
+   "coherence"
+  ],
+  "phase": "measure",
+  "current_phase": "measure",
+  "reply": {
+   "answer": "Welcome to Measure. Quick recap of what Define locked in, so we're building on the same picture:\n\n• **Problem:** From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms — delaying payments to suppliers, causing £62,000 in late-payment interest and lost discounts last year, and leading to supplier stops that held up ward stock.\n• **Baseline:** Late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days.\n• **Target:** Reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.\n• **Process (SIPOC):**\n    - **Suppliers:** Our medical and general suppliers, and the purchasing team who raise the purchase orders.\n    - **Inputs:** Supplier invoices, purchase orders, and goods-received notes.\n    - **Process Steps:** Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment.\n    - **Outputs:** Paid invoices and remittance advice.\n    - **Customers:** The suppliers, and our ward managers who rely on their deliveries.\n    - **Process Metrics:** Days from invoice receipt to payment release, and the share of invoices with a match exception.\n\nNow, what Measure actually does: we expand that SIPOC into a detailed process map, decide what to collect and how, check the measurement itself can be trusted, confirm the process is behaving consistently, establish a real baseline, and prioritize which inputs are most likely driving the problem. You don't need to hold these in a fixed order in your head — I'll guide you — but here's the full menu so nothing's a surprise:\n\n**Required (7)**\n□ Detailed process map — timings, people, value vs waste per step\n□ Data collection plan — what, how much, how often, who\n□ Stability check — is the process behaving consistently?\n□ Baseline — the current level, once we trust the data\n□ Cause prioritization — scoring what might be driving it\n□ Vital few X's — the shortlist Analyse will test\n□ Issues and barriers — what's in your way\n\n**Recommended (3)**\n□ Sigma level · □ Measurement system check · □ Secondary metrics\n\n**Progress: 0 of 7 required complete**\n\nWe'll work through these roughly in the order above, and I'll flag the two recommended ones — the measurement system check and the sigma level — when we reach them, rather than saving them for the end. First up: expanding your Define map, because everything else attaches to it. Let me show you what that looks like.",
+   "prompt": "Let's start by expanding your process map — timings, people, value vs waste per step. What does the current process look like in detail?",
+   "progress": "Measure · Step 1 of 10",
+   "move": "teach",
+   "move_field": "baseline_mean"
+  }
+ },
+ {
+  "kind": "final_case",
+  "current_phase": "measure",
+  "define_structured": {
+   "business_case": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+   "team": [
+    {
+     "name": "Priya Shah",
+     "role": "Leader",
+     "function": "Green Belt, running it day to day"
+    },
+    {
+     "name": "Tom Okafor",
+     "role": "Sponsor",
+     "function": "Finance Director, who signs off and clears blockers"
+    },
+    {
+     "name": "Lena Hart",
+     "role": "Process Owner",
+     "function": "Accounts Payable Manager"
+    },
+    {
+     "name": "Dev Patel",
+     "role": "Member",
+     "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+    },
+    {
+     "name": "Amira Khan",
+     "role": "Member",
+     "function": "AP clerk, processes invoices; needs half-day training on data collection before Measure"
+    }
+   ],
+   "voc_summary": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+   "problem_statement": "From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms — delaying payments to suppliers, causing £62,000 in late-payment interest and lost discounts last year, and leading to supplier stops that held up ward stock.",
+   "baseline_estimate": {
+    "value": 23.0,
+    "unit": "%",
+    "direction": null,
+    "is_estimate": false,
+    "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+   },
+   "project_scope": {
+    "in_scope": "invoice receipt to payment release for purchase-order invoices at our three hospital sites",
+    "out_scope": "non-PO invoices, payroll, procurement tendering, and the ERP system itself"
+   },
+   "goal_statement": "Reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.",
+   "target_value": {
+    "value": 5.0,
+    "unit": "%",
+    "direction": "<=",
+    "is_estimate": false,
+    "raw": "Late payment rate: under 5% of supplier invoices."
+   },
+   "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31).",
+   "benefits_analysis": {
+    "cost_of_gap": "About £68,000 a year in interest and lost discounts, from the savings calculation.",
+    "impact_type": "Sustainable — every year, not one-off.",
+    "realisation_schedule": "It would start in Q2 2027 at about £17,000 a quarter.",
+    "finance_contact": "Sam Reid, management accountant, who will validate it."
+   },
+   "secondary_metrics": "Two things must not get worse: the number of supplier payment queries the AP team handles each month, and AP staff overtime hours. Both should stay at or below today's levels.",
+   "process_map_sipoc": {
+    "suppliers": "Our medical and general suppliers, and the purchasing team who raise the purchase orders.",
+    "inputs": "Supplier invoices, purchase orders, and goods-received notes.",
+    "process_steps": "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment.",
+    "outputs": "Paid invoices and remittance advice.",
+    "customers": "The suppliers, and our ward managers who rely on their deliveries.",
+    "process_metrics": "Days from invoice receipt to payment release, and the share of invoices with a match exception."
+   },
+   "issues_and_barriers": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter.",
+   "critical_to_quality": [
+    {
+     "customer": "Suppliers",
+     "need": "need paying on the agreed 30-day terms",
+     "requirement": "paid within 30 days of the invoice date on every invoice"
+    },
+    {
+     "customer": "Ward managers",
+     "need": "need stock to keep arriving",
+     "requirement": "no supplier puts us on stop in a quarter"
+    }
+   ],
+   "problem_5w2h": {
+    "what": "supplier invoices are paid after their 30-day terms",
+    "where": "the accounts payable team across our three hospital sites",
+    "when": "every month since January 2026 — measured January to June",
+    "who": "the suppliers, and the ward managers whose stock gets held",
+    "why": "interest, lost discounts, and supplier stops",
+    "how": "suppliers chase us by phone and email, and some put us on stop",
+    "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate"
+   },
+   "metric_definitions": [
+    {
+     "name": "late_payment_rate",
+     "unit": "%",
+     "meaning": "The share of supplier invoices paid more than 30 days after the invoice date."
+    }
+   ],
+   "phase_metrics": [
+    {
+     "name": "late_payment_rate",
+     "unit": "%",
+     "baseline_estimate": {
+      "value": 23.0,
+      "unit": "%",
+      "direction": null,
+      "is_estimate": false,
+      "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+     },
+     "target_value": {
+      "value": 5.0,
+      "unit": "%",
+      "direction": "<=",
+      "is_estimate": false,
+      "raw": "Late payment rate: under 5% of supplier invoices."
+     },
+     "source": "stated"
+    }
+   ],
+   "computation_results": [],
+   "acknowledged_gaps": [],
+   "citations": [],
+   "uploads": [
+    {
+     "evidence_index_id": "0907bb2ea200b53f0f3b1c55e3376003",
+     "filename": "ap_late_payments_jan_jun_2026.csv",
+     "phase": "define",
+     "uploaded_at": "2026-09-29T11:40:15.473641+00:00",
+     "summary": "[!] INTERPRETATION UNAVAILABLE — 'ap_late_payments_jan_jun_2026.csv' was read and its structure recorded (table, 4 columns, 6 rows), but the description of what it CONTAINS did not run. Nothing here says what is in this file. Ask the team what it shows; do not treat this line as a summary of it.",
+     "kind": "evidence",
+     "role": "baseline defect data",
+     "shape_match": "unsolicited",
+     "content_digest": "5246bdab2fae86e9978bc08d181a753d6cf1ab52dbb13f027dafbe3cd65b953f",
+     "blob_path": "uploads/IMPR-2026-84B/ap_late_payments_jan_jun_2026.csv",
+     "consumed_at": null,
+     "ask_id": null,
+     "version": 1
+    }
+   ]
+  },
+  "field_log_keys": []
+ },
+ {
+  "kind": "summary",
+  "source_hash": "a5be4b9c2f2aefa8",
+  "product_hash": "da98e76677d7b96b",
+  "started": "20260929T113121",
+  "minutes": 11.0,
+  "cap": 150,
+  "model_calls": 110,
+  "by_kind": {
+   "coach": 37,
+   "coherence": 35,
+   "grader": 7,
+   "other": 3,
+   "planner-judgment": 28
+  },
+  "langsmith_sends": 0,
+  "case_id": "IMPR-2026-84B",
+  "stopped": "done",
+  "turns": 35,
+  "confirms": 14,
+  "confirms_lost": 0,
+  "visuals_missing": [
+   "baseline_estimate"
+  ],
+  "confirmed_visuals": {
+   "baseline_estimate": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": null,
+    "direction": "equal",
+    "target_date": null,
+    "confirmed": true,
+    "label": "confirmed"
+   },
+   "goal_statement": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": 5.0,
+    "direction": "below",
+    "target_date": null,
+    "confirmed": true,
+    "label": "confirmed"
+   },
+   "target_value": {
+    "type": "baseline_target",
+    "metric": "late_payment_rate",
+    "unit": "%",
+    "baseline": 23.0,
+    "target": 5.0,
+    "direction": "below",
+    "target_date": null,
+    "confirmed": true,
+    "label": "confirmed"
+   },
+   "process_map_sipoc": {
+    "suppliers": [
+     "Our medical and general suppliers, and the purchasing team who raise the purchase orders."
+    ],
+    "inputs": [
+     "Supplier invoices, purchase orders, and goods-received notes."
+    ],
+    "process_steps": [
+     "Receive the invoice, match it to the purchase order and the goods receipt, resolve mismatches, approve, then schedule and release payment."
+    ],
+    "outputs": [
+     "Paid invoices and remittance advice."
+    ],
+    "customers": [
+     "The suppliers, and our ward managers who rely on their deliveries."
+    ],
+    "draft": false,
+    "source": "generated",
+    "confirmed": true,
+    "label": "confirmed"
+   }
+  },
+  "gate_visuals": {
+   "kinds": [
+    "baseline_target",
+    "mindmap_5w2h",
+    "sipoc"
+   ],
+   "same_as_reply": {
+    "baseline_target": true,
+    "sipoc": true
+   }
+  }
+ }
+]

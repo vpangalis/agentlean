@@ -1348,6 +1348,58 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-135",
+   "symptom": "A YEAR WAS READ AS THE BASELINE. Evidence: run-through define_runthrough_20260929T111219 (IMPR-2026-02C), turn 13: the coach's read-back of element 5 carried no metric definitions, so code had no unit to read the baseline by, and the read-back line said 'Read as a number — Primary metric and baseline: 2026' (the chart drew 2026) from 'January to June 2026'. The Belt's Confirm at turn 14 stored nothing (the definitions were missing — the refusal path worked) and turn 15 stored 23 %; DEF-008 reads failing on this record because a Confirm did not store. Registered from the run-through; owner lane A; proved fixed by DEF-076. — 8D. D2 IS: parse.number_in with an empty unit hint matched the first figure with no unit, a year. D2 IS-NOT: a registry-backed read (23 % with the unit); the target (read as a limit). D4 OCCURRENCE: 'a figure with no unit' was treated as matching 'no unit known'. D4 ESCAPE: every test and fixture gave the parser a unit or a text with no year; the scripted Belt's answer names a year only in the baseline. D5 FIX (built): a bare four-digit 1900-2099 without a unit of its own is never the figure (parse_limit and number_in); and without the registry's unit the baseline is not stored at all, so the Confirm names it as missing and no reading line is shown. D7 PREVENT: test_g135 with the run-through's own words, with and without the unit.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-076"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-136",
+   "symptom": "A STORE CLAIM PASSED G-117'S FILTER. Evidence: run-through define_runthrough_20260929T111219 (IMPR-2026-02C), turn 14: under code's 'Nothing was stored for Primary metric and baseline yet' the coach's own 'Thank you for confirming. Your baseline estimate has been successfully captured.' reached the Belt. Registered from the run-through; owner lane A; proved fixed by DEF-156. — 8D. D2 IS: nodes_common._STORE_CLAIM knew recorded / stored / saved / logged, not 'captured'. D2 IS-NOT: the code-written note (correct); the other claim words (removed). D4 OCCURRENCE: a synonym the list did not carry. D4 ESCAPE: G-117's test uses 'recorded'; the claim words were a closed list tested with its own members. D5 FIX (built): the passive 'has/have/is/are/was/were (now) (been) (successfully) captured' is a claim; the active 'what I've captured', which opens every read-back, is not. D7 PREVENT: test_g136 with the run's own sentence and the read-back opening.",
+   "requirement": [
+    "R16"
+   ],
+   "feature": [
+    "DEF-156"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-137",
+   "symptom": "THE FIRST READ-BACK OF ELEMENT 5 CAN LEAVE OUT THE METRIC DEFINITIONS, SO A CONFIRM STORES NOTHING. Evidence: run-throughs define_runthrough_20260929T111219 (IMPR-2026-02C, turns 13-15) and define_runthrough_20260929T113121 (IMPR-2026-84B, turns 14-16): the coach's read-back proposed baseline_estimate but not metric_definitions; the Belt's Confirm was refused by code ('the read-back did not include ... the metric definitions') and the next read-back stored both. Five earlier records today stored at the first Confirm. DEF-008 ('Confirm stores and advances') reads failing on both records, so guard rule 11 refuses DEF-079's landing. Registered from the run-through; owner lane A; proved fixed by DEF-008. — 8D. D2 IS: the coach model's structured read-back omits one of the element's two fields. D2 IS-NOT: the refusal path (it worked: nothing stored, the Belt told so, the next read-back complete); the parser (G-135 fixed its side). D4 OCCURRENCE: model variance on a two-field read-back; since DEF-076 the coach is told the baseline is 'the Belt's words, read in code', which may lead it to treat element 5 as a plain-words element. D4 ESCAPE: the route tests fake the coach's proposal; only the live run shows the omission, and one run per package samples it once. D5 FIX (direction, not built — the live-call cap was reached): name metric_definitions first and explicitly in the element-5 read-back instruction (state_injection's entries), or carry a registry the Belt stated earlier in the conversation into the pending read-back as G-118 carries earlier parts. D7 PREVENT: a run-through check that counts refused Confirms per element across records, not per record.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-008"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-138",
+   "symptom": "A TEACHING REPLY CAME BACK WITHOUT ITS BLOCKS. Evidence: run-through define_runthrough_20260929T113121 (IMPR-2026-84B), turn 31: the store-and-advance reply that teaches element 12 (the SIPOC) had empty explanation, example and prompt blocks (the executor's FINDING '§50.1 presentational field(s) came back empty'), so DEF-005 ('an untaught field is taught, example before ask') reads failing on the record. Registered from the run-through; owner lane A; proved fixed by DEF-005. — 8D. D2 IS: the coach model returned the move's message with the three teaching blocks empty. D2 IS-NOT: the move (store_and_advance, decided in code); the grader (it passed the turn). D4 OCCURRENCE: model variance on the four-block reply; the executor logs the finding and completes the turn. D4 ESCAPE: the finding is a log line, not a retry or a code-written block; the route tests fake a complete reply. D5 FIX (direction, not built): on a teaching move with an empty block, fill it in code from the element's SKILL.md (what it is, why it matters, the marked example, the ask) — the same source the coach is given. D7 PREVENT: a test that an empty teaching block never reaches the Belt.",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-005"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

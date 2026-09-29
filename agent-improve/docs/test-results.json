@@ -1,9 +1,9 @@
 {
- "source_hash": "43cbf3973d738126",
- "commit": "234c0a3",
+ "source_hash": "85030d755d1725a6",
+ "commit": "67bc629",
  "commit_matches_source": false,
- "full_run_hash": "4a46eace2c1d1f46",
- "recorded_at": "2026-09-29T11:10:15+00:00",
+ "full_run_hash": "85030d755d1725a6",
+ "recorded_at": "2026-09-29T11:50:28+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1123,6 +1123,8 @@
   "backend/tests/test_moves.py::test_define_walks_thirteen_positions_with_three_fields_inside": "passed",
   "backend/tests/test_moves.py::test_each_move_is_graded_only_on_what_it_does": "passed",
   "backend/tests/test_moves.py::test_every_field_confirmed_is_a_response_not_a_move_on_a_field": "passed",
+  "backend/tests/test_moves.py::test_g135_a_year_is_never_the_baseline_and_no_unit_stores_no_baseline": "passed",
+  "backend/tests/test_moves.py::test_g136_a_passive_captured_claim_is_removed_and_a_read_back_intro_kept": "passed",
   "backend/tests/test_moves.py::test_opening_teaches_the_first_field_and_asks_the_model_nothing": "passed",
   "backend/tests/test_moves.py::test_position_five_stores_both_of_its_fields": "passed",
   "backend/tests/test_moves.py::test_section_5_leaves_out_what_this_turns_move_does_not_do": "passed",
@@ -1590,8 +1592,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "232243d624a1041f",
-  "recorded_at": "2026-09-29T11:02:06+00:00",
+  "source_hash": "43cbf3973d738126",
+  "recorded_at": "2026-09-29T11:10:15+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -3302,7 +3304,7 @@
    "backend/tests/test_supervisor_graph.py::test_there_is_one_builder": "passed",
    "backend/tests/test_timing.py::test_a_timing_failure_never_raises": "passed",
    "backend/tests/test_timing.py::test_a_workers_tracing_calls_reach_the_controller": "passed",
-   "backend/tests/test_timing.py::test_the_commits_one_full_run_is_parallel": "failed",
+   "backend/tests/test_timing.py::test_the_commits_one_full_run_is_parallel": "passed",
    "backend/tests/test_timing.py::test_the_record_says_which_source_the_last_full_run_was_on": "passed",
    "backend/tests/test_timing.py::test_the_timing_log_appends_and_sums_only_its_window": "passed",
    "backend/tests/test_turn_budget.py::test_a_lookup_runs_its_queries_concurrently": "passed",
