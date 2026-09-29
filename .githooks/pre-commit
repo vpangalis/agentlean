@@ -58,18 +58,22 @@ if [ -n "$VENV" ] && [ -n "$SYSPY" ] && git diff --cached --name-only \
     | grep -vE 'agent-improve/docs/(control-board\.html|test-results\.json|features-ratchet\.json)$' \
     | grep -qE '^agent-improve/skills/|[^.]..$|[^m].$|[^d]$'; then
     T0=$(date +%s)
-    echo "  [tests] the full suite on the STAGED tree, in parallel — the commit's one run (rule 4 reads it)…" >&2
+    # Founder item 9, 2026-09-29 — per commit, the FAST run: the tests the staged change reaches
+    # (and the run-through readers); the full suite once per package, before its last commit:
+    #   AGENT_IMPROVE_FULL_SUITE=1 git commit ...
+    if [ "${AGENT_IMPROVE_FULL_SUITE:-}" = "1" ]; then MODE=full; RUNFLAG=--suite; else MODE=fast; RUNFLAG=--fast; fi
+    echo "  [tests] the $MODE run on the STAGED tree (rule 4 reads it)…" >&2
     # 6.68 (founder ruling 2026-09-26) — the hooks test what is STAGED: the
     # suite runs in a second worktree set to the index tree (staged_tree.py),
     # never in this working tree, whose unstaged edits the commit will not carry.
-    OUT=$( "$SYSPY" .claude/hooks/staged_tree.py --suite 2>&1 )
+    OUT=$( "$SYSPY" .claude/hooks/staged_tree.py $RUNFLAG 2>&1 )
     CODE=$?
     SUMMARY=$(printf '%s
 ' "$OUT" | tail -1)
     FAILED=$(printf '%s
 ' "$OUT" | grep -E '^(FAILED|ERROR) ' | head -25)
     echo "  [tests] $SUMMARY" >&2
-    t_log "full test run" "$T0"
+    t_log "$MODE test run" "$T0"
     RAN=1
 fi
 
@@ -147,7 +151,7 @@ t_log control-board "$T0"
 if [ -n "$RAN" ] && [ -n "$SYSPY" ]; then
     mkdir -p .claude/logs
     TREE=$(git write-tree)
-    "$SYSPY" -c "import json,sys; json.dump({'tree': sys.argv[1], 'exit': int(sys.argv[2]), 'summary': sys.argv[3], 'failed': [l for l in sys.argv[4].splitlines() if l]}, open(sys.argv[5], 'w', encoding='utf-8'))"         "$TREE" "$CODE" "$SUMMARY" "$FAILED" "$MARKER"
+    "$SYSPY" -c "import json,sys; json.dump({'tree': sys.argv[1], 'exit': int(sys.argv[2]), 'summary': sys.argv[3], 'failed': [l for l in sys.argv[4].splitlines() if l], 'mode': sys.argv[6]}, open(sys.argv[5], 'w', encoding='utf-8'))"         "$TREE" "$CODE" "$SUMMARY" "$FAILED" "$MARKER" "$MODE"
 fi
 
 exit 0

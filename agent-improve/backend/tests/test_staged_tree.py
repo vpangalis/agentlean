@@ -80,3 +80,43 @@ def test_a_later_sync_follows_the_index_and_drops_what_it_no_longer_carries(repo
 def test_the_hook_scoped_git_variables_are_stripped(monkeypatch) -> None:
     monkeypatch.setenv("GIT_INDEX_FILE", "/elsewhere/index")
     assert "GIT_INDEX_FILE" not in st.clean_env()
+
+
+def test_item_9_a_commit_runs_the_fast_tests_and_the_package_the_full_suite() -> None:
+    """Founder item 9, 2026-09-29: per commit the hook runs the tests the staged change reaches
+    (plus the run-through readers); AGENT_IMPROVE_FULL_SUITE=1 runs the full suite, once per
+    package before its last commit; rule 4 names which run it read."""
+    from pathlib import Path as _P
+    repo = _P(__file__).resolve().parents[3]
+    hook = (repo / ".githooks" / "pre-commit").read_text(encoding="utf-8")
+    assert "AGENT_IMPROVE_FULL_SUITE" in hook and "--fast" in hook and "--suite" in hook
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("staged_tree_i9", repo / ".claude" / "hooks" / "staged_tree.py")
+    assert spec is not None and spec.loader is not None
+    st = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(st)
+    assert "backend/tests/test_define_runthrough.py" in st.ALWAYS_FAST
+    guard = (repo / ".claude" / "hooks" / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
+    assert "the full suite is due before the package's last commit" in guard
+
+
+def test_item_9_a_fast_run_carries_the_unreached_outcomes_forward(tmp_path, monkeypatch) -> None:
+    """The recorder, on a fast run over changed source, keeps every outcome the run did not
+    reach and the last FULL run's hash — it never reads an unreached test as not run."""
+    import json
+    import sys
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parents[2] / "tools" / "control_board"))
+    import features
+    from backend.tests import conftest
+    rec = tmp_path / "test-results.json"
+    rec.write_text(json.dumps({"source_hash": "old", "commit": "x", "full_run_hash": "old",
+                               "outcomes": {"a.py::t": "passed", "b.py::t": "failed"}, "older": {}}),
+                   encoding="utf-8")
+    monkeypatch.setattr(features, "RESULTS", rec)
+    monkeypatch.setenv("AGENT_IMPROVE_FAST_RUN", "1")
+    monkeypatch.delenv("AGENT_IMPROVE_FULL_RUN", raising=False)
+    conftest._record_results({"b.py::t": "passed"})
+    got = json.loads(rec.read_text(encoding="utf-8"))
+    assert got["outcomes"] == {"a.py::t": "passed", "b.py::t": "passed"}
+    assert got["full_run_hash"] == "old", "a fast run never claims to be the full run"

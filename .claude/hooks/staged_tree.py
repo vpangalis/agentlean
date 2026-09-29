@@ -146,7 +146,53 @@ def run_suite(root: Path = ROOT) -> tuple[int, str]:
     return (codes[0] if codes else 0), out
 
 
+#: Founder item 9, 2026-09-29 — test files a fast run always includes: they read the live
+#: run-through record, whose freshness any product change alters, whatever the import graph says.
+ALWAYS_FAST = ("backend/tests/test_define_runthrough.py", "backend/tests/test_define_features.py")
+
+
+def fast_tests(root: Path = ROOT) -> list[str] | None:
+    """The test files the STAGED change reaches (the pre-flight's import-graph plan) plus
+    ALWAYS_FAST, relative to agent-improve/; None when the change reaches everything."""
+    sys.path.insert(0, str(root / ".claude" / "hooks"))
+    import preflight
+    changed = subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=root, capture_output=True,
+                             encoding="utf-8").stdout.split()
+    p = preflight.plan(changed)
+    if p["tests"] == "ALL":
+        return None
+    rel = {t[len(PROJECT) + 1:] for t in p["tests"]} | set(ALWAYS_FAST)
+    return sorted(r for r in rel if (root / PROJECT / r).is_file())
+
+
+def run_fast(root: Path = ROOT) -> tuple[int, str]:
+    """Founder item 9, 2026-09-29: a commit's FAST run, on the staged tree — the tests its change
+    reaches. The recorder (AGENT_IMPROVE_FAST_RUN=1) carries every other test's outcome forward
+    from the last record instead of discarding it: a test the change does not reach through
+    imports has the outcome it had. The full suite still runs once per package, before the
+    package's last commit (AGENT_IMPROVE_FULL_SUITE=1), and must pass there."""
+    tests = fast_tests(root)
+    if tests is None:
+        return run_suite(root)
+    wt = sync(root)
+    base = [venv_python(root), "-m", "pytest", *tests, "-q", "--no-header", "-p", "no:cacheprovider",
+            "-m", "not wallclock", "-n", "auto" if len(tests) > 12 else "0"]
+    r = run(base, wt, root, AGENT_IMPROVE_FAST_RUN="1")
+    record = wt / PROJECT / "docs" / "test-results.json"
+    if record.is_file():
+        shutil.copyfile(record, root / PROJECT / "docs" / "test-results.json")
+    text = (r.stdout or "") + (r.stderr or "")
+    last = next((ln for ln in reversed(text.splitlines()) if ln.strip()), "").strip()
+    code = 0 if r.returncode in (0, 5) else r.returncode
+    return code, text + chr(10) + f"fast ({len(tests)} test files): {last}" + chr(10)
+
+
 if __name__ == "__main__":
+    if "--fast" in sys.argv:
+        code, out = run_fast()
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+        print(out)
+        sys.exit(code)
     if "--suite" in sys.argv:
         code, out = run_suite()
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]

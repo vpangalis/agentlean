@@ -71,8 +71,10 @@ def test_the_commits_one_full_run_is_parallel() -> None:
     # 6.68 — the run is on the STAGED tree: staged_tree.py owns the command.
     staged = (_HOOKS / "staged_tree.py").read_text(encoding="utf-8")
     assert 'AGENT_IMPROVE_FULL_RUN="1"' in staged and '"-n", "auto"' in staged
-    assert "staged_tree.py --suite" in pre
-    assert pre.index("staged_tree.py --suite") < pre.index('"$CONTINUITY"'), "the run precedes the headline"
+    # Founder item 9, 2026-09-29: the fast run per commit, the full suite on request (the
+    # package's last commit) — one run either way, and it still precedes the headline.
+    assert "RUNFLAG=--suite" in pre and "RUNFLAG=--fast" in pre and "staged_tree.py $RUNFLAG" in pre
+    assert pre.index("staged_tree.py $RUNFLAG") < pre.index('"$CONTINUITY"'), "the run precedes the headline"
     guard = (_HOOKS / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
     assert '"-m", "pytest"' not in guard, "the guard's fallback is staged_tree.run_suite"
     assert guard.count("run_suite(") == 1

@@ -1517,13 +1517,16 @@ def check_tests(root: str, py: str) -> None:
         marker = {}
     if tree and marker.get("tree") == tree:
         if marker.get("exit") != 0:
-            fail("tests failed — in the pre-commit hook's full run of this commit",
+            fail("tests failed — in the pre-commit hook's run of this commit",
                  f"  {marker.get('summary', '')}",
                  *[f"  {ln}" for ln in marker.get("failed") or []], "",
                  "Run it yourself:",
                  f"  cd {PROJECT} && .venv/Scripts/python.exe -m pytest {TESTS_REL} -q -n auto")
-        note(f"rule 4 tests: PASS — the pre-commit hook's full run of this tree: "
-             f"{marker.get('summary', '')}")
+        mode = marker.get("mode") or "full"
+        note(f"rule 4 tests: PASS — the pre-commit hook's {mode} run of this tree: "
+             f"{marker.get('summary', '')}"
+             + ("" if mode == "full" else " — the full suite is due before the package's last commit "
+                                           "(AGENT_IMPROVE_FULL_SUITE=1, founder item 9)"))
         return
     note("rule 4 tests: no full run recorded for this tree — running it on the STAGED tree…")
     # 6.68 — in the second worktree set to the index (staged_tree.py), in

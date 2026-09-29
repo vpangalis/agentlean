@@ -552,7 +552,11 @@ def _record_results(outcomes_run: dict[str, str] | None = None) -> None:
         _sys.path.pop(0)
     current = source_hash(project)
     prior = _json.loads(RESULTS.read_text(encoding="utf-8")) if RESULTS.is_file() else {}
-    if prior.get("source_hash") == current:
+    import os as _os
+    if prior.get("source_hash") == current or _os.environ.get("AGENT_IMPROVE_FAST_RUN") == "1":
+        # Founder item 9, 2026-09-29 — a commit's FAST run (the tests its change reaches, on the
+        # staged tree) carries every other outcome forward: a test the change does not reach has
+        # the outcome it had. The full-run hash stays the last FULL run's (below).
         outcomes, older = dict(prior.get("outcomes") or {}), prior.get("older") or {}
     else:
         # A run on changed source: the previous record becomes OLDER — kept, so
@@ -569,9 +573,10 @@ def _record_results(outcomes_run: dict[str, str] | None = None) -> None:
     # the whole suite with AGENT_IMPROVE_FULL_RUN=1 and the commit-msg guard's
     # rule 4 reads this instead of running the suite a second time. A targeted
     # run on the same source keeps it; a run on changed source clears it.
-    import os as _os
     full_hash = (current if _os.environ.get("AGENT_IMPROVE_FULL_RUN") == "1"
-                 else prior.get("full_run_hash") if prior.get("source_hash") == current else None)
+                 else prior.get("full_run_hash") if (prior.get("source_hash") == current
+                                                     or _os.environ.get("AGENT_IMPROVE_FAST_RUN") == "1")
+                 else None)
     # 6.64 — NOT REWRITTEN WHEN NOTHING CHANGED. A run on the same source with
     # the same outcomes used to rewrite the file for its timestamp alone, so
     # every test run dirtied the tree. The record's truth is the source hash
