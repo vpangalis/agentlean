@@ -108,3 +108,14 @@ def test_the_hooks_run_and_check_it() -> None:
     guard = (_REPO / ".claude" / "hooks" / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
     assert "check_generated_models(root, all_staged)" in guard
     assert "_status_changed_by_hand(root)" in guard
+
+
+def test_the_declarations_live_in_their_own_file_linked_from_section_4_2() -> None:
+    """Founder ruling 6, 2026-09-29: the generated block left ARCHITECTURE.md for
+    docs/data-models.md, which §4.2 links; the file is current with the code."""
+    arch = (_PROJECT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    assert gm.block_of(arch) is None, "ARCHITECTURE.md still carries the generated block"
+    assert "[docs/data-models.md](docs/data-models.md)" in arch
+    assert gm.DOC_REL == "agent-improve/docs/data-models.md"
+    doc = (_PROJECT / "docs" / "data-models.md").read_text(encoding="utf-8")
+    assert gm.is_current(doc, gm.generate(_PROJECT)), "docs/data-models.md differs from a fresh generation"

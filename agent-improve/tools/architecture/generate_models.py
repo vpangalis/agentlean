@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""ARCHITECTURE.md's data models, generated from the code — founder, 2026-09-27 (Part G).
+"""The data models, generated from the code — founder, 2026-09-27 (Part G); since founder ruling 6
+of 2026-09-29 in their own file, `docs/data-models.md`, linked from ARCHITECTURE.md §4.2.
 
 Rewrites ONLY the text between
 
@@ -22,8 +23,8 @@ imports a backend module and never reads live Azure.** Writer/reader tables are
 hand-written in ARCHITECTURE.md §3.2; nothing here produces them.
 
     generate_models.py --print                  # the block body, to stdout
-    generate_models.py --write ARCHITECTURE.md  # rewrite the block in place
-    generate_models.py --check ARCHITECTURE.md  # exit 1 if the block differs
+    generate_models.py --write docs/data-models.md  # rewrite the block in place
+    generate_models.py --check docs/data-models.md  # exit 1 if the block differs
     generate_models.py --stage                  # pre-commit: from the STAGED tree,
                                                 # into the INDEX (and the working copy)
     --project DIR   read the source from DIR (default: this checkout's agent-improve/)
@@ -43,7 +44,7 @@ from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parents[2]
 REPO = PROJECT.parent
-DOC_REL = "agent-improve/ARCHITECTURE.md"
+DOC_REL = "agent-improve/docs/data-models.md"
 BEGIN = "<!-- BEGIN GENERATED: data models"
 END = "<!-- END GENERATED: data models -->"
 
@@ -301,9 +302,9 @@ def stage() -> str:
     try:
         staged_doc = _git(["show", f":{DOC_REL}"])
     except GenerationError:
-        return "no staged ARCHITECTURE.md — nothing to do"
+        return "no staged docs/data-models.md — nothing to do"
     if _span(staged_doc) is None:
-        return "no generated block in ARCHITECTURE.md — nothing to do"
+        return "no generated block in docs/data-models.md — nothing to do"
     body = generate(staged_project())
     new = replace_block(staged_doc, body)
     if new == staged_doc:

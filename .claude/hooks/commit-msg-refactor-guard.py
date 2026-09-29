@@ -437,14 +437,17 @@ def check_generated_models(root: str, staged: list[str]) -> None:
     from the STAGED tree; this refuses a commit whose staged block differs from
     a fresh generation: a hand edit, or a commit made without the hooks. It
     runs when the document or anything the generator reads is staged."""
-    reads = (f"{PROJECT}/backend/", f"{PROJECT}/tools/architecture/", STATUS_PATH)
+    # Founder ruling 6, 2026-09-29: the block lives in its own generated file, linked from §4.2.
+    models = f"{PROJECT}/docs/data-models.md"
+    reads = (f"{PROJECT}/backend/", f"{PROJECT}/tools/architecture/", models)
     if not any(p == r or p.startswith(r) for p in staged for r in reads):
         return
     gm = _models_generator(root)
-    doc = _staged_text(root, STATUS_PATH)
+    doc = _staged_text(root, models)
     if gm.block_of(doc) is None:
-        note("rule 16 data models: no generated block in ARCHITECTURE.md — skipped")
-        return
+        fail("docs/data-models.md has no generated data-models block (rule 16)",
+             "The declarations moved out of ARCHITECTURE.md into docs/data-models.md (founder, 2026-09-29).",
+             "Regenerate it:  python agent-improve/tools/architecture/generate_models.py --stage")
     from pathlib import Path
     project = _staged_tree(root).sync(Path(root)) / PROJECT
     try:
@@ -452,7 +455,7 @@ def check_generated_models(root: str, staged: list[str]) -> None:
     except gm.GenerationError as exc:
         fail("the data-models generator failed on the staged tree (rule 16)", str(exc))
     if not gm.is_current(doc, body):
-        fail("ARCHITECTURE.md's generated data-models block differs from the code (rule 16)",
+        fail("docs/data-models.md's generated data-models block differs from the code (rule 16)",
              "The block between the `BEGIN GENERATED: data models` and END markers is",
              "rewritten from the code on every commit and is never edited by hand.",
              "Regenerate it:  python agent-improve/tools/architecture/generate_models.py --stage",
