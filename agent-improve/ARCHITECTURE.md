@@ -160,7 +160,7 @@ sequenceDiagram
    parser, `define/parse.py::metric_value` (ADR-0071): no number, or a target in another unit than
    the baseline's, is asked again, decided in code. The SIPOC is stored only with its six columns.
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked
-   and answers in code without a model call. A later read-back of the element keeps the parts it
+   and answers in code without a model call; `revise` + `element` reopens a confirmed or parked one (W9). A later read-back of the element keeps the parts it
    carried before; any the new one lacks are shown under it, in code, and stored only on confirm.
 5. For an unread upload the executor node calls `load_evidence_series` before the model runs.
 6. The executor counts `rag_lookup_*` calls and answers instead of searching at
