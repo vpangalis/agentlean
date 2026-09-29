@@ -255,8 +255,48 @@ def test_the_progress_bar_and_next_step_follow_the_coach() -> None:
 
 
 def test_the_read_back_buttons_send_the_action() -> None:
-    """DEF-054 — Under a read-back the screen shows Confirm and Change; a click sends action=confirm|change on /ask and the Belt's side shows the button pressed."""
-    _not_written('DEF-054')
+    """DEF-054 — Under a read-back the screen shows Confirm and Change; a click sends
+    action=confirm|change on /ask and the Belt's side shows the button pressed. The page's own
+    renderTurn and sendMessage, run in node against stubs of the DOM and the API."""
+    import json
+    import re
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    funcs = []
+    for name in ("function renderTurn", "async function sendMessage"):
+        m = re.search(r"^" + re.escape(name) + r"\(.*?^\}", src, re.M | re.S)
+        assert m, f"{name} not found in ui/index.html"
+        funcs.append(m.group(0))
+    js = """
+const posted=[];const dom=[];
+const els={};const document={getElementById:id=>(els[id]=els[id]||{id,value:'',classList:{add(){},remove(){}}}),
+  querySelectorAll:()=>[]};
+const escapeHtml=s=>String(s);const API='';
+const S={case:{case_id:'C1'},user:'Ana',phase:'define',localChat:[]};
+function appendMsgToDOM(h){dom.push(h)}
+const toasts=[];function toast(m){toasts.push(String(m))}
+async function apiJSON(url,opts){posted.push(JSON.parse(opts.body));return {answer:'Stored: Primary metric and baseline.',move:'teach'}}
+""" + chr(10).join(funcs) + """
+const turn={role:'ai',text:'Here is your baseline. Is this right?',move:'read_back'};
+S.localChat.push(turn);
+const html=renderTurn(turn);
+(async()=>{await sendMessage('confirm');await sendMessage('change');
+ process.stdout.write(JSON.stringify({html,posted,belt:dom,toasts}))})();
+"""
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr
+    got = json.loads(out.stdout)
+    # What follows the POST (rendering the reply) needs the rest of the page; the claims here —
+    # the buttons, the action posted, the Belt's side showing the click — all come before it.
+    assert "sendMessage('confirm')" in got["html"] and "sendMessage('change')" in got["html"], got["html"]
+    assert [p["action"] for p in got["posted"]] == ["confirm", "change"], got["posted"]
+    assert any(">Confirm<" in h for h in got["belt"]) and any(">Change<" in h for h in got["belt"]), got["belt"]
 
 
 def test_a_failed_turn_is_readable_and_stays() -> None:

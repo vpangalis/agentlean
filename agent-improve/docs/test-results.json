@@ -1,9 +1,9 @@
 {
- "source_hash": "0a2359dcf688c1e8",
- "commit": "e700090",
+ "source_hash": "3224dbfe806914a9",
+ "commit": "5955548",
  "commit_matches_source": false,
- "full_run_hash": "0a2359dcf688c1e8",
- "recorded_at": "2026-09-28T23:53:09+00:00",
+ "full_run_hash": "3224dbfe806914a9",
+ "recorded_at": "2026-09-29T00:05:26+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -490,7 +490,7 @@
   "backend/tests/test_define_e2e.py::test_the_problem_statement_and_the_process_steps_are_linked_both_ways": "skipped",
   "backend/tests/test_define_e2e.py::test_the_product_reaches_nothing_outside_the_intranet": "skipped",
   "backend/tests/test_define_e2e.py::test_the_progress_bar_and_next_step_follow_the_coach": "skipped",
-  "backend/tests/test_define_e2e.py::test_the_read_back_buttons_send_the_action": "skipped",
+  "backend/tests/test_define_e2e.py::test_the_read_back_buttons_send_the_action": "passed",
   "backend/tests/test_define_e2e.py::test_the_reply_streams_and_a_drop_abandons": "skipped",
   "backend/tests/test_define_e2e.py::test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching": "skipped",
   "backend/tests/test_define_e2e.py::test_the_rubric_grades_the_gate_document_and_can_fail_it": "skipped",
@@ -1581,8 +1581,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "f4c52a5b254984c0",
-  "recorded_at": "2026-09-28T23:46:15+00:00",
+  "source_hash": "0a2359dcf688c1e8",
+  "recorded_at": "2026-09-28T23:53:09+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2138,7 +2138,7 @@
    "backend/tests/test_define_e2e.py::test_every_coaching_screen_says_it_is_an_ai_coach": "skipped",
    "backend/tests/test_define_e2e.py::test_every_confirmed_element_can_be_changed_and_the_buttons_survive_a_reload": "skipped",
    "backend/tests/test_define_e2e.py::test_every_element_version_records_who_when_why_and_source": "skipped",
-   "backend/tests/test_define_e2e.py::test_every_node_of_a_turn_is_checkpointed": "skipped",
+   "backend/tests/test_define_e2e.py::test_every_node_of_a_turn_is_checkpointed": "passed",
    "backend/tests/test_define_e2e.py::test_every_phase_report_reads_as_a_business_document": "skipped",
    "backend/tests/test_define_e2e.py::test_every_request_is_explained_with_a_marked_sample": "skipped",
    "backend/tests/test_define_e2e.py::test_every_tool_the_define_skill_offers_is_bound": "passed",
