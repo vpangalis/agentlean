@@ -109,6 +109,19 @@ if [ -n "$SYSPY" ] && [ -f "agent-improve/tools/architecture/generate_models.py"
 fi
 t_log data-models "$T0"
 
+# Founder 2026-09-30 (ARCHITECTURE.md headroom, A1 and A3) — the code layout and the API routes,
+# generated from the STAGED source into their own documents (test_generated_docs.py checks
+# both are current). Fail-soft, like this hook.
+T0=$(date +%s)
+if [ -n "$SYSPY" ]; then
+    for GEN in generate_layout generate_routes; do
+        if [ -f "agent-improve/tools/architecture/$GEN.py" ]; then
+            "$SYSPY" "agent-improve/tools/architecture/$GEN.py" --stage </dev/null || echo "  [$GEN] WARNING: not regenerated" >&2
+        fi
+    done
+fi
+t_log generated-docs "$T0"
+
 # Part F3 (ADR-0058) — the order of work is computed by rank.py from the feature list and
 # the requirements; here it checks every feature's rank inputs (the board and CONTINUITY
 # read the rank itself). Fail-soft: a bad field is printed; the full suite's

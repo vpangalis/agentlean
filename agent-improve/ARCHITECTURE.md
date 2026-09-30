@@ -11,8 +11,8 @@ Elsewhere: requirements `docs/requirements/{business,platform}.md`; what is buil
 `docs/_archive/`.
 
 **Conventions.** Paths are relative to `agent-improve/backend/` unless they start with `ui/`,
-`skills/`, `docs/`, `scripts/` or `tools/`. A symbol is written `path::symbol`. §4.2 is
-generated from the code on every commit, never edited by hand.
+`skills/`, `docs/`, `scripts/` or `tools/`. A symbol is written `path::symbol`. §3.1's layout, §3.9's
+routes and §4.2 are generated from the code on every commit, never edited by hand.
 This file changes in the same commit as the code it describes.
 
 ---
@@ -174,7 +174,7 @@ as a task raced against `_until_disconnect`; a client gone first cancels it (499
 
 | Route | Graph input | Config (`_graph_config`) | After the run |
 |---|---|---|---|
-| `POST /ask` | `_graph_input`: no checkpoint yet → the seven `SupervisorState` fields plus the case's prior conversation; else `{"messages": [new]}`; a checkpoint phase ≠ case phase is 409 | `thread_id` = case id, `entry`, `current_user`, `case_metadata`, `v1_phase_inputs` (every phase's `structured`), `belt_action`; `recursion_limit` 50 | `_mirror_asks` (Store); no blob write — the reply carries the phase's merged record into the checkpoint (ADR-0066) |
+| `POST /ask` | `_graph_input`: no checkpoint yet → the seven `SupervisorState` fields plus the case's prior conversation; else `{"messages": [new]}`; a checkpoint phase ≠ case phase is 409 | `thread_id` = case id; `recursion_limit` 50 | `_mirror_asks` (Store); no blob write — the reply carries the phase's merged record into the checkpoint (ADR-0066) |
 | `POST /gate` | the same, `entry="gate"` | same | non-Define phases: `write_phase_gate` on a pass |
 | `POST /gate/decision` | `Command(resume={decision, elements, reason, actor, at})` after `_pending_interrupts` finds `accept_define_report` | same, `entry="decision"`; reject sets `belt_action="rejected"` | approve: `assemble_gate_document`, `write_phase_gate` |
 | `GET /gate/review/{case_id}/{phase}` | none — `graph.aget_state(config)` reads the pause | same | — |
@@ -330,49 +330,10 @@ sequenceDiagram
 
 Classes are allowed only in files marked **C**; elsewhere module-level functions.
 
-| Folder | File | Holds |
-|---|---|---|
-| `core/` | `state.py` C | `SupervisorState` |
-| | `substate.py` C | `PhaseState`, `merge_field_log`, `CoachingPlan`, `SufficiencyJudgment`, `CoachingResponse` |
-| | `graph.py` | The main graph (`graph_builder`, `get_graph`, `route_to_phase`), wrapper nodes |
-| | `guard.py` | `input_guard` — fixed rules, then Prompt Shields (ADR-0057) |
-| | `content_safety.py` | `shield` — Azure AI Content Safety Prompt Shields client |
-| | `pii.py` | `mask`, `detect`, `executor_middleware` — personal data redacted before a model (ADR-0062) |
-| | `llm.py` | `get_llm(role)`, `ROLE_DEPLOYMENTS`, `ROLE_TEMPERATURES` |
-| | `prompts.py` | Prompt constants and rubrics |
-| | `checkpointer.py` C | `AzureBlobCheckpointSaver` |
-| | `store.py` C | `AzureBlobStore` |
-| | `errors.py` C | `AgentImproveError`, `StateSchemaVersionError` |
-| | `migrations.py` | `migrate`, `MIGRATIONS` — an older state schema version migrated on load, a newer one refused (ADR-0065) |
-| | `conversation.py` | Reply metadata round-trip |
-| | `tracing.py` | `child_span`, `child_trace` |
-| | `citations.py` C | `CitationRecord` |
-| | `diagrams.py` | `build_sipoc`, `build_mindmap_5w2h`, `BUILDERS` — diagram JSON for the UI |
-| `phases/` | `nodes_common.py` | `planner`, `executor`, `validation_stack`, `gate_review`, `gate_apply`, `_build_executor`, `COACH_HOP_BUDGET` |
-| | `moves.py` | `decide`, `is_confirmation` |
-| | `gate_registry.py` | `GATE_SPECS` |
-| | `{phase}/graph.py`, `{phase}/mappers.py` | Subgraph builder; input and output mapper |
-| | `{phase}/schema.py` C | `{Phase}Output` |
-| | `{phase}/validate.py` | `validate_{phase}` — layer 2b |
-| | `define/report.py` | `define_report` |
-| | `define/visuals.py` | `draw` — one drawing function per visual, reply and report (ADR-0070) |
-| | `define/parse.py` | `parse_limit`, `parse_sipoc` — targets and the SIPOC read in code (G-120, G-121) |
-| `middleware/` | `state_injection.py`, `skills.py`, `grader.py`, `coherence.py`, `contradiction.py` C | Custom middleware |
-| | `turn_tools.py` | `turn_tools_middleware` — the turn type's tools (ADR-0069); one tool call per response (ADR-0073) |
-| `validation/` | `rubric.py` | `grade_define` |
-| | `schemas.py` C | `CriterionVerdict`, `GraderVerdict` |
-| `knowledge/` | `tools.py` | Universal tools, `rag_lookup_*`, cross-agent tools (unbound) |
-| | `computation.py` | Computation tools |
-| | `tool_args.py` C | Tool argument schemas |
-| | `retriever.py` | `search_knowledge`, `search_evidence`, `search_cases`, `RETRIEVAL_EXCEPTIONS` |
-| | `fusion.py` | `reciprocal_rank_fusion` |
-| `upload/` | `parsers.py`, `classifier.py`, `agent.py`, `asks.py` | Parse, classify, interpret, bind to asks |
-| `storage/` | `blob.py` | `ImproveBlobClient`, case blob, registry, upload bytes |
-| | `layout.py` | Blob paths, Store namespaces, evidence- and case-index fields (the one owner) |
-| | `models.py` C | `CaseDocument`, `PhaseRecord`, `UploadRecord`, `RegistryEntry` |
-| `gateway/` | `routes.py`; `schemas.py` C | API routes; request and response models |
-| — | `escalate.py` | Escalation subgraph |
-| `scripts/` | `ingest_knowledge.py`, `create_indexes.py` | Methodology index ingest; index creation |
+Generated from the code on every commit: [docs/code-layout.md](docs/code-layout.md) — every module, its
+docstring's first line and its public names.
+Outside `backend/`: `scripts/ingest_knowledge.py`, `scripts/create_indexes.py` — methodology index
+ingest; index creation.
 
 ### 3.2 Phase nodes
 
@@ -425,72 +386,19 @@ flowchart TB
   a6 --> out(["reply"])
 ```
 
-**1 · `BeforeModelStateInjection`** — `middleware/state_injection.py`, custom.
-- `before_agent`: composes the coach input **once per turn** in six labelled sections, in this
-  order: coaching rules · phase script · project state · this turn's move (authoritative) · last
-  turn's quality feedback · conversation (ADR-0003).
-- The project-state section holds this phase's confirmed `artifacts`, earlier phases' approved
-  records read from the Store, the phase's required fields, and what is still missing (computed
-  at injection by `phases/gate_registry.py::missing_gate_fields`). For Define it opens with "WHERE THE BELT IS — Define ·
-  Step n of N — field", from `define_progress`.
-- `wrap_model_call`: prepends the composed block to every model request without recomputing it.
-  Declared first, so its wrap encloses the model retry and a retry re-sends the same request.
-- Quality feedback is never presented as a Belt message; nothing is appended to `messages`.
-
-**2 · `DMAICSkillsMiddleware`** — `middleware/skills.py`, custom.
-- Every model call: the current phase's full SKILL.md in the system message; its version and hash
-  are recorded in `step_log` each turn. The phase script is never left for the model to fetch.
-- Registers the tool `load_skill(name)` for other phases' scripts and level-3 reference files.
-
-**3 · `SummarizationMiddleware`** — LangChain, as shipped.
-- `before_model`: when the conversation passes the token trigger, older messages are replaced by
-  a summary made with the operational model; the most recent messages are kept. Trigger and keep
-  values are set in `_build_executor`.
-
-**4 · `ModelRetryMiddleware`** — LangChain, as shipped.
-- `wrap_model_call`: retries transient model failures with exponential backoff and jitter;
-  `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried
-  (`content_safety.retry_on`); the executor answers with guidance instead (T92).
-
-**Turn tools · `@wrap_model_call`** (ADR-0069) — LangChain's dynamic tool selection: offers the
-model only the turn type's tools (`request.override(tools=…)`, §3.6); every tool stays registered.
-
-**Call limit · `ModelCallLimitMiddleware`** — LangChain, as shipped (ADR-0059, T69), declared just
-outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's
-judgment and the two after-agent checks; a run it ends gets the move's reply from code. The
-turn's count is `step_log`'s `call_budget`; calls inside tools, `tool_model_calls`.
-
-**Personal data · `PIIMiddleware`** — LangChain, as shipped (ADR-0062, T87): one instance, a
-combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only
-— never the Belt's own messages; the turn's counts are `step_log`'s `pii_masked`.
-
-**5 · `ToolRetryMiddleware`** — LangChain, as shipped.
-- `wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is
-  returned to the coach as the tool result (`on_failure="continue"`), not raised.
-
-**6 · `DMAICGraderMiddleware`** — `middleware/grader.py`, custom. Executes last.
-- `after_agent`, every turn: one `grader`-role call grades the coach's reply against
-  `COACHING_QUALITY_RUBRIC` (`core/prompts.py`, which owns the criteria), per criterion.
-- Rubric lines that do not apply to this turn's move are excluded (`MOVE_EXCLUDES`).
-- On FAIL the reply still goes out with a warning the Belt sees (`grader_warning`); the verdict
-  goes to `step_log` with `layer: "coaching_grader"` and becomes next turn's quality feedback.
-- **Skipped** when coherence has already degraded the reply this turn.
-
-**7 · `CoherenceMiddleware`** — `middleware/coherence.py`, custom. Validation layer 2a.
-- `after_agent`, every turn: one `coherence`-role call checks the whole reply, including its
-  `prompt`: is it real and conclusive, is it on topic, is it parroting.
-- Parroting is judged against the script step the move called for: a read-back for a captured
-  field, explain-show-ask otherwise, using that field's SKILL.md block.
-- On rejection the turn is degraded; the verdict goes to `step_log` under node `coherence`.
-
-**8 · `ContradictionDetectionMiddleware`** — `middleware/contradiction.py`, custom. Executes first
-of the `after_agent` group.
-- Reads `CoachingResponse.contradiction_flag` (`prior_field`, `approved_value`,
-  `approved_phase`, `proposed_value`, `belt_input`), which the coach sets only when the Belt
-  materially contradicts a gate-approved value shown to it in the project-state section.
-- A flag is detected and logged; it does not stop the turn. No flag, no action.
-- No Store read, no model call, no tolerance threshold. When to flag is instructed in each
-  SKILL.md.
+| Middleware | Where, and what it does |
+|---|---|
+| **1 · `BeforeModelStateInjection`** | `middleware/state_injection.py`, custom.<br>`before_agent`: composes the coach input **once per turn** in six labelled sections, in this order: coaching rules · phase script · project state · this turn's move (authoritative) · last turn's quality feedback · conversation (ADR-0003).<br>The project-state section holds this phase's confirmed `artifacts`, earlier phases' approved records read from the Store, the phase's required fields, and what is still missing (computed at injection by `phases/gate_registry.py::missing_gate_fields`). For Define it opens with "WHERE THE BELT IS — Define · Step n of N — field", from `define_progress`.<br>`wrap_model_call`: prepends the composed block to every model request without recomputing it. Declared first, so its wrap encloses the model retry and a retry re-sends the same request.<br>Quality feedback is never presented as a Belt message; nothing is appended to `messages`. |
+| **2 · `DMAICSkillsMiddleware`** | `middleware/skills.py`, custom.<br>Every model call: the current phase's full SKILL.md in the system message; its version and hash are recorded in `step_log` each turn. The phase script is never left for the model to fetch.<br>Registers the tool `load_skill(name)` for other phases' scripts and level-3 reference files. |
+| **3 · `SummarizationMiddleware`** | LangChain, as shipped.<br>`before_model`: when the conversation passes the token trigger, older messages are replaced by a summary made with the operational model; the most recent messages are kept. Trigger and keep values are set in `_build_executor`. |
+| **4 · `ModelRetryMiddleware`** | LangChain, as shipped.<br>`wrap_model_call`: retries transient model failures with exponential backoff and jitter; `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried (`content_safety.retry_on`); the executor answers with guidance instead (T92). |
+| **Turn tools · `@wrap_model_call`** | (ADR-0069) — LangChain's dynamic tool selection: offers the model only the turn type's tools (`request.override(tools=…)`, §3.6); every tool stays registered. |
+| **Call limit · `ModelCallLimitMiddleware`** | LangChain, as shipped (ADR-0059, T69), declared just outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's judgment and the two after-agent checks; a run it ends gets the move's reply from code. The turn's count is `step_log`'s `call_budget`; calls inside tools, `tool_model_calls`. |
+| **Personal data · `PIIMiddleware`** | LangChain, as shipped (ADR-0062, T87): one instance, a combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only — never the Belt's own messages; the turn's counts are `step_log`'s `pii_masked`. |
+| **5 · `ToolRetryMiddleware`** | LangChain, as shipped.<br>`wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is returned to the coach as the tool result (`on_failure="continue"`), not raised. |
+| **6 · `DMAICGraderMiddleware`** | `middleware/grader.py`, custom. Executes last.<br>`after_agent`, every turn: one `grader`-role call grades the coach's reply against `COACHING_QUALITY_RUBRIC` (`core/prompts.py`, which owns the criteria), per criterion.<br>Rubric lines that do not apply to this turn's move are excluded (`MOVE_EXCLUDES`).<br>On FAIL the reply still goes out with a warning the Belt sees (`grader_warning`); the verdict goes to `step_log` with `layer: "coaching_grader"` and becomes next turn's quality feedback.<br>**Skipped** when coherence has already degraded the reply this turn. |
+| **7 · `CoherenceMiddleware`** | `middleware/coherence.py`, custom. Validation layer 2a.<br>`after_agent`, every turn: one `coherence`-role call checks the whole reply, including its `prompt`: is it real and conclusive, is it on topic, is it parroting.<br>Parroting is judged against the script step the move called for: a read-back for a captured field, explain-show-ask otherwise, using that field's SKILL.md block.<br>On rejection the turn is degraded; the verdict goes to `step_log` under node `coherence`. |
+| **8 · `ContradictionDetectionMiddleware`** | `middleware/contradiction.py`, custom. Executes first of the `after_agent` group.<br>Reads `CoachingResponse.contradiction_flag` (`prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input`), which the coach sets only when the Belt materially contradicts a gate-approved value shown to it in the project-state section.<br>A flag is detected and logged; it does not stop the turn. No flag, no action.<br>No Store read, no model call, no tolerance threshold. When to flag is instructed in each SKILL.md. |
 
 **Four separate caps**, never merged: model calls per turn (T69), model retry (API failures), coherence (reply quality),
 validation (gate attempts, three, in `gate_attempts`).
@@ -572,15 +480,7 @@ grader reads `belt_level` from the case record.
 
 ### 3.9 API
 
-| Route | Purpose |
-|---|---|
-| `POST /cases`, `GET /cases/{id}`, `GET /registry` | Create, open, list |
-| `POST /ask` | One coaching turn |
-| `POST /upload`, `DELETE /files/{case_id}/{file_id}` | Add, remove an upload |
-| `POST /gate` | Submit for acceptance |
-| `GET /gate/review/{case_id}/{phase}` | Report and pending decision |
-| `POST /gate/decision` | Approve or reject; resumes the pause |
-| `GET /health`, `POST /summarise`, `POST /context` | Health, session summary, re-entry greeting |
+Generated from the code on every commit: [docs/api-routes.md](docs/api-routes.md).
 
 Routes are `async`, invoke the one compiled graph (`get_graph()`) and marshal the models in
 `gateway/schemas.py`. `POST /upload` screens the file's text with Prompt Shields' document check

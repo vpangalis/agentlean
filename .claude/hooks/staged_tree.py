@@ -161,7 +161,10 @@ def run_suite(root: Path = ROOT, tree: str | None = None) -> tuple[int, str]:
 
 #: Founder item 9, 2026-09-29 — test files a fast run always includes: they read the live
 #: run-through record, whose freshness any product change alters, whatever the import graph says.
-ALWAYS_FAST = ("backend/tests/test_define_runthrough.py", "backend/tests/test_define_features.py")
+#: test_generated_docs.py (founder 2026-09-30): the generated code layout and routes change with any
+#: backend module, whatever the import graph says.
+ALWAYS_FAST = ("backend/tests/test_define_runthrough.py", "backend/tests/test_define_features.py",
+               "backend/tests/test_generated_docs.py")
 
 
 def fast_tests(root: Path = ROOT) -> list[str] | None:

@@ -219,6 +219,8 @@ SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): (?:commit \d+\.\d+|DEF-\d{3}) �
 # tables now live as `> **BUILT:**` markers on the items they describe
 # (ARCHITECTURE.md §55.2). Same rule, one file.
 STATUS_PATH = "agent-improve/ARCHITECTURE.md"
+#: §3.1's table, generated there since 2026-09-30 (rule 17 reads it with §3).
+LAYOUT_PATH = "agent-improve/docs/code-layout.md"
 
 # Rule 17 reads the files ARCHITECTURE.md §3 names (design_files); the watch
 # list rule 2b kept by hand retired with it (founder, 2026-09-27).
@@ -551,7 +553,7 @@ def check_type_ratchet(root: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-def design_files(text: str) -> set[str]:
+def design_files(text: str, layout: str = "") -> set[str]:
     """Every file ARCHITECTURE.md §3 names, as repo paths (rule 17).
 
     Read from §3 "Components and interfaces" only: backticked paths, a
@@ -560,12 +562,16 @@ def design_files(text: str) -> set[str]:
     as "—", means backend/ itself). Paths are relative to agent-improve/backend/
     unless they start with ui/, skills/, scripts/, tools/ or docs/ (the
     document's own convention). `{phase}` expands to the five phases.
+
+    `layout` is docs/code-layout.md, where §3.1's table is generated since
+    2026-09-30 (founder, ARCHITECTURE.md headroom A1): its table is read as
+    §3.1's was, so a file the moved table named is still named.
     """
     s = text.find("\n## 3.")
     if s < 0:
         return set()
     e = text.find("\n## 4.", s)
-    section = text[s:e if e > 0 else None]
+    section = text[s:e if e > 0 else None] + "\n\n" + layout
     out: set[str] = set()
     folder = None
     for line in section.splitlines():
@@ -599,7 +605,11 @@ def check_design(root: str, message: str, staged: list[str]) -> None:
     must change ARCHITECTURE.md outside its generated block, or say
     `Design: unchanged` in a trailer. An annotation-only change passes."""
     doc = _staged_text(root, STATUS_PATH)
-    named = design_files(doc)
+    try:
+        layout = _staged_text(root, LAYOUT_PATH)
+    except Exception:  # noqa: BLE001 — no generated layout yet: §3 alone
+        layout = ""
+    named = design_files(doc, layout or "")
     touched = sorted(p for p in staged if p in named and os.path.isfile(os.path.join(root, p)))
     if not touched:
         return

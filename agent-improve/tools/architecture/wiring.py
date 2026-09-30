@@ -174,14 +174,15 @@ def named(text: str | None = None) -> dict[str, list[str]]:
         return sec[a:b if b > 0 else None] if a >= 0 else ""
 
     nodes = re.findall(r"^\| `(\w+)` \|", sub("3.2"), re.M)
-    middleware = re.findall(r"^\*\*\d+ · `(\w+)`\*\*", sub("3.3"), re.M)
+    # §3.3's middleware are one table since 2026-09-30 (founder, headroom B1): `| **N · `Name`** |`.
+    middleware = re.findall(r"^(?:\| )?\*\*\d+ · `(\w+)`\*\*", sub("3.3"), re.M)
     tools = sorted(set(re.findall(r"`((?:rag_lookup|propose|load)_\w+)", sub("3.5") + sub("3.6"))))
-    routes = []
-    for line in sub("3.9").splitlines():
-        if line.startswith("| `"):
-            routes += re.findall(r"`(GET|POST|PUT|PATCH|DELETE) ([^`]+)`", line.split("|")[1])
+    # §3.9's routes are generated into docs/api-routes.md since 2026-09-30 (headroom A3).
+    routes_doc = ARCH.parent / "docs" / "api-routes.md"
+    routes_text = routes_doc.read_text(encoding="utf-8") if routes_doc.is_file() else ""
+    routes = re.findall(r"^\| (GET|POST|PUT|PATCH|DELETE) \| `([^`]+)` \|", routes_text, re.M)
     mappers = [f"{p}_{io}_mapper" for p in PHASES for io in ("input", "output")] \
-        if "{phase}/mappers.py" in sec else []
+        if "_output_mapper`" in sub("3.2") else []   # §3.2 names them (§3.1 is generated since 2026-09-30)
     return {"node": nodes, "middleware": middleware, "mapper": mappers, "tool": tools,
             "route": [f"{v} {p}" for v, p in routes]}
 

@@ -1,9 +1,9 @@
 {
- "source_hash": "8b6540a68b39b76d",
- "commit": "fd99b19",
+ "source_hash": "fc8a2a3efeb3abe4",
+ "commit": "27d40a7",
  "commit_matches_source": false,
  "full_run_hash": "5869a0705bb3e816",
- "recorded_at": "2026-09-30T14:29:45+00:00",
+ "recorded_at": "2026-09-30T14:41:38+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -917,6 +917,10 @@
   "backend/tests/test_generate_models.py::test_the_generator_never_imports_a_backend_module": "passed",
   "backend/tests/test_generate_models.py::test_the_git_pipes_carry_bytes_so_nothing_is_staged_with_crlf": "passed",
   "backend/tests/test_generate_models.py::test_the_hooks_run_and_check_it": "passed",
+  "backend/tests/test_generated_docs.py::test_architecture_links_both": "passed",
+  "backend/tests/test_generated_docs.py::test_every_route_is_listed": "passed",
+  "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[api routes]": "passed",
+  "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[code layout]": "passed",
   "backend/tests/test_guard_mode_strict_default.py::test_a_run_record_names_its_guard_mode": "passed",
   "backend/tests/test_guard_mode_strict_default.py::test_nothing_in_the_set_up_sets_development_mode": "passed",
   "backend/tests/test_hop_cap.py::test_one_more_hop_would_not_fit": "passed",

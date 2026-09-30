@@ -391,7 +391,8 @@ GENERATED_PATHS = {
 
 
 def _named() -> set:
-    return g.design_files((Path(_ROOT) / "agent-improve" / "ARCHITECTURE.md").read_text(encoding="utf-8"))
+    return g.design_files((Path(_ROOT) / "agent-improve" / "ARCHITECTURE.md").read_text(encoding="utf-8"),
+                          (Path(_ROOT) / "agent-improve" / "docs" / "code-layout.md").read_text(encoding="utf-8"))
 
 
 def test_the_named_files_are_sources_of_truth_that_exist_and_have_teeth() -> None:
@@ -612,7 +613,9 @@ def test_rule_17_passes_annotations_the_trailer_or_a_design_change_and_fires_oth
         g.check_design(_ROOT, "", [named])                                   # behaviour, no word
     monkeypatch.setattr(g, "_status_changed_by_hand", lambda root: True)
     g.check_design(_ROOT, "", [named, "agent-improve/ARCHITECTURE.md"])       # the design moved with it
-    g.check_design(_ROOT, "", ["agent-improve/backend/core/metrics.py"])      # not named in §3
+    # not named in §3 — since 2026-09-30 §3.1's layout is generated over every backend module, so the
+    # unnamed example is a script outside backend/
+    g.check_design(_ROOT, "", ["agent-improve/scripts/move_proof_661.py"])
 
 
 def test_the_suite_runs_serial_tests_alone_after_the_parallel_pass() -> None:
