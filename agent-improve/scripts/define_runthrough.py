@@ -41,7 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from scripts.coaching_proof_656 import ANSWERS, SAVINGS, SENDS, WEAK_4, _tracing_off
-from scripts.move_proof_661 import CALLS, COACH_INPUTS, CapReached, _count_model_calls
+from scripts.move_proof_661 import CALLS, COACH_INPUTS, CapReached, _count_model_calls, token_totals
 
 CASE_TITLE = "DEFINE RUN-THROUGH — step 6.66, do not use for other proofs"
 USER = "define-runthrough-6.66"
@@ -243,6 +243,7 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             "kind": "turn", "n": n, "why": why, "belt": message, "action": action,
             "http": resp.status_code, "seconds": seconds,
             "model_calls": [c["kind"] for c in CALLS[c0:]],
+            "tokens": token_totals(CALLS[c0:])["total"],          # item 4 (2026-09-30)
             "move": mrec.get("move"), "field": mrec.get("field"), "status": mrec.get("status"),
             "verdict": judgment.get("verdict") if isinstance(judgment, dict) else None,
             "stored_field": (mrec.get("stored") or {}).get("field") if isinstance(mrec.get("stored"), dict) else mrec.get("stored_field"),
@@ -385,7 +386,10 @@ def main() -> int:
                "langsmith_sends": len(SENDS),
                # Founder 2026-09-30 (Part A3): the run says which guard mode it ran under and whether
                # Content Safety was configured — the report reads it here, never from the command line.
-               "guard_mode": _guard_mode(), **out}
+               "guard_mode": _guard_mode(),
+               # Founder 2026-09-30 (review of 309f9fc), item 4: tokens per role, per model and in
+               # total, so the run's cost can be computed from the deployments' prices.
+               "tokens": token_totals(CALLS), **out}
     _write(rec, summary)
     print(json.dumps(summary, indent=1, default=str))
     _time_it(started, len(CALLS))

@@ -1,9 +1,9 @@
 {
- "source_hash": "f09e31811364327d",
- "commit": "23c4771",
+ "source_hash": "e9b984b6b9a549dc",
+ "commit": "be512dc",
  "commit_matches_source": false,
  "full_run_hash": "835a0ab6a23f055d",
- "recorded_at": "2026-09-30T10:54:10+00:00",
+ "recorded_at": "2026-09-30T11:01:29+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1420,6 +1420,7 @@
   "backend/tests/test_retriever.py::test_the_knowledge_index_default_is_the_current_index_never_the_retired_one": "passed",
   "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>0]": "passed",
   "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>1]": "passed",
+  "backend/tests/test_runthrough_tokens.py::test_each_call_records_its_tokens_and_the_run_totals_them": "passed",
   "backend/tests/test_session_start.py::test_the_session_start_hook_prints_every_section": "passed",
   "backend/tests/test_size_budget.py::test_an_unbudgeted_file_is_never_measured": "passed",
   "backend/tests/test_size_budget.py::test_every_governing_document_has_a_bound": "passed",

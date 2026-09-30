@@ -89,12 +89,53 @@ def _count_model_calls(cap: int) -> None:
                 "planner-judgment" if "You judge ONE thing" in text else
                 "coherence" if "coheren" in text.lower() else
                 "grader" if "grading ONE coaching turn" in text else "other")
-        CALLS.append({"kind": kind, "at": dt.datetime.now(dt.timezone.utc).isoformat()})
+        call = {"kind": kind, "at": dt.datetime.now(dt.timezone.utc).isoformat()}
+        CALLS.append(call)
         if kind == "coach":
             COACH_INPUTS.append([_serialise(m) for m in first])
-        return await original(self, messages, *args, **kwargs)
+        result = await original(self, messages, *args, **kwargs)
+        call.update(_usage(self, result))
+        return result
 
     BaseChatModel.agenerate = agenerate  # type: ignore[method-assign]
+
+
+def _usage(model: Any, result: Any) -> dict[str, Any]:
+    """Founder 2026-09-30 (review of 309f9fc), item 4: a call's tokens and the model that served it,
+    so a run's cost can be computed — from the message's `usage_metadata`, else the provider's
+    `token_usage`. Zeros when the provider reported nothing."""
+    msg = None
+    try:
+        msg = result.generations[0][0].message
+    except (AttributeError, IndexError, TypeError):
+        pass
+    usage = dict(getattr(msg, "usage_metadata", None) or {})
+    if not usage:
+        tu = dict(((getattr(result, "llm_output", None) or {}).get("token_usage")) or {})
+        usage = {"input_tokens": tu.get("prompt_tokens", 0), "output_tokens": tu.get("completion_tokens", 0)}
+    meta = dict(getattr(msg, "response_metadata", None) or {})
+    return {"input_tokens": int(usage.get("input_tokens") or 0),
+            "output_tokens": int(usage.get("output_tokens") or 0),
+            "model": str(meta.get("model_name") or getattr(model, "deployment_name", None)
+                         or getattr(model, "model_name", None) or type(model).__name__)}
+
+
+def token_totals(calls: list[dict[str, Any]]) -> dict[str, Any]:
+    """The run's tokens per role, per model and in total (item 4)."""
+    def add(bucket: dict, key: str, c: dict) -> None:
+        b = bucket.setdefault(key, {"calls": 0, "input_tokens": 0, "output_tokens": 0})
+        b["calls"] += 1
+        b["input_tokens"] += int(c.get("input_tokens") or 0)
+        b["output_tokens"] += int(c.get("output_tokens") or 0)
+    by_role: dict[str, dict] = {}
+    by_model: dict[str, dict] = {}
+    total: dict[str, dict] = {}
+    for c in calls:
+        add(by_role, c.get("kind", "other"), c)
+        add(by_model, c.get("model", "?"), c)
+        add(total, "total", c)
+    return {"by_role": by_role, "by_model": by_model,
+            "total": total.get("total", {"calls": 0, "input_tokens": 0, "output_tokens": 0})}
 
 
 def _write(path: Path, record: dict) -> None:
