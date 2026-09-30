@@ -1,9 +1,9 @@
 {
- "source_hash": "8baf7a4cdc2edcf5",
- "commit": "b472e17",
+ "source_hash": "5fc41964cc040cf1",
+ "commit": "8652de0",
  "commit_matches_source": false,
  "full_run_hash": "f22f133ccf7e5b3b",
- "recorded_at": "2026-09-30T09:35:21+00:00",
+ "recorded_at": "2026-09-30T09:39:09+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1194,6 +1194,7 @@
   "backend/tests/test_moves.py::test_the_status_is_stored_never_derived_from_a_reply": "passed",
   "backend/tests/test_moves.py::test_the_third_failed_attempt_offers_to_park_and_park_moves_on": "passed",
   "backend/tests/test_moves.py::test_where_do_we_stand_is_answered_and_the_status_does_not_move": "passed",
+  "backend/tests/test_mypy_ratchet_reuse.py::test_the_count_is_reused_until_a_python_source_in_the_index_changes": "passed",
   "backend/tests/test_network_block.py::test_a_connect_beyond_this_machine_is_blocked": "passed",
   "backend/tests/test_network_block.py::test_loopback_still_connects": "passed",
   "backend/tests/test_network_block.py::test_only_the_capability_rows_may_reach_the_network": "passed",

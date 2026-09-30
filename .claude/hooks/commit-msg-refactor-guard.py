@@ -539,11 +539,15 @@ def check_type_ratchet(root: str) -> None:
     if staged is None:
         fail("rule 3b: the type-error ratchet record is missing from the index",
              f"Restore {mr.RATCHET} — the count may fall, never rise.")
-    n = mr.staged_count(Path(root))
+    # Controls review (founder, 2026-09-30): the pre-commit hook's count, when the index still
+    # holds exactly the sources it measured; otherwise measured here.
+    known = mr.known_count(Path(root))
+    n = known if known is not None else mr.staged_count(Path(root))
     why = mr.refusal(n, staged, mr.head_record(Path(root)))
     if why:
         fail("the whole-tree type-error ratchet refuses this commit (rule 3b)", *why)
-    note(f"rule 3b mypy ratchet: PASS — {n} error(s) over the whole tree, record {staged}")
+    note(f"rule 3b mypy ratchet: PASS — {n} error(s) over the whole tree, record {staged}"
+         + (" (the pre-commit hook's count)" if known is not None else ""))
 
 
 # --------------------------------------------------------------------------- #

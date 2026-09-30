@@ -96,12 +96,46 @@ def write(root: Path, count: int) -> None:
                     newline="\n")
 
 
+#: Controls review (founder, 2026-09-30): the pre-commit's count, keyed on the inputs it measured,
+#: so rule 3b reuses it instead of running mypy over the whole tree a second time (~5 s a commit).
+MARKER = Path(".claude") / "logs" / "mypy-count.json"
+
+
+def source_key(root: Path = ROOT) -> str:
+    """The count's inputs in the INDEX: every .py blob under backend/ and scripts/, and mypy.ini."""
+    import hashlib
+    out = subprocess.run(["git", "ls-files", "-s", "--", *(f"{PROJECT}/{p}" for p in PATHS), f"{PROJECT}/mypy.ini"],
+                         cwd=root, capture_output=True, encoding="utf-8", errors="replace",
+                         stdin=subprocess.DEVNULL).stdout
+    lines = [ln for ln in out.splitlines() if ln.endswith(".py") or ln.endswith("mypy.ini")]
+    return hashlib.sha256("\n".join(lines).encode()).hexdigest()[:16]
+
+
+def remember(root: Path, count: int) -> None:
+    try:
+        path = root / MARKER
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"key": source_key(root), "count": count}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def known_count(root: Path = ROOT) -> int | None:
+    """The pre-commit's count when the index still holds exactly what it measured; else None."""
+    try:
+        got = json.loads((root / MARKER).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return int(got["count"]) if got.get("key") == source_key(root) else None
+
+
 def lower(root: Path = ROOT) -> str:
     """Pre-commit: lower and stage the record when the staged tree's count fell."""
     rec = staged_record(root)
     if rec is None:
         return "no ratchet record staged — nothing to lower"
     n = staged_count(root)
+    remember(root, n)
     if n >= rec:
         return f"{n} error(s), record {rec} — unchanged"
     write(root, n)
