@@ -104,6 +104,13 @@ UPLOAD_CSV = ("month,invoices,paid_late,late_rate_pct\n"
               "2026-04,3510,790,22.5\n2026-05,3570,840,23.5\n2026-06,3450,780,22.6\n")
 
 
+def _guard_mode() -> dict[str, Any]:
+    """The input guard's mode and the Content Safety set-up this run ran under (never the key)."""
+    from backend.core import content_safety
+    return {"mode": "development" if content_safety.development_mode() else "strict",
+            "content_safety_configured": content_safety.configured()}
+
+
 def _write(path: Path, record: dict) -> None:
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
@@ -375,7 +382,10 @@ def main() -> int:
                "minutes": round((time.time() - started) / 60, 1), "cap": args.max_calls,
                "model_calls": len(CALLS),
                "by_kind": {k: sum(c["kind"] == k for c in CALLS) for k in sorted({c["kind"] for c in CALLS})},
-               "langsmith_sends": len(SENDS), **out}
+               "langsmith_sends": len(SENDS),
+               # Founder 2026-09-30 (Part A3): the run says which guard mode it ran under and whether
+               # Content Safety was configured — the report reads it here, never from the command line.
+               "guard_mode": _guard_mode(), **out}
     _write(rec, summary)
     print(json.dumps(summary, indent=1, default=str))
     _time_it(started, len(CALLS))
