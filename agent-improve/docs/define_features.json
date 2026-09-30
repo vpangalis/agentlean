@@ -195,7 +195,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-005",
@@ -294,7 +295,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-007",
@@ -422,7 +424,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-010",
@@ -551,7 +554,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-013",
@@ -598,7 +602,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-014",
@@ -642,7 +647,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-015",
@@ -689,7 +695,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-016",
@@ -737,7 +744,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-017",
@@ -786,7 +794,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-018",
@@ -828,7 +837,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-019",
@@ -868,7 +878,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-020",
@@ -918,7 +929,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-021",
@@ -963,7 +975,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-022",
@@ -1001,7 +1014,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-023",
@@ -1042,7 +1056,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-024",
@@ -1082,7 +1097,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-025",
@@ -1643,7 +1659,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-038",
@@ -1686,7 +1703,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-039",
@@ -1729,7 +1747,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-040",
@@ -1779,11 +1798,12 @@
    "effort": "L",
    "priority_override": {
     "rank_tier": 2,
-    "reason": "Founder ruling 1, 2026-09-29: M1 -> M2. A contradiction with a value approved at an EARLIER gate can only occur from Measure on; within Define, corrections go through Change (W9, R15). The design (a sixth node with interrupt, or a coached choice) is decided in the Measure review with ADR-0042. Not built now."
+    "reason": "Founder ruling 1, 2026-09-29: M1 -> M2. A contradiction with a value approved at an EARLIER gate can only occur from Measure on; within Define, corrections go through Change (W9, R15). The design (a sixth node with interrupt, or a coached choice) is decided in the Measure review with ADR-0042. Not built now. Pilot cut (founder, 2026-09-30): later, and held until ADR-0042 is decided in the Measure review."
    },
    "phase": "define",
    "stage": "coached",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": false
   },
   {
    "id": "DEF-041",
@@ -1874,7 +1894,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-043",
@@ -1982,7 +2003,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": false
   },
   {
    "id": "DEF-045",
@@ -2023,7 +2045,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": false
   },
   {
    "id": "DEF-046",
@@ -2071,7 +2094,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-047",
@@ -2172,7 +2196,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "approve",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-049",
@@ -2272,55 +2297,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "approve",
-   "layer": "gate"
-  },
-  {
-   "id": "DEF-051",
-   "description": "At the paused gate the Belt may edit a field; a non-blocking policy advisory checks the edit, and the edited value is what is written.",
-   "clause": "the Belt sees it, approves it",
-   "depends_on": [
-    "DEF-047"
-   ],
-   "test": "backend/tests/test_define_e2e.py::test_a_belt_edit_at_the_gate_is_advised_not_blocked",
-   "sources": {
-    "architecture": [
-     "§33 steps 5–6 (policy advisory)",
-     "§33.1"
-    ],
-    "procedure": [
-     "Step 7.8",
-     "Step 7.3 clause 2 ('an edit is accepted')",
-     "G-13"
-    ],
-    "code": [
-     "agent-improve/backend/phases/nodes_common.py::gate_apply"
-    ],
-    "guidance": [
-     "https://docs.langchain.com/oss/python/langgraph/interrupts"
-    ]
-   },
-   "lane": "B",
-   "provenance": {
-    "steps": [
-     "7.8",
-     "7.3"
-    ],
-    "capability_rows": [],
-    "gaps": [
-     "G-13"
-    ],
-    "notes_6_66": [
-     "verify_built: belt_edits:R (declared, no writer)"
-    ]
-   },
-   "requirement": "R6",
-   "belt_impact": "degraded",
-   "rework_risk": "high",
-   "effort": "M",
-   "priority_override": null,
-   "phase": "define",
-   "stage": "approve",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-052",
@@ -2362,7 +2340,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": false
   },
   {
    "id": "DEF-053",
@@ -2409,7 +2388,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-054",
@@ -2500,7 +2480,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-056",
@@ -2550,7 +2531,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-057",
@@ -2600,7 +2582,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-058",
@@ -2644,7 +2627,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-059",
@@ -2683,7 +2667,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": false
   },
   {
    "id": "DEF-060",
@@ -2780,7 +2765,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "record_written",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-062",
@@ -2953,7 +2939,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "next_phase",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-065",
@@ -2985,7 +2972,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-066",
@@ -3019,7 +3007,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-067",
@@ -3053,7 +3042,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-068",
@@ -3087,7 +3077,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-069",
@@ -3120,7 +3111,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-070",
@@ -3151,7 +3143,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-071",
@@ -3184,7 +3177,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "approve",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-072",
@@ -3219,7 +3213,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-074",
@@ -3426,7 +3421,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-081",
@@ -3455,7 +3451,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-082",
@@ -3484,7 +3481,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-083",
@@ -3511,7 +3509,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-084",
@@ -3540,7 +3539,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-085",
@@ -3570,7 +3570,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-086",
@@ -3599,7 +3600,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-087",
@@ -3655,7 +3657,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-089",
@@ -3736,7 +3739,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-092",
@@ -3792,7 +3796,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "approve",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-094",
@@ -3823,7 +3828,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-095",
@@ -3877,7 +3883,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-097",
@@ -3904,7 +3911,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "next_phase",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-098",
@@ -3960,7 +3968,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-100",
@@ -3989,7 +3998,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "approve",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-101",
@@ -4045,7 +4055,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "api"
+   "layer": "api",
+   "pilot": false
   },
   {
    "id": "DEF-103",
@@ -4072,7 +4083,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-104",
@@ -4099,7 +4111,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-105",
@@ -4215,7 +4228,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-109",
@@ -4381,7 +4395,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-115",
@@ -4408,7 +4423,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-116",
@@ -4437,7 +4453,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-117",
@@ -4496,7 +4513,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "approve",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": true
   },
   {
    "id": "DEF-119",
@@ -4523,7 +4541,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": false
   },
   {
    "id": "DEF-120",
@@ -4550,7 +4569,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": false
   },
   {
    "id": "DEF-121",
@@ -4604,7 +4624,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-123",
@@ -4739,7 +4760,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": false
   },
   {
    "id": "DEF-128",
@@ -4793,7 +4815,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-130",
@@ -4847,7 +4870,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": false
   },
   {
    "id": "DEF-132",
@@ -4901,7 +4925,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": false
   },
   {
    "id": "DEF-134",
@@ -4928,7 +4953,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   },
   {
    "id": "DEF-135",
@@ -4955,7 +4981,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "pilot": false
   },
   {
    "id": "DEF-136",
@@ -5009,7 +5036,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": true
   },
   {
    "id": "DEF-138",
@@ -5036,7 +5064,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "gate"
+   "layer": "gate",
+   "pilot": false
   },
   {
    "id": "DEF-139",
@@ -5063,7 +5092,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-140",
@@ -5121,7 +5151,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": true
   },
   {
    "id": "DEF-142",
@@ -5148,7 +5179,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-143",
@@ -5248,7 +5280,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-146",
@@ -5512,7 +5545,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-154",
@@ -5570,7 +5604,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-156",
@@ -5732,7 +5767,8 @@
    "rework_risk": "low",
    "effort": "S",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-161",
@@ -5763,7 +5799,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "next_phase",
-   "layer": "coaching"
+   "layer": "coaching",
+   "pilot": true
   },
   {
    "id": "DEF-162",
@@ -5824,7 +5861,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "pilot": true
   },
   {
    "id": "DEF-164",
@@ -5851,7 +5889,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "approve",
-   "layer": "api"
+   "layer": "api",
+   "pilot": true
   }
  ]
 }

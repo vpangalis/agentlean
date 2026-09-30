@@ -108,15 +108,9 @@
   {
    "id": "G-13",
    "symptom": "`PolicyAdvisoryResult`, and how a non-blocking advisory is surfaced without reading as a rejection of the Belt's correction — Attaches to: S-C25, S-F27. Step (procedure era): unscheduled.",
-   "requirement": [
-    "R6"
-   ],
-   "feature": [
-    "DEF-051"
-   ],
-   "lane": [
-    "B"
-   ]
+   "requirement": [],
+   "feature": [],
+   "lane": []
   },
   {
    "id": "G-14",

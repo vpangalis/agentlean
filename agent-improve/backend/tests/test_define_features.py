@@ -32,6 +32,8 @@ import features as F  # noqa: E402
 FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "provenance",
           "requirement", "belt_impact", "rework_risk", "effort", "priority_override",
           "phase", "stage", "layer"}
+#: Carried by M2 features only: the founder's pilot cut (2026-09-30), true | false (rank.py --check).
+OPTIONAL = {"pilot"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -46,7 +48,7 @@ def feats() -> list[dict]:
 
 def test_every_feature_has_the_founders_fields_and_no_status(feats) -> None:
     for f in feats:
-        assert set(f) == FIELDS, (f["id"], set(f) ^ FIELDS)
+        assert FIELDS <= set(f) <= FIELDS | OPTIONAL, (f["id"], set(f) ^ FIELDS)
         assert f["lane"] in F.LANES, f["id"]
         assert f["test"].startswith("backend/tests/test_") and "::test_" in f["test"], f["id"]
 

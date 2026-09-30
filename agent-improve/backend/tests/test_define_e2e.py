@@ -245,11 +245,6 @@ def test_three_failed_gate_attempts_escalate() -> None:
     _not_written('DEF-046')
 
 
-def test_a_belt_edit_at_the_gate_is_advised_not_blocked() -> None:
-    """DEF-051 — At the paused gate the Belt may edit a field; a non-blocking policy advisory checks the edit, and the edited value is what is written."""
-    _not_written('DEF-051')
-
-
 def test_the_four_blocks_reach_the_screen() -> None:
     """DEF-052 — The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one."""
     _not_written('DEF-052')
