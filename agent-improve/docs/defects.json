@@ -1449,6 +1449,19 @@
     "tooling"
    ],
    "control": "the network block: conftest.py sets pytest-socket --allow-hosts to loopback for every test (test_network_block.py); only test_capability_rows.py may reach the network (test_only_the_capability_rows_may_reach_the_network)"
+  },
+  {
+   "id": "G-143",
+   "symptom": "THE EVIDENCE UPLOAD RETURNS 'INTERPRETATION UNAVAILABLE' — THE DEPLOYMENT'S CONTENT FILTER REFUSES OUR OWN INTERPRETATION PROMPT AS A JAILBREAK. Evidence: every run-through's evidence upload (ap_late_payments_jan_jun_2026.csv) reads '[!] INTERPRETATION UNAVAILABLE — ... was read and its structure recorded (table, 4 columns, 6 rows), but the description of what it CONTAINS did not run' — define_runthrough_20260930T061819, T064710 (development mode) and T102427 (strict). The run logs (scratch rt3.log, rt4.log, rt5.log) each show backend.upload.agent 'Upload interpretation failed ...: Error code: 400 ... code content_filter ... innererror ResponsibleAIPolicyViolation, content_filter_result jailbreak detected: True, filtered: True' (hate, violence, sexual, self_harm safe; indirect_attack not detected). The upload itself succeeds: parsed, indexed, screened clean by Prompt Shields' document check. Registered 2026-09-30 (founder, review of 309f9fc, item 5); owner lane C; proved fixed by DEF-108. Not fixed yet (ruled). — 8D. D2 IS: upload/agent._interpret's single 'extraction' call (UPLOAD_INTERPRET_PROMPT with the file's columns, ranges and a text sample) is refused by the Azure deployment's content filter (the Foundry filter agentlean-shields: Prompt Shields for jailbreak, 'Annotate and block'), so the summary degrades to its stated fallback. D2 IS-NOT: the Belt's file (Prompt Shields' document check passed it; the guard found no indirect attack); the parse and the index write (both succeed); strict mode (the same on the two development-mode runs). D4 OCCURRENCE: not yet known which part of the prompt reads as a jailbreak to the filter — the instruction text of UPLOAD_INTERPRET_PROMPT, or the sample it embeds; the filter names only the category. D4 ESCAPE: the interpretation failure degrades by design and says so on the upload, but nothing counts it: no test or run check asks that an upload's summary is an interpretation, and the run-through records the upload body without judging it. D5 FIX (direction, not built — ruled): reproduce with the filter's category per part (the prompt alone, the sample alone), then reword whatever trips it; the refusal is a content_filter (never retried, T92) so the fallback is correct meanwhile. D7 PREVENT: DEF-108's run-through check reads the upload summary and fails on the fallback text.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-108"
+   ],
+   "lane": [
+    "C"
+   ]
   }
  ]
 }
