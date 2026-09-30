@@ -346,3 +346,14 @@ def test_the_guard_docstring_carries_rule_6() -> None:
     assert "6. 8D" in doc
     assert "D4 ESCAPE" in doc
     assert "§20" in doc
+
+
+def test_a_gap_line_on_a_record_commit_does_not_ask_for_an_8d() -> None:
+    """Founder 2026-09-30 (review of b472e17, item 4): a run-through record names the gap it serves
+    (the G-139 capture run needed a hand-written `8D: NOT A FIX` line to pass). A fix subject still
+    always needs the 8D, and a Gap: line on any other type still triggers it."""
+    g = _guard()
+    body = "The capture run.\n\nGap: G-139\n"
+    assert not g.is_fix_commit("docs(runthrough): the G-139 capture run — no fallback", body)
+    assert g.is_fix_commit("fix(arch-v2): G-139 — the cause", body)
+    assert g.is_fix_commit("refactor(arch-v2): DEF-160 — something", body)

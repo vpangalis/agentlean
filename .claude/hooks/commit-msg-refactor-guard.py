@@ -1062,6 +1062,8 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
 # only mentioned a code; a spine commit that closes a gap declares it with the
 # trailer.
 FIX_TYPE_RE = re.compile(r"^(?:fix|hotfix)(?:\([^)]*\))?!?:", re.I)
+#: A run-through record commit (founder, 2026-09-30): its Gap: line names the gap it serves.
+RECORD_TYPE_RE = re.compile(r"^docs\(runthrough\):", re.I)
 
 # The opt-out, and it exempts the GAP TRIGGER ONLY. A commit that carries a
 # `Gap:` trailer but changes no behaviour — a register row, a file filed under
@@ -1135,6 +1137,10 @@ def is_fix_commit(subject: str, body: str) -> str:
     """Why rule 6 applies to this commit, or an empty string if it does not."""
     if FIX_TYPE_RE.match(subject):
         return "the subject's type is a fix"
+    # Founder 2026-09-30 (review of b472e17, item 4): a RECORD commit — a run-through record, under
+    # `docs(runthrough):` — names the gap it serves; its Gap: line closes nothing and needs no 8D.
+    if RECORD_TYPE_RE.match(subject):
+        return ""
     gap = _GAP_TRAILER_RE.search(body)
     if gap and _GAP_TOKEN_RE.search(gap.group("v")):
         optout = NOT_A_FIX_RE.search(body)

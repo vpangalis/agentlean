@@ -1,9 +1,9 @@
 {
- "source_hash": "5fc41964cc040cf1",
- "commit": "8652de0",
+ "source_hash": "2d0f3461280cb29c",
+ "commit": "dd16458",
  "commit_matches_source": false,
  "full_run_hash": "f22f133ccf7e5b3b",
- "recorded_at": "2026-09-30T09:39:09+00:00",
+ "recorded_at": "2026-09-30T09:42:27+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -187,6 +187,7 @@
   "backend/tests/test_commit_guard_8d.py::test_a_fix_type_is_always_gated[hotfix: the executor calls the tool]": "passed",
   "backend/tests/test_commit_guard_8d.py::test_a_gap_commit_with_the_8d_passes": "passed",
   "backend/tests/test_commit_guard_8d.py::test_a_gap_commit_without_the_8d_is_refused": "passed",
+  "backend/tests/test_commit_guard_8d.py::test_a_gap_line_on_a_record_commit_does_not_ask_for_an_8d": "passed",
   "backend/tests/test_commit_guard_8d.py::test_a_gap_trailer_is_gated": "passed",
   "backend/tests/test_commit_guard_8d.py::test_a_non_defect_commit_passes_rule_6_end_to_end": "passed",
   "backend/tests/test_commit_guard_8d.py::test_a_token_answer_is_treated_as_empty[n/a]": "passed",
