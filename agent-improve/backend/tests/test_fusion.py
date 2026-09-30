@@ -291,7 +291,7 @@ def test_a_search_failure_propagates_rather_than_being_swallowed() -> None:
         raise KnowledgeSearchError(AgentImproveError(
             error_code="INVALID_QUERY", severity="permanent",
             retry_recommendation="do_not_retry",
-            affected_identifier="improve_knowledge_index", message="boom",
+            affected_identifier="the knowledge index", message="boom",
         ))
 
     async def variants(_q: str) -> list[str]:

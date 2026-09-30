@@ -21,7 +21,7 @@ touches — it creates nothing, writes nothing and deletes nothing.
 
 Usage:
     python scripts/diff_knowledge_index.py --new-jsonl corpus.jsonl
-    python scripts/diff_knowledge_index.py --new-index improve_knowledge_index_v2
+    python scripts/diff_knowledge_index.py --new-index <the rebuilt index>
     python scripts/diff_knowledge_index.py --new-jsonl corpus.jsonl --samples 5
 """
 from __future__ import annotations

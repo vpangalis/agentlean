@@ -7,11 +7,11 @@ from pydantic.v1 import BaseSettings, Field
 
 #: The methodology index the coach reads when `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`
 #: is unset — the CURRENT one: the BB-eBook-only rebuild (`871637f`, 1,184 docs).
-#: **Never `RETIRED_KNOWLEDGE_INDEX`**: that index is retained in Azure but carries
-#: the contaminated corpus the rebuild removed, and until 2026-09-27 it was this
-#: default, so a missing variable silently coached from it (inventory Z05).
+#: Until 2026-09-27 the default was the index the rebuild replaced (the contaminated
+#: corpus), so a missing variable silently coached from it (inventory Z05). That index
+#: and the two other unused ones are named nowhere in code or config since 2026-09-30,
+#: so the founder can delete them in the portal; drift pattern-12 bans the old name.
 KNOWLEDGE_INDEX_DEFAULT = "improve_knowledge_index_v3"
-RETIRED_KNOWLEDGE_INDEX = "improve_knowledge_index"
 
 
 class Settings(BaseSettings):
