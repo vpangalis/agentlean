@@ -140,6 +140,15 @@ T0=$(date +%s)
 if [ -f "$CONTROL" ]; then
     if [ -n "$VENV" ] && "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged; then
         git add agent-improve/docs/control-board.html agent-improve/docs/test-results.json 2>/dev/null
+        # Controls review, item 6 (founder, 2026-09-30): when the page or CONTINUITY's headline
+        # still disagrees with the tree, and regenerating is the whole fix, regenerate both once and
+        # re-stage them here — rule 10 then refuses only what regenerating cannot mend.
+        if ! "$VENV" agent-improve/tools/control_board/check_board.py </dev/null >/dev/null 2>&1; then
+            echo "  [control-board] disagreed with the tree after the build — regenerated and re-staged (item 6)" >&2
+            [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ] && "$SYSPY" "$CONTINUITY"
+            "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged \
+                && git add agent-improve/docs/control-board.html agent-improve/docs/test-results.json 2>/dev/null
+        fi
     else
         echo "  [control-board] WARNING: control-board.html was NOT rebuilt" \
              "(no project venv, or the error above). The commit-msg guard's" \

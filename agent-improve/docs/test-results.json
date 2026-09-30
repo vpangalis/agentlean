@@ -1,9 +1,9 @@
 {
- "source_hash": "f22f133ccf7e5b3b",
- "commit": "8db5719",
+ "source_hash": "37ef6e9695e38d19",
+ "commit": "b46ae49",
  "commit_matches_source": false,
  "full_run_hash": "f22f133ccf7e5b3b",
- "recorded_at": "2026-09-30T09:11:23+00:00",
+ "recorded_at": "2026-09-30T09:13:23+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1365,6 +1365,7 @@
   "backend/tests/test_pre_push.py::test_a_documentation_commit_keeps_its_parents_source": "passed",
   "backend/tests/test_pre_push.py::test_a_push_needs_a_passing_full_run_on_each_pushed_source": "passed",
   "backend/tests/test_pre_push.py::test_the_source_leaves_out_markdown_and_the_hooks_generated_outputs": "passed",
+  "backend/tests/test_precommit_board_selfcheck.py::test_the_hook_checks_its_board_and_regenerates_once_when_it_disagrees": "passed",
   "backend/tests/test_preflight.py::test_a_changed_document_reaches_the_tests_that_read_it": "passed",
   "backend/tests/test_preflight.py::test_a_changed_module_type_checks_its_importers_and_runs_its_own_tests": "passed",
   "backend/tests/test_preflight.py::test_a_failure_recorded_at_HEAD_passes_and_a_new_one_blocks": "passed",
