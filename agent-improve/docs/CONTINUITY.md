@@ -22,18 +22,18 @@
 A feature passes only when its end-to-end test passes.*
 <!-- END CURRENT BUILD STATUS -->
 
-## ⇒ M1 LOOP STOPPED — 2026-09-29 (fourth run), condition 1 (a founder decision: the run allotment)
+## ⇒ M1 REACHED — 2026-09-30 (fifth run), stop condition 7
 
-*Hand-written. Founder rulings 2026-09-29 (third set, items 1-5); the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
+*Hand-written. Founder rulings 2026-09-30 (items 1-5); the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
 
 | | |
 |---|---|
-| **Stopped on** | Item 5 allowed two confirmation runs; both ran on main's own source and both were approved with the next turn in Measure, but run 2 failed three run-through features, two of them M1 (DEF-008, DEF-002), so condition 7's "all M1 features pass on main" is not met. A third run, or a G-139 fix with two new runs (~220 calls, 129 left of 350), is the founder's call |
-| **Landed on main** | Board: "proven on earlier code, awaiting a fresh run" (c65900c) · the two timing labels (db2b283) · pre-push check: a push needs a passing full run on its source (96cd0eb) · G-137 (160f0e9) · G-138 (3c7c517) · DEF-079 merged (25b91f7) · run 2 and G-139/G-140/G-141 (f387d40) |
-| **Run-throughs** | 172658 (run 1, main's source): 13/13, 33 turns, 109 calls, longest 22.9 s, no Confirm refused, approved, Measure, M1 46/46 · 174434 (run 2, same source): 13/13, 34 turns, 112 calls, longest 23.2 s, approved, Measure. At element 10, turns 25-26 were written in code (call limit on an answer turn), so the Confirm at 27 stored nothing |
-| **M1** | 44 proven · 0 awaiting fresh run · 2 open (DEF-008 via G-140, DEF-002 via G-141) |
-| **Found** | The commit guard skips merge commits (`commit-msg-refactor-guard.py:1702`): 25b91f7 was not checked by rules 6/10/11. Checked by hand after the push: DEF-079 lands, the ratchet refuses nothing, the board agrees |
-| **Next** | G-139: first log the coach's produced messages when the call limit fires (no live call needed), so one run names the occurrence; then fix it, and two runs for condition 7 |
+| **Stopped on** | Condition 7: all 46 M1 features pass on main (504e6e1), and two consecutive fresh run-throughs on main's own source (product 2f97af926d2194aa) — 061819 and 064710 — each reached an approved Define with the next turn in Measure, with no code-written reply on any answer turn |
+| **Landed on main** | G-140: a code-written read-back that cannot store asks "I couldn't process that answer — please send it again", no Confirm (8dceaac) · G-139's diagnosis logged when the call limit fires (8dceaac) · the guard checks merges into main (416d9df) and its fix (f511b68) · both run records (072852d, 504e6e1) |
+| **Run-throughs** | 061819: 13/13, 33 turns, 111 calls, longest 26.6 s · 064710: 13/13, 33 turns, 111 calls, longest 28.7 s — each 0 code-written replies, 0 refused Confirms, gate passed, approved, next turn in Measure, 28 of 31 run-through tests (the three failing are not M1) |
+| **M1** | 46 proven · 0 awaiting fresh run · 0 open |
+| **Still open** | G-139 — its cause is NOT captured: it occurred on 1 run of 3 on the pre-G-140 code (174434) and on neither run since; the diagnosis is live on every run. G-141 (DEF-002) waits on it |
+| **Found and fixed** | f511b68: 416d9df's merge regex took the name of rule 8's and crashed the guard on any `Feature:` trailer (failed closed; nothing landed under it) |
 
 ## ⇒ CURRENT POSITION — 2026-09-24
 
