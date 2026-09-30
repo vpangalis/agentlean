@@ -195,10 +195,27 @@ def get_version_info() -> str:
 
 
 def get_drift_warnings() -> str:
-    """Section 4 — placeholder until the PreToolUse log exists (commit 0.5.3)."""
-    return ("drift warnings: (scan not yet implemented — pre-tool-use hook "
-            "active from commit 0.5.3 will log to .claude/logs/drift.log for "
-            "future reads)")
+    """Section 4 — the drift hook's refusals in the last 7 days, from `.claude/logs/drift.log`
+    (written by pre-tool-use-drift-check.py since the controls review, 2026-09-30)."""
+    import collections
+    import datetime as _dt
+    path = os.path.join(get_project_dir(), ".claude", "logs", "drift.log")
+    if not os.path.isfile(path):
+        return "drift refusals (last 7 days): none recorded"
+    since = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=7)
+    counts: collections.Counter = collections.Counter()
+    with open(path, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    for line in lines:
+        try:
+            row = json.loads(line)
+            if _dt.datetime.fromisoformat(row["at"]) >= since:
+                counts[row["pattern"]] += 1
+        except (ValueError, KeyError):
+            continue
+    if not counts:
+        return "drift refusals (last 7 days): none"
+    return "drift refusals (last 7 days): " + " · ".join(f"{p} {n}" for p, n in counts.most_common())
 
 
 def get_harness() -> str:

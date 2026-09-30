@@ -1,9 +1,9 @@
 {
- "source_hash": "baa4a5bcc1cfb443",
- "commit": "890cb41",
+ "source_hash": "9aa5cdfca4dc0469",
+ "commit": "47597ae",
  "commit_matches_source": false,
  "full_run_hash": "d5ef03bd9a350d1e",
- "recorded_at": "2026-09-30T08:59:35+00:00",
+ "recorded_at": "2026-09-30T09:01:34+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -647,6 +647,7 @@
   "backend/tests/test_define_runthrough.py::test_runthrough_no_reply_carries_a_link": "skipped",
   "backend/tests/test_define_skill.py::test_r2_every_element_explains_shows_asks_and_lists_its_criteria": "passed",
   "backend/tests/test_define_skill.py::test_r4_thirteen_elements_with_the_benefits_analysis_and_the_ctqs": "passed",
+  "backend/tests/test_drift_log.py::test_a_drift_refusal_is_logged_and_the_session_start_counts_it": "passed",
   "backend/tests/test_drift_pattern_4.py::test_pattern_4_bans_the_construct_not_the_word[async def _compensate(order):-True]": "passed",
   "backend/tests/test_drift_pattern_4.py::test_pattern_4_bans_the_construct_not_the_word[class CompensationStep(Base):-True]": "passed",
   "backend/tests/test_drift_pattern_4.py::test_pattern_4_bans_the_construct_not_the_word[class OrderSaga:-True]": "passed",

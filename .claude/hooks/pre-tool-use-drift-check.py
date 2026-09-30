@@ -52,6 +52,22 @@ def _log(msg: str) -> None:
         pass
 
 
+def _record(project_dir: str, rel_path: str, violations: list[dict]) -> None:
+    """Controls review, item 3 (2026-09-30): each refusal to `.claude/logs/drift.log`, one JSON
+    line per banned pattern — the session start counts them, and a controls review can see what
+    this hook caught (until now nothing recorded it). Never raises: a log never blocks a write."""
+    try:
+        from datetime import datetime, timezone
+        path = os.path.join(project_dir, ".claude", "logs", "drift.log")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        with open(path, "a", encoding="utf-8") as f:
+            for v in violations:
+                f.write(json.dumps({"at": at, "pattern": v["id"], "file": rel_path, "line": v["line"]}) + chr(10))
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def get_project_dir() -> str:
     """Monorepo root. Honours $CLAUDE_PROJECT_DIR, else current working dir."""
     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
@@ -230,6 +246,7 @@ def main() -> int:
     if not violations:
         return 0
 
+    _record(project_dir, rel_path, violations)
     lines = [f"Blocked — {len(violations)} banned pattern(s) in {rel_path}.", ""]
     for v in violations:
         cites = rule_cites(v["message"])

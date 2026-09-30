@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
 """commit-msg hook — the refactor-commit guard.
 
-Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold (rules 2b, 6, 7 and 8
-bind on EVERY commit, each on its own trigger):
-
-**Rule 2 was DELETED 2026-09-10** and its number is not reused — every other
-rule keeps the number it has been referred to by in commit messages, DECISIONS
-entries and this file's own prose since 2026-08-31. Renumbering to close the
-gap would silently redirect every one of those references. The rules are
-therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
+Blocks a commit that breaks a rule below. Rules 2 (tracker), 2b (status changelog) and 9
+(build matrix) are RETIRED — their code is gone (controls review, 2026-09-30); git history holds
+it. Numbers are never reused, so every older reference still points at the right rule.
 
   1. SUBJECT — matches the spine format EXACTLY:
          refactor(arch-v2): commit X.Y — <what changed>
@@ -17,21 +12,6 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      session-start-context.py parses this subject to report "last completed"
      (`_GITLOG_STEP_RE`); a malformed one silently drops the step out of the
      only automated continuity signal the project has.
-
-  2. ~~TRACKER~~ — **DELETED 2026-09-10.** It required BUILD_TRACKER.md and
-     REFACTORING_PROCEDURE.md to be staged together: *one step = one commit =
-     one row moved IN BOTH.* BUILD_TRACKER.md no longer exists, and a landing
-     step no longer moves a row in Appendix D either — completion is read from
-     git log.
-
-     **It was never the check it looked like.** It verified both files were
-     TOUCHED, never that they AGREED, and that gap is not theoretical: 6.13
-     shipped with the two disagreeing about the next step while this rule
-     passed. The real defence was to stop storing the same fact twice.
-
-  2b. RETIRED 2026-09-27 (founder ruling, brief Part C7) — it required a
-     changelog line in ARCHITECTURE.md when a path it watched changed; v2 has no
-     changelog. Replaced by rule 17.
 
   17. DESIGN — a commit that changes a file NAMED in ARCHITECTURE.md §3
      (Components and interfaces) either changes ARCHITECTURE.md outside its
@@ -229,7 +209,7 @@ SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): (?:commit \d+\.\d+|DEF-\d{3}) �
 # Appendix D's location is `continuity_status.PROCEDURE`, which rule 5 reaches
 # through `build_block` — this file no longer needs to know it.
 
-# Rule 2b — the architecture panel's repo-side source, and the paths it
+# Rule 17 — the architecture panel's repo-side source (formerly rule 2b's), and the paths it
 # tabulates. Unlike the rest of this guard it is NOT scoped to
 # `refactor(arch-v2)` commits: the rule is "whenever a commit changes something
 # that file describes", and a middleware swap lands as a `fix(` just as easily
@@ -262,7 +242,6 @@ BASELINE_REL = os.path.join(".claude", "config", "mypy-baseline.txt")
 CACHE_DIR = os.path.join(tempfile.gettempdir(), "agentlean-mypy-cache")
 
 MYPY_TIMEOUT = 600   # cold run over a large change can exceed a minute
-PYTEST_TIMEOUT = 300
 
 BYPASS = "git commit --no-verify"
 
@@ -339,17 +318,6 @@ def staged_paths(root: str) -> list[str]:
     return [ln.strip().replace("\\", "/") for ln in out.stdout.splitlines() if ln.strip()]
 
 
-def unstaged_python(root: str) -> list[str]:
-    """Python files modified but NOT staged — see the caveat in run_mypy."""
-    out = subprocess.run(
-        ["git", "diff", "--name-only", "--diff-filter=ACMR"],
-        capture_output=True, encoding="utf-8", errors="replace",
-        cwd=root, timeout=10,
-    )
-    return [ln.strip().replace("\\", "/") for ln in out.stdout.splitlines()
-            if ln.strip().endswith(".py")]
-
-
 # --------------------------------------------------------------------------- #
 # Rule 3 — type-check
 # --------------------------------------------------------------------------- #
@@ -421,7 +389,7 @@ def _models_generator(root: str):
 
 
 def _status_changed_by_hand(root: str) -> bool:
-    """Rule 2b's exemption: did ARCHITECTURE.md change OUTSIDE its generated block?
+    """Rule 17: did ARCHITECTURE.md change OUTSIDE its generated block?
     The data-models block is regenerated from the code on every commit, so a
     change there records nothing a person checked (founder, 2026-09-27)."""
     gm = _models_generator(root)
@@ -1742,7 +1710,7 @@ def main(argv: list[str]) -> int:
     if os.path.exists(os.path.join(root, ".git", "MERGE_HEAD")):
         return check_merge(root, subject, message)
 
-    # ── Rule 2b — applies to EVERY commit, not only spine commits ─────────
+    # ── The staged paths — read once for the rules that bind on EVERY commit ─
     # Deliberately ahead of the prefix gate: the rule is "changed something it
     # describes", and that is as true of a `fix(` as of a `refactor(`.
     try:
@@ -1783,8 +1751,6 @@ def main(argv: list[str]) -> int:
     with _timer("rule 19 design gate"):
         check_design_gate(root, subject)
 
-    # Rule 9 (the build matrix, Appendix F covers Appendix D) RETIRED at 6.67
-    # with the procedure; its referee is docs/_archive/retired-tooling/hooks/verify_built.py.
 
     # Rule 11b — the ratchet, on every commit whose full run was for this tree.
     with _timer("rule 11b ratchet"):
@@ -1844,24 +1810,6 @@ def main(argv: list[str]) -> int:
              "\"last completed\". A malformed one drops the step out of the only",
              "automated continuity signal the project has, silently.")
 
-    # ── Rule 2 — DELETED 2026-09-10 ───────────────────────────────────────
-    #
-    # It required BUILD_TRACKER.md and REFACTORING_PROCEDURE.md to be staged
-    # together on every spine commit — "one step = one commit = one row moved
-    # IN BOTH". **Both halves of that are now false.** BUILD_TRACKER.md is
-    # deleted, and Appendix D no longer carries a per-step status a landing
-    # commit has to move: completion is read from git log, so a step that
-    # lands changes no document at all.
-    #
-    # What the rule was really defending was that two documents holding the
-    # same fact must not disagree. **The fix was to stop holding it twice**,
-    # which is a stronger answer than checking they moved together — the rule
-    # only ever verified both files were TOUCHED, never that they AGREED, and
-    # 6.13 shipped with them disagreeing while the rule passed.
-    #
-    # Rule 2b keeps its own number and is untouched; it ran above, ahead of
-    # the prefix gate, because it binds on every commit rather than only on
-    # spine commits.
     staged = all_staged
 
     # ── Rule 11 — a subject naming DEF-xxx lands only on passing tests ─────
