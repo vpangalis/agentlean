@@ -3,6 +3,9 @@ paths:
   - "agent-improve/backend/knowledge/tools.py"
   - "agent-improve/backend/knowledge/computation.py"
   - "agent-improve/backend/knowledge/tool_args.py"
+  - "agent-improve/backend/knowledge/**"
+  - "agent-improve/backend/phases/nodes_common.py"
+  - "agent-improve/skills/**"
 ---
 # §5 — Tools
 

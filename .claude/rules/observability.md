@@ -3,6 +3,10 @@ paths:
   - "agent-improve/backend/core/tracing.py"
   - "agent-improve/backend/core/logging_setup.py"
   - "agent-improve/backend/core/metrics.py"
+  - "agent-improve/backend/core/**"
+  - "agent-improve/backend/middleware/**"
+  - "agent-improve/backend/phases/nodes_common.py"
+  - "agent-improve/scripts/**"
 ---
 # §11 — Tracing and observability
 
