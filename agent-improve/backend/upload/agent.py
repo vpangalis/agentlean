@@ -43,7 +43,9 @@ from typing import Any
 from backend.core import content_safety, guard_messages, pii
 from backend.upload import parsers
 from backend.core.llm import get_llm, block_text
-from backend.core.prompts import UPLOAD_INTERPRET_PROMPT, VISION_EXTRACT_PROMPT
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from backend.core.prompts import UPLOAD_INTERPRET_DATA, UPLOAD_INTERPRET_SYSTEM, VISION_EXTRACT_PROMPT
 from backend.storage.models import UploadInterpretation
 from backend.upload.classifier import (
     classify_content_type,
@@ -225,7 +227,7 @@ async def _interpret(
         # The route owns the blob path and fills it after the upload lands.
         "source_blob_path": "",
     }
-    prompt = UPLOAD_INTERPRET_PROMPT.format(
+    data = UPLOAD_INTERPRET_DATA.format(
         title=case_meta.get("title", "improvement project"),
         department=case_meta.get("department", "the department"),
         phase=phase,
@@ -240,7 +242,10 @@ async def _interpret(
     )
     try:
         llm = get_llm("extraction")
-        result = await llm.ainvoke(prompt)
+        # G-143: the instructions are the system message, the file only the user message (in T72's
+        # labelled block) — as one user message the deployment's jailbreak filter refused it.
+        result = await llm.ainvoke([SystemMessage(content=UPLOAD_INTERPRET_SYSTEM),
+                                    HumanMessage(content=data)])
         payload = _json_object(block_text(result))
         if payload.get("summary"):
             return UploadInterpretation(

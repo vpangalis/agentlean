@@ -242,11 +242,11 @@ def test_the_prompt_asks_for_the_json_it_is_parsed_as():
     call. **The prompt and the parser have to agree, and that is checkable
     without a model.**
     """
-    from backend.core.prompts import UPLOAD_INTERPRET_PROMPT
+    from backend.core.prompts import UPLOAD_INTERPRET_SYSTEM   # G-143: the instructions' half
 
-    assert "JSON" in UPLOAD_INTERPRET_PROMPT.upper()
+    assert "JSON" in UPLOAD_INTERPRET_SYSTEM.upper()
     for key in ("summary", "supports", "caveats"):
-        assert f'"{key}"' in UPLOAD_INTERPRET_PROMPT, (
+        assert f'"{key}"' in UPLOAD_INTERPRET_SYSTEM, (
             f"the prompt must name {key!r} — it is what the parser reads"
         )
 
