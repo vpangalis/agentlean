@@ -90,9 +90,23 @@ block (`1ee1540`) — both fixed with a test each.
 | Pre-flight, a core module (`moves.py`) | 93 s → 53 s | **25.7 s** (27 slow tests left to the hook) | timing log |
 | Pre-flight, a change reaching everything | 107 s (a second full suite) | **0 s of tests** — left to the hook | timing log |
 
-The board is one page from the features, the test record and git log (Part A): N of 64 by
-clause and lane, the next failing feature per lane, a burn-up to 1 October, the last
-commits with their `Timing:` lines. Its projection appears once two days of runs differ.
+The board (`docs/control-board.html`, built on every commit by
+`tools/control_board/build_control_board.py`; redesigned 2026-09-30 from
+`docs/founder-inputs/board-mockup.html`) is one picture and one list that always agree:
+
+| Part | What it shows | Read from |
+|---|---|---|
+| Header | the commit it was built on, the date | git |
+| Phase tabs | Define live; a later phase reads "not started" until the registry has features for it | `docs/*_features.json` `phase` |
+| Milestone buttons | All of Define · Belt gets through (M1) · Must-haves (M2) · Nice to have (M3): done / total, a bar (done green, built amber). A click highlights the milestone's tiles and switches the list; the page opens on the first milestone not complete (or `#M2` in the URL) | `count()` |
+| Pilot cut | M2 splits into Ready for pilot / Before customers once every M2 feature carries `pilot: true\|false` (the founder's ruling); until then "pilot cut not ruled yet" | the registry's `pilot` |
+| Value stream | journey stages × rows (Screens · Access & files · Coaching · Gate · Data & audit · Platform), one tile per feature; colour = state: green done end to end on current code · amber built, not yet proven (including awaiting a fresh run) · grey not started. Won't-now features are not shown. The Belt journey strip heads it | the features, the test record, the latest run-through |
+| What's left | the selected milestone's open features, grouped by row, "n left (k built, to prove)" | `count()` |
+| Side box | Waiting on you · Next up (first 5 open in the order of work) · Selected tile | `docs/board_waiting.md`, `rank.py`, `count()` |
+
+Every number on the page comes from `count()`; `backend/tests/test_board_value_stream.py` holds
+each milestone's list to total − done and the tile count to the registry. The page embeds
+`progress-data` for rule 10 (`check_board.py`) and the session start.
 
 ## Founder rulings on the 6.67 report (2026-09-26) — applied at 6.68
 
