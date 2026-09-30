@@ -1,9 +1,9 @@
 {
- "source_hash": "37ef6e9695e38d19",
- "commit": "45b52dd",
- "commit_matches_source": true,
+ "source_hash": "8baf7a4cdc2edcf5",
+ "commit": "b472e17",
+ "commit_matches_source": false,
  "full_run_hash": "f22f133ccf7e5b3b",
- "recorded_at": "2026-09-30T09:18:36+00:00",
+ "recorded_at": "2026-09-30T09:35:21+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1196,6 +1196,7 @@
   "backend/tests/test_moves.py::test_where_do_we_stand_is_answered_and_the_status_does_not_move": "passed",
   "backend/tests/test_network_block.py::test_a_connect_beyond_this_machine_is_blocked": "passed",
   "backend/tests/test_network_block.py::test_loopback_still_connects": "passed",
+  "backend/tests/test_network_block.py::test_only_the_capability_rows_may_reach_the_network": "passed",
   "backend/tests/test_network_block.py::test_the_block_is_on_by_default": "passed",
   "backend/tests/test_no_tracing.py::test_a_span_inside_a_run_still_records": "passed",
   "backend/tests/test_no_tracing.py::test_a_span_outside_a_run_creates_no_trace": "passed",

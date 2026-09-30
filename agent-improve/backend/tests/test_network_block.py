@@ -34,3 +34,16 @@ def test_loopback_still_connects() -> None:
 def test_the_block_is_on_by_default(pytestconfig) -> None:
     from backend.tests.conftest import LOCAL_HOSTS
     assert pytestconfig.option.allow_hosts == LOCAL_HOSTS
+
+
+def test_only_the_capability_rows_may_reach_the_network() -> None:
+    """Founder 2026-09-30 (review of b472e17, item 3): after test_wiring.py moved to in-memory
+    storage, the one file with the explicit allow is test_capability_rows.py, which reads the live
+    Define case by design (procedure step 6.49)."""
+    from pathlib import Path
+    here = Path(__file__).resolve().parent
+    allowed = sorted(p.name for p in here.glob("test_*.py")
+                     if p.name != Path(__file__).name
+                     and ("enable_socket" in p.read_text(encoding="utf-8")
+                          or "socket_enabled" in p.read_text(encoding="utf-8")))
+    assert allowed == ["test_capability_rows.py"], allowed

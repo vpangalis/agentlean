@@ -30,11 +30,6 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 
-#: Controls review, item 2 (2026-09-30): the explicit network allow — these wired checks still
-#: reach Azure Blob through the graph's case storage (the routes' store is now patched). Proposal:
-#: put that storage in memory too, then drop this allow.
-pytestmark = pytest.mark.enable_socket
-
 
 from backend.core.substate import CoachingResponse
 from backend.middleware.coherence import CoherenceMiddleware
@@ -82,6 +77,11 @@ def wired(monkeypatch, stub_planner):
 
     saver, store = InMemorySaver(), InMemoryStore()
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
+    # Controls review item 3 (2026-09-30): graph.py and routes.py import get_store BY NAME — each name
+    # is pointed at the in-memory store, so this file reaches no network (only test_capability_rows may).
+    monkeypatch.setattr(graph_mod, "get_store", lambda: store)
+    monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)
     # `get_graph` is lru_cached: a graph compiled earlier in the process holds
     # the REAL checkpointer, and the route would reuse it. Clear it so this
     # turn compiles against the in-memory saver — and clear it again after,
@@ -212,6 +212,11 @@ def three_turns(monkeypatch, stub_planner):
 
     saver, store = InMemorySaver(), InMemoryStore()
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
+    # Controls review item 3 (2026-09-30): graph.py and routes.py import get_store BY NAME — each name
+    # is pointed at the in-memory store, so this file reaches no network (only test_capability_rows may).
+    monkeypatch.setattr(graph_mod, "get_store", lambda: store)
+    monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)
     graph_mod.get_graph.cache_clear()
     case = CaseDocument.new(case_id=CASE_ID, title="wiring proof", belt_level="green",
                             leader="Priya Shah", department="Finance",
@@ -230,7 +235,6 @@ def three_turns(monkeypatch, stub_planner):
     # a turn's stored field statuses (R5) and values into the next turn's
     # input mapper, so a three-turn proof cannot stub it.
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
-    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)  # the routes' own name (controls review, item 2)
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     monkeypatch.setattr(routes, "_mirror_asks", lambda *a, **k: None)
     planner_llm = nodes_common.get_llm
