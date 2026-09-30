@@ -57,6 +57,9 @@ def problems(features: list[dict]) -> list[str]:
         for key, allowed in (("phase", PHASES), ("stage", STAGES), ("layer", LAYERS)):
             if f.get(key) not in allowed:
                 out.append(f"{fid}: {key} {f.get(key)!r} is not one of {list(allowed)}")
+        # The pilot cut (board redesign, 2026-09-30): absent until the founder rules it, then a bool.
+        if "pilot" in f and not isinstance(f["pilot"], bool):
+            out.append(f"{fid}: pilot {f['pilot']!r} is not true or false")
         o = f.get("priority_override", "missing")
         if o == "missing":
             out.append(f"{fid}: no priority_override field (null, or {{rank_tier, reason}})")
