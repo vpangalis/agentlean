@@ -358,7 +358,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | | `define/visuals.py` | `draw` — one drawing function per visual, reply and report (ADR-0070) |
 | | `define/parse.py` | `parse_limit`, `parse_sipoc` — targets and the SIPOC read in code (G-120, G-121) |
 | `middleware/` | `state_injection.py`, `skills.py`, `grader.py`, `coherence.py`, `contradiction.py` C | Custom middleware |
-| | `turn_tools.py` | `turn_tools_middleware` — the turn type's tools (ADR-0069) |
+| | `turn_tools.py` | `turn_tools_middleware` — the turn type's tools (ADR-0069); one tool call per response (ADR-0073) |
 | `validation/` | `rubric.py` | `grade_define` |
 | | `schemas.py` C | `CriterionVerdict`, `GraderVerdict` |
 | `knowledge/` | `tools.py` | Universal tools, `rag_lookup_*`, cross-agent tools (unbound) |

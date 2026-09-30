@@ -49,7 +49,12 @@ def turn_tools_middleware(turn_type: str, coach_limit: int | None = None) -> Any
         made = int(state.get("run_model_call_count") or 0)
         last = coach_limit is not None and made >= coach_limit - 1
         tools = [] if last else offered(turn_type, list(request.tools or []))
-        return await handler(request.override(tools=tools))
+        # G-139 (ADR-0073, option B): one tool call per response. The coach's structured reply is a
+        # tool call (ToolStrategy); with parallel calls allowed it once came back TWICE in one
+        # response, ToolStrategy rejected the pair and asked again, and the answer turn's one-call
+        # share ran out. The structured-output tool is always bound, so the setting is always valid.
+        settings = {**(request.model_settings or {}), "parallel_tool_calls": False}
+        return await handler(request.override(tools=tools, model_settings=settings))
 
     return wrap_model_call(name=f"TurnTools[{turn_type}]")(select_tools)
 

@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
@@ -49,7 +48,6 @@ class _TwiceUnlessSerial(GenericFakeChatModel):
         return ChatResult(generations=[ChatGeneration(message=msg)])
 
 
-@pytest.mark.xfail(strict=True, reason="G-139 — failing test first (founder 2026-09-30); the fix removes this")
 def test_g139_two_identical_structured_replies_still_end_in_a_coached_reply(monkeypatch) -> None:
     _TwiceUnlessSerial.calls, _TwiceUnlessSerial.parallel = [], []
     real_llm = _c.get_llm
