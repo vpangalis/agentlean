@@ -151,6 +151,7 @@ def reports(monkeypatch, stub_planner) -> list[dict]:
     monkeypatch.setattr(routes.blob, "load_case", load)
     monkeypatch.setattr(routes.blob, "save_case", save)
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)  # the routes' own name (controls review, item 2)
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     monkeypatch.setattr(routes, "_mirror_asks", lambda *a, **k: None)
     planner_llm = nodes_common.get_llm

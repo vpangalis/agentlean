@@ -64,6 +64,7 @@ aiofiles==23.2.1
 # Testing
 pytest==9.0.3
 pytest-xdist==3.8.0
+pytest-socket==0.7.0          # controls review 2026-09-30: no network beyond this machine in tests
 
 # Type checking — DEV ONLY, not imported by any runtime module.
 # Added 2026-08-31 with the commit-msg type-check gate

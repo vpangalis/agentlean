@@ -47,6 +47,10 @@ import pytest
 
 CASE_ID = os.environ.get("CAPABILITY_CASE_ID", "IMPR-2026-0E5")
 
+#: Controls review, item 2 (2026-09-30): the explicit network allow — these rows read the live Define case from Azure (Blob, LangSmith) by design — procedure step 6.49.
+pytestmark = pytest.mark.enable_socket
+
+
 #: Row 3 — founder ruling R2 (2026-09-25): the script row reads THE PROOF CASE
 #: OF THE STEP THAT LAST CHANGED THE DELIVERED SCRIPT, never the default case —
 #: a script change makes every older case's delivery stale by construction,

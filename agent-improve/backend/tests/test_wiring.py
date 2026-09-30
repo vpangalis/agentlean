@@ -30,6 +30,12 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 
+#: Controls review, item 2 (2026-09-30): the explicit network allow — these wired checks still
+#: reach Azure Blob through the graph's case storage (the routes' store is now patched). Proposal:
+#: put that storage in memory too, then drop this allow.
+pytestmark = pytest.mark.enable_socket
+
+
 from backend.core.substate import CoachingResponse
 from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
@@ -224,6 +230,7 @@ def three_turns(monkeypatch, stub_planner):
     # a turn's stored field statuses (R5) and values into the next turn's
     # input mapper, so a three-turn proof cannot stub it.
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)  # the routes' own name (controls review, item 2)
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     monkeypatch.setattr(routes, "_mirror_asks", lambda *a, **k: None)
     planner_llm = nodes_common.get_llm

@@ -60,6 +60,9 @@ def test_a_new_case_opens_in_define(monkeypatch) -> None:
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    # Controls review item 2 (2026-09-30): routes.py imports get_store by name, so patching
+    # backend.core.store left the routes on the REAL Azure store — found by the network block.
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)
     graph_mod.get_graph.cache_clear()
     try:
         client = TestClient(app)
@@ -97,6 +100,9 @@ def test_every_node_of_a_turn_is_checkpointed(monkeypatch, stub_planner, stub_co
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    # Controls review item 2 (2026-09-30): routes.py imports get_store by name, so patching
+    # backend.core.store left the routes on the REAL Azure store — found by the network block.
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)
     case = CaseDocument.new(case_id="IMPR-TEST-CKPT", title="checkpoints", belt_level="green",
                             leader="Priya Shah", department="Finance", target_date="2027-03-31", team=[])
 
@@ -471,6 +477,9 @@ initCreate();const before=document.getElementById('new-case-id').textContent;
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    # Controls review item 2 (2026-09-30): routes.py imports get_store by name, so patching
+    # backend.core.store left the routes on the REAL Azure store — found by the network block.
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)
     graph_mod.get_graph.cache_clear()
     try:
         client = TestClient(app)
@@ -1447,6 +1456,9 @@ def test_t88_state_carries_a_schema_version_and_migrates(monkeypatch, stub_plann
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    # Controls review item 2 (2026-09-30): routes.py imports get_store by name, so patching
+    # backend.core.store left the routes on the REAL Azure store — found by the network block.
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)
     cases: dict[str, str] = {}
 
     async def upload(path, data, overwrite=True):

@@ -426,10 +426,27 @@ def _is_worker(config) -> bool:
     return hasattr(config, "workerinput")
 
 
+#: Controls review, item 2 (founder, 2026-09-30): the suite reaches no network beyond this machine.
+#: pytest-socket's `--allow-hosts` blocks every other `connect`, in every worker and every test.
+#: Loopback stays: asyncio's Windows event loop makes its own local socket pair.
+LOCAL_HOSTS = "127.0.0.1,::1,localhost"
+#: The explicit allow — for a pytest run that must reach a live service. The live run-through
+#: scripts are not pytest runs and are not affected.
+ALLOW_NETWORK_ENV = "AGENT_IMPROVE_ALLOW_NETWORK"
+
+
+@pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
     """The `serial` marker (founder, 2026-09-27): a test that measures wall-clock
     time and cannot share the machine. The commit's full run takes the rest in
-    parallel, then these alone (`staged_tree.run_suite`)."""
+    parallel, then these alone (`staged_tree.run_suite`).
+
+    Before pytest-socket reads its options (tryfirst): the network block, unless the run
+    names its own hosts or sets ALLOW_NETWORK_ENV."""
+    import os as _os
+    if (hasattr(config.option, "allow_hosts") and not config.option.allow_hosts
+            and _os.environ.get(ALLOW_NETWORK_ENV) != "1"):
+        config.option.allow_hosts = LOCAL_HOSTS
     config.addinivalue_line("markers", "serial: runs in the suite's serial pass, alone")
     # Founder ruling 4, 2026-09-28 (G-127): a test that asserts on wall-clock time runs in the
     # run-through stage, not the commit hook, which excludes it (`staged_tree.run_suite`).

@@ -405,7 +405,17 @@ def test_the_hop_cap_is_five_retrieval_calls(stub_coach) -> None:
         assert name in names, f"{name} must stay bound on an ordinary turn"
 
 
-def test_the_sixth_lookup_answers_instead_of_searching(stub_coach) -> None:
+@pytest.fixture
+def no_search(monkeypatch):
+    """Controls review, item 2 (2026-09-30): the lookup's own search is replaced — these tests
+    count lookups against the per-turn budget, and until the network block they made real query-
+    variant and index calls to Azure on every run."""
+    async def _found_nothing(query: str, search: Any, top_k: int) -> list:
+        return []
+    monkeypatch.setattr("backend.knowledge.tools.run_multi_query", _found_nothing)
+
+
+def test_the_sixth_lookup_answers_instead_of_searching(stub_coach, no_search) -> None:
     """§3.7 — past the budget the tool ANSWERS; it does not vanish or raise.
 
     That is the graceful half. A tool that disappeared mid-loop, or one that
@@ -427,7 +437,7 @@ def test_the_sixth_lookup_answers_instead_of_searching(stub_coach) -> None:
     assert "Do not search again" in contents[-1]
 
 
-def test_the_hop_budget_is_per_turn_not_per_process(stub_coach) -> None:
+def test_the_hop_budget_is_per_turn_not_per_process(stub_coach, no_search) -> None:
     """The count is a fresh list per turn, so it cannot leak.
 
     A module-level counter would spend one Belt's budget on another Belt's
