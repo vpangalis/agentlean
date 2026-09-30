@@ -270,9 +270,18 @@ def _test_calls(path: Path, func: str) -> tuple[set[str], bool] | None:
         fn = defs[f]
         if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
             stack.extend(a.arg for a in fn.args.args)
+        # Controls review, item 5 (2026-09-30): a name the function binds itself — assigned, a
+        # parameter, a lambda's argument — is a local, not the node of that name. The e2e tests keep
+        # the real model factory as `planner = nodes_common.get_llm` and call `planner(role, …)` in
+        # a stub; that was counted as calling the planner node directly (seven findings).
+        local = {n.id for n in ast.walk(fn) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store)}
+        local |= {a.arg for n in ast.walk(fn) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda))
+                  for a in (*n.args.posonlyargs, *n.args.args, *n.args.kwonlyargs)}
         for node in ast.walk(fn):
             if isinstance(node, ast.Call):
                 n = node.func.id if isinstance(node.func, ast.Name) else                     node.func.attr if isinstance(node.func, ast.Attribute) else None
+                if isinstance(node.func, ast.Name) and n in local and n not in defs:
+                    continue
                 if n:
                     calls.add(n)
                     if n in defs:
