@@ -54,7 +54,10 @@ patterns:
       - 'agent-improve/**/*.md'
 
   - id: pattern-4-custom-saga
-    regex: '(class\s+\w*Saga\b|def\s+\w*compensat)'
+    # Controls review, item 4 (2026-09-30): the CONSTRUCT only — a Saga or Compensation class, or a
+    # function named as a compensating action. The earlier `def\s+\w*compensat` refused any name
+    # holding the word (a feature test named `..._and_compensation_use_...` was renamed to get past it).
+    regex: '(class\s+\w*(Saga|Compensat\w*)\b|def\s+_?(compensate|compensating_\w+|register_compensation|run_compensations?)\s*\()'
     message: "Custom Saga/compensating-action code is superseded by native error_handler= on LangGraph 1.2+ nodes (EDUCATIONAL §79). CLAUDE.md §3.6."
     severity: block
     path_exclusions:
