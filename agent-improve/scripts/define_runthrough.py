@@ -246,6 +246,9 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
                                              "sipoc_diagram", "visualisation")},
             "gate_status": rb.get("gate_status"),
             "fallback": bool(mrec.get("fallback")),
+            # G-139 (founder ruling 2, 2026-09-30): what the coach returned when the call limit ended it.
+            "limit": mrec.get("limit"),
+            "resend": bool(mrec.get("resend")),
             "error": None if resp.status_code == 200 else resp.text[:400],
         }
         # Founder ruling 3, 2026-09-28: the stored state is checked after EVERY Confirm — a Confirm

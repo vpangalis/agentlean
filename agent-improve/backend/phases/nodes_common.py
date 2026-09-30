@@ -69,6 +69,7 @@ from backend.core.config import settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
 from backend.core.prompts import (
+    FALLBACK_RESEND,
     PHASE_COACH_PROMPT,
     PLANNER_JUDGMENT_PROMPT,
     PLANNER_JUDGMENT_READING_BACK,
@@ -1516,6 +1517,57 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
     return messages
 
 
+def _limit_diagnosis(turn: list, coach_limit: int) -> dict[str, Any]:
+    """G-139 — the coach's output on a turn the call limit ended: each of its model responses (raw
+    text, the tools it asked for with their arguments, invalid tool calls, the finish reason), each
+    tool result sent back to it, and WHY the loop wanted another call. No model call."""
+    responses: list[dict[str, Any]] = []
+    tool_results: list[dict[str, Any]] = []
+    for m in turn:
+        if isinstance(m, AIMessage):
+            if _LIMIT_NOTICE in str(m.content):
+                continue
+            responses.append({
+                "text": m.text[:1500],
+                "tool_calls": [{"name": c.get("name"), "args": json.dumps(c.get("args"), default=str)[:800]}
+                               for c in (m.tool_calls or [])],
+                "invalid_tool_calls": [{"name": c.get("name"), "error": str(c.get("error") or "")[:400],
+                                        "args": str(c.get("args") or "")[:400]}
+                                       for c in (getattr(m, "invalid_tool_calls", None) or [])],
+                "finish_reason": (m.response_metadata or {}).get("finish_reason"),
+            })
+        elif isinstance(m, ToolMessage):
+            tool_results.append({"name": m.name, "status": getattr(m, "status", None),
+                                 "content": str(m.content)[:800]})
+    last = responses[-1] if responses else {}
+    if last.get("tool_calls"):
+        names = ", ".join(str(c["name"]) for c in last["tool_calls"])
+        errs = [t for t in tool_results if t.get("status") == "error"]
+        why = (f"the coach's last response asked for tool(s) {names}"
+               + (f"; the tool result was an error ({errs[-1]['content'][:200]})" if errs else "")
+               + " — the loop needed another call to write the reply")
+    elif last.get("invalid_tool_calls"):
+        why = "the coach's last response carried an invalid tool call — the loop asked again"
+    elif responses:
+        why = "the coach's last response was text with no structured reply — the loop asked again"
+    else:
+        why = "no coach response was recorded before the limit"
+    return {"coach_limit": coach_limit, "responses": responses, "tool_results": tool_results, "why": why}
+
+
+def _with_text(messages: list, text: str) -> list:
+    """The messages with the last AI message's text replaced — a NEW message (§4.5), its extras
+    kept."""
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if isinstance(msg, AIMessage):
+            out = list(messages)
+            out[i] = AIMessage(content=text, additional_kwargs=dict(msg.additional_kwargs or {}),
+                               id=msg.id, name=msg.name)
+            return out
+    return messages
+
+
 def _render_value(value: Any) -> str:
     """A captured value as plain text for the Belt — a list of entries, one per line."""
     if isinstance(value, list):
@@ -1959,11 +2011,16 @@ async def executor(
     # the move's own reply is written in code, as on a timeout.
     limited = (result.get("structured_response") is None and bool(produced)
                and isinstance(produced[-1], AIMessage) and _LIMIT_NOTICE in str(produced[-1].content))
+    limit_diagnosis: dict[str, Any] | None = None
     if limited:
+        # G-139 (founder ruling 2, 2026-09-30): what the coach returned before the limit ended it —
+        # to step_log and the move record, so the run record carries it.
+        limit_diagnosis = _limit_diagnosis(produced[len(history):], coach_limit)
         fallback = _fallback_reply(phase, plan)
         fell_back = True
         logger.warning("%s.executor: the coach reached its %d-call share of the turn's %d model calls "
-                       "(T69, G-119) — the move's reply is written in code.", phase, coach_limit, TURN_MODEL_CALLS)
+                       "(T69, G-119) — the move's reply is written in code. G-139 diagnosis: %s",
+                       phase, coach_limit, TURN_MODEL_CALLS, limit_diagnosis["why"])
         produced = [*produced[:-1], AIMessage(content=fallback.message)]
         result = {**result, "messages": produced, "structured_response": fallback}
     coach_calls = sum(1 for m in produced[len(history):] if isinstance(m, AIMessage)) - (1 if limited else 0)
@@ -2135,7 +2192,19 @@ async def executor(
     # yes will store (it needs this turn's read-back to know).
     field_status = {f: dict(v) for f, v in ((plan.field_status if plan else None)
                                             or state.get("field_status") or {}).items()}
-    if move == moves.READ_BACK and pending is not None and plan and plan.focus_field:
+    # G-140 (founder ruling 1, 2026-09-30): a read-back written in CODE whose pending store lacks a
+    # field of the position is not offered — a Confirm under it could not store. The turn changes
+    # nothing: the element keeps its status from before the turn, the reply asks the Belt to send
+    # the answer again, and the move record carries no read-back (so no Confirm is drawn).
+    resend = bool(fell_back and move == moves.READ_BACK and pending is not None and plan and plan.focus_field
+                  and not all(f in (pending.get("store") or {}) for f in (pending.get("fields") or [])))
+    if resend and plan is not None and plan.focus_field:
+        before = dict((state.get("field_status") or {}).get(plan.focus_field) or {"status": moves.ASKED})
+        field_status[plan.focus_field] = before
+        logger.warning("%s.executor: G-140 — the code-written read-back of `%s` carries nothing a "
+                       "Confirm could store; the Belt is asked to send the answer again",
+                       phase, plan.focus_field)
+    elif move == moves.READ_BACK and pending is not None and plan and plan.focus_field:
         field_status[plan.focus_field] = {**field_status.get(plan.focus_field, {}),
                                           "status": moves.ANSWERED, "pending": pending}
 
@@ -2206,6 +2275,12 @@ async def executor(
     # the grader's own B5 text whenever its verdict this turn FAILED — the
     # dict its `after_agent` returns reaches no reader (G-76, G-103).
     failed = any(e.get("status") == "failed" for e in grader_log)
+    if resend:
+        # G-140 — the reply is the resend sentence alone; the step line stays.
+        new_messages = _with_text(new_messages, FALLBACK_RESEND)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": FALLBACK_RESEND, "explanation": "",
+                                             "example": "", "prompt": ""})
     _attach_blocks(new_messages, reply, MAX_ITERATIONS_WARNING if failed else None)
 
     # ── 6.61 — the move record and the quality feedback ride on the reply ──
@@ -2213,7 +2288,11 @@ async def executor(
     # next turn's coach reads the feedback as section 5 of its input — never as
     # a message from the Belt. Attached even when the turn degraded, so a
     # confirmed value the plan stored is not taught again.
-    record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND) else None, kept)
+    record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND) and not resend else None, kept)
+    if resend and record is not None:
+        # G-140 — no read-back is offered, so the screen draws no Confirm (it draws one only under
+        # a `read_back` move); `resend` says why.
+        record.update({"move": moves.RESPOND, "pending": None, "resend": True})
     if fell_back:
         logger.error(
             "%s.executor: DEFECT — the coach did not finish its %s move (%s); the "
@@ -2221,6 +2300,8 @@ async def executor(
             phase, move, "timeout" if timed_out else "runaway loop backstop")
         if record is not None:
             record["fallback"] = True
+            if limit_diagnosis is not None:
+                record["limit"] = limit_diagnosis          # G-139: the run record reads it here
     feedback = _quality_feedback(grader_log, coherence_log)
     _attach_move(new_messages, record, feedback)
 
@@ -2264,6 +2345,8 @@ async def executor(
             phase, turn_count, "executor",
             status=_executor_status(hit_cap, off_ramp, timed_out, filtered),
             fallback_used=fell_back,
+            limit=limit_diagnosis,                                 # G-139
+            resend=resend,                                         # G-140
             impl="create_agent",
             # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one
             # coherence verdict and one grader pass each).

@@ -1596,6 +1596,9 @@ READ_BACK_CARRIED = "Also kept from your earlier answer — {name}: {value}"
 READ_BACK_METRIC = "Read as a number — {name}: {value}"
 STORE_NOTE_NOT_STORED = ("Nothing was stored for {element} yet: the read-back did not include "
                          "{missing}. Please check the version below.")
+#: G-140 (founder ruling 1, 2026-09-30) — a read-back written in code that carries nothing a
+#: Confirm could store is not offered as a read-back: this sentence, and no Confirm.
+FALLBACK_RESEND = "I couldn't process that answer — please send it again."
 
 #: The planner model's ONE judgment (§17 v1.75, S-C04 v1.77) — step 6.61.
 #: Called by `phases/nodes_common._judge` only when the Belt has answered.
