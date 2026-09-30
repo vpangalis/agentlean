@@ -16,6 +16,14 @@ import pytest
 
 _DOCS = Path(__file__).resolve().parents[2] / "docs"
 FIELDS = {"id", "symptom", "requirement", "feature", "lane"}
+#: Founder 2026-09-30 (review of ea2d265): a TOOLING gap — a defect in the harness, not in a Define
+#: feature — has no feature and no requirement, lane ["tooling"], and names the `control` that now
+#: prevents it recurring.
+TOOLING = ["tooling"]
+
+
+def _tooling(d: dict) -> bool:
+    return d["lane"] == TOOLING
 
 
 @pytest.fixture(scope="module")
@@ -31,7 +39,8 @@ def features() -> dict[str, dict]:
 
 def test_every_defect_has_the_founders_fields_and_no_status(defects) -> None:
     for d in defects:
-        assert set(d) == FIELDS, (d["id"], set(d) ^ FIELDS)
+        want = FIELDS | {"control"} if _tooling(d) else FIELDS
+        assert set(d) == want, (d["id"], set(d) ^ want)
         assert re.fullmatch(r"G-\d+", d["id"]), d["id"]
         assert d["symptom"].strip(), d["id"]
         for k in ("requirement", "feature", "lane"):
@@ -52,6 +61,8 @@ def test_the_feature_links_agree_with_the_feature_list_both_ways(defects, featur
             by_gap.setdefault(g.upper(), set()).add(f["id"])
     for d in defects:
         assert set(d["feature"]) == by_gap.get(d["id"], set()), d["id"]
+        if _tooling(d):
+            continue
         linked = [features[i] for i in d["feature"]]
         assert set(d["requirement"]) == {f["requirement"] for f in linked}, d["id"]
         assert set(d["lane"]) == {f["lane"] for f in linked}, d["id"]
@@ -67,4 +78,9 @@ def test_a_new_defect_carries_one_failing_feature_and_one_lane(defects) -> None:
     assert new["G-113"]["feature"] == ["DEF-074"] and new["G-113"]["lane"] == ["C"]
     assert new["G-113"]["requirement"] == ["W6"]
     for d in new.values():
+        if _tooling(d):
+            # A tooling gap: no feature, no requirement, and the control that prevents recurrence.
+            assert d["feature"] == [] and d["requirement"] == [], d["id"]
+            assert len(d["control"].strip()) >= 20, d["id"]
+            continue
         assert len(d["feature"]) == 1 and len(d["lane"]) == 1, d["id"]

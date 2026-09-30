@@ -1,5 +1,5 @@
 {
- "_about": "The defect register — moved here from the archived procedure's Appendix G (founder, 2026-09-27). One entry per defect: id, symptom, requirement (the id it breaks), feature (the DEF id whose end-to-end test proves it fixed), lane (the owner). THERE IS NO STATUS FIELD: a defect's status is its feature's test outcome in docs/test-results.json. feature, requirement and lane are lists: 12 procedure-era gaps are cited by several features. For those gaps they are the features that cite the gap in define_features.json provenance.gaps, and a test keeps the two files agreeing (test_defects.py). Gaps G-01 to G-111 are procedure-era: their symptom keeps the register row verbatim in plain text, including its Attaches-to and Step columns and, for a closed gap, its resolution; an empty feature list means no feature proves them. commit-msg rule 8 resolves a `Gap: G-nn` trailer against this file, read from the INDEX. A new defect gets the next G number, a failing feature, and a lane in the same commit.",
+ "_about": "The defect register — moved here from the archived procedure's Appendix G (founder, 2026-09-27). One entry per defect: id, symptom, requirement (the id it breaks), feature (the DEF id whose end-to-end test proves it fixed), lane (the owner). THERE IS NO STATUS FIELD: a defect's status is its feature's test outcome in docs/test-results.json. feature, requirement and lane are lists: 12 procedure-era gaps are cited by several features. For those gaps they are the features that cite the gap in define_features.json provenance.gaps, and a test keeps the two files agreeing (test_defects.py). Gaps G-01 to G-111 are procedure-era: their symptom keeps the register row verbatim in plain text, including its Attaches-to and Step columns and, for a closed gap, its resolution; an empty feature list means no feature proves them. commit-msg rule 8 resolves a `Gap: G-nn` trailer against this file, read from the INDEX. A new defect gets the next G number, a failing feature, and a lane in the same commit. TOOLING GAPS (founder, 2026-09-30): a defect in the harness rather than in a Define feature is registered with lane [\"tooling\"], feature [] and requirement [], and a `control` field naming the control that now prevents it recurring (test_defects.py enforces the shape).",
  "defects": [
   {
    "id": "G-01",
@@ -1439,6 +1439,16 @@
    "lane": [
     "integrator"
    ]
+  },
+  {
+   "id": "G-142",
+   "symptom": "TEST RECORDS WERE WRITTEN INTO LIVE AZURE STORAGE. Evidence: 131 blobs in the agent-improve-cases container of the valuesimsdata account — store/projects/IMPR-TEST-633/case/record.json (1, 2026-09-21 13:34 UTC, test_capture_accumulates.py) and store/projects/IMPR-TEST-R6/step_log/... (130: 129 input_guard verdicts and 1 pii verdict, 2026-09-28 11:19 UTC to 2026-09-30 08:51 UTC, test_gate_acceptance.py). First leak 2026-09-21 13:34 UTC, last 2026-09-30 08:51 UTC. Found by the network block (controls review item 2, b46ae49); the 131 were deleted 2026-09-30 after the founder approved the list (0 left; the 36 real case files untouched). — 8D. D2 IS: routes.py (and core/graph.py) import get_store BY NAME; the fixtures patched backend.core.store.get_store, which does not change a name another module already holds, so the routes' Store writes — a case record, the guard's verdict record — reached the real AzureBlobStore. D2 IS-NOT: the case blobs, checkpoints and uploads (stubbed through storage/blob.py and InMemorySaver); the e2e fixture's own random-id cases (no store records left); run-through cases (real by design). D3 CONTAIN: NONE — the fixtures were fixed and the records deleted. D4 OCCURRENCE: a monkeypatch on the defining module, not on the importing module's name. D4 ESCAPE: until b46ae49 nothing stopped a test reaching the network, so a test that wrote to Azure passed as a test that wrote to memory. D5 FIX: b46ae49 and 8652de0 — every fixture patches graph_mod.get_store, backend.core.store.get_store and backend.gateway.routes.get_store; test_wiring.py runs in memory. D7 PREVENT: the network block (conftest.py, pytest-socket) — a test cannot reach Azure; only test_capability_rows.py carries the explicit allow, pinned by test_only_the_capability_rows_may_reach_the_network.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "the network block: conftest.py sets pytest-socket --allow-hosts to loopback for every test (test_network_block.py); only test_capability_rows.py may reach the network (test_only_the_capability_rows_may_reach_the_network)"
   }
  ]
 }
