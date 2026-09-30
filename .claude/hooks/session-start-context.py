@@ -200,9 +200,9 @@ def get_drift_warnings() -> str:
     import collections
     import datetime as _dt
     path = os.path.join(get_project_dir(), ".claude", "logs", "drift.log")
-    if not os.path.isfile(path):
-        return "drift refusals (last 7 days): none recorded"
     since = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=7)
+    if not os.path.isfile(path):
+        return "drift refusals (last 7 days): none recorded" + chr(10) + _fact_ownership_refusals(since)
     counts: collections.Counter = collections.Counter()
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
@@ -213,9 +213,25 @@ def get_drift_warnings() -> str:
                 counts[row["pattern"]] += 1
         except (ValueError, KeyError):
             continue
-    if not counts:
-        return "drift refusals (last 7 days): none"
-    return "drift refusals (last 7 days): " + " · ".join(f"{p} {n}" for p, n in counts.most_common())
+    line = ("drift refusals (last 7 days): " + " · ".join(f"{p} {n}" for p, n in counts.most_common())
+            if counts else "drift refusals (last 7 days): none")
+    return line + chr(10) + _fact_ownership_refusals(since)
+
+
+def _fact_ownership_refusals(since) -> str:
+    """The fact-ownership guard's refusals in the same window (`.claude/logs/fact-ownership.log`)."""
+    import datetime as _dt
+    path = os.path.join(get_project_dir(), ".claude", "logs", "fact-ownership.log")
+    n = 0
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f.read().splitlines():
+                try:
+                    if _dt.datetime.fromisoformat(json.loads(line)["at"]) >= since:
+                        n += 1
+                except (ValueError, KeyError):
+                    continue
+    return f"fact-ownership refusals (last 7 days): {n or 'none'}"
 
 
 def get_harness() -> str:

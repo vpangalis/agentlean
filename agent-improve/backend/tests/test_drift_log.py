@@ -40,7 +40,7 @@ def test_a_drift_refusal_is_logged_and_the_session_start_counts_it(tmp_path) -> 
     old = os.environ.get("CLAUDE_PROJECT_DIR")
     os.environ["CLAUDE_PROJECT_DIR"] = str(tmp_path)
     try:
-        assert mod.get_drift_warnings() == "drift refusals (last 7 days): pattern-4-custom-saga 1"
+        assert mod.get_drift_warnings().splitlines()[0] == "drift refusals (last 7 days): pattern-4-custom-saga 1"
     finally:
         if old is None:
             os.environ.pop("CLAUDE_PROJECT_DIR", None)

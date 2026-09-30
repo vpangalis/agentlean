@@ -66,6 +66,22 @@ def deny(reason: str) -> int:
     return 2
 
 
+def _record(root: Path, target: str, facts: list) -> None:
+    """Controls review proposal, accepted 2026-09-30: each refusal to `.claude/logs/fact-ownership.log`,
+    one JSON line (at, file, facts) — as the drift hook writes drift.log; the session start counts
+    them. Never raises: a log never blocks a write."""
+    try:
+        from datetime import datetime, timezone
+        path = root / ".claude" / "logs" / "fact-ownership.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        row = {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "file": target,
+               "facts": sorted({str(f) for f in facts})}
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + chr(10))
+    except Exception:                               # noqa: BLE001
+        pass
+
+
 def main() -> int:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -140,6 +156,7 @@ def main() -> int:
     if not hits and not pins:
         return 0
 
+    _record(root, target, [pkg for _l, pkg, _v in pins] + [sym for _l, sym, _r, _o, _v in hits])
     out = [f"Blocked — {target} restates a fact it does not own "
            f"(ARCHITECTURE.md §55.4).", ""]
     for line_no, pkg, ver in pins:

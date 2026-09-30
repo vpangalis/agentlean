@@ -1,9 +1,9 @@
 {
- "source_hash": "2d0f3461280cb29c",
- "commit": "dd16458",
+ "source_hash": "c916e5c106487ede",
+ "commit": "4d46059",
  "commit_matches_source": false,
  "full_run_hash": "f22f133ccf7e5b3b",
- "recorded_at": "2026-09-30T09:42:27+00:00",
+ "recorded_at": "2026-09-30T09:46:40+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -749,6 +749,7 @@
   "backend/tests/test_executor_timeout.py::test_the_executor_wall_leaves_the_turn_inside_r13": "passed",
   "backend/tests/test_executor_timeout.py::test_the_limit_the_handler_and_the_retry_are_langgraphs_on_the_compiled_graph": "passed",
   "backend/tests/test_executor_timeout.py::test_the_undegraded_outcomes_are_unchanged": "passed",
+  "backend/tests/test_fact_ownership_log.py::test_a_refusal_is_logged_and_counted": "passed",
   "backend/tests/test_fusion.py::test_a_document_in_several_lists_accumulates_its_score": "passed",
   "backend/tests/test_fusion.py::test_a_failed_variant_call_degrades_to_single_query": "passed",
   "backend/tests/test_fusion.py::test_a_large_k_is_what_makes_that_possible": "passed",
