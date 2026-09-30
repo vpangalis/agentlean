@@ -641,6 +641,20 @@ def _git(root, *args: str) -> str | None:
 # ── the input guard in tests (ADR-0067, T94) ──────────────────────────────────
 
 
+@pytest.fixture(scope="session")
+def _scratch_timing_log(tmp_path_factory):
+    return tmp_path_factory.mktemp("timing") / "timing.jsonl"
+
+
+@pytest.fixture(autouse=True)
+def _timings_to_a_scratch_log(monkeypatch, _scratch_timing_log):
+    """Controls review proposal, accepted 2026-09-30: a hook a test drives (the commit guard's
+    `_timer`, the pre-commit's `t_log`) times itself into a SCRATCH log, never the real
+    `.claude/logs/timing.jsonl` — the review found 12 "(merge)" rule timings there that were tests.
+    The recorder's own end-of-run line is written after the tests and still reaches the real log."""
+    monkeypatch.setenv("TIMING_LOG", str(_scratch_timing_log))
+
+
 @pytest.fixture(autouse=True)
 def _guard_in_explicit_development_mode(monkeypatch):
     """The guard is strict unless development mode is set EXPLICITLY (T94). No Content Safety

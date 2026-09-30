@@ -69,3 +69,19 @@ def test_rule_8_still_reads_a_feature_trailer_with_the_merge_check_loaded() -> N
     assert guard._declared_features("docs(x): y", msg) == {"DEF-063", "DEF-005", "DEF-008"}
     src = (_REPO / ".claude" / "hooks" / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
     assert src.count("_FEATURE_TRAILER_RE = ") == 1
+
+
+def test_a_guard_rule_timed_under_test_lands_in_the_scratch_log_not_the_real_one() -> None:
+    """Controls review proposal, accepted 2026-09-30: guard tests wrote rule timings into the real
+    .claude/logs/timing.jsonl (12 "(merge)" entries the review had to discount)."""
+    import os
+    real = _REPO / ".claude" / "logs" / "timing.jsonl"
+    before = real.read_text(encoding="utf-8") if real.is_file() else ""
+    scratch = Path(os.environ["TIMING_LOG"])
+    assert scratch != real
+    guard = _guard()
+    with guard._timer("rule 99 probe (test)"):
+        pass
+    assert "rule 99 probe (test)" in scratch.read_text(encoding="utf-8")
+    after = real.read_text(encoding="utf-8") if real.is_file() else ""
+    assert "rule 99 probe (test)" not in after[len(before):]
