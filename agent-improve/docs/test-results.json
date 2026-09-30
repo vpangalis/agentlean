@@ -1,9 +1,9 @@
 {
- "source_hash": "835a0ab6a23f055d",
- "commit": "b2534ae",
- "commit_matches_source": true,
+ "source_hash": "f82806016b666855",
+ "commit": "309f9fc",
+ "commit_matches_source": false,
  "full_run_hash": "835a0ab6a23f055d",
- "recorded_at": "2026-09-30T10:39:50+00:00",
+ "recorded_at": "2026-09-30T10:50:38+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -795,6 +795,7 @@
   "backend/tests/test_g138_teaching_blocks.py::test_g138_every_element_has_three_teaching_blocks_in_its_script[target_value]": "passed",
   "backend/tests/test_g138_teaching_blocks.py::test_g138_every_element_has_three_teaching_blocks_in_its_script[team]": "passed",
   "backend/tests/test_g138_teaching_blocks.py::test_g138_every_element_has_three_teaching_blocks_in_its_script[voc_summary]": "passed",
+  "backend/tests/test_g139_one_structured_reply.py::test_g139_two_identical_structured_replies_still_end_in_a_coached_reply": "skipped",
   "backend/tests/test_g140_g139_call_limit_fallback.py::test_g139_a_turn_the_limit_did_not_end_carries_no_diagnosis": "passed",
   "backend/tests/test_g140_g139_call_limit_fallback.py::test_g139_the_limit_records_the_tool_the_coach_asked_for_and_why": "passed",
   "backend/tests/test_g140_g139_call_limit_fallback.py::test_g139_the_limit_says_why_another_call_was_wanted[tail0-text with no structured reply]": "passed",
