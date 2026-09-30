@@ -1694,7 +1694,7 @@ async def submit_gate(request: GateSubmitRequest,
 
 @router.get("/registry", response_model=list[RegistryEntryOut])
 async def get_registry() -> list[RegistryEntryOut]:
-    """Management dashboard â returns all cases from registry."""
+    """Management dashboard — returns all cases from registry."""
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     registry = await blob.load_registry()

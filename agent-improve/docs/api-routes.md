@@ -19,7 +19,7 @@ hook, `--stage`); never edited by hand. Linked from [ARCHITECTURE.md §3.9](../A
 | DELETE | `/files/{case_id}/{file_id}` | `delete_case_file` | — | Remove a file record from the case. |
 | POST | `/gate/decision` | `decide_gate` | `GateDecisionResponse` | R6 — approve or reject the Define report, RESUMING the paused graph. |
 | POST | `/gate` | `submit_gate` | `GateSubmitResponse` | Submit the phase for gate review — through the same compiled graph. |
-| GET | `/registry` | `get_registry` | `list[RegistryEntryOut]` | Management dashboard â returns all cases from registry. |
+| GET | `/registry` | `get_registry` | `list[RegistryEntryOut]` | Management dashboard — returns all cases from registry. |
 | GET | `/cases/{case_id}` | `get_case` | — | Load full case document. Also projects every per-phase upload |
 
 <!-- END GENERATED: api routes -->

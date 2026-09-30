@@ -166,21 +166,6 @@ class Settings(BaseSettings):
         env="CONTENT_SAFETY_KEY",
         description="Azure AI Content Safety key — ADR-0057.",
     )
-    LANGFUSE_PUBLIC_KEY: Optional[str] = Field(
-        None,
-        env="LANGFUSE_PUBLIC_KEY",
-        description="Langfuse public key for tracing.",
-    )
-    LANGFUSE_SECRET_KEY: Optional[str] = Field(
-        None,
-        env="LANGFUSE_SECRET_KEY",
-        description="Langfuse secret key for tracing.",
-    )
-    LANGFUSE_HOST: Optional[str] = Field(
-        None,
-        env="LANGFUSE_HOST",
-        description="Langfuse host URL.",
-    )
 
     class Config(BaseSettings.Config):
         env_file = ".env"
@@ -220,9 +205,6 @@ settings = Settings(
     GUARD_MODE=os.getenv("GUARD_MODE", "strict"),
     CONTENT_SAFETY_ENDPOINT=os.getenv("CONTENT_SAFETY_ENDPOINT"),
     CONTENT_SAFETY_KEY=os.getenv("CONTENT_SAFETY_KEY"),
-    LANGFUSE_PUBLIC_KEY=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    LANGFUSE_SECRET_KEY=os.getenv("LANGFUSE_SECRET_KEY"),
-    LANGFUSE_HOST=os.getenv("LANGFUSE_HOST"),
 )
 
 __all__ = ["Settings", "settings"]
