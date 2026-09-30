@@ -1,9 +1,9 @@
 {
- "source_hash": "8e607d981e4ef056",
- "commit": "416d9df",
- "commit_matches_source": true,
+ "source_hash": "db00ac6442a381a1",
+ "commit": "072852d",
+ "commit_matches_source": false,
  "full_run_hash": "8e607d981e4ef056",
- "recorded_at": "2026-09-30T06:34:03+00:00",
+ "recorded_at": "2026-09-30T07:06:36+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -209,6 +209,7 @@
   "backend/tests/test_commit_guard_merge.py::test_a_merge_into_main_lands_only_the_features_that_pass": "passed",
   "backend/tests/test_commit_guard_merge.py::test_a_merge_into_main_runs_the_landing_the_ratchet_and_the_board": "passed",
   "backend/tests/test_commit_guard_merge.py::test_main_routes_a_merge_to_the_merge_checks_and_git_runs_pre_commit_for_it": "passed",
+  "backend/tests/test_commit_guard_merge.py::test_rule_8_still_reads_a_feature_trailer_with_the_merge_check_loaded": "passed",
   "backend/tests/test_commit_guard_tree_rules.py::test_a_clean_set_of_added_paths_passes": "passed",
   "backend/tests/test_commit_guard_tree_rules.py::test_a_def_subject_lands_under_any_prefix": "passed",
   "backend/tests/test_commit_guard_tree_rules.py::test_a_missing_register_fails_CLOSED": "passed",

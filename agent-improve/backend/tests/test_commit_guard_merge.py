@@ -58,3 +58,14 @@ def test_main_routes_a_merge_to_the_merge_checks_and_git_runs_pre_commit_for_it(
     assert "return check_merge(root, subject, message)" in src[at:at + 200]
     hook = (_REPO / ".githooks" / "pre-merge-commit").read_text(encoding="utf-8")
     assert "exec sh .githooks/pre-commit" in hook
+
+
+def test_rule_8_still_reads_a_feature_trailer_with_the_merge_check_loaded() -> None:
+    """416d9df defined a second `_FEATURE_TRAILER_RE` for merges, with no named group, below rule 8's;
+    loaded, it replaced rule 8's, and every commit carrying `Feature:` crashed the guard
+    (IndexError: no such group). One reader now serves both."""
+    guard = _guard()
+    msg = "docs(x): y\n\nFeature: DEF-063\nFeatures: DEF-005, DEF-008\n"
+    assert guard._declared_features("docs(x): y", msg) == {"DEF-063", "DEF-005", "DEF-008"}
+    src = (_REPO / ".claude" / "hooks" / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
+    assert src.count("_FEATURE_TRAILER_RE = ") == 1

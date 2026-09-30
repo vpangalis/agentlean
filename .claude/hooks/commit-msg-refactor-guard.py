@@ -1469,10 +1469,6 @@ def _land(root: str, fid: str) -> None:
     note(f"rule 11 landing: PASS — {fid} and its dependencies pass")
 
 
-#: A merge commit's features: `Feature: DEF-xxx` trailers (a subject naming one counts too).
-_FEATURE_TRAILER_RE = re.compile(r"^Feature:\s*(DEF-\d{3})\s*$", re.M)
-
-
 def merge_into(root: str) -> str:
     """The branch a merge commit is being made on ('' when HEAD is detached)."""
     return subprocess.run(["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=root,
@@ -1489,10 +1485,8 @@ def check_merge(root: str, subject: str, message: str) -> int:
     if branch != "main":
         note(f"merge into {branch or 'a detached HEAD'}: not main — rules 10 and 11 run when it reaches main")
         return 0
-    fids = set(_FEATURE_TRAILER_RE.findall(message))
-    m = _DEF_SUBJECT_RE.match(subject)
-    if m:
-        fids.add(m.group(1))
+    # The features the merge names — rule 8's own reader (a DEF subject, `Feature:` trailers).
+    fids = _declared_features(subject, message)
     with _timer("rule 11 landing (merge)"):
         if not fids:
             note("rule 11 landing (merge): no DEF-xxx named — no feature to land")
