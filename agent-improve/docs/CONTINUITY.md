@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 62 of 161 Define features pass (core 59 of 152) — A 32/67 · B 20/36 · C 4/36 · integrator 6/22 · M1: 46 proven · 0 awaiting fresh run · 0 open |
-| **Next — lane A** | DEF-021 — When the Belt corrects a stored value, their stated reason is kept with the change in field_log.reason. |
+| **Headline** | 61 of 162 Define features pass, 1 more proven on earlier code (core 58 of 153) — A 31/68 · B 20/36 · C 4/36 · integrator 6/22 (record older than the source) · M1: 46 proven · 1 awaiting fresh run · 0 open |
+| **Next — lane A** | DEF-077 — R13 hard limit: no turn exceeds 45 s; a turn that would answers with what it has and says so (T24's proof). |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once, and carries an interpretation — and files picked on the crea |
 | **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
-| **Run-through record** | current |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-30 |

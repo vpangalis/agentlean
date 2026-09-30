@@ -435,6 +435,44 @@ LOCAL_HOSTS = "127.0.0.1,::1,localhost"
 ALLOW_NETWORK_ENV = "AGENT_IMPROVE_ALLOW_NETWORK"
 
 
+def _network_allowed(request: Any) -> bool:
+    import os as _os
+    return (request.node.get_closest_marker("enable_socket") is not None
+            or _os.environ.get(ALLOW_NETWORK_ENV) == "1")
+
+
+@pytest.fixture(autouse=True)
+def _no_async_network(request, monkeypatch):
+    """G-144: pytest-socket guards `socket.connect`, and an async httpx client on Windows' proactor
+    loop connects without it (ConnectEx) — every guarded turn reached live Content Safety. Every
+    async httpx request beyond this machine is refused here, as the socket block refuses a sync one."""
+    if _network_allowed(request):
+        return
+    import httpx
+    from pytest_socket import SocketConnectBlockedError
+    real = httpx.AsyncHTTPTransport.handle_async_request
+
+    async def local_only(self, req):
+        if req.url.host not in LOCAL_HOSTS.split(","):
+            raise SocketConnectBlockedError(LOCAL_HOSTS.split(","), req.url.host)
+        return await real(self, req)
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", local_only)
+
+
+@pytest.fixture(autouse=True)
+def _clean_content_safety(request, monkeypatch):
+    """G-144: Prompt Shields answers "no attack" in a test, from memory — a test proving the
+    screen's own behaviour patches `content_safety._post` (or the settings) itself, after this."""
+    if _network_allowed(request):
+        return
+    from backend.core import content_safety
+
+    async def clean(url: str, headers: dict[str, str], body: dict[str, Any]) -> dict[str, Any]:
+        return {"userPromptAnalysis": {"attackDetected": False},
+                "documentsAnalysis": [{"attackDetected": False} for _ in body.get("documents") or []]}
+    monkeypatch.setattr(content_safety, "_post", clean)
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
     """The `serial` marker (founder, 2026-09-27): a test that measures wall-clock

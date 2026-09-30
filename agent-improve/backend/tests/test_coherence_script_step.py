@@ -200,6 +200,12 @@ class _JudgedAgent:
         async def judge(belt: str, coach: str) -> CoherenceResult:
             return self.verdict
         self.coherence._check = judge  # type: ignore[method-assign]
+
+        async def grade(belt: str, coach: str) -> Any:
+            # G-144: on a pass the grader grades — from memory; it called the live deployment.
+            from backend.validation.schemas import CoachingGraderVerdict
+            return CoachingGraderVerdict(criteria=[])
+        self.grader._grade = grade  # type: ignore[method-assign]
         messages = [*payload["messages"], AIMessage(content=REPLY_1314.message)]
         state = {"structured_response": REPLY_1314, "messages": messages}
         await self.coherence.aafter_agent(state, None)

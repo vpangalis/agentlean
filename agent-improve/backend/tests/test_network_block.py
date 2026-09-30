@@ -47,3 +47,31 @@ def test_only_the_capability_rows_may_reach_the_network() -> None:
                      and ("enable_socket" in p.read_text(encoding="utf-8")
                           or "socket_enabled" in p.read_text(encoding="utf-8")))
     assert allowed == ["test_capability_rows.py"], allowed
+
+
+def test_an_async_request_beyond_this_machine_is_blocked() -> None:
+    """G-144: an async httpx client on Windows connects without `socket.connect` (the proactor
+    loop's ConnectEx), so the socket block missed it; the transport refuses it instead."""
+    import asyncio
+
+    import httpx
+
+    async def call() -> None:
+        async with httpx.AsyncClient(timeout=2) as client:
+            await client.get("https://93.184.216.34/")
+
+    with pytest.raises(SocketConnectBlockedError):
+        asyncio.run(call())
+
+
+def test_prompt_shields_answers_from_memory_in_a_test() -> None:
+    """G-144: every guarded turn in the suite called live Content Safety (2 calls a turn; 429s
+    under the parallel run failed the turn closed). In a test it answers "no attack", reachable."""
+    import asyncio
+
+    from backend.core import content_safety
+
+    verdict = asyncio.run(content_safety.shield(user_prompt="hello", documents=["a", "b"]))
+    if content_safety.configured():
+        assert verdict["reachable"] and not verdict["user_attack"], verdict
+        assert verdict["document_attacks"] == [False, False], verdict
