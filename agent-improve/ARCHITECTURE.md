@@ -458,7 +458,7 @@ model only the turn type's tools (`request.override(tools=…)`, §3.6); every t
 **Call limit · `ModelCallLimitMiddleware`** — LangChain, as shipped (ADR-0059, T69), declared just
 outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's
 judgment and the two after-agent checks; a run it ends gets the move's reply from code. The
-turn's count is `step_log`'s `call_budget`.
+turn's count is `step_log`'s `call_budget`; calls inside tools, `tool_model_calls`.
 
 **Personal data · `PIIMiddleware`** — LangChain, as shipped (ADR-0062, T87): one instance, a
 combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only

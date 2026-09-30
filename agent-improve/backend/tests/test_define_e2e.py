@@ -1022,6 +1022,81 @@ def test_an_ordinary_turn_makes_at_most_four_model_calls(env, monkeypatch) -> No
     assert len(coach_calls) == count["coach"] <= count["coach_limit"], (coach_calls, count)
 
 
+def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_coachs(env, monkeypatch) -> None:
+    """DEF-163 — T69 as amended (founder, 2026-09-30): the coach's limit counts only the coach's
+    own calls; model calls made inside tools (a lookup's query variants) are recorded per turn in
+    step_log, by tool, and capped by T51 (3–5 variants per lookup, one variant call per lookup)."""
+    from langchain_core.messages import AIMessage
+
+    from backend.knowledge import fusion
+    from backend.knowledge import tools as ktools
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    coach_calls: list = []
+
+    class CountingCoach(_FakeCoach):
+        def _generate(self, *a, **k):
+            coach_calls.append(1)
+            return super()._generate(*a, **k)
+
+    lookup = AIMessage(content="", tool_calls=[{"name": "rag_lookup_methodology", "id": "l1",
+                                                "args": {"query": "what makes a good business case"}}])
+    reply = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": REPLY, "id": "r1"}])
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: CountingCoach(messages=iter([lookup, reply]))
+                        if role == "coach" else planner(role, **kw))
+
+    variant_calls: list = []
+    asked = {"n": fusion.MAX_VARIANTS}
+
+    class Variants:                                   # the lookup's own model: `extraction`
+        def with_structured_output(self, schema, **_):
+            return self
+
+        async def ainvoke(self, *_a, **_k):
+            variant_calls.append(1)
+            return fusion.QueryVariants(variants=[f"variant {i}" for i in range(asked["n"])])
+
+    real_llm = __import__("backend.core.llm", fromlist=["get_llm"]).get_llm
+    monkeypatch.setattr("backend.core.llm.get_llm",
+                        lambda role, **kw: Variants() if role == "extraction" else real_llm(role, **kw))
+    searched: list[str] = []
+
+    def search(q: str, **_kw: object) -> list[dict]:
+        searched.append(q)
+        return [{"id": "d1", "content": "a business case names the cost of the gap",
+                 "source_file": "ebook", "page_number": 1}]
+    monkeypatch.setattr(ktools, "search_knowledge", search)
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {}
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Where do we start?"})
+    assert r.status_code == 200, r.text
+    executor = [e for e in steps if isinstance(e, dict) and isinstance(e.get("call_budget"), dict)]
+    assert executor, "step_log records no model-call count for the turn"
+    count, inside = executor[-1]["call_budget"], executor[-1]["tool_model_calls"]
+    # (a) the coach's limit counts the coach's own calls only — the variant call is not among them
+    assert len(coach_calls) == count["coach"] == 2 <= count["coach_limit"], (coach_calls, count)
+    assert count["turn"] <= 4 and not count["limited"], count
+    # (b) the call made inside the tool is recorded, by the tool's name
+    assert inside == {"rag_lookup_methodology": 1} == {"rag_lookup_methodology": len(variant_calls)}, inside
+    # (c) T51: one variant call per lookup, at most five variants plus the original searched
+    assert len(searched) == 1 + fusion.MAX_VARIANTS, searched
+    with pytest.raises(ValueError):
+        fusion.QueryVariants(variants=[f"v{i}" for i in range(fusion.MAX_VARIANTS + 1)])
+    with pytest.raises(ValueError):
+        fusion.QueryVariants(variants=[f"v{i}" for i in range(fusion.MIN_VARIANTS - 1)])
+
+
 def test_two_or_three_next_steps_are_suggested_from_the_phase_state() -> None:
     """DEF-095 — Under each reply the screen offers two or three next steps computed in code from what is missing; they never contradict the element being worked on an"""
     _not_written('DEF-095')

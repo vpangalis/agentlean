@@ -68,6 +68,7 @@ from backend.middleware import turn_tools
 from backend.core.config import settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
+from backend.knowledge import fusion
 from backend.core.prompts import (
     FALLBACK_RESEND,
     PHASE_COACH_PROMPT,
@@ -964,11 +965,15 @@ def _budgeted_rag_tools(
             continue
         inner = original.coroutine
 
-        async def guarded(_inner: Any = inner, **kwargs: Any) -> Any:
+        async def guarded(_inner: Any = inner, _name: str = original.name, **kwargs: Any) -> Any:
             if spent[0] >= budget:
                 return (_HOP_BUDGET_SPENT.format(budget=budget), [])
             spent[0] += 1
-            return await _inner(**kwargs)
+            named = fusion.CALLING_TOOL.set(_name)   # T69: its variant call is counted to it
+            try:
+                return await _inner(**kwargs)
+            finally:
+                fusion.CALLING_TOOL.reset(named)
 
         budgeted.append(original.model_copy(update={"coroutine": guarded}))
     return budgeted
@@ -1902,6 +1907,10 @@ async def executor(
     # transitions. The list is the sink `_budgeted_rag_tools` mutates, read
     # back below for `step_log`.
     hops_spent: list[int] = [0]
+    # T69 (founder, 2026-09-30) — model calls made inside tools, by tool: recorded, not counted
+    # against the coach's limit, capped per lookup by T51.
+    tool_model_calls: dict[str, int] = {}
+    fusion.TURN_TOOL_MODEL_CALLS.set(tool_model_calls)
 
     # ADR-0068 / ADR-0069 — the turn type, decided in code from the move and the phase state,
     # recorded in step_log; the tools it offers are the turn_tools middleware's.
@@ -2357,6 +2366,7 @@ async def executor(
                          "coach_limit": coach_limit, "after": len(coherence_log) + min(len(grader_log), 1),
                          "turn": calls_before + coach_calls + len(coherence_log) + min(len(grader_log), 1),
                          "limited": limited},
+            tool_model_calls=dict(sorted(tool_model_calls.items())),   # T69: inside tools, by tool
             focus_field=plan.focus_field if plan else None,
             # 6.61 — the move code chose, the field's status, and what this
             # turn stored or holds as pending.

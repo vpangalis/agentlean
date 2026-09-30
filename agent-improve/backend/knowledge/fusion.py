@@ -48,6 +48,7 @@ import asyncio
 import logging
 import threading
 import time
+from contextvars import ContextVar
 from typing import (
     Any,
     Awaitable,
@@ -73,6 +74,13 @@ RRF_K = 60
 #: parse time instead of silently narrowing or widening the fan-out.
 MIN_VARIANTS = 3
 MAX_VARIANTS = 5
+
+#: T69 (founder, 2026-09-30) — a model call made inside a tool does not count against the coach's
+#: limit; it is recorded per turn, by tool. The executor node sets the turn's dict, the per-turn
+#: lookup copy (`phases/nodes_common._budgeted_rag_tools`) names the tool for the length of its
+#: call, and `generate_variants` counts its call there. Unset outside a turn: nothing is counted.
+TURN_TOOL_MODEL_CALLS: ContextVar[dict[str, int] | None] = ContextVar("turn_tool_model_calls", default=None)
+CALLING_TOOL: ContextVar[str] = ContextVar("calling_tool", default="unknown")
 
 T = TypeVar("T")
 
@@ -234,6 +242,10 @@ async def generate_variants(query: str) -> list[str]:
     from backend.core.llm import get_llm
     from backend.core.prompts import VARIANT_PROMPT
 
+    counted = TURN_TOOL_MODEL_CALLS.get()
+    if counted is not None:                                    # T69: recorded, by tool
+        tool = CALLING_TOOL.get()
+        counted[tool] = counted.get(tool, 0) + 1
     try:
         llm = get_llm("extraction", temperature=0.2)
         structured = llm.with_structured_output(QueryVariants)

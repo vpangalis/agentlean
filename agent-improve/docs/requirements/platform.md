@@ -4,7 +4,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 
 ## Technical requirements
 
-> **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED; T85–T87 ACCEPTED 2026-09-27;
+> **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED (T69 amended, ACCEPTED 2026-09-30); T85–T87 ACCEPTED 2026-09-27;
 > T71–T72 ACCEPTED 2026-09-28 as amended, and T91–T94 ACCEPTED 2026-09-28 (ADR-0067); T88–T90 ACCEPTED 2026-09-28; T73–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint, with `MoSCoW` (`?` until the founder
 > ratifies it) and `Design` (its ADR, or `none`). **Proof**
 > names the test in `backend/tests/` that proves it today, or `none`. The decisions behind
@@ -126,7 +126,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 
 | Id | Requirement | MoSCoW | Design | Proof |
 |---|---|---|---|---|
-| T69 | An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in `step_log`; enforced with `ModelCallLimitMiddleware`; calls outside the agent are counted in `step_log` against the same budget | Must | ADR-0059 | none |
+| T69 | An ordinary coaching turn makes at most 4 model calls by the coach, retries included; enforced with ModelCallLimitMiddleware; the count is recorded per turn in step_log. Model calls made inside tools (for example the query variants of a lookup) do not count against this limit: they are recorded per turn in step_log, by tool, and capped by T51 (3–5 variants per lookup). | Must | ADR-0059 | none |
 | T70 | Node time limits, retries and compensation use LangGraph's per-node `timeout=`, `retry_policy=` and `error_handler=`; no hand-written budget or retry loop | Must | ADR-0043 | none |
 | T71 | Before any model call, every Belt message is checked for attempts to change the coach's rules (overriding instructions, fake system or assistant turns, persona role-play, encoded instructions) and against the limits of T93. A blocked turn answers with the guard's fixed guidance plus the current element and its sample, and records the threat, rule and signed-in person in `step_log`. The blocked message and its reply never reach a later model call or the reload; they remain only in the checkpoint as security evidence under the case's access rules. No model is used to build the reply | Must | ADR-0067 | none |
 | T72 | Before an upload is indexed or read by any model, its whole text is checked, in chunks of at most 10,000 characters, for instructions addressed to the AI, including text hidden by formatting, comments, hidden cells or sheets, or metadata. A flagged file stays in the case, marked as not used by the coach, and the Belt is told which file and why. All upload text and Belt answers reach every model (coach, planner, validator, grader) inside a labelled data block, never as instruction | Must | ADR-0067 | none |
