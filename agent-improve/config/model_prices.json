@@ -1,0 +1,24 @@
+{
+ "_about": "R12 (founder ruling 2026-09-30): the model prices a run-through's cost is computed from (scripts/run_cost.py). The founder updates this file when Azure prices change; nothing else holds a price. USD per 1 million tokens, Azure list prices for our deployment type.",
+ "taken": "2026-09-30",
+ "source": "https://prices.azure.com/api/retail/prices?$filter=serviceName eq 'Foundry Models' and armRegionName eq 'westeurope' (Azure Retail Prices API; the meters named below, type Consumption). Pricing page: https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/",
+ "region": "westeurope",
+ "deployment_type": "GlobalStandard — read from Azure 2026-09-30 (az cognitiveservices account deployment list, valuesims-openai-we): every deployment's sku is GlobalStandard",
+ "currency": "USD",
+ "unit": "per 1M tokens",
+ "cached_input": "Cached input is billed lower (gpt-4o-2024-11-20: 1.25). The run records do not separate cached tokens, so every input token is priced at the full rate: the computed cost is an upper bound.",
+ "models": {
+  "gpt-4o-2024-11-20": {
+   "deployments": ["operational-premium"],
+   "input": 2.50,
+   "output": 10.00,
+   "meters": {"input": "gpt 4o 1120 Inp glbl Tokens", "output": "gpt 4o 1120 Outp glbl Tokens"}
+  },
+  "gpt-4o-mini-2024-07-18": {
+   "deployments": ["operational-model", "intent-model"],
+   "input": 0.15,
+   "output": 0.60,
+   "meters": {"input": "gpt-4o-mini-0718-Inp-glbl Tokens", "output": "gpt-4o-mini-0718-Outp-glbl Tokens"}
+  }
+ }
+}

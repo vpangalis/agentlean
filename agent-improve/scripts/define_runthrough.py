@@ -390,6 +390,7 @@ def main() -> int:
                # Founder 2026-09-30 (review of 309f9fc), item 4: tokens per role, per model and in
                # total, so the run's cost can be computed from the deployments' prices.
                "tokens": token_totals(CALLS), **out}
+    summary["cost"] = _cost(summary["tokens"])
     _write(rec, summary)
     print(json.dumps(summary, indent=1, default=str))
     _time_it(started, len(CALLS))
@@ -397,7 +398,30 @@ def main() -> int:
     tree.write_text(json.dumps([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines() if l.strip()],
                                indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"record: {tree}")
-    return 0 if not SENDS else 3
+    return exit_code(summary, SENDS)
+
+
+def _cost(tokens: dict[str, Any]) -> dict[str, Any]:
+    """R12 (founder ruling 2026-09-30): the run's model cost from its tokens per model and the
+    dated price file; an unpriced model is recorded as a failure, never counted as free."""
+    from scripts.run_cost import UnpricedModel, load_prices, run_cost
+    try:
+        return run_cost(tokens.get("by_model") or {}, load_prices())
+    except UnpricedModel as exc:
+        return {"usd": None, "within_ceiling": False, "error": str(exc)}
+
+
+def exit_code(summary: dict[str, Any], sends: list[Any]) -> int:
+    """0 when the run passed; 3 when anything reached LangSmith; 4 when the run cost more than
+    R12's ceiling (or could not be priced) — the acceptance test fails."""
+    if sends:
+        return 3
+    cost = summary.get("cost") or {}
+    if not cost.get("within_ceiling"):
+        why = cost.get("error") or "USD {} over the ceiling of USD {}".format(cost.get("usd"), cost.get("ceiling_usd"))
+        print(f"R12 COST CEILING: {why} — the run fails")
+        return 4
+    return 0
 
 
 def _wallclock(stamp: str, scratch: Path) -> dict[str, Any]:

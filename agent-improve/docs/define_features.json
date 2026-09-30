@@ -5825,6 +5825,33 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform"
+  },
+  {
+   "id": "DEF-164",
+   "description": "The run-through computes each run's model cost from the tokens it recorded per model and one dated price file (config/model_prices.json); a completed Define run-through above USD 1.50 fails the acceptance test.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [],
+   "test": "backend/tests/test_run_cost.py::test_a_run_over_the_ceiling_fails",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R12",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "api"
   }
  ]
 }

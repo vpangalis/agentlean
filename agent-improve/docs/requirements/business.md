@@ -50,7 +50,6 @@ no release split. DRAFT and TO WRITE are out of scope until ratified.
 | 1 | W4 prerequisites: is the proposed set right? | Benefits analysis after business case; objective and scope after problem statement; secondary metrics after primary metric; process performance (R17) after the SIPOC steps; all else free |
 | 2 | R8c: may the project lead hand the lead role to another team member? | Yes — the current lead hands over; the handover is recorded (R16) |
 | 3 | R10 document formats | Word, PDF and images (images only once the vision read has a test); no Visio |
-| 4 | R12 cost ceiling per completed Define | Set after the first measured run-through, at 1.5× the measured cost |
 | 5 | M1 open questions | Excel and CSV (the parsers exist); size and first KPIs decided with the Measure review |
 | 6 | R17: is the performance data per step right? | Per step: average, minimum and maximum duration with unit, how often it runs per period, the problems the team sees there and who said so; for the whole process: end-to-end lead time and runs per period |
 
@@ -232,11 +231,12 @@ benefits estimate (Control verifies realised savings against it).
 
 **g Done when**
 
-**R12 Define is done** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
+**R12 Define is done** · ACCEPTED 2026-09-27, amended 2026-09-30 · MoSCoW: Must · Design: none
 A fresh case with a prepared Belt (the scripted run-through persona) reaches an approved Define
 report in at most 40 Belt turns, with no turn over 45 s and no element left unreachable.
 `scripts/define_runthrough.py` is the acceptance test and records turns, model calls, time and cost.
-Cost ceiling: open decision 4.
+Cost ceiling: a completed Define run-through costs at most USD 1.50 in model usage (1.5 × the measured
+≈ USD 1.00, run of 2026-09-30). A run above the ceiling fails the acceptance test.
 
 ## 2.2 Measure · started
 
