@@ -1,0 +1,7 @@
+#!/bin/sh
+# Tracked git hook — founder ruling 4, 2026-09-30: `git merge` making its commit runs no
+# pre-commit hook, so a merge into main would reach the commit-msg guard's landing check (rule 11)
+# with no test run recorded for its tree. This runs the same pre-commit (its test run, CONTINUITY,
+# the board) for a merge commit. A merge stopped on conflicts is committed with `git commit`,
+# which runs pre-commit itself.
+exec sh .githooks/pre-commit "$@"

@@ -1450,7 +1450,11 @@ def check_landing(root: str, subject: str) -> None:
     if not m:
         note("rule 11 landing: the subject names no DEF-xxx — no feature to land")
         return
-    fid = m.group(1)
+    _land(root, m.group(1))
+
+
+def _land(root: str, fid: str) -> None:
+    """Rule 11 for one feature: its test and every dependency's pass in THIS commit's run."""
     res = _this_commits_run(root)
     if res is None:
         fail(f"{fid} cannot land: no full test run was recorded for THIS commit (rule 11)",
@@ -1463,6 +1467,42 @@ def check_landing(root: str, subject: str) -> None:
              "A feature lands when its end-to-end test passes, and every feature it",
              "depends on passes — read from this commit's run, never from a claim.")
     note(f"rule 11 landing: PASS — {fid} and its dependencies pass")
+
+
+#: A merge commit's features: `Feature: DEF-xxx` trailers (a subject naming one counts too).
+_FEATURE_TRAILER_RE = re.compile(r"^Feature:\s*(DEF-\d{3})\s*$", re.M)
+
+
+def merge_into(root: str) -> str:
+    """The branch a merge commit is being made on ('' when HEAD is detached)."""
+    return subprocess.run(["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=root,
+                          capture_output=True, encoding="utf-8").stdout.strip()
+
+
+def check_merge(root: str, subject: str, message: str) -> int:
+    """Founder ruling 4, 2026-09-30 — a merge commit INTO MAIN is checked: rule 11's landing for
+    every feature it names (subject or `Feature:` trailer), the 11b ratchet, and rule 10's board.
+    The 8D rule stays for fix commits only. Until this ruling every merge returned here unchecked
+    (25b91f7 landed DEF-079 that way, checked by hand after the push). A merge into any other
+    branch is not checked: it lands nowhere yet."""
+    branch = merge_into(root)
+    if branch != "main":
+        note(f"merge into {branch or 'a detached HEAD'}: not main — rules 10 and 11 run when it reaches main")
+        return 0
+    fids = set(_FEATURE_TRAILER_RE.findall(message))
+    m = _DEF_SUBJECT_RE.match(subject)
+    if m:
+        fids.add(m.group(1))
+    with _timer("rule 11 landing (merge)"):
+        if not fids:
+            note("rule 11 landing (merge): no DEF-xxx named — no feature to land")
+        for fid in sorted(fids):
+            _land(root, fid)
+    with _timer("rule 11b ratchet (merge)"):
+        check_ratchet(root)
+    with _timer("rule 10 board (merge)"):
+        check_board(root, venv_python(root))
+    return 0
 
 
 def check_ratchet(root: str) -> None:
@@ -1699,13 +1739,14 @@ def main(argv: list[str]) -> int:
 
     root = repo_root()
 
-    # Merge commits carry a generated subject and stage nothing of their own.
-    if os.path.exists(os.path.join(root, ".git", "MERGE_HEAD")):
-        return 0
-
     subject, message = read_message(argv[1])
     if not subject:
         return 0  # git aborts an empty message itself, with a better error
+
+    # A merge commit stages nothing of its own; founder ruling 4, 2026-09-30: one INTO MAIN is
+    # still checked for landing (rules 11, 11b) and the board (rule 10).
+    if os.path.exists(os.path.join(root, ".git", "MERGE_HEAD")):
+        return check_merge(root, subject, message)
 
     # ── Rule 2b — applies to EVERY commit, not only spine commits ─────────
     # Deliberately ahead of the prefix gate: the rule is "changed something it

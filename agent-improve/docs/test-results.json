@@ -1,9 +1,9 @@
 {
- "source_hash": "bbc1d078e6d61e77",
- "commit": "2d5ea8c",
+ "source_hash": "8e607d981e4ef056",
+ "commit": "8dceaac",
  "commit_matches_source": false,
  "full_run_hash": "61ac17bbb1d00a19",
- "recorded_at": "2026-09-30T06:09:00+00:00",
+ "recorded_at": "2026-09-30T06:16:16+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -205,6 +205,10 @@
   "backend/tests/test_commit_guard_8d.py::test_the_scissors_diff_cannot_answer_a_discipline": "passed",
   "backend/tests/test_commit_guard_8d.py::test_the_six_labels_are_the_ratified_set": "passed",
   "backend/tests/test_commit_guard_8d.py::test_the_trailer_block_is_not_swallowed_by_the_last_discipline": "passed",
+  "backend/tests/test_commit_guard_merge.py::test_a_merge_into_another_branch_is_left_for_main": "passed",
+  "backend/tests/test_commit_guard_merge.py::test_a_merge_into_main_lands_only_the_features_that_pass": "passed",
+  "backend/tests/test_commit_guard_merge.py::test_a_merge_into_main_runs_the_landing_the_ratchet_and_the_board": "passed",
+  "backend/tests/test_commit_guard_merge.py::test_main_routes_a_merge_to_the_merge_checks_and_git_runs_pre_commit_for_it": "passed",
   "backend/tests/test_commit_guard_tree_rules.py::test_a_clean_set_of_added_paths_passes": "passed",
   "backend/tests/test_commit_guard_tree_rules.py::test_a_def_subject_lands_under_any_prefix": "passed",
   "backend/tests/test_commit_guard_tree_rules.py::test_a_missing_register_fails_CLOSED": "passed",
