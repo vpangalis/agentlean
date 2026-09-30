@@ -25,6 +25,7 @@ start and the commit guard's landing rule all read it. It owns what the retired
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import re
@@ -58,7 +59,10 @@ def results(path: Path = RESULTS) -> dict:
 
 
 def _hash(root: Path, skip_tests: bool) -> str:
-    h = hashlib.sha256()
+    """The source hash — its files' stamps (path, mtime, size) key a cache, so the 38 calls one
+    board build made (4 s) read the bytes once while nothing changed (controls review, 2026-09-30).
+    A changed file changes its stamp, so the hash is recomputed; the value is never stale."""
+    files = []
     for pattern in SOURCE_GLOBS:
         for f in sorted(root.glob(pattern)):
             rel = f.relative_to(root).as_posix()
@@ -66,8 +70,17 @@ def _hash(root: Path, skip_tests: bool) -> str:
                 continue
             if skip_tests and rel.startswith("backend/tests/"):
                 continue
-            h.update(rel.encode())
-            h.update(f.read_bytes().replace(b"\r\n", b"\n"))
+            st = f.stat()
+            files.append((rel, st.st_mtime_ns, st.st_size))
+    return _hash_files(str(root), tuple(files))
+
+
+@functools.lru_cache(maxsize=64)
+def _hash_files(root: str, files: tuple[tuple[str, int, int], ...]) -> str:
+    h = hashlib.sha256()
+    for rel, _mtime, _size in files:
+        h.update(rel.encode())
+        h.update((Path(root) / rel).read_bytes().replace(b"\r\n", b"\n"))
     return h.hexdigest()[:16]
 
 

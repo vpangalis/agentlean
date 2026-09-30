@@ -618,7 +618,8 @@ def test_rule_17_passes_annotations_the_trailer_or_a_design_change_and_fires_oth
 def test_the_suite_runs_serial_tests_alone_after_the_parallel_pass() -> None:
     src = (Path(_ROOT) / ".claude" / "hooks" / "staged_tree.py").read_text(encoding="utf-8")
     # Founder ruling 4, 2026-09-28 (G-127): `wallclock` tests leave both passes for the run-through stage.
-    assert '"-n", "auto", "-m", "not serial and not wallclock"' in src
+    # Controls review item 1 (2026-09-30): the parallel pass steals work.
+    assert '"-n", "auto", "--dist", "worksteal", "-m", "not serial and not wallclock"' in src
     assert '"-n", "0", "-m", "serial and not wallclock"' in src
     budget = (Path(_ROOT) / "agent-improve" / "backend" / "tests" / "test_turn_budget.py").read_text(
         encoding="utf-8")

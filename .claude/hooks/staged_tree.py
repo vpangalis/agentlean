@@ -138,7 +138,10 @@ def run_suite(root: Path = ROOT, tree: str | None = None) -> tuple[int, str]:
     # machine. Both runs are on the same source, so the recorder MERGES them into
     # one record. Exit 5 is "no test selected", not a failure.
     # `wallclock` tests are the run-through stage's (founder ruling 4, 2026-09-28; G-127).
-    par = run([*base, "-n", "auto", "-m", "not serial and not wallclock"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
+    # Controls review, item 1 (2026-09-30): worksteal — an idle worker takes queued tests from a busy
+    # one, so the live capability rows (14-35 s each) no longer hold one worker's queue back.
+    par = run([*base, "-n", "auto", "--dist", "worksteal", "-m", "not serial and not wallclock"], wt, root,
+              AGENT_IMPROVE_FULL_RUN="1")
     ser = run([*base, "-n", "0", "-m", "serial and not wallclock"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
     record = wt / PROJECT / "docs" / "test-results.json"
     if copy_back and record.is_file():
@@ -186,7 +189,8 @@ def run_fast(root: Path = ROOT) -> tuple[int, str]:
         return run_suite(root)
     wt = sync(root)
     base = [venv_python(root), "-m", "pytest", *tests, "-q", "--no-header", "-p", "no:cacheprovider",
-            "-m", "not wallclock", "-n", "auto" if len(tests) > 12 else "0"]
+            "-m", "not wallclock", "-n", "auto" if len(tests) > 12 else "0",
+            *(["--dist", "worksteal"] if len(tests) > 12 else [])]
     r = run(base, wt, root, AGENT_IMPROVE_FAST_RUN="1")
     record = wt / PROJECT / "docs" / "test-results.json"
     if record.is_file():

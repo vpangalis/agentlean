@@ -22,6 +22,7 @@ check WARNS (founder ruling: it becomes a refusal after the first findings are r
 from __future__ import annotations
 
 import ast
+import functools
 import json
 import re
 import sys
@@ -45,9 +46,20 @@ def _module(path: Path) -> str:
 
 
 def _parse(path: Path) -> ast.Module | None:
+    """The module's tree — cached per (path, mtime, size): one board build asked for the same test
+    files 1,691 times, 27 of its 42 s (controls review, 2026-09-30). Callers only read the tree."""
     try:
-        return ast.parse(path.read_text(encoding="utf-8"))
-    except (SyntaxError, UnicodeDecodeError):
+        st = path.stat()
+    except OSError:
+        return None
+    return _parse_cached(str(path), st.st_mtime_ns, st.st_size)
+
+
+@functools.lru_cache(maxsize=4096)
+def _parse_cached(path: str, _mtime_ns: int, _size: int) -> ast.Module | None:
+    try:
+        return ast.parse(Path(path).read_text(encoding="utf-8"))
+    except (SyntaxError, UnicodeDecodeError, OSError):
         return None
 
 
