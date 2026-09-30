@@ -188,6 +188,11 @@ def run_fast(root: Path = ROOT) -> tuple[int, str]:
     if tests is None:
         return run_suite(root)
     wt = sync(root)
+    # Controls review (2026-09-30): only the test files the STAGED tree holds — an untracked test
+    # file in the checkout (a peer's, or one not yet staged) made pytest fail "file not found".
+    tests = [t for t in tests if (wt / PROJECT / t).is_file()]
+    if not tests:
+        return 0, "fast (0 test files in the staged tree): nothing to run" + chr(10)
     base = [venv_python(root), "-m", "pytest", *tests, "-q", "--no-header", "-p", "no:cacheprovider",
             "-m", "not wallclock", "-n", "auto" if len(tests) > 12 else "0",
             *(["--dist", "worksteal"] if len(tests) > 12 else [])]

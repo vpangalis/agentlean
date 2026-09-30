@@ -281,6 +281,14 @@ def check_tests(py: str, p: dict) -> tuple[bool, str]:
         return True, "no test reached"
     else:
         rel = [t[len("agent-improve/"):] for t in tests]
+        # Controls review (2026-09-30): only the test files the tree under test holds — an
+        # untracked test file in the checkout made pytest fail "file or directory not found".
+        # The mismatch arises only when a separate staged tree is the one tested.
+        if p.get("tree_root"):
+            tree = Path(p["tree_root"]) / "agent-improve"
+            rel = [r for r in rel if (tree / r).is_file()]
+            if not rel:
+                return True, "no test reached in the staged tree"
         args = rel + (["-n", "auto"] if len(rel) > SERIAL_MAX else ["-n", "0"])
         args += ["-m", "not wallclock"]      # the run-through stage's (founder ruling 4; G-127)
         skip = [s for s in slow_tests() if s.split("::")[0] in rel and s not in rel]
