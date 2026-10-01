@@ -71,6 +71,7 @@ from backend.core.prompts import (
     MOVE_OPENING,
     MOVE_PREAMBLE,
     SECTION_CONVERSATION,
+    UPLOAD_TURN,
     SECTION_FEEDBACK,
     SECTION_MOVE,
     SECTION_RULES,
@@ -120,6 +121,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         state: PhaseState,
         config: Optional[RunnableConfig] = None,
         prior_documents: Optional[dict[str, dict]] = None,
+        upload: Optional[dict] = None,
     ) -> None:
         super().__init__()
         if phase not in PHASE_ORDER:
@@ -134,6 +136,8 @@ class BeforeModelStateInjection(AgentMiddleware):
         #: **B5** — without these the coach has nothing to compare against and
         #: the semantic contradiction check (§37) silently detects nothing.
         self._prior = prior_documents or {}
+        #: DEF-108 (W5) — the file this upload turn reads, routed by the executor; None otherwise.
+        self._upload = upload
         self._block: str = ""
         self._move: str = ""
         self._feedback: str = ""
@@ -419,6 +423,15 @@ class BeforeModelStateInjection(AgentMiddleware):
             lines.append(f"The planner's judgment: {judgment.verdict} — {judgment.reason}")
         if not any(isinstance(m, AIMessage) for m in (self._state.get("messages") or [])):
             lines.append(MOVE_OPENING)
+        if self._upload:
+            # DEF-108 (W5) — ahead of the move, and named as the one exception to its "nothing
+            # else": after it, a read-back obeyed the preamble and left the file out (live, 083638).
+            u = self._upload
+            lines += ["", UPLOAD_TURN.format(
+                filename=u.get("filename") or "(unnamed file)",
+                summary=" ".join(str(u.get("summary") or "(no description)").split())[:600],
+                blob_path=u.get("blob_path") or "(unknown)",
+                element=f"`{field}`" if field else "the report")]
         return "\n".join([*lines, "", body])
 
     def _compose_feedback(self) -> str:
@@ -496,7 +509,7 @@ class BeforeModelStateInjection(AgentMiddleware):
             consumed = "consumed" if u.get("consumed_at") else "NOT YET READ"
             summary = " ".join(str(u.get("summary") or "").split())
             parts.append(
-                f"  - {u.get('role') or 'other evidence'} "
+                f"  - {u.get('filename') or '(unnamed file)'}: {u.get('role') or 'other evidence'} "
                 f"[{u.get('shape_match') or 'unsolicited'}, {consumed}] "
                 f"- {summary[:160]}"
             )

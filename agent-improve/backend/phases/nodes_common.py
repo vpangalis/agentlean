@@ -44,6 +44,7 @@ THE WATCH 7 SEAM APPLIES TO ALL FIVE PHASES NOW
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import re
@@ -295,6 +296,18 @@ def _unconsumed_for_open_ask(
     return None
 
 
+def _unread_upload(state: PhaseState, asks: Optional[list[dict]] = None) -> dict | None:
+    """The upload this turn reads — ARCHITECTURE §3.6 and W5 (DEF-108, founder 2026-10-01):
+    every new upload makes the next turn an upload turn. One bound to an open ask comes first
+    (step 6.12's routing); otherwise the newest unread upload, read against the current element.
+    Before DEF-108 an unsolicited file under an open ask of another role was never read."""
+    bound = _unconsumed_for_open_ask(state, asks)
+    if bound is not None:
+        return bound
+    unread = [u for u in state.get("uploads") or [] if not u.get("consumed_at")]
+    return unread[-1] if unread else None
+
+
 async def planner(
     phase: str,
     state: PhaseState,
@@ -368,7 +381,7 @@ async def planner(
         # executor dispatches the read itself (§17, 6.21 option C); the plan
         # carries no instruction for it — since 6.61 no free-text move exists
         # to carry one, and none ever reached the coach (G-49).
-        pending_upload = _unconsumed_for_open_ask(state, asks)
+        pending_upload = _unread_upload(state, asks)
         if pending_upload is not None:
             update["asks"] = asks
             logger.info(
@@ -806,6 +819,11 @@ def _routed_column(state: PhaseState, upload: dict) -> str | None:
     return None
 
 
+#: DEF-108 — set for the turn when the routed read RAISED: the file was not read, so the upload
+#: stays unread and the next turn reads it again (a file with no numeric column is still read).
+ROUTED_READ_FAILED: contextvars.ContextVar[bool] = contextvars.ContextVar("routed_read_failed", default=False)
+
+
 # §51 / step 8.0 slice — the executor's setup, between node entry and the
 # agent, is spanned so a trace shows where the pre-agent seconds go.
 @child_span(run_type="chain", name="executor.setup.dispatch_routed_read",
@@ -844,7 +862,7 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
     returns no messages at all, leaving the manifest to make the coach aware —
     the pre-6.21 behaviour, which is degraded rather than broken.
     """
-    upload = _unconsumed_for_open_ask(state)
+    upload = _unread_upload(state)
     if upload is None or not upload.get("blob_path"):
         return []
     blob_path = str(upload["blob_path"])
@@ -894,6 +912,7 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
             "manifest and the turn continues",
             upload.get("blob_path"), exc,
         )
+        ROUTED_READ_FAILED.set(True)
         return []
 
     logger.info(
@@ -1070,6 +1089,8 @@ def _build_executor(
             BeforeModelStateInjection(
                 phase, state, config,
                 prior_documents=_prior_gate_documents(phase, config),
+                # DEF-108 (W5) — on an upload turn, the file section 4 names, routed in code.
+                upload=_unread_upload(state) if turn_type == turn_tools.UPLOAD else None,
             ),
             # 2 — before_agent + a registered `load_skill` tool.
             DMAICSkillsMiddleware(
@@ -1465,6 +1486,24 @@ def _with_teaching_blocks(phase: str, plan: Optional[CoachingPlan], reply: Coach
     return reply.model_copy(update=filled)
 
 
+def _with_upload_named(reply: CoachingResponse, upload: Optional[dict]) -> CoachingResponse:
+    """DEF-108 (W5): an upload turn's reply names the file it read. When the coach's words do not,
+    a line written in code from the upload record goes ahead of `message` — the file's name and its
+    interpretation — and the gap is logged as a FINDING. Returns a COPY, or `reply` unchanged."""
+    if not upload or not upload.get("filename"):
+        return reply
+    name = str(upload["filename"])
+    said = " ".join(str(getattr(reply, k, "") or "") for k in ("message", "explanation", "example", "prompt"))
+    if name in said:
+        return reply
+    logger.warning("executor: FINDING — DEF-108: the upload turn's reply did not name %s; the line "
+                   "naming it is written in code", name)
+    from backend.core.prompts import UPLOAD_READ_NOTE
+    note = UPLOAD_READ_NOTE.format(filename=name,
+                                   summary=" ".join(str(upload.get("summary") or "").split())[:400]).strip()
+    return reply.model_copy(update={"message": f"{note}\n\n{reply.message or ''}".strip()})
+
+
 #: G-117 — a sentence that says a value was stored. A negated or conditional one ("nothing is
 #: stored until you confirm") is not a claim and stays.
 _STORE_CLAIM = re.compile(r"(?<![A-Za-z])(recorded|stored|saved|logged)(?![A-Za-z])"
@@ -1630,7 +1669,7 @@ def turn_type_of(plan: Optional[CoachingPlan], state: PhaseState) -> str:
     """ADR-0069's turn type, in code: an unread upload bound to an open ask makes an upload turn;
     teaching a field (teach, or store and advance to the next) a teaching turn; anything else — the
     Belt answered — an answer turn."""
-    if _unconsumed_for_open_ask(state) is not None:
+    if _unread_upload(state) is not None:
         return turn_tools.UPLOAD
     if plan is None or plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE):
         return turn_tools.TEACHING
@@ -1937,6 +1976,7 @@ async def executor(
     # turn — which is what stops the next turn re-reading the same file.
     # T70 — composing after the engine's wall (`engine_timeout`) makes no call: the read, if any,
     # was the timed-out node's to make.
+    ROUTED_READ_FAILED.set(False)
     dispatched = [] if engine_timeout else await _dispatch_routed_read(state)
     # 6.61 (item 4) — SECTION 6 IS ONE ENTRY PER TURN: the Belt's words and the
     # coach's reply text — no tool-call stubs, no "Returning structured
@@ -2048,6 +2088,8 @@ async def executor(
     if reply is not None:
         captured = _captured_fields(phase, reply)
         citations.extend(_anchored(reply.citations or [], state))
+        if turn_type == turn_tools.UPLOAD:
+            reply = _with_upload_named(reply, _unread_upload(state))
         new_messages = _with_coaching_text(new_messages, reply)
 
         # §50.1's four blocks are OPTIONAL as of §56 amendment v1.64, and an
@@ -2075,6 +2117,16 @@ async def executor(
     # receives only its arguments and cannot reach `PhaseState`; the node
     # inspects the turn's tool calls afterwards. S-F57 B4.
     uploads, consumed = _mark_consumed(state, produced, citations)
+    # DEF-108 (W5) — an upload turn READ its file: section 4 named it, whether or not a numeric
+    # column was loaded, so the next turn is not an upload turn again for the same file.
+    routed = (_unread_upload(state) if turn_type == turn_tools.UPLOAD and not ROUTED_READ_FAILED.get()
+              else None)
+    if routed is not None:
+        stamp = datetime.now(timezone.utc).isoformat()
+        for u in uploads:
+            if u.get("blob_path") == routed.get("blob_path") and not u.get("consumed_at"):
+                u["consumed_at"] = stamp
+                consumed += 1
 
     _attach_diagram(new_messages)
 

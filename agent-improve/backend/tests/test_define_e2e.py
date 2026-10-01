@@ -1209,9 +1209,109 @@ def test_the_belt_can_pick_any_available_element_or_take_the_recommended_one() -
     _not_written('DEF-107')
 
 
-def test_an_upload_strengthens_the_current_answer() -> None:
-    """DEF-108 — A file attached in chat or the files panel appears in the case files; the coach reads it against the current element's criteria and asks for what is m"""
-    _not_written('DEF-108')
+def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
+    """DEF-108 — W5 and ARCHITECTURE §3.6 (founder 2026-10-01): every new upload makes the next turn
+    an upload turn. (a) A file the Belt adds is in the case files; the next turn is an upload turn
+    whatever the open asks: section 4 names the file, what it contains and the current element, and
+    says nothing from it is stored; the coach is offered the evidence tools. (b) The turn after is
+    not an upload turn again: the phase record keeps the file read (ADR-0066). (c) Live, G-143's open
+    prevention (D7): on the latest run-through the upload's summary is an interpretation, never the
+    fallback text, it reaches the report, and the coach's reply on the turn after names the file."""
+    from backend.gateway import routes
+    from backend.middleware import state_injection
+    from backend.phases import nodes_common
+    from backend.storage.models import UploadInterpretation
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+    from backend.upload import agent as upload_agent
+    from langchain_core.messages import AIMessage
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/supplier_complaints.csv"
+
+    async def index(*a, **k):
+        return "idx-complaints"
+
+    async def interpret(*a, **k):
+        return UploadInterpretation(summary="Supplier complaints about late payment, by month and site.")
+
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    _shields(monkeypatch)
+    reply = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": REPLY, "id": "r"}])
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([reply]))
+                        if role == "coach" else planner(role, **kw))
+    moves_seen: list[str] = []
+    compose = state_injection.BeforeModelStateInjection._compose_move
+
+    def spy_move(self):
+        out = compose(self)
+        moves_seen.append(out)
+        return out
+    monkeypatch.setattr(state_injection.BeforeModelStateInjection, "_compose_move", spy_move)
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {}
+
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": ("supplier_complaints.csv",
+                                        b"month,site,complaints\n2026-01,North,14\n2026-02,North,17\n", "text/csv")})
+    assert r.status_code == 200, r.text
+    files = env.client.get(f"/cases/{CASE_ID}").json()["files"]
+    assert any(f["filename"] == "supplier_complaints.csv" for f in files), files
+
+    answers: list[str] = []
+
+    def turn(message: str) -> str:
+        steps.clear()
+        moves_seen.clear()
+        resp = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                             "message": message})
+        assert resp.status_code == 200, resp.text
+        answers.append(resp.json()["answer"])
+        kinds =[e["turn_type"] for e in steps if isinstance(e, dict) and e.get("turn_type")]
+        assert kinds, "step_log records no turn type"
+        return kinds[-1]
+
+    # (a) the next turn reads the file, against the current element
+    assert turn("I've added our complaints log.") == "upload"
+    section = moves_seen[-1]
+    assert "supplier_complaints.csv" in section and "Supplier complaints about late payment" in section, section
+    assert "`business_case`" in section and "Nothing in the file is stored" in section, section
+    assert section.index("THE BELT HAS ADDED A FILE") < section.index("MOVE:"), "the file must come before the move"
+    # the fake coach never names the file: code does, from the upload record
+    assert answers[-1].startswith("I've read your file supplier_complaints.csv."), answers[-1][:200]
+    # (b) and only once: the record keeps it read
+    assert turn("Where do we start?") != "upload"
+    assert "supplier_complaints.csv" not in moves_seen[-1]
+
+    # (c) live — the latest run-through record (G-143's D7)
+    import json
+    from pathlib import Path
+    folder = Path(__file__).resolve().parents[2] / "docs" / "runthrough"
+    record = json.loads(sorted(folder.glob("define_runthrough_*.json"))[-1].read_text(encoding="utf-8"))
+    at = next(i for i, e in enumerate(record) if e.get("kind") == "upload")
+    up = record[at]["body"]
+    assert up["summary"] and "INTERPRETATION UNAVAILABLE" not in up["summary"], up["summary"]
+    review = json.dumps(next(e for e in record if e.get("kind") == "gate_review")["body"], ensure_ascii=False)
+    assert up["filename"] in review and up["summary"][:60] in review, "the upload's interpretation is not in the report"
+    after = next(e for e in record[at + 1:] if e.get("kind") == "turn")
+    said = json.dumps(after.get("reply"), ensure_ascii=False)
+    assert up["filename"] in said, f"the reply after the upload does not name the file: {said[:300]}"
+    # W5 is the COACH reading the file against the element: the line code writes when the coach
+    # did not name it (`_with_upload_named`) does not count.
+    from backend.core.prompts import UPLOAD_READ_NOTE
+    note = UPLOAD_READ_NOTE.format(filename=up["filename"], summary="").strip()
+    own = said.replace(note, "")
+    assert up["filename"] in own, f"only the code-written line names the file; the coach did not: {own[:300]}"
 
 
 def test_removing_a_file_removes_it_from_storage_and_index() -> None:

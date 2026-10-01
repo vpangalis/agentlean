@@ -4209,9 +4209,20 @@
    ],
    "test": "backend/tests/test_define_e2e.py::test_an_upload_strengthens_the_current_answer",
    "sources": {
-    "architecture": [],
-    "procedure": [],
-    "code": [],
+    "architecture": [
+     "§3.3 executor step 5 (every new upload makes the next turn an upload turn)",
+     "§3.6 turn types (ADR-0068, ADR-0069)",
+     "ADR-0066 the phase record"
+    ],
+    "procedure": [
+     "G-143 D7 (the run-through check)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py::_unread_upload",
+     "agent-improve/backend/middleware/state_injection.py",
+     "agent-improve/backend/phases/record.py::merge",
+     "agent-improve/backend/core/prompts.py::UPLOAD_TURN"
+    ],
     "guidance": []
    },
    "lane": "C",

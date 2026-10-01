@@ -224,6 +224,10 @@ def phase_node(phase: str) -> Callable[..., Any]:
             "field_log": [dict(e) for e in (result.get("field_log") or [])],
             # Step 6.61 (R5) — where each field stands after this turn.
             "field_status": {f: dict(v) for f, v in (result.get("field_status") or {}).items()},
+            # DEF-108 (W5) — the uploads this turn read; the record keeps them read.
+            "uploads_consumed": {str(u["blob_path"]): str(u["consumed_at"])
+                                 for u in (result.get("uploads") or [])
+                                 if u.get("blob_path") and u.get("consumed_at")},
         }
         # ADR-0066: the merged record travels on the reply, so the checkpoint is its home.
         payload[phase_record.KEY] = phase_record.merge(prior, payload, phase)

@@ -162,7 +162,10 @@ sequenceDiagram
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked
    and answers in code without a model call; `revise` + `element` reopens a confirmed or parked one (W9). A later read-back of the element keeps the parts it
    carried before; any the new one lacks are shown under it, in code, and stored only on confirm.
-5. For an unread upload the executor node calls `load_evidence_series` before the model runs.
+5. Every new upload makes the next turn an upload turn (W5): one bound to an open ask first, else
+   the newest unread (`_unread_upload`). The executor calls `load_evidence_series` on its numeric
+   column before the model runs; section 4 names the file, its interpretation and the current
+   element. The file is then read, kept in the phase record's `consumed`, unless the read raised.
 6. The executor counts `rag_lookup_*` calls and answers instead of searching at
    `COACH_HOP_BUDGET` (`phases/nodes_common.py`).
 7. The move record and quality feedback travel in the reply's `additional_kwargs`, round-tripped

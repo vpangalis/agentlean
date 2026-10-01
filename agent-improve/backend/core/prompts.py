@@ -1595,6 +1595,26 @@ MOVE_INSTRUCTIONS: dict[str, str] = {
 MOVE_OPENING = ("This is the first turn of the phase: begin with the phase script's "
                 "[OPENING] welcome, then make the move.")
 
+#: DEF-108 (W5, ARCHITECTURE §3.6) — added to section 4 on an upload turn: every new upload makes
+#: the next turn one. The file is decided in code (`nodes_common._unread_upload`); the move is not
+#: changed by it.
+UPLOAD_TURN = (
+    "THE BELT HAS ADDED A FILE — this turn reads it (decided in code). It is the ONE exception to "
+    "'nothing else' above:\n"
+    "  file: {filename}\n"
+    "  what it contains, read when it arrived: {summary}\n"
+    "  blob_path: {blob_path}\n"
+    "Open `message` with one or two sentences that name the file (and the page, where it has pages) "
+    "and say what it shows against the acceptance criteria of {element} in the phase script, and what "
+    "it does not cover yet. Then write the move below exactly as it says. For the file's text use "
+    "rag_lookup_evidence, which gives the page; for a column of numbers use load_evidence_series "
+    "with the blob_path above. Nothing in the file is stored: a value from it is stored only when the "
+    "Belt confirms it, like any answer."
+)
+#: DEF-108 (W5) — written in code ahead of an upload turn's reply that did not name its file
+#: (`phases/nodes_common._with_upload_named`): the file is always named to the Belt.
+UPLOAD_READ_NOTE = "I've read your file {filename}. {summary}"
+
 #: G-117 (DEF-156) — the only sentences that tell the Belt what was stored, written by
 #: `phases/nodes_common._store_truth` from the storage result, never by the coach model.
 STORE_NOTE_STORED = "Stored: {elements}."

@@ -26,7 +26,7 @@ KEY = "phase_record"
 
 
 def empty(phase: str) -> dict[str, Any]:
-    return {"phase": phase, "structured": {}, "field_status": {}, "field_log": []}
+    return {"phase": phase, "structured": {}, "field_status": {}, "field_log": [], "consumed": {}}
 
 
 def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[str, Any]:
@@ -36,6 +36,9 @@ def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[st
     structured: dict[str, Any] = dict(prior.get("structured") or {})
     status: dict[str, dict[str, Any]] = {f: dict(v) for f, v in (prior.get("field_status") or {}).items()}
     log: list[dict[str, Any]] = [dict(e) for e in (prior.get("field_log") or [])]
+    # DEF-108 (W5) — the uploads a turn has read, {blob_path: when}: kept, never unread again.
+    consumed: dict[str, str] = {**dict(prior.get("consumed") or {}),
+                                **dict(payload.get("uploads_consumed") or {})}
     captured, empty_fields = split_captures(payload.get("v1_draft") or {})
     captured, malformed = split_by_declared_type(phase, captured)
     if malformed:
@@ -51,7 +54,8 @@ def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[st
     entries = list(payload.get("field_log") or [])
     if entries:
         log = merge_field_log(log, entries)
-    out = {"phase": phase, "structured": structured, "field_status": status, "field_log": log}
+    out = {"phase": phase, "structured": structured, "field_status": status, "field_log": log,
+           "consumed": consumed}
     return out
 
 
