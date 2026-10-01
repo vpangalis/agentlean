@@ -4097,7 +4097,7 @@
   },
   {
    "id": "DEF-103",
-   "description": "Without single sign-on only the team members the lead registered can open the case; a personal invite before any customer data is used.",
+   "description": "Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project lead hands over in person (R8a amended 2026-10-01; e-mail delivery later, as an adapter) — single-use, expiring after 72 hours; each sign-in records who and when.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_without_sign_on_only_registered_team_members_enter",
