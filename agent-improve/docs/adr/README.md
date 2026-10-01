@@ -113,4 +113,5 @@ Generated from each file's status line; never typed.
 | [0070](0070-visuals-drawn-from-the-structured-read-back.md) | Visuals drawn from the structured read-back | ACCEPTED | refines 0069 |
 | [0071](0071-baseline-and-target-as-number-with-unit.md) | Baseline and target are stored as a number with a unit | ACCEPTED | — |
 | [0072](0072-park-an-element.md) | Parking an element is a coaching move decided in code | ACCEPTED | — |
+| [0074](0074-upload-judged-at-interpretation.md) | An upload is judged against the current element when it is interpreted | ACCEPTED | — |
 <!-- END ADR INDEX -->
