@@ -175,7 +175,8 @@ sequenceDiagram
    `define_progress`.
 
 **Route → graph** (`gateway/routes.py`). Every graph run goes through `_run_turn`: `graph.ainvoke`
-as a task raced against `_until_disconnect`; a client gone first cancels it (499).
+as a task raced against `_until_disconnect`; a client gone first cancels it (499). The run holds the
+case's Blob lease (`blob.case_lease`, 60 s; T11): a second writer is answered 409 and runs nothing.
 
 | Route | Graph input | Config (`_graph_config`) | After the run |
 |---|---|---|---|

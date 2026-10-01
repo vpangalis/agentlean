@@ -25,6 +25,8 @@ CASE_BLOB = "cases/case_{case_id}.json"
 REGISTRY_BLOB = "registry.json"
 #: `storage/blob.py` — an uploaded file's bytes.
 UPLOAD_BLOB = "uploads/{case_id}/{filename}"
+#: `storage/blob.py::case_lease` — the empty blob whose lease is a case's one writer (T11).
+CASE_LOCK_BLOB = "locks/case_{case_id}.lock"
 #: `core/checkpointer.py` — a thread's checkpoints: the parent graph's …
 CHECKPOINT_THREAD = "checkpoints/{thread_id}"
 #: … and a subgraph's, under its percent-encoded `checkpoint_ns`.
@@ -169,5 +171,5 @@ __all__ = [
     "CHECKPOINT_HISTORY", "CHECKPOINT_LATEST", "CHECKPOINT_NAMESPACED", "CHECKPOINT_THREAD",
     "CHECKPOINT_WRITES", "EVIDENCE_INDEX", "EVIDENCE_SELECT", "KIND_ARTIFACTS", "KIND_CASE",
     "KIND_STEP_LOG", "REGISTRY_BLOB", "STORE_BLOB", "STORE_NAMESPACES", "STORE_PREFIX",
-    "STORE_ROOT", "UPLOAD_BLOB", "search_fields",
+    "STORE_ROOT", "UPLOAD_BLOB", "CASE_LOCK_BLOB", "search_fields",
 ]

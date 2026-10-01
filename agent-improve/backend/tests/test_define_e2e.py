@@ -1349,10 +1349,6 @@ def test_the_sign_in_window_explains_itself_and_names_the_lead() -> None:
     _not_written('DEF-114')
 
 
-def test_t11_exactly_one_writer_per_thread_id_at_a_time_a_blob_lease() -> None:
-    """DEF-115 — Exactly one writer per `thread_id` at a time (a Blob lease)"""
-    _not_written('DEF-115')
-
 
 def test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque() -> None:
     """DEF-116 — `thread_id` comes from an authenticated session, never from the request body (with R8)"""
@@ -2595,3 +2591,101 @@ def test_approved_values_later_phases_need_are_stored_structured(env, monkeypatc
     earlier = shown[shown.index("APPROVED IN EARLIER PHASES"):]
     for key in ("process_map_sipoc", "baseline_estimate", "target_value", "metric_definitions"):
         assert f"    {key}:" in earlier, f"{key} did not reach the Measure coach"
+
+
+class _LeasedBlob:
+    """One blob of `_LeasedBox`, async as `azure.storage.blob.aio` is, with Azure's lease rules: a
+    leased blob refuses a second lease with 409 LeaseAlreadyPresent until it is released."""
+
+    def __init__(self, box: "_LeasedBox", path: str) -> None:
+        self._box, self._path = box, path
+
+    async def upload_blob(self, data, overwrite: bool = False, **_kw) -> None:
+        from azure.core.exceptions import ResourceExistsError
+        if self._path in self._box.blobs and not overwrite:
+            raise ResourceExistsError("BlobAlreadyExists")
+        self._box.blobs[self._path] = bytes(data)
+
+    async def acquire_lease(self, lease_duration: int = -1, **_kw):
+        from types import SimpleNamespace
+
+        from azure.core.exceptions import HttpResponseError
+        if self._path in self._box.leased:
+            err = HttpResponseError("There is already a lease present. ErrorCode:LeaseAlreadyPresent")
+            err.status_code = 409
+            raise err
+        self._box.leased.add(self._path)
+        self._box.durations.append(lease_duration)
+
+        async def release() -> None:
+            self._box.leased.discard(self._path)
+            self._box.released += 1
+        return SimpleNamespace(release=release)
+
+
+class _LeasedBox:
+    def __init__(self) -> None:
+        self.blobs: dict[str, bytes] = {}
+        self.leased: set[str] = set()
+        self.durations: list[int] = []
+        self.released = 0
+
+    def get_blob_client(self, path: str) -> _LeasedBlob:
+        return _LeasedBlob(self, path)
+
+
+def test_t11_exactly_one_writer_per_thread_id_at_a_time_a_blob_lease(env, monkeypatch, no_case_lease) -> None:
+    """DEF-115 — T11 (ADR-0018's unbuilt half): every graph run holds the case's Blob lease
+    (`locks/case_{id}.lock`, 60 s); while one turn holds it, a second turn on the same case is
+    answered 409 in plain words and runs nothing; the lease is released when the turn ends, so the
+    next turn runs; another case is not blocked; a lease that cannot be taken for any other reason
+    lets the turn run on the ETag check (logged)."""
+    import asyncio
+
+    from backend.core.errors import CaseBusyError
+    from backend.gateway import routes
+    from backend.storage import blob, layout
+
+    box = _LeasedBox()
+    monkeypatch.setattr(blob, "case_lease", no_case_lease)           # the real lease
+    monkeypatch.setattr(blob, "_container", lambda: box)
+    _coach_saying(monkeypatch, "Let's look at the business case.")
+
+    def ask():
+        return env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                             "message": "Where do we stand?"})
+
+    lock = layout.CASE_LOCK_BLOB.format(case_id=CASE_ID)
+    first = ask()
+    assert first.status_code == 200, first.text
+    assert box.durations == [blob.LEASE_SECONDS] and box.released == 1 and lock not in box.leased
+    box.leased.add(lock)                                             # another writer holds the case
+    runs: list = []
+    graph_run = routes._run_turn_held
+
+    async def counted(*a, **k):
+        runs.append(1)
+        return await graph_run(*a, **k)
+    monkeypatch.setattr(routes, "_run_turn_held", counted)
+    busy = ask()
+    assert busy.status_code == 409 and busy.json()["detail"] == routes.CASE_BUSY, busy.text
+    assert runs == [], "the second writer's turn ran"
+    box.leased.discard(lock)
+    assert ask().status_code == 200 and runs == [1]
+
+    async def other_case() -> None:                                  # one case's lease does not block another
+        box.leased.add(lock)
+        async with blob.case_lease("IMPR-2026-XYZ"):
+            pass
+        try:
+            async with blob.case_lease(CASE_ID):
+                raise AssertionError("a held case was entered")
+        except CaseBusyError:
+            pass
+    asyncio.run(other_case())
+
+    def broken():
+        raise RuntimeError("storage unreachable")
+    monkeypatch.setattr(blob, "_container", broken)
+    box.leased.clear()
+    assert ask().status_code == 200, "a lease that cannot be taken must not refuse the Belt"

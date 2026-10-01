@@ -41,9 +41,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import asynccontextmanager
 import logging
 from datetime import date, datetime, timezone
-from typing import Optional
+from typing import AsyncIterator, Optional
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import ContentSettings
@@ -196,6 +197,48 @@ async def _exists(path: str) -> bool:
 
 
 # ── case CRUD ─────────────────────────────────────────────────────────────
+
+#: T11 (DEF-115) — the lease outlives a turn (R13: 45 s) and is released when the turn ends; Azure
+#: allows 15–60 s or infinite, and a fixed 60 s frees a crashed writer's case within a minute.
+LEASE_SECONDS = 60
+
+
+@asynccontextmanager
+async def case_lease(case_id: str) -> AsyncIterator[None]:
+    """One writer per `thread_id` at a time — T11, ADR-0018's unbuilt half. Takes the Blob lease
+    on the case's lock blob (`layout.CASE_LOCK_BLOB`, created empty on first use) for the length
+    of one graph run and releases it after. Another holder → `CaseBusyError` (Azure's 409
+    LeaseAlreadyPresent). Any other failure to take it (storage unreachable, no permission) is
+    logged as a FINDING and the run goes on: ADR-0018's ETag check still detects a collision."""
+    from azure.core.exceptions import HttpResponseError, ResourceExistsError
+
+    from backend.core.errors import CaseBusyError
+    lease = None
+    try:
+        client = _container().get_blob_client(layout.CASE_LOCK_BLOB.format(case_id=case_id))
+        try:
+            await client.upload_blob(b"", overwrite=False)
+        except ResourceExistsError:
+            pass
+        lease = await client.acquire_lease(lease_duration=LEASE_SECONDS)
+    except HttpResponseError as exc:
+        if getattr(exc, "status_code", None) == 409 or "LeaseAlreadyPresent" in str(exc):
+            raise CaseBusyError(f"case {case_id} is being written by another turn") from exc
+        logger.warning("FINDING — T11: the lease on case %s could not be taken (%s); the turn runs "
+                       "on the ETag check alone", case_id, exc)
+    except Exception as exc:  # noqa: BLE001 — a lease that cannot be taken must not refuse the Belt
+        logger.warning("FINDING — T11: the lease on case %s could not be taken (%s); the turn runs "
+                       "on the ETag check alone", case_id, exc)
+    try:
+        yield
+    finally:
+        if lease is not None:
+            try:
+                await lease.release()
+            except Exception as exc:  # noqa: BLE001 — it expires within LEASE_SECONDS anyway
+                logger.warning("T11: the lease on case %s was not released (%s); it expires in %d s",
+                               case_id, exc, LEASE_SECONDS)
+
 
 def case_path(case_id: str) -> str:
     """Pure path construction — no I/O, so it stays synchronous."""

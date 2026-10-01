@@ -291,6 +291,24 @@ def routed_read(monkeypatch) -> _RoutedRead:
     return fake
 
 
+@pytest.fixture(autouse=True)
+def no_case_lease(monkeypatch):
+    """T11 (DEF-115): every route turn holds the case's Blob lease (`blob.case_lease`). Tests have no
+    Azure (pytest-socket), and the SDK's retry backoff on a refused connect would slow every route
+    test, so the lease is a no-op here. DEF-115's own test restores the real one over a container
+    that keeps Azure's lease rules. Returns the real function."""
+    from contextlib import asynccontextmanager
+
+    from backend.storage import blob
+    real = blob.case_lease
+
+    @asynccontextmanager
+    async def held(case_id: str):
+        yield
+    monkeypatch.setattr(blob, "case_lease", held)
+    return real
+
+
 @pytest.fixture
 def stub_coach(monkeypatch) -> _CreateAgentRecorder:
     """Replace `create_agent` so the executor makes no Azure call (step 6.2).

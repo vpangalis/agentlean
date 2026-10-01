@@ -1,0 +1,89 @@
+{
+ "kind": "validation_repeat",
+ "requirement": "R3",
+ "runs_per_case": 5,
+ "product_hash": "c09fd62c59f5a38a",
+ "at": "2026-10-01T11:38:26+00:00",
+ "runs": [
+  {
+   "case": "proposes-a-solution",
+   "run": 1,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 2,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 3,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 4,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 5,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 1,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The answer provides all required elements: it identifies the issue, specifies the location and time frame, quantifies the baseline, and estimates the cost, without suggesting causes or solutions."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 2,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The response addresses all the acceptance criteria for the business case field."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 3,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The response addresses all required aspects of the business case, including the issue, location, timeframe, baseline, and cost, without suggesting causes or solutions."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 4,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The response addresses all required criteria: it identifies the issue, specifies the timeframe and location, provides a baseline figure, and mentions the associated costs."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 5,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The response addresses all the required elements: it specifies the issue, location, timeframe, magnitude, and cost, without suggesting causes or solutions."
+  }
+ ]
+}

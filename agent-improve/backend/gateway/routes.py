@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import conversation
-from backend.core.errors import StateSchemaVersionError
+from backend.core.errors import CaseBusyError, StateSchemaVersionError
 from backend.core.graph import RECURSION_LIMIT
 from backend.gateway.schemas import (
     CaseCreateRequest,
@@ -374,6 +374,23 @@ async def _run_turn(graph, state: Any, config: dict, http: Request):
     resuming from `latest.json` is for. What it prevents is the whole turn
     completing, and the case blob being written, behind a Belt who left.
     """
+    # T11 (DEF-115, ADR-0018): one writer per thread_id at a time — the case's Blob lease is held for
+    # the whole run; a second writer is told, in plain words, and nothing of its turn runs.
+    thread_id = str(((config or {}).get("configurable") or {}).get("thread_id") or "")
+    try:
+        async with blob.case_lease(thread_id):
+            return await _run_turn_held(graph, state, config, http)
+    except CaseBusyError:
+        raise HTTPException(409, CASE_BUSY)
+
+
+#: T11 (DEF-115) — said to a second person whose turn arrives while the case's lease is held.
+CASE_BUSY = ("Someone else on the team is working on this case right now. Wait a moment and send "
+             "your message again — nothing of yours was lost.")
+
+
+async def _run_turn_held(graph, state: Any, config: dict, http: Request):
+    """`_run_turn`'s body, inside the case's lease."""
     task = asyncio.create_task(graph.ainvoke(state, config=config))
     watch = asyncio.create_task(_until_disconnect(http))
     try:
@@ -1535,6 +1552,8 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         result = await _run_turn(graph, Command(resume=resume), config, http)
     except ClientGone:
         raise HTTPException(499, "Client disconnected; decision abandoned (§47).")
+    except HTTPException:
+        raise                                       # T11 (DEF-115): a busy case is a 409, not a 500
     except StateSchemaVersionError as e:            # ADR-0065 (T88)
         raise HTTPException(409, str(e))
     except Exception as e:

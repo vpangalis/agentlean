@@ -4440,9 +4440,15 @@
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t11_exactly_one_writer_per_thread_id_at_a_time_a_blob_lease",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "ADR-0018 (conditional writes; one writer was its unbuilt half)",
+     "§3 Route → graph"
+    ],
     "procedure": [],
-    "code": [],
+    "code": [
+     "agent-improve/backend/gateway/routes.py::_run_turn",
+     "agent-improve/backend/storage/blob.py::case_lease"
+    ],
     "guidance": []
    },
    "lane": "B",
