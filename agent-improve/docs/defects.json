@@ -1492,6 +1492,32 @@
    "lane": [
     "C"
    ]
+  },
+  {
+   "id": "G-147",
+   "symptom": "THE APPROVED DEFINE RECORD LOSES THE CHANGE LOG. Since ADR-0066 the phase's field_log lives in the checkpoint's phase record and the case blob is never written mid-conversation; at approval gateway/routes.py::decide_gate reads the case with its unfinished work, but blob.write_phase_gate takes no field_log, reloads the case from the blob and keeps the blob record's field_log — empty. So the record a reviewer opens after approval has no change history. Evidence: test_the_gate_write_keeps_the_change_log_and_uploads (DEF-061) — after a confirmed revision of the goal, the approval write's field_log is []. Found 2026-10-01 building package 2a — Attaches to: ADR-0066, R16, §33.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-061"
+   ],
+   "lane": [
+    "B"
+   ]
+  },
+  {
+   "id": "G-148",
+   "symptom": "THE COACH'S CITATIONS NEVER OUTLIVE THEIR TURN. A reply's citations reach PhaseState.citations for that turn only: the input mapper seeds `citations` as [] every turn and the phase record (ADR-0066) carries structured values, statuses, the log and read uploads — not citations; the case blob is not written mid-conversation. So the approval write's citations come from the blob record, which holds none. Evidence: test_the_gate_write_keeps_the_change_log_and_uploads (DEF-061). Found 2026-10-01 building package 2a — Attaches to: ADR-0066, §6 PhaseState.citations, R19.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-061"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }

@@ -2757,7 +2757,10 @@
     "capability_rows": [
      "21"
     ],
-    "gaps": []
+    "gaps": [
+     "G-147",
+     "G-148"
+    ]
    },
    "requirement": "R6",
    "belt_impact": "degraded",
