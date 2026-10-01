@@ -7,15 +7,15 @@
 
 | | |
 |---|---|
-| **Headline** | 36 of 162 Define features pass, 27 more proven on earlier code (core 36 of 153) — A 11/68 · B 18/35 · C 4/36 · integrator 3/23 · M1: 25 proven · 22 awaiting fresh run · 0 open |
-| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Headline** | 63 of 162 Define features pass (core 60 of 153) — A 33/68 · B 20/35 · C 4/36 · integrator 6/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
+| **Next — lane A** | DEF-021 — When the Belt corrects a stored value, their stated reason is kept with the change in field_log.reason. |
+| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once, and carries an interpretation — and files picked on the crea |
-| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
-| **Block regenerated** | 2026-09-30 |
+| **Block regenerated** | 2026-10-01 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.
