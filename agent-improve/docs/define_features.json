@@ -850,6 +850,8 @@
    "test": "backend/tests/test_define_runthrough.py::test_runthrough_no_reply_carries_a_link",
    "sources": {
     "architecture": [
+     "R2 the coach teaches",
+     "§13 plain language",
      "§43.5 no external URLs"
     ],
     "procedure": [
@@ -857,7 +859,8 @@
      "Step 6.46"
     ],
     "code": [
-     "agent-improve/backend/core/prompts.py"
+     "agent-improve/backend/core/prompts.py",
+     "agent-improve/backend/phases/nodes_common.py::_without_links"
     ],
     "guidance": []
    },
@@ -2446,9 +2449,10 @@
    "test": "backend/tests/test_define_e2e.py::test_a_failed_turn_is_readable_and_stays",
    "sources": {
     "architecture": [
+     "G-70 a lost turn is reported, not toasted",
+     "§44",
      "§48 structured errors",
-     "§50",
-     "§44"
+     "§50"
     ],
     "procedure": [
      "Appendix H row 16",
@@ -2460,6 +2464,7 @@
     ],
     "code": [
      "agent-improve/backend/gateway/routes.py::ask",
+     "agent-improve/ui/index.html",
      "agent-improve/ui/index.html::toast"
     ],
     "guidance": []
@@ -3446,9 +3451,14 @@
    ],
    "test": "backend/tests/test_define_e2e.py::test_a_failed_turn_stays_readable_with_a_reference_id",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "app.py request_id middleware (x-request-id)",
+     "§47 abandon on disconnect"
+    ],
     "procedure": [],
-    "code": [],
+    "code": [
+     "agent-improve/ui/index.html"
+    ],
     "guidance": []
    },
    "lane": "C",

@@ -278,7 +278,9 @@ def test_the_read_back_buttons_send_the_action(env, monkeypatch) -> None:
     from backend.phases.define.parse import metric_value
     from backend.tests.test_define_report import COMPLETE
 
-    got = _run_page(("function renderTurn", "async function sendMessage"), _PAGE_STUBS + """
+    got = _run_page(("function renderTurn", "async function sendMessage",
+                     # DEF-055 / DEF-081: sendMessage's failure path draws a card with these
+                     "function failureWords", "function failedTurnHtml"), _PAGE_STUBS + """
 const S={case:{case_id:'C1'},user:'Ana',phase:'define',localChat:[]};
 async function apiJSON(url,opts){posted.push({url,body:JSON.parse(opts.body)});return {answer:'ok',move:'teach'}}
 const turn={role:'ai',text:'Here is your baseline. Is this right?',move:'read_back'};
@@ -321,10 +323,6 @@ const html=renderTurn(turn);
     define = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
     assert (define.get("structured") or {}).get("baseline_estimate", {}).get("value") == 23.0, define.get("structured")
 
-
-def test_a_failed_turn_is_readable_and_stays() -> None:
-    """DEF-055 — A failed turn tells the Belt what happened in words, stays on screen, and never renders an error as an empty state."""
-    _not_written('DEF-055')
 
 
 def test_an_upload_lands_once_and_is_indexed(env, monkeypatch) -> None:
@@ -861,7 +859,8 @@ def test_every_confirmed_element_can_be_changed_and_the_buttons_survive_a_reload
     assert rows["business_case"]["status"] == "confirmed" and rows["project_scope"]["status"] == "confirmed"
     assert rows["baseline_estimate"]["status"] == "parked"
     assert rows["goal_statement"]["status"] == "current" and rows["target_value"]["status"] == "open"
-    page = _run_page(("function buildNavDefineElements", "async function reviseElement", "async function sendMessage"),
+    page = _run_page(("function buildNavDefineElements", "async function reviseElement", "async function sendMessage",
+                      "function failureWords", "function failedTurnHtml", "function renderTurn"),
                      _PAGE_STUBS + f"""
 const S={{case:{{case_id:'C1',define_elements:{json.dumps(case['define_elements'])}}},user:'Ana',phase:'define',localChat:[]}};
 function buildNavDefineStatus(){{return 'LEGACY'}}
@@ -929,10 +928,6 @@ def test_every_coaching_screen_says_it_is_an_ai_coach() -> None:
     """DEF-080 — Every coaching screen carries the standing label 'AI coach — it can be wrong; you confirm every value'; the overview states what the coach does and do"""
     _not_written('DEF-080')
 
-
-def test_a_failed_turn_stays_readable_with_a_reference_id() -> None:
-    """DEF-081 — A failed or timed-out turn stays on screen, says what happened and what was saved, offers a retry and shows a reference id."""
-    _not_written('DEF-081')
 
 
 
@@ -2894,3 +2889,106 @@ def test_t59_an_upload_s_phase_and_uploaded_at_are_set_by_the_server(env, monkey
     assert not env.case.phases["measure"].uploads, "filed under the phase the client named"
     kept = [u for u in env.case.phases["define"].uploads if u.filename == "minutes.csv"]
     assert kept and kept[0].uploaded_at == body["uploaded_at"]
+
+
+def _ui_run(script: str) -> dict:
+    """Run the page's own chat functions under node, against a stub DOM and a scripted /ask: the
+    functions are cut from ui/index.html, never copied. Returns what `script` prints as JSON."""
+    import json
+    import re
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+
+    def fn(name: str) -> str:
+        m = re.search(r"^(?:async )?function " + name + r"\(.*?^\}", src, re.M | re.S)
+        assert m, f"{name} not found in ui/index.html"
+        return m.group(0)
+    harness = r"""
+const els={}; const el=id=>els[id]||(els[id]={id,value:'',html:'',classList:{add(){},remove(){}},
+  insertAdjacentHTML(_w,h){this.html+=h},scrollTop:0,scrollHeight:0});
+const document={getElementById:el,querySelectorAll:sel=>({forEach(f){
+  if(sel.startsWith('.failed-turn')){const m=sel.match(/data-ref="([^"]+)"/);
+    if(m){el('msgs').html=el('msgs').html.replace(new RegExp('<div class="msg failed-turn" data-ref="'+m[1]+'"[\\s\\S]*?Reference: [^<]*</div></div></div>'),'');}}}})};
+const S={user:'ana',phase:'define',localChat:[],case:{case_id:'IMPR-T',define_elements:[]}};
+const API=''; const sent=[]; let replies=[];
+async function apiJSON(url,opts){ if(url.endsWith('/ask')){ sent.push({headers:opts.headers,body:JSON.parse(opts.body)});
+  const r=replies.shift(); if(r instanceof Error) throw r; return r; } return {}; }
+function err(status,message){const e=new Error(message);e.status=status;return e;}
+const toasts=[]; function toast(m){toasts.push(m)}
+function renderChips(){} function renderPhaseNav(){} function renderDiagram(){} function renderSteps(){}
+function renderLiveViz(){} function showSectionToast(){} function renderGate(){}
+"""
+    js = (harness + "\n" + "\n".join(fn(n) for n in ("escapeHtml", "renderTurn", "failureWords", "failedTurnHtml",
+                                                      "retryTurn", "appendMsgToDOM", "sendMessage"))
+          + "\n(async()=>{\n" + script + "\n})().catch(e=>{console.error(e);process.exit(1)});")
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+def test_a_failed_turn_is_readable_and_stays() -> None:
+    """DEF-055 — a failed turn tells the Belt what happened in words, stays on screen, and never
+    renders an error as an empty state: the server's own words for a 503 (T29's degraded reply), a
+    sentence for a lost connection, and for an answer that came back empty; the card is in the chat
+    and in S.localChat (so a redraw keeps it); the typed message is back in the box; no toast."""
+    got = _ui_run(r"""
+const out={};
+el('chat-input').value='Our baseline is 23%';
+replies=[err(503,'Something went wrong on our side and this step did not go through — nothing was changed. Please send it again in a moment.')];
+await sendMessage();
+out.degraded=el('msgs').html; out.box=el('chat-input').value; out.kept=S.localChat.filter(t=>t.role==='failed').length;
+out.redraw=S.localChat.map(renderTurn).join('');
+el('msgs').html=''; el('chat-input').value='Next answer';
+replies=[new Error('Failed to fetch')]; await sendMessage(); out.lost=el('msgs').html;
+el('msgs').html=''; el('chat-input').value='Third answer';
+replies=[{}]; await sendMessage(); out.empty=el('msgs').html;
+out.toasts=toasts;
+process.stdout.write(JSON.stringify(out));
+""")
+    assert "That turn did not go through." in got["degraded"] and "nothing was changed" in got["degraded"], got["degraded"]
+    assert got["box"] == "Our baseline is 23%", "the typed message was lost"
+    assert got["kept"] == 1 and "That turn did not go through." in got["redraw"], "the failed turn does not stay"
+    assert "connection to the coach was lost" in got["lost"], got["lost"]
+    assert "returned no answer" in got["empty"], got["empty"]
+    assert got["toasts"] == [], "a failure was reported as a passing toast"
+
+
+def test_a_failed_turn_stays_readable_with_a_reference_id() -> None:
+    """DEF-081 — a failed or timed-out turn stays on screen, says what happened and what was saved,
+    offers a retry and shows a reference id: the id is the one sent as x-request-id (the server
+    logs the turn under it); a timeout reads as one; Try again resends the same message and, on an
+    answer, the card goes and the answer stands; a failed Confirm click retries the click."""
+    got = _ui_run(r"""
+const out={};
+el('chat-input').value='Our baseline is 23%';
+replies=[err(504,'Gateway Timeout')];
+await sendMessage();
+const t=S.localChat.find(x=>x.role==='failed');
+out.ref=t.ref; out.header=sent[0].headers['x-request-id']; out.card=el('msgs').html;
+replies=[{answer:'Thanks — about 23% of invoices. Is this right?',move:'read_back'}];
+await retryTurn(t.ref);
+out.resent=sent[1].body.message; out.left=S.localChat.filter(x=>x.role==='failed').length;
+out.after=el('msgs').html;
+replies=[err(409,'Someone else on the team is working on this case right now.')];
+await sendMessage('confirm');
+const c=S.localChat.find(x=>x.role==='failed');
+replies=[{answer:'Stored.'}];
+await retryTurn(c.ref);
+out.clickAgain=sent[sent.length-1].body.action; out.clickCard=sent.length;
+process.stdout.write(JSON.stringify(out));
+""")
+    assert got["ref"] and got["ref"] == got["header"], "the reference shown is not the id the server logged"
+    assert f"Reference: {got['ref']}" in got["card"], got["card"]
+    assert "took too long" in got["card"], got["card"]
+    assert "Nothing from this message was stored" in got["card"] and "Everything you confirmed before is saved" in got["card"]
+    assert "retryTurn(" in got["card"] and "Try again" in got["card"]
+    assert got["resent"] == "Our baseline is 23%", got["resent"]
+    assert got["left"] == 0 and "Is this right?" in got["after"], "the retried turn did not replace the card"
+    assert f"Reference: {got['ref']}" not in got["after"], "the card stayed after a successful retry"
+    assert got["clickAgain"] == "confirm", "the retry did not resend the click"

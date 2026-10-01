@@ -241,9 +241,28 @@ def test_runthrough_metric_meaning_comes_from_the_registry() -> None:
     pytest.fail("DEF-018: not written yet")
 
 
-def test_runthrough_no_reply_carries_a_link() -> None:
-    """DEF-019 — not written yet (a stub, step 6.67): The coach teaches in its own voice and never hands the Belt a URL."""
-    pytest.fail("DEF-019: not written yet")
+def test_runthrough_no_reply_carries_a_link(run) -> None:
+    """DEF-019 — the coach teaches in its own voice and never hands the Belt a URL. (a) In code: a
+    link in any of the coach's words is removed (a markdown link keeps its words), so no prompt has
+    to be obeyed for it. (b) Live, on the latest run-through: no reply on any turn — Define's and
+    Measure's — carries a link, and none answers by deferring to a source ("according to the
+    manual"); the method is taught, not referred to."""
+    import re
+
+    from backend.phases.nodes_common import _without_links
+
+    assert _without_links("See [the method](https://example.com/sipoc) first.") == "See the method first."
+    assert _without_links("Read www.example.com/guide before you start.") == "Read before you start."
+    assert _without_links("No link here.") == "No link here."
+    link = re.compile(r"https?://|www\.|\]\(")
+    deferral = re.compile(r"according to (the|our) (manual|book|guide|source)|as the (manual|book|guide) says"
+                          r"|see (the|our) (manual|book|guide)", re.I)
+    turns = [*run["turns"], *([run["measure_turn"]] if run.get("measure_turn") else [])]
+    assert turns, "the record holds no turns"
+    for r in turns:
+        said = json.dumps(r.get("reply") or r.get("body") or {}, ensure_ascii=False)
+        assert not link.search(said), f"turn {r.get('n')} hands the Belt a link: {said[:300]}"
+        assert not deferral.search(said), f"turn {r.get('n')} defers to a source: {said[:300]}"
 
 
 def test_every_define_row_is_green_on_the_run_through_case() -> None:

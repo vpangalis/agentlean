@@ -5903,6 +5903,7 @@ function renderHistoryTurns(history, localChat){
 }
 
 function renderTurn(turn){
+  if(turn.role==='failed') return failedTurnHtml(turn);       // DEF-055 / DEF-081
   if(turn.role==='ai'){
     const cites=(turn.citations||[]).map(c=>`<div class="src-pill"><i class="ti ti-link" style="font-size:11px"></i>${c.agent_origin||'Agent Improve'} · ${c.index_name||''}</div>`).join('');
     // Step 10.0 — §50.1's blocks, in order, from the TURN, so a turn rebuilt
@@ -5934,6 +5935,38 @@ function renderTurn(turn){
     return `<div class="msg user"><div class="mav mu">${initials}</div>
       <div class="bbl bbl-user">${turn.text}</div></div>`;
   }
+}
+
+// DEF-055 / DEF-081 — a turn that failed stays on screen as a card of its own: what happened, in
+// words; what was saved; a retry; the reference id the server logged it under (x-request-id).
+// Pure: from the error and the turn that was sent. Never an empty state.
+function failureWords(e){
+  const st=e&&e.status, said=(e&&e.message)||'';
+  if(!st) return 'The connection to the coach was lost before an answer came back.';
+  if(st===409||st===503||st===403) return said;                 // the server's own words (busy, degraded, lead only)
+  if(st===499) return 'The page stopped waiting before the coach answered.';
+  if(st===504||st===408) return 'The coach took too long to answer this time.';
+  if(st===422) return said||'The coach could not read that message.';
+  return 'The coach could not answer this message'+(said?': '+said:'.');
+}
+function failedTurnHtml(turn){
+  const saved=turn.action?'Nothing from this click was stored. Everything you confirmed before is saved.'
+    :'Nothing from this message was stored — it is back in the box. Everything you confirmed before is saved.';
+  return `<div class="msg failed-turn" data-ref="${escapeHtml(turn.ref||'')}"><div class="mav mai">!</div>
+    <div class="bbl bbl-ai" style="border:1px solid #E8B4A0;background:#FFF8F5">
+      <p><b>That turn did not go through.</b> ${escapeHtml(turn.what||'')}</p>
+      <p style="font-size:12px;color:#5C5A55">${saved}</p>
+      <div class="rb-actions"><button class="btn btn-primary" onclick="retryTurn('${escapeHtml(turn.ref||'')}')">Try again</button></div>
+      <div style="font-size:10px;color:#9A9689;margin-top:6px">Reference: ${escapeHtml(turn.ref||'none')}</div></div></div>`;
+}
+async function retryTurn(ref){
+  const i=S.localChat.findIndex(t=>t.role==='failed'&&t.ref===ref);
+  if(i<0)return;
+  const t=S.localChat[i];
+  S.localChat.splice(i,1);
+  document.querySelectorAll(`.failed-turn[data-ref="${ref}"]`).forEach(el=>el.remove());
+  if(!t.action){const input=document.getElementById('chat-input');input.value=t.sent;}
+  await sendMessage(t.action||undefined,t.element||undefined);
 }
 
 function detectCurrentWorkProduct(structured) {
@@ -6082,8 +6115,17 @@ async function sendMessage(action, element){
   S.localChat.push(userTurn);
   appendMsgToDOM(renderTurn(userTurn));
   document.getElementById('typing').classList.add('show');
+  // DEF-081 — the turn's reference id, sent so the server logs it under the same one.
+  const ref='T-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6);
+  const fail=(what)=>{
+    document.getElementById('typing').classList.remove('show');
+    if(!action)input.value=text;                                   // nothing typed is lost
+    const t={role:'failed',ref,what,sent:text,action:action||null,element:element||null,timestamp:new Date().toISOString()};
+    S.localChat.push(t);
+    appendMsgToDOM(renderTurn(t));
+  };
   try{
-    const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},
+    const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json','x-request-id':ref},
       body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null,element:element||null})});
     document.getElementById('typing').classList.remove('show');
     // ADR-0067 (R20, T93): a blocked or limited turn keeps the typed text in the box.
@@ -6121,14 +6163,11 @@ async function sendMessage(action, element){
       renderDiagram();
       renderSteps();
       renderLiveViz();
-    }else{toast('The coach returned no answer for that turn.',6000);}
+    }else{fail('The coach returned no answer for that message.');}
   }catch(e){
-    document.getElementById('typing').classList.remove('show');
-    // G-70 owns the real surface here — a transient toast is not an adequate
-    // report of a lost turn. This keeps the SERVER'S reason instead of
-    // replacing it with "could not reach backend", which was wrong whenever
-    // the backend answered and failed.
-    toast('Turn failed: '+(e.message||e),6000);
+    // DEF-055 / DEF-081 (G-70): a failed turn stays on screen as a card, never a passing toast —
+    // the server's reason kept in words, what was saved, a retry and the reference id.
+    fail(failureWords(e));
   }
 }
 

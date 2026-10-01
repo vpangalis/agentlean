@@ -1586,6 +1586,21 @@ def _without_store_claims(text: str) -> str:
     return chr(10).join(lines).strip()
 
 
+#: DEF-019 — a link in the coach's words: a markdown link keeps its words, a bare address goes.
+_MD_LINK = re.compile(r"\[([^\]]+)\]\((?:https?://|www\.)[^)]*\)")
+_BARE_LINK = re.compile(r"\(?(?:https?://|www\.)[^\s)>\]]+\)?")
+
+
+def _without_links(text: str) -> str:
+    """DEF-019: the coach teaches in its own voice and never hands the Belt a URL — decided in
+    code, so no prompt has to be obeyed for it. A removal is logged as a FINDING."""
+    out = _BARE_LINK.sub("", _MD_LINK.sub(r"\1", text))
+    if out != text:
+        logger.warning("executor: FINDING — DEF-019: a link in the coach's reply was removed")
+        out = re.sub(r"[ \t]{2,}", " ", out).replace(" .", ".").strip()
+    return out
+
+
 def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
                  plan: Optional[CoachingPlan], stored: dict[str, Any]) -> list:
     """G-117 (DEF-156): the only sentence telling the Belt what was stored is written HERE, from
@@ -1605,11 +1620,13 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
             element=guard_messages.element_name(phase, plan.focus_field or ""),
             missing=" and ".join("the " + f.replace("_", " ") for f in missing) or "every field")
     if reply is not None:
-        reply.explanation = _without_store_claims(str(reply.explanation or ""))
+        reply.explanation = _without_links(_without_store_claims(str(reply.explanation or "")))
+        reply.example = _without_links(str(reply.example or ""))           # DEF-019
+        reply.prompt = _without_links(str(reply.prompt or ""))
     for i in range(len(messages) - 1, -1, -1):
         msg = messages[i]
         if isinstance(msg, AIMessage) and msg.text.strip():
-            body = _without_store_claims(msg.text)
+            body = _without_links(_without_store_claims(msg.text))
             text = f"{note}{chr(10) * 2}{body}".strip() if note else body
             if text == msg.text:
                 return messages
