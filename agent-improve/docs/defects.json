@@ -1466,6 +1466,32 @@
     "tooling"
    ],
    "control": "backend/tests/conftest.py _no_async_network and _clean_content_safety, proved by test_network_block.py::test_an_async_request_beyond_this_machine_is_blocked and ::test_prompt_shields_answers_from_memory_in_a_test — this closes the gap in G-142's control, whose tests never tried an async connection."
+  },
+  {
+   "id": "G-145",
+   "symptom": "AN UPLOAD REACHES THE COACH ONLY WHEN IT ANSWERS AN OPEN ASK — narrower than ARCHITECTURE §3.6 ('a new upload, or an unread one the Belt refers to') and W5 ('the coach reads it, checks it against the current element's acceptance criteria and asks for what is missing, naming the file'). nodes_common._unconsumed_for_open_ask returns an unread upload only when its role matches an open ask or no ask is open; Define's planner opens an ask for the focus field (ensure_ask), so an unsolicited file never makes an upload turn. Evidence: define_runthrough_20260930T162719 — ap_late_payments_jan_jun_2026.csv uploaded before position 12; the next reply (turn 31, a read-back of the SIPOC) never names the file. Found 2026-10-01 building DEF-108 — Attaches to: §3.3 step 5, §3.6.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-108"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-146",
+   "symptom": "A READ UPLOAD IS UNREAD AGAIN ON THE NEXT TURN. The executor stamps consumed_at on the turn's PhaseState.uploads, but the subgraph gets a fresh checkpoint_ns each parent turn and the input mapper seeds uploads from the Store's case record, which is never written mid-conversation (ADR-0066); the phase record carried structured values, field statuses and the field log only. So a routed upload would be read again on every turn. Found 2026-10-01 building DEF-108 (its test's second turn) — Attaches to: ADR-0066, phases/record.py.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-108"
+   ],
+   "lane": [
+    "C"
+   ]
   }
  ]
 }

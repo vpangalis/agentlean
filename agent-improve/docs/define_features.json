@@ -4219,7 +4219,9 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-143"
+     "G-143",
+     "G-145",
+     "G-146"
     ]
    },
    "requirement": "W5",
