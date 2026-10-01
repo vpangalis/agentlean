@@ -107,9 +107,16 @@ def migrate_v2_to_v3(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+def migrate_v3_to_v4(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0074 (DEF-108): an upload's interpretation, and its `PhaseState.uploads` entry, gain
+    `element_check`. A no-op: a record written under version 3 has none and reads as None (the
+    ADR's "old records get element_check = null"); nothing converts and nothing is deleted."""
+    return dict(values)
+
+
 #: {N: migrate_vN_to_vN+1}. Adding a state change raises STATE_SCHEMA_VERSION by one and adds
 #: its function here, with its fixture test.
-MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3}
+MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4}
 
 
 def current() -> int:

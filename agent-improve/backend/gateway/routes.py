@@ -1008,8 +1008,15 @@ async def upload_file(
 
     # ADR-0066: the upload is saved to the blob below, so the blob's case stays as loaded; the
     # current Define values are READ from the checkpoint through a copy.
-    define_phase = (await _with_unfinished_work(case)).phases.get("define")
+    unfinished = await _with_unfinished_work(case)
+    define_phase = unfinished.phases.get("define")
     define_structured = (define_phase.structured or {}) if define_phase else {}
+    # ADR-0074 (DEF-108) — the element the planner is working on now: the file is judged against it.
+    from backend.phases import moves as _moves
+    here = unfinished.phases.get(phase)
+    current = _moves.current(phase, dict((here.structured or {}) if here else {}),
+                             dict((here.field_status or {}) if here else {})) if here else None
+    element = current[0] if current else None
     case_meta = {
         "title": case.title,
         "department": case.department,
@@ -1058,6 +1065,7 @@ async def upload_file(
         case_meta=case_meta,
         purpose=resolved_purpose,
         declared_kind=kind,
+        element=element,
     )
 
     # Shape check against the ask — **a mismatch is a coaching question, not

@@ -45,8 +45,9 @@ from backend.upload import parsers
 from backend.core.llm import get_llm, block_text
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from backend.core.prompts import UPLOAD_INTERPRET_DATA, UPLOAD_INTERPRET_SYSTEM, VISION_EXTRACT_PROMPT
-from backend.storage.models import UploadInterpretation
+from backend.core.prompts import (UPLOAD_ELEMENT_CHECK, UPLOAD_INTERPRET_DATA, UPLOAD_INTERPRET_SYSTEM,
+                                  VISION_EXTRACT_PROMPT)
+from backend.storage.models import ElementCheck, UploadInterpretation
 from backend.upload.classifier import (
     classify_content_type,
     classify_kind,
@@ -98,6 +99,7 @@ async def process_upload(
     case_meta: dict,
     purpose: str = "",
     declared_kind: str = "",
+    element: str | None = None,
 ) -> dict:
     """Process one uploaded file into an upload record.
 
@@ -158,7 +160,7 @@ async def process_upload(
     # model interprets and the index embeds; the file itself stays in Blob for the Belt. Names stay.
     masked_text, pii_masked = pii.mask(parsed.get("text") or "")
     parsed = {**parsed, "text": masked_text}
-    interpretation = await _interpret(filename, parsed, case_meta, phase)
+    interpretation = await _interpret(filename, parsed, case_meta, phase, element)
 
     return {
         **base,
@@ -206,6 +208,7 @@ async def _interpret(
     parsed: dict[str, Any],
     case_meta: dict,
     phase: str,
+    element: str | None = None,
 ) -> UploadInterpretation:
     """The single meaning call (ruling 4), with its source citation (ruling 6).
 
@@ -240,18 +243,30 @@ async def _interpret(
         row_count=parsed.get("row_count"),
         sample=(parsed.get("text") or "")[:INTERPRET_SAMPLE_CHARS],
     )
+    # ADR-0074 (DEF-108, W5): the current element's acceptance criteria, judged in this same call —
+    # in the system message beside the other instructions (ADR-0067), never in the data block.
+    from backend.middleware.skills import acceptance_criteria
+    criteria = acceptance_criteria(phase, element) if element else []
+    system = [{"type": "text", "text": UPLOAD_INTERPRET_SYSTEM}]
+    if criteria:
+        system.append({"type": "text", "text": UPLOAD_ELEMENT_CHECK.format(
+            element=guard_messages.element_name(phase, str(element)), field=element,
+            criteria="\n".join(f"- {cid}: {text}" for cid, text in criteria))})
     try:
         llm = get_llm("extraction")
         # G-143: the instructions are the system message, the file only the user message (in T72's
         # labelled block) — as one user message the deployment's jailbreak filter refused it.
-        result = await llm.ainvoke([SystemMessage(content=UPLOAD_INTERPRET_SYSTEM),
-                                    HumanMessage(content=data)])
+        instructions = (SystemMessage(content_blocks=system) if len(system) > 1  # type: ignore[arg-type]
+                        else SystemMessage(content=UPLOAD_INTERPRET_SYSTEM))
+        result = await llm.ainvoke([instructions, HumanMessage(content=data)])
         payload = _json_object(block_text(result))
         if payload.get("summary"):
             return UploadInterpretation(
                 summary=str(payload.get("summary") or ""),
                 supports=[str(x) for x in (payload.get("supports") or [])],
                 caveats=[str(x) for x in (payload.get("caveats") or [])],
+                element_check=_element_check(payload.get("element_check"), str(element or ""),
+                                             [cid for cid, _ in criteria]),
                 **citation,
             )
         logger.warning(
@@ -261,6 +276,20 @@ async def _interpret(
         logger.warning("Upload interpretation failed for %s: %s", filename, exc)
 
     return _interpretation_unavailable(filename, parsed, citation)
+
+
+def _element_check(raw: Any, element: str, ids: list[str]) -> ElementCheck | None:
+    """ADR-0074 — the model's `element_check`, kept only for the element it was asked about and only
+    with the criterion ids that element has. Malformed or absent: None, and the upload stands."""
+    if not ids or not isinstance(raw, dict):
+        return None
+    try:
+        check = ElementCheck.model_validate({**raw, "element": element})
+    except ValueError as exc:
+        logger.warning("Upload element check malformed for %s: %s", element, exc)
+        return None
+    kept = [c for c in check.criteria if c.criterion in ids]
+    return check.model_copy(update={"criteria": kept}) if kept else None
 
 
 def _interpretation_unavailable(

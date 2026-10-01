@@ -1486,22 +1486,56 @@ def _with_teaching_blocks(phase: str, plan: Optional[CoachingPlan], reply: Coach
     return reply.model_copy(update=filled)
 
 
-def _with_upload_named(reply: CoachingResponse, upload: Optional[dict]) -> CoachingResponse:
-    """DEF-108 (W5): an upload turn's reply names the file it read. When the coach's words do not,
-    a line written in code from the upload record goes ahead of `message` — the file's name and its
-    interpretation — and the gap is logged as a FINDING. Returns a COPY, or `reply` unchanged."""
+#: ADR-0074 — a criterion's page reference in the method book ("(p. 49)") is the coach's, not the Belt's.
+_BOOK_PAGE = re.compile(r"\s*\(p\.[^)]*\)")
+
+
+def upload_check_text(phase: str, upload: Optional[dict], focus: Optional[str]) -> str:
+    """ADR-0074 (DEF-108, W5): the file part of an upload turn's reply, written in code from the
+    upload's `element_check` — the file named, what it shows for the element (with where in the
+    file), what conflicts and what is still missing, and the ask for it. When the element has moved
+    on since the file arrived, it says which element the file was checked against (point 4). With no
+    check (a fallback interpretation, a phase without criteria, a record from before schema 4):
+    the file named and its interpretation."""
     if not upload or not upload.get("filename"):
-        return reply
+        return ""
+    from backend.core import guard_messages
+    from backend.core import prompts as P
+    from backend.middleware.skills import acceptance_criteria
     name = str(upload["filename"])
-    said = " ".join(str(getattr(reply, k, "") or "") for k in ("message", "explanation", "example", "prompt"))
-    if name in said:
+    check = upload.get("element_check") or None
+    if not check:
+        return P.UPLOAD_READ_NOTE.format(filename=name,
+                                         summary=" ".join(str(upload.get("summary") or "").split())[:400]).strip()
+    field = str(check.get("element") or "")
+    element = guard_messages.element_name(phase, field)
+    texts = {cid: _BOOK_PAGE.sub("", text).strip() for cid, text in acceptance_criteria(phase, field)}
+
+    def items(result: str) -> list[str]:
+        return [texts.get(c["criterion"], c["criterion"]) + (f" ({c['where']})" if c.get("where") else "")
+                for c in check.get("criteria") or [] if c.get("result") == result]
+    parts = [P.UPLOAD_CHECK_HEAD.format(filename=name)]
+    if focus and field != focus:
+        parts.append(P.UPLOAD_CHECK_EARLIER.format(element=element))
+    shows, conflicts = items("supported"), items("contradicted")
+    missing = items("not_covered") + [str(m) for m in check.get("missing") or [] if str(m).strip()]
+    if shows:
+        parts.append(P.UPLOAD_CHECK_SHOWS.format(element=element, items="; ".join(shows)))
+    if conflicts:
+        parts.append(P.UPLOAD_CHECK_CONFLICTS.format(items="; ".join(conflicts)))
+    parts.append(P.UPLOAD_CHECK_MISSING.format(items="; ".join(dict.fromkeys(missing))) if missing
+                 else P.UPLOAD_CHECK_COMPLETE.format(element=element))
+    return " ".join(parts)
+
+
+def _with_upload_check(phase: str, reply: CoachingResponse, upload: Optional[dict],
+                       focus: Optional[str]) -> CoachingResponse:
+    """ADR-0074 point 2: on an upload turn the file part goes ahead of the coach's `message`,
+    written in code — the coach is no longer responsible for it. Returns a COPY, or `reply`."""
+    text = upload_check_text(phase, upload, focus)
+    if not text:
         return reply
-    logger.warning("executor: FINDING — DEF-108: the upload turn's reply did not name %s; the line "
-                   "naming it is written in code", name)
-    from backend.core.prompts import UPLOAD_READ_NOTE
-    note = UPLOAD_READ_NOTE.format(filename=name,
-                                   summary=" ".join(str(upload.get("summary") or "").split())[:400]).strip()
-    return reply.model_copy(update={"message": f"{note}\n\n{reply.message or ''}".strip()})
+    return reply.model_copy(update={"message": f"{text}\n\n{reply.message or ''}".strip()})
 
 
 #: G-117 — a sentence that says a value was stored. A negated or conditional one ("nothing is
@@ -2089,7 +2123,7 @@ async def executor(
         captured = _captured_fields(phase, reply)
         citations.extend(_anchored(reply.citations or [], state))
         if turn_type == turn_tools.UPLOAD:
-            reply = _with_upload_named(reply, _unread_upload(state))
+            reply = _with_upload_check(phase, reply, _unread_upload(state), plan.focus_field if plan else None)
         new_messages = _with_coaching_text(new_messages, reply)
 
         # §50.1's four blocks are OPTIONAL as of §56 amendment v1.64, and an
@@ -2412,6 +2446,11 @@ async def executor(
             # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one
             # coherence verdict and one grader pass each).
             turn_type=turn_type,                                   # ADR-0068
+            # ADR-0074 point 5 — on an upload turn: the file, the element and each criterion's result.
+            upload_check=({"file": routed.get("filename"), "element": (routed.get("element_check") or {}).get("element"),
+                           "criteria": [(c.get("criterion"), c.get("result"))
+                                        for c in (routed.get("element_check") or {}).get("criteria") or []]}
+                          if routed is not None else None),
             # T87 — personal data redacted in this turn's tool results, by type and count.
             pii_masked=pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)]),
             call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,

@@ -1162,6 +1162,25 @@ measured from the file and are already known. Do not invent figures that are
 not in the sample. Plain language only - no methodology jargon.
 """
 
+#: ADR-0074 (DEF-108, W5) — a second system block on the interpretation call when the case has a
+#: current element with acceptance criteria: the file judged against them, at ingest.
+UPLOAD_ELEMENT_CHECK = """The team is working on this element of their project now: {element} ({field}).
+Its acceptance criteria, each with its id:
+{criteria}
+
+Also judge the file against EACH of these criteria, from the file's contents only:
+- "supported": the file gives what the criterion asks for
+- "contradicted": the file shows something that conflicts with it
+- "not_covered": the file says nothing about it
+Give where in the file (the page, the sheet or the section) when you can name it.
+
+Add this key to the JSON object:
+  "element_check": {{"element": "{field}",
+                    "criteria": [{{"criterion": "<id>", "result": "supported|contradicted|not_covered", "where": "<page or section, or empty>"}}],
+                    "missing": ["short phrases: what the element still needs that the file does not give"]}}
+One entry per criterion id above, no other ids. Nothing in the file is stored by this judgment.
+"""
+
 #: The user message: facts and the file, no instruction (G-143; T72's labelled data block).
 UPLOAD_INTERPRET_DATA = """Project context:
 - Project title: {title}
@@ -1599,21 +1618,25 @@ MOVE_OPENING = ("This is the first turn of the phase: begin with the phase scrip
 #: the next turn one. The file is decided in code (`nodes_common._unread_upload`); the move is not
 #: changed by it.
 UPLOAD_TURN = (
-    "THE BELT HAS ADDED A FILE — this turn reads it (decided in code). It is the ONE exception to "
-    "'nothing else' above:\n"
+    "THE BELT HAS ADDED A FILE — this turn reads it (decided in code):\n"
     "  file: {filename}\n"
     "  what it contains, read when it arrived: {summary}\n"
     "  blob_path: {blob_path}\n"
-    "Open `message` with one or two sentences that name the file (and the page, where it has pages) "
-    "and say what it shows against the acceptance criteria of {element} in the phase script, and what "
-    "it does not cover yet. Then write the move below exactly as it says. For the file's text use "
-    "rag_lookup_evidence, which gives the page; for a column of numbers use load_evidence_series "
-    "with the blob_path above. Nothing in the file is stored: a value from it is stored only when the "
-    "Belt confirms it, like any answer."
+    "The file part of the reply — the file named, what it shows for {element} and what it does not "
+    "cover yet — is WRITTEN IN CODE ahead of your words (ADR-0074). Do not write about the file; "
+    "write the move below as it says. A number you need from it: load_evidence_series with the "
+    "blob_path above. Nothing in the file is stored: a value from it is stored only when the Belt "
+    "confirms it, like any answer."
 )
-#: DEF-108 (W5) — written in code ahead of an upload turn's reply that did not name its file
-#: (`phases/nodes_common._with_upload_named`): the file is always named to the Belt.
+#: ADR-0074 (DEF-108, W5) — the file part of an upload turn's reply, written in code from the
+#: upload's `element_check` (`phases/nodes_common._with_upload_check`), ahead of the coach's words.
 UPLOAD_READ_NOTE = "I've read your file {filename}. {summary}"
+UPLOAD_CHECK_HEAD = "I've read your file {filename}."
+UPLOAD_CHECK_EARLIER = "I checked it against {element} when it arrived."
+UPLOAD_CHECK_SHOWS = "For {element} it shows: {items}."
+UPLOAD_CHECK_CONFLICTS = "It does not agree with: {items}."
+UPLOAD_CHECK_MISSING = "It does not cover yet: {items}. Could you add that?"
+UPLOAD_CHECK_COMPLETE = "It covers everything {element} asks for."
 
 #: G-117 (DEF-156) — the only sentences that tell the Belt what was stored, written by
 #: `phases/nodes_common._store_truth` from the storage result, never by the coach model.

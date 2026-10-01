@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Any
+from typing import Literal, Optional, Any
 
 from pydantic import BaseModel, Field
 
@@ -10,6 +10,24 @@ from backend.core.citations import CitationRecord
 class TeamMemberRecord(BaseModel):
     name: str
     role: str
+
+
+class CriterionCheck(BaseModel):
+    """ADR-0074: what an uploaded file shows for ONE acceptance criterion of the element."""
+
+    criterion: str = Field(description="The criterion's id, as the phase script names it.")
+    result: Literal["supported", "contradicted", "not_covered"]
+    where: str = Field(default="", description="The page or section of the file, where it has one.")
+
+
+class ElementCheck(BaseModel):
+    """ADR-0074 (DEF-108, W5): the file judged against the current element's acceptance criteria
+    at interpretation — the element the planner was working on when the file arrived."""
+
+    element: str
+    criteria: list[CriterionCheck] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list,
+                               description="What the element still needs that the file does not give.")
 
 
 class UploadInterpretation(BaseModel):
@@ -44,6 +62,9 @@ class UploadInterpretation(BaseModel):
     )
     source_filename: str = ""
     source_blob_path: str = ""
+    #: ADR-0074 — None on the fallback, on a phase without acceptance criteria, and on every
+    #: record written before schema version 4.
+    element_check: Optional[ElementCheck] = None
 
 
 class UploadRecord(BaseModel):
@@ -157,6 +178,9 @@ class UploadRecord(BaseModel):
             "content_digest": self.content_digest,
             "blob_path": self.blob_path,
             "consumed_at": self.consumed_at,
+            # ADR-0074 — the upload turn writes the file part of its reply from this.
+            "element_check": (self.interpretation.element_check.model_dump()
+                              if self.interpretation and self.interpretation.element_check else None),
             # Reserved for 6.12 — carried so the shape is stable across the
             # two steps rather than growing under the gate document.
             "ask_id": self.ask_id,

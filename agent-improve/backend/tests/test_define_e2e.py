@@ -1210,17 +1210,23 @@ def test_the_belt_can_pick_any_available_element_or_take_the_recommended_one() -
 
 
 def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
-    """DEF-108 — W5 and ARCHITECTURE §3.6 (founder 2026-10-01): every new upload makes the next turn
-    an upload turn. (a) A file the Belt adds is in the case files; the next turn is an upload turn
-    whatever the open asks: section 4 names the file, what it contains and the current element, and
-    says nothing from it is stored; the coach is offered the evidence tools. (b) The turn after is
-    not an upload turn again: the phase record keeps the file read (ADR-0066). (c) Live, G-143's open
-    prevention (D7): on the latest run-through the upload's summary is an interpretation, never the
-    fallback text, it reaches the report, and the coach's reply on the turn after names the file."""
+    """DEF-108 — W5, ARCHITECTURE §3.6 and ADR-0074 (founder 2026-10-01): every new upload makes the
+    next turn an upload turn, and the file is judged against the current element when it is
+    interpreted. (a) A file the Belt adds is in the case files; its interpretation is asked about the
+    element the planner is on; the next turn is an upload turn: section 4 names the file and says the
+    file part is written in code; the reply opens with that part — the file named, what it shows for
+    the element, what it does not cover and the ask — and step_log records the check. (b) The turn
+    after is not an upload turn: the phase record keeps the file read (ADR-0066). (c) A record from
+    before schema 4 (no element_check) still loads and names the file. (d) Live, G-143's D7 and
+    ADR-0074's verification: on the latest run-through the upload's summary is an interpretation,
+    never the fallback text, and reaches the report; its element_check judges the element current
+    at upload, criterion by criterion; the reply on the turn after carries the file name and that
+    check."""
+    from backend.core import migrations
     from backend.gateway import routes
     from backend.middleware import state_injection
     from backend.phases import nodes_common
-    from backend.storage.models import UploadInterpretation
+    from backend.storage.models import CaseDocument, ElementCheck, UploadInterpretation, UploadRecord
     from backend.tests.test_wiring import REPLY, _FakeCoach
     from backend.upload import agent as upload_agent
     from langchain_core.messages import AIMessage
@@ -1231,8 +1237,15 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
     async def index(*a, **k):
         return "idx-complaints"
 
-    async def interpret(*a, **k):
-        return UploadInterpretation(summary="Supplier complaints about late payment, by month and site.")
+    asked: list = []
+
+    async def interpret(filename, parsed, case_meta, phase, element=None):
+        asked.append(element)
+        return UploadInterpretation(
+            summary="Supplier complaints about late payment, by month and site.",
+            element_check=ElementCheck(element=element, criteria=[
+                {"criterion": "what", "result": "supported", "where": "sheet 1"},
+                {"criterion": "baseline", "result": "not_covered"}], missing=["the cost of the gap"]))
 
     monkeypatch.setattr(routes.blob, "upload_file", upload_file)
     monkeypatch.setattr(routes, "_index_upload", index)
@@ -1265,6 +1278,7 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
                         files={"file": ("supplier_complaints.csv",
                                         b"month,site,complaints\n2026-01,North,14\n2026-02,North,17\n", "text/csv")})
     assert r.status_code == 200, r.text
+    assert asked == ["business_case"], "the file was not judged against the element the planner is on"
     files = env.client.get(f"/cases/{CASE_ID}").json()["files"]
     assert any(f["filename"] == "supplier_complaints.csv" for f in files), files
 
@@ -1277,23 +1291,40 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
                                              "message": message})
         assert resp.status_code == 200, resp.text
         answers.append(resp.json()["answer"])
-        kinds =[e["turn_type"] for e in steps if isinstance(e, dict) and e.get("turn_type")]
+        kinds = [e["turn_type"] for e in steps if isinstance(e, dict) and e.get("turn_type")]
         assert kinds, "step_log records no turn type"
         return kinds[-1]
 
-    # (a) the next turn reads the file, against the current element
+    # (a) the next turn reads the file; the file part of the reply is written in code
     assert turn("I've added our complaints log.") == "upload"
     section = moves_seen[-1]
-    assert "supplier_complaints.csv" in section and "Supplier complaints about late payment" in section, section
-    assert "`business_case`" in section and "Nothing in the file is stored" in section, section
+    assert "supplier_complaints.csv" in section and "WRITTEN IN CODE" in section, section
     assert section.index("THE BELT HAS ADDED A FILE") < section.index("MOVE:"), "the file must come before the move"
-    # the fake coach never names the file: code does, from the upload record
-    assert answers[-1].startswith("I've read your file supplier_complaints.csv."), answers[-1][:200]
+    said = answers[-1]
+    assert said.startswith("I've read your file supplier_complaints.csv. For "), said[:200]
+    assert "(sheet 1)" in said and "It does not cover yet:" in said and "the cost of the gap" in said, said[:400]
+    assert "(p. " not in said.split("\n\n")[0], "a method-book page reached the Belt"
+    check = next(e["upload_check"] for e in steps if isinstance(e, dict) and e.get("upload_check"))
+    assert check == {"file": "supplier_complaints.csv", "element": "business_case",
+                     "criteria": [("what", "supported"), ("baseline", "not_covered")]}, check
     # (b) and only once: the record keeps it read
     assert turn("Where do we start?") != "upload"
     assert "supplier_complaints.csv" not in moves_seen[-1]
 
-    # (c) live — the latest run-through record (G-143's D7)
+    # (c) schema 4 (ADR-0074): a version-3 upload record has no element_check — it loads, reads as None
+    assert 3 in migrations.MIGRATIONS and migrations.current() >= 4
+    v3 = {**env.case.model_dump(mode="json"), migrations.VERSION_KEY: 3}
+    v3["phases"]["define"]["uploads"] = [{"filename": "old.csv", "blob_path": "uploads/x/old.csv",
+                                          "uploaded_by": "ana", "uploaded_at": "2026-09-30T10:00:00+00:00",
+                                          "classification": "Data file",
+                                          "interpretation": {"summary": "An older file."}}]
+    moved = CaseDocument.model_validate(migrations.migrate_case(v3, migrations.version_of(v3)))
+    old = moved.phases["define"].uploads[0]
+    assert isinstance(old, UploadRecord) and old.to_phase_state_entry("define")["element_check"] is None
+    assert nodes_common.upload_check_text("define", old.to_phase_state_entry("define"), "team") \
+        .startswith("I've read your file old.csv.")
+
+    # (d) live — the latest run-through record
     import json
     from pathlib import Path
     folder = Path(__file__).resolve().parents[2] / "docs" / "runthrough"
@@ -1303,15 +1334,12 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
     assert up["summary"] and "INTERPRETATION UNAVAILABLE" not in up["summary"], up["summary"]
     review = json.dumps(next(e for e in record if e.get("kind") == "gate_review")["body"], ensure_ascii=False)
     assert up["filename"] in review and up["summary"][:60] in review, "the upload's interpretation is not in the report"
+    live = (up.get("interpretation") or {}).get("element_check")
+    assert live and live.get("criteria"), f"the interpretation judged no element: {up.get('interpretation')}"
     after = next(e for e in record[at + 1:] if e.get("kind") == "turn")
+    assert live["element"] == after.get("field"), (live["element"], after.get("field"))
     said = json.dumps(after.get("reply"), ensure_ascii=False)
-    assert up["filename"] in said, f"the reply after the upload does not name the file: {said[:300]}"
-    # W5 is the COACH reading the file against the element: the line code writes when the coach
-    # did not name it (`_with_upload_named`) does not count.
-    from backend.core.prompts import UPLOAD_READ_NOTE
-    note = UPLOAD_READ_NOTE.format(filename=up["filename"], summary="").strip()
-    own = said.replace(note, "")
-    assert up["filename"] in own, f"only the code-written line names the file; the coach did not: {own[:300]}"
+    assert up["filename"] in said and ("It does not cover yet:" in said or "It covers everything" in said), said[:400]
 
 
 def test_removing_a_file_removes_it_from_storage_and_index() -> None:
