@@ -123,8 +123,14 @@ def migrate_v4_to_v5(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+def migrate_v5_to_v6(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0076 (T65, G-150): the phase record gains `gate_attempts` and a registry row
+    `escalation`. A no-op: a record without them reads 0 attempts and not escalated."""
+    return dict(values)
+
+
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
-                                    4: migrate_v4_to_v5}
+                                    4: migrate_v4_to_v5, 5: migrate_v5_to_v6}
 
 
 def current() -> int:

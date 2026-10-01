@@ -231,6 +231,9 @@ def phase_node(phase: str) -> Callable[..., Any]:
                                  for u in (result.get("uploads") or [])
                                  if u.get("blob_path") and u.get("consumed_at")},
         }
+        # ADR-0076 (G-150): a gate submission's attempt count, kept by the record across turns.
+        if verdict:
+            payload["gate_attempts"] = int(verdict.get("gate_attempts") or verdict.get("attempts") or 0)
         # ADR-0066: the merged record travels on the reply, so the checkpoint is its home.
         payload[phase_record.KEY] = phase_record.merge(prior, payload, phase)
         if new_messages:

@@ -451,6 +451,21 @@ async def register_case(case: CaseDocument) -> None:
     await save_registry(registry)
 
 
+async def set_escalation(case_id: str, escalation: Optional[dict]) -> None:
+    """ADR-0076 (T65): mark the case's registry row escalated — `{at, criteria}`, status
+    "escalated" — or clear it (None, status back to "active"). The registry, not the case blob:
+    nothing about the case blob changes mid-conversation (ADR-0066)."""
+    registry = await load_registry()
+    for entry in registry.cases:
+        if entry.case_id == case_id:
+            if escalation is None and entry.escalation is None:
+                return
+            entry.escalation = escalation
+            entry.status = "escalated" if escalation else "active"
+            await save_registry(registry)
+            return
+
+
 async def _update_registry_entry(
     case: CaseDocument, phase: str, summary: str, now: str
 ) -> None:

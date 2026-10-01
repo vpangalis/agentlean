@@ -1539,6 +1539,10 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         raise HTTPException(409, "The Define report is not awaiting a decision — "
                                  "submit it for acceptance first (POST /gate).")
     elements = sorted({element_of(e) for e in request.elements})
+    # R6 amendment (DEF-100): the approval is recorded against the project lead, on behalf of the
+    # team — until single sign-on (R8) the signed-in lead is the case's leader by name.
+    if request.decision == "approve" and case.leader and request.actor.strip() != case.leader.strip():
+        raise HTTPException(403, APPROVE_LEAD_ONLY.format(lead=case.leader))
     if request.decision == "reject":
         unknown = [e for e in elements if e not in DEFINE_FIELD_ORDER]
         if not elements or unknown or not request.reason.strip():
@@ -1574,7 +1578,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         await blob.write_phase_gate(
             case_id=request.case_id, phase=request.phase, structured=document,
             submitted_by=request.actor,
-            summary=f"Define report approved by {request.actor} (R6)",
+            summary=f"Define report approved by {request.actor}, project lead, on behalf of the team (R6)",
             citations=evidence["citations"], uploads=evidence["uploads"],
             field_log=evidence["field_log"],                    # G-147 (DEF-061)
         )
@@ -1655,6 +1659,7 @@ async def submit_gate(request: GateSubmitRequest,
         # R6 — the Define report passed validation and the graph PAUSED in
         # `gate_review` for the team's decision. Nothing is written until
         # POST /gate/decision resumes it with an approval.
+        await _clear_escalation(request.case_id)                    # ADR-0076: a pass clears it
         return GateSubmitResponse(
             passed=True, phase=request.phase, awaiting_acceptance=True,
             message=("The Define report is ready for your team's review. Approve it, "
@@ -1697,6 +1702,7 @@ async def submit_gate(request: GateSubmitRequest,
             uploads=evidence["uploads"],
             field_log=evidence["field_log"],                    # G-147 (DEF-061)
         )
+        await _clear_escalation(request.case_id)                    # ADR-0076: a pass clears it
         idx = PHASE_ORDER.index(request.phase)
         next_phase = (
             PHASE_ORDER[idx + 1] if idx < len(PHASE_ORDER) - 1 else None
@@ -1718,13 +1724,44 @@ async def submit_gate(request: GateSubmitRequest,
     record = case.phases.get(request.phase)
     held = moves.parked(request.phase, dict(getattr(record, "field_status", None) or {}))
     names = ", ".join(guard_messages.element_name(request.phase, f) for f in held)
+    escalated = bool(verdict.get("escalated"))
+    if escalated:
+        # ADR-0076 (T65): the third failure — the report is held for the lead; the case stays open.
+        await blob.set_escalation(request.case_id, {
+            "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "attempts": int(verdict.get("attempts") or verdict.get("gate_attempts") or 0),
+            "criteria": [m.replace("_", " ") for m in missing]})
     return GateSubmitResponse(
         passed=False,
         phase=request.phase,
         missing_fields=[f.replace("_", " ") for f in missing],
-        message=((f"Parked: {names}. Complete {'it' if len(held) == 1 else 'them'} to submit. " if held else "")
+        escalated=escalated,
+        message=(GATE_ESCALATED.format(lead=case.leader or "the project lead",
+                                       criteria="; ".join(m.replace("_", " ") for m in missing))
+                 if escalated else
+                 (f"Parked: {names}. Complete {'it' if len(held) == 1 else 'them'} to submit. " if held else "")
                  + f"Not quite ready yet. {len(missing)} item(s) still needed."),
     )
+
+
+#: R6 amendment (DEF-100) — an approval sent by someone other than the project lead.
+APPROVE_LEAD_ONLY = ("Only the project lead, {lead}, approves the Define report, on behalf of the team. "
+                     "Ask {lead} to approve it — or reject it naming what to change, which anyone may do.")
+
+
+#: ADR-0076 (T65) — said in code on the third failed submission; the case stays open.
+GATE_ESCALATED = ("This is the third time the report has not passed, so it has gone to the project lead, "
+                  "{lead}, to decide with you. What still fails: {criteria}. You can keep working on "
+                  "these with the coach and submit again.")
+
+
+async def _clear_escalation(case_id: str) -> None:
+    """ADR-0076: a passing submission takes the case off the lead's list. A registry that cannot be
+    written must not undo the pass — logged."""
+    try:
+        await blob.set_escalation(case_id, None)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("case %s: the escalation could not be cleared in the registry (%s)", case_id, exc)
 
 
 @router.get("/registry", response_model=list[RegistryEntryOut])
@@ -1744,6 +1781,7 @@ async def get_registry() -> list[RegistryEntryOut]:
             days_in_phase=e.days_in_phase,
             rag_status=e.rag_status,
             status=e.status,
+            escalation=getattr(e, "escalation", None),           # ADR-0076
             phase_summary=e.phase_summary.model_dump(),
         )
         for e in registry.cases

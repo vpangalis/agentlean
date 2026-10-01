@@ -213,7 +213,9 @@ flowchart LR
 
 **Unfinished work** (ADR-0066, `phases/record.py`): each reply carries its phase's record — captured
 values, statuses, the change log (each entry: value, prior value, when, who, why, source; R16), read
-uploads and the coach's citations. Approval hands the log and the citations to the case blob.
+uploads, the coach's citations and the failed gate submissions so far. Approval hands the log and
+the citations to the case blob. The third failed submission escalates (ADR-0076): the Belt is told,
+the registry row is marked for the project lead, the case stays open; a pass clears it.
 
 **How a checkpoint is written.**
 - One blob per checkpoint: `checkpoints/{case_id}/latest.json` plus `history/{checkpoint_id}.json`;

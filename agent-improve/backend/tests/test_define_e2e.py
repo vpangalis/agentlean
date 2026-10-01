@@ -220,10 +220,6 @@ def test_define_gate_has_no_warning_path() -> None:
     _not_written('DEF-045')
 
 
-def test_three_failed_gate_attempts_escalate() -> None:
-    """DEF-046 — After three failed gate attempts the case is escalated to a person instead of looping."""
-    _not_written('DEF-046')
-
 
 def test_the_four_blocks_reach_the_screen() -> None:
     """DEF-052 — The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one."""
@@ -1136,10 +1132,6 @@ def test_sipoc_is_shown_as_a_table_and_as_a_process_diagram() -> None:
     """DEF-099 — R2 amendment: SIPOC is shown both as a table and as a process diagram; 5W2H keeps its live mind map."""
     _not_written('DEF-099')
 
-
-def test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching() -> None:
-    """DEF-100 — R6 amendment: the report names the project lead and the Champion; approval is recorded against the signed-in lead; changes are made through coaching, """
-    _not_written('DEF-100')
 
 
 def test_an_approved_report_prints_with_the_record_heading() -> None:
@@ -2722,3 +2714,108 @@ def test_the_rubric_grades_the_gate_document_and_can_fail_it(env, monkeypatch) -
     assert body["passed"] is False and body.get("awaiting_acceptance") is not True, body
     assert any("the business case names no cost" in m for m in body["missing_fields"]), body
     assert _decide(env, decision="approve").status_code == 409, "a failed report was offered for approval"
+
+
+def test_three_failed_gate_attempts_escalate(env, monkeypatch) -> None:
+    """DEF-137 (T65) and DEF-046 (R7) — ADR-0076 (founder 2026-10-01), G-150: three failed gate
+    submissions across SEPARATE POST /gate calls — the count is kept by the phase record, not reset
+    each turn — escalate on the third: the Belt is told in plain words that the report has gone to
+    the project lead with what still fails; the registry shows the case escalated with the failed
+    criteria; the case stays open (coaching continues); a passing submission clears it and the
+    count starts again."""
+    from types import SimpleNamespace
+
+    from backend.gateway import routes
+    from backend.validation import rubric
+
+    rows: dict = {CASE_ID: SimpleNamespace(case_id=CASE_ID, status="active", escalation=None)}
+
+    async def load_registry():
+        return SimpleNamespace(cases=list(rows.values()))
+
+    async def save_registry(_reg):
+        return None
+    monkeypatch.setattr(routes.blob, "load_registry", load_registry)
+    monkeypatch.setattr(routes.blob, "save_registry", save_registry)
+
+    async def one_fails(criteria, document):
+        out = [rubric.CriterionVerdict(criterion=c, status="pass") for c, _, _ in criteria]
+        out[0] = rubric.CriterionVerdict(criterion=out[0].criterion, status="fail",
+                                         feedback="the business case names no cost")
+        return rubric.GraderVerdict(verdicts=out)
+    monkeypatch.setattr(rubric, "_llm_verdicts", one_fails)
+
+    first, second = _submit(env), _submit(env)
+    assert not first["passed"] and not second["passed"]
+    assert "project lead" not in first["message"] and "project lead" not in second["message"]
+    assert rows[CASE_ID].status == "active", "escalated before the third attempt"
+    third = _submit(env)
+    assert third["passed"] is False and third.get("escalated") is True, third
+    assert "project lead" in third["message"] and ACTOR in third["message"], third["message"]
+    assert "the business case names no cost" in third["message"], third["message"]
+    assert rows[CASE_ID].status == "escalated", rows[CASE_ID]
+    assert any("the business case names no cost" in c for c in rows[CASE_ID].escalation["criteria"])
+
+    _coach_saying(monkeypatch, "Let's look at what the business case costs.")
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "What does the lead need from us?"})
+    assert r.status_code == 200, "an escalated case must stay open for coaching"
+
+    async def all_pass(criteria, document):
+        return rubric.GraderVerdict(verdicts=[rubric.CriterionVerdict(criterion=c, status="pass")
+                                              for c, _, _ in criteria])
+    monkeypatch.setattr(rubric, "_llm_verdicts", all_pass)
+    passed = _submit(env)
+    assert passed["passed"] is True, passed
+    assert rows[CASE_ID].status == "active" and rows[CASE_ID].escalation is None, rows[CASE_ID]
+
+    # schema 6: a version-5 phase record has no gate_attempts; it migrates unchanged and reads 0
+    from backend.core import migrations
+    from backend.phases import record as phase_record
+    assert 5 in migrations.MIGRATIONS and migrations.current() >= 6
+    v5 = {"phase": "define", "structured": {}, "field_status": {}, "field_log": [], "consumed": {}, "citations": []}
+    assert migrations.migrate(v5, 5) == v5
+    assert phase_record.merge(v5, {}, "define")["gate_attempts"] == 0
+
+
+def test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching(env) -> None:
+    """DEF-100 — R6 amendment: (a) the Define report names the project lead and the Champion (the
+    team member whose role is Champion or Sponsor); (b) the approval is recorded against the project
+    lead, on behalf of the team — anyone else's approval is refused in plain words (until R8's single
+    sign-on the signed-in lead is the case's leader by name); (c) changes are made through coaching,
+    never by editing the report: the API offers no route that edits a stored value, and the report
+    screen carries no input."""
+    import re
+    from pathlib import Path
+
+    from backend.app import app
+    from backend.gateway import routes
+
+    r = env.client.get(f"/gate/review/{CASE_ID}/define")
+    assert r.status_code == 200, r.text
+    first = r.json()["report"]["sections"][0]
+    assert first["project_lead"] == ACTOR, first
+    assert first["champion"] == {"name": "Tom", "role": "Champion"}, first
+
+    _submit(env)
+    other = env.client.post("/gate/decision", json={"case_id": CASE_ID, "phase": "define",
+                                                    "actor": "Tom", "decision": "approve"})
+    assert other.status_code == 403 and ACTOR in other.json()["detail"], other.text
+    assert not env.written, "an approval by someone other than the lead was written"
+    ok = _decide(env, decision="approve")
+    assert ok.status_code == 200, ok.text
+    assert env.written[-1]["submitted_by"] == ACTOR
+    assert "project lead, on behalf of the team" in env.written[-1]["summary"], env.written[-1]["summary"]
+
+    edits = [getattr(rt, "path", "") for rt in app.routes
+             if set(getattr(rt, "methods", None) or ()) & {"PUT", "PATCH"}]
+    assert not edits, f"a route edits stored values: {edits}"
+    assert not hasattr(routes, "edit_field")
+    ui = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    for fn in ("renderDefineReport", "defineReportHtml"):
+        m = re.search(r"function " + fn + r"\([\s\S]*?\n}\n", ui)
+        assert m, f"the report screen's {fn} is not found"
+        assert not re.search(r"<(input|textarea|select)\b|contenteditable", m.group(0)), \
+            f"the report screen ({fn}) offers an edit control"
+    html = re.search(r"function defineReportHtml\([\s\S]*?\n}\n", ui)
+    assert html and "'Project lead'" in html.group(0) and "'Champion'" in html.group(0)

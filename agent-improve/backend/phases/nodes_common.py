@@ -2709,6 +2709,13 @@ async def validation_stack(
         })
         logger.info("%s.validation_stack: layer 2d %s (%d of %d criteria failed)", phase,
                     "PASSED" if passed else "FAILED", len(failed), len(verdict.verdicts))
+    # ADR-0076 (T65, G-150): the count is the phase record's, carried across turns; a pass resets it,
+    # and the third failure escalates — the route tells the Belt and marks the case for the lead.
+    if passed:
+        attempts, escalated = 0, False
+    else:
+        escalated = attempts >= settings.GATE_MAX_ATTEMPTS
+    feedback[-1] = {**feedback[-1], "attempts": attempts, "escalated": escalated}
     return Command(
         goto="gate_review",
         update={

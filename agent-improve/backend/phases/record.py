@@ -64,7 +64,10 @@ def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[st
     for c in payload.get("citations") or []:
         cites.setdefault(_citation_key(c), dict(c))
     out = {"phase": phase, "structured": structured, "field_status": status, "field_log": log,
-           "consumed": consumed, "citations": list(cites.values())}
+           "consumed": consumed, "citations": list(cites.values()),
+           # ADR-0076 (G-150): failed gate submissions so far — replaced by each submission's count.
+           "gate_attempts": int(payload["gate_attempts"] if "gate_attempts" in payload
+                                else prior.get("gate_attempts") or 0)}
     return out
 
 

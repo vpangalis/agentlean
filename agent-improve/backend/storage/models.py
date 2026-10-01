@@ -321,6 +321,8 @@ class RegistryEntry(BaseModel):
     days_in_phase: int = 0
     rag_status: str = "green"         # green | amber | red
     status: str = "active"
+    #: ADR-0076 (T65): {at, criteria} while the report is held for the project lead; None otherwise.
+    escalation: Optional[dict[str, Any]] = None
     phase_summary: PhaseSummaryRecord = Field(
         default_factory=PhaseSummaryRecord
     )

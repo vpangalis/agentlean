@@ -103,8 +103,14 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
     fivew = _value(a, "problem_5w2h") or {}
     sipoc = _value(a, "process_map_sipoc") or {}
 
+    team = _value(a, "team") or []
+    # R6 amendment (DEF-100): the report names the project lead and the Champion — the team member
+    # whose role says Champion or Sponsor (§39.1.4); None when the team names none.
+    champion = next(({"name": m.get("name"), "role": m.get("role")} for m in team
+                     if isinstance(m, dict) and any(w in str(m.get("role") or "").lower()
+                                                    for w in ("champion", "sponsor"))), None)
     body: dict[int, dict[str, Any]] = {
-        1: {"project": frame, "team": _value(a, "team") or []},
+        1: {"project": frame, "team": team, "project_lead": frame.get("leader"), "champion": champion},
         2: {"business_case": _value(a, "business_case"),
             "benefits": _value(a, "benefits_analysis"),
             "savings": _savings(a)},

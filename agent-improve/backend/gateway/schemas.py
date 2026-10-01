@@ -123,6 +123,8 @@ class GateSubmitResponse(BaseModel):
     #: R6 — the Define report passed validation and the graph is PAUSED for the
     #: team's decision (POST /gate/decision); nothing has been written yet.
     awaiting_acceptance: bool = False
+    #: ADR-0076 (T65) — the third failed submission: the report is held for the project lead.
+    escalated: bool = False
 
 
 class GateDecisionRequest(BaseModel):
@@ -165,6 +167,7 @@ class RegistryEntryOut(BaseModel):
     days_in_phase: int
     rag_status: str
     status: str
+    escalation: Optional[dict[str, Any]] = None        # ADR-0076 (T65)
     phase_summary: dict[str, Any] = {}
 
 

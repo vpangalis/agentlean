@@ -966,7 +966,7 @@ async function loadRegistry(){
       return `<div class="recent-row" onclick="quickOpenCase('${c.case_id}')">
         <div class="rr-phase" style="background:${p.bg};color:${p.color}">${p.letter}</div>
         <div class="rr-info"><div class="rr-title">${c.case_id} · ${c.title}</div>
-        <div class="rr-meta">${c.leader} · ${p.label} phase · day ${c.days_in_phase||0}</div></div>
+        <div class="rr-meta">${c.leader} · ${p.label} phase · day ${c.days_in_phase||0}${c.escalation?` · <b style="color:var(--amber,#b45309)" title="${escapeHtml((c.escalation.criteria||[]).join('; '))}">with the project lead</b>`:''}</div></div>
         <div class="rag-dot ${rag}"></div>
       </div>`;
     }).join('');
@@ -4463,7 +4463,9 @@ function defineReportHtml(rep, isPassed) {
        Define report${p.title ? ' — ' + escapeHtml(p.title) : ''}</div>
      <div style="font-size:10px;color:#6B7A8D;margin-bottom:12px">Phase 1 of 5 ·
        assembled from the values you confirmed — nothing here is proposed by the coach</div>`,
-    card(s1, line('Project', p.title) + line('Belt', p.leader) + line('Belt level', p.belt_level) +
+    card(s1, line('Project', p.title) + line('Project lead', s1.project_lead || p.leader) +
+      line('Champion', s1.champion ? s1.champion.name : 'not named in the team yet') +
+      line('Belt level', p.belt_level) +
       line('Department', p.department) +
       table(s1.team, [['name', 'Name'], ['role', 'Role'], ['function', 'Function']])),
     card(s2, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s2.business_case)}</div>` +

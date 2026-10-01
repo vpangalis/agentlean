@@ -2061,8 +2061,9 @@
    "test": "backend/tests/test_define_e2e.py::test_three_failed_gate_attempts_escalate",
    "sources": {
     "architecture": [
-     "§38 escalation",
-     "§34 shared cap of 3"
+     "ADR-0076 escalation to the project lead",
+     "§34 shared cap of 3",
+     "§38 escalation"
     ],
     "procedure": [
      "Step 7.5",
@@ -2071,7 +2072,8 @@
      "G-108"
     ],
     "code": [
-     "agent-improve/backend/escalate.py"
+     "agent-improve/backend/escalate.py",
+     "agent-improve/backend/gateway/routes.py::submit_gate"
     ],
     "guidance": []
    },
@@ -3998,9 +4000,16 @@
    ],
    "test": "backend/tests/test_define_e2e.py::test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "R6 amendment",
+     "§33 the gate"
+    ],
     "procedure": [],
-    "code": [],
+    "code": [
+     "agent-improve/backend/gateway/routes.py::decide_gate",
+     "agent-improve/backend/phases/define/report.py::define_report",
+     "agent-improve/ui/index.html"
+    ],
     "guidance": []
    },
    "lane": "B",
@@ -5059,9 +5068,16 @@
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_three_failed_gate_attempts_escalate",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "ADR-0039 the shared cap of 3",
+     "ADR-0076 escalation to the project lead"
+    ],
     "procedure": [],
-    "code": [],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py::validation_stack",
+     "agent-improve/backend/phases/record.py::merge",
+     "agent-improve/backend/storage/blob.py::set_escalation"
+    ],
     "guidance": []
    },
    "lane": "B",
