@@ -7,8 +7,8 @@
 
 | | |
 |---|---|
-| **Headline** | 68 of 162 Define features pass (core 65 of 153) — A 35/68 · B 21/35 · C 6/36 · integrator 6/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
-| **Next — lane A** | DEF-022 — A Belt can revise a field they already confirmed while a later field is current, and the revision is judged, read back and re-confirmed. |
+| **Headline** | 71 of 162 Define features pass (core 68 of 153) — A 37/68 · B 22/35 · C 6/36 · integrator 6/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
+| **Next — lane A** | DEF-084 — The high-level process element captures per-step duration (avg/min/max with unit), frequency and problem notes with who said them, and end-t |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-055 — A failed turn tells the Belt what happened in words, stays on screen, and never renders an error as an empty state. |
 | **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |

@@ -174,19 +174,11 @@ def test_the_belt_can_see_captured_and_missing_fields() -> None:
 
 
 
-def test_a_confirmed_field_can_be_revised() -> None:
-    """DEF-022 — A Belt can revise a field they already confirmed while a later field is current, and the revision is judged, read back and re-confirmed."""
-    _not_written('DEF-022')
-
 
 def test_the_script_is_not_fetched_again() -> None:
     """DEF-023 — The coach does not fetch the Define script it already has in its system message (no load_skill call on a Define turn)."""
     _not_written('DEF-023')
 
-
-def test_structured_fields_arrive_structured_or_are_refused() -> None:
-    """DEF-038 — Captured values keep their declared type end to end: team, scope, SIPOC and the registry are stored structured, and prose for a structured field is re"""
-    _not_written('DEF-038')
 
 
 def test_a_contradiction_stops_in_a_node_and_resumes() -> None:
@@ -1141,10 +1133,6 @@ def test_the_product_reaches_nothing_outside_the_intranet() -> None:
     """DEF-096 — In production the product reaches only intranet services; screens, templates, fonts and diagram drawing ship with it; each phase report has a predefin"""
     _not_written('DEF-096')
 
-
-def test_approved_values_later_phases_need_are_stored_structured() -> None:
-    """DEF-097 — Every approved value a later phase needs is stored in its structure and available to that phase's coach; Define's as-is process and performance are Me"""
-    _not_written('DEF-097')
 
 
 def test_values_for_other_elements_in_one_answer_are_read_back() -> None:
@@ -2485,3 +2473,125 @@ def test_the_gate_write_keeps_the_change_log_and_uploads(env, monkeypatch) -> No
     assert any(c.get("document_id") == GOAL_CITATION["document_id"] for c in cites), \
         f"the coach's citation did not reach the approval write: {cites}"
     assert "uploads" in written
+
+
+def test_a_confirmed_field_can_be_revised(env, monkeypatch, stub_planner) -> None:
+    """DEF-022 — W9 (DEF-079): with a later element current, the Belt reopens one they already
+    confirmed; the new answer is judged (the planner's one judgment runs), read back and re-confirmed;
+    the new value is stored, and coaching returns to the element that was current."""
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    order = [f for f, _ in moves.positions("define")]
+    later = order.index("goal_statement")
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items()
+                         if k in {f for p, fs in moves.positions("define")[:later] for f in fs}}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:later]}
+    record.field_status["goal_statement"] = {"status": moves.ASKED}
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    new_team = [{"name": "Ana Silva", "role": "project lead", "function": "Finance"},
+                {"name": "Dev Patel", "role": "AP clerk", "function": "Accounts payable"}]
+    judged_before = stub_planner.calls
+    _coach_saying(monkeypatch, "Who should be on the team now?")
+    first = ask(action="revise", element="team", message="Dev joined the team.")
+    assert first["move"] in (moves.TEACH, moves.CHALLENGE, moves.RESPOND) or first.get("move_field") == "team", first
+    _coach_saying(monkeypatch, "Your team: Ana Silva (project lead, Finance), Dev Patel (AP clerk). Is this right?",
+                  captured=[{"field_name": "team", "value": new_team, "source": "belt"}])
+    read = ask(message="Ana Silva leads it from Finance; Dev Patel, our AP clerk, joins.")
+    assert stub_planner.calls > judged_before, "the revision was not judged"
+    assert read["move"] == moves.READ_BACK and read.get("move_field") == "team", read
+    _coach_saying(monkeypatch, "Thank you. Back to the goal.")
+    done = ask(action="confirm", message="Confirm")
+    define = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert define["structured"]["team"] == new_team, define["structured"].get("team")
+    assert define["field_status"]["team"]["status"] == moves.CONFIRMED
+    assert done.get("move_field") == "goal_statement", f"coaching did not return to the current element: {done}"
+
+
+def test_structured_fields_arrive_structured_or_are_refused(env, monkeypatch) -> None:
+    """DEF-038 — captured values keep their declared type end to end. (a) Through the routes: a
+    read-back that offers the team as PROSE stores nothing on Confirm — the Belt is told nothing was
+    stored and the team is asked again. (b) Live, on the latest run-through: team, scope, SIPOC and
+    the metric registry were stored in their declared structure (lists and objects, never prose)."""
+    import json
+    from pathlib import Path
+
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    order = [f for f, _ in moves.positions("define")]
+    at = order.index("team")
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items()
+                         if k in {f for p, fs in moves.positions("define")[:at] for f in fs}}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:at]}
+    record.field_status["team"] = {"status": moves.ASKED}
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    prose = "Ana leads it, and Dev from accounts payable helps."
+    _coach_saying(monkeypatch, f'Your team: "{prose}" Is this right?',
+                  captured=[{"field_name": "team", "value": prose, "source": "belt"}])
+    ask(message=prose)
+    _coach_saying(monkeypatch, "Let's set the team out person by person.")
+    after = ask(action="confirm", message="Confirm")
+    define = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert "team" not in define["structured"], f"prose was stored for a structured field: {define['structured'].get('team')!r}"
+    assert define["field_status"]["team"]["status"] != moves.CONFIRMED, define["field_status"]["team"]
+    assert after.get("move_field") == "team", f"the team was not asked again: {after}"
+    assert "not stored" in after["answer"].lower() or "nothing was stored" in after["answer"].lower(), after["answer"][:300]
+
+    folder = Path(__file__).resolve().parents[2] / "docs" / "runthrough"
+    live = json.loads(sorted(folder.glob("define_runthrough_*.json"))[-1].read_text(encoding="utf-8"))
+    stored = next(e for e in live if e.get("kind") == "final_case")["define_structured"]
+    for field, kind in (("team", list), ("metric_definitions", list),
+                        ("project_scope", dict), ("process_map_sipoc", dict)):
+        assert isinstance(stored.get(field), kind), (field, type(stored.get(field)).__name__, stored.get(field))
+    assert all(isinstance(m, dict) and {"name", "role"} <= set(m) for m in stored["team"]), stored["team"]
+
+
+def test_approved_values_later_phases_need_are_stored_structured(env, monkeypatch) -> None:
+    """DEF-097 — C6: after approval, Define's record in the Store keeps every value a later phase
+    needs in its structure — the as-is process (SIPOC, six keys), the baseline and target
+    (MetricValues), the metric registry (a list) — and the first Measure turn's coach is shown them
+    as approved, gate-committed facts: Define's as-is process and performance are Measure's
+    baseline."""
+    from backend.core.store import get_store
+    from backend.middleware import state_injection
+    from backend.phases.define.schema import MetricValue
+    from backend.phases.mappers_common import read_gate_document
+
+    assert _decide_after_submit(env).status_code == 200
+    approved = read_gate_document(get_store(), CASE_ID, "define")
+    sipoc = approved.get("process_map_sipoc")
+    assert isinstance(sipoc, dict) and {"suppliers", "inputs", "process_steps", "outputs", "customers",
+                                         "process_metrics"} <= set(sipoc), sipoc
+    MetricValue.model_validate(approved["baseline_estimate"])
+    MetricValue.model_validate(approved["target_value"])
+    assert isinstance(approved.get("metric_definitions"), list) and approved["metric_definitions"], approved
+
+    blocks: list[str] = []
+    compose = state_injection.BeforeModelStateInjection._compose
+
+    def spy(self):
+        out = compose(self)
+        blocks.append(out)
+        return out
+    monkeypatch.setattr(state_injection.BeforeModelStateInjection, "_compose", spy)
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "measure", "user": "ana",
+                                      "message": "What do we measure first?"})
+    assert r.status_code == 200, r.text
+    shown = blocks[-1]
+    assert "APPROVED IN EARLIER PHASES" in shown and "[define]" in shown, shown[:600]
+    earlier = shown[shown.index("APPROVED IN EARLIER PHASES"):]
+    for key in ("process_map_sipoc", "baseline_estimate", "target_value", "metric_definitions"):
+        assert f"    {key}:" in earlier, f"{key} did not reach the Measure coach"
