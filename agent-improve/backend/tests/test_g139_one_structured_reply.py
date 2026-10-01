@@ -74,3 +74,54 @@ def test_g139_two_identical_structured_replies_still_end_in_a_coached_reply(monk
     assert "sustainable or one-off" in str(reply.content)
     assert len(_TwiceUnlessSerial.calls) == 1, "one coach call — within the answer turn's share"
     assert _TwiceUnlessSerial.parallel and all(p is False for p in _TwiceUnlessSerial.parallel)
+
+
+class _InvalidThenValid(GenericFakeChatModel):
+    """The first structured reply fails validation (`fields_captured` an object, not a list) — run
+    define_runthrough_20261001T083638, turn 10 — and the retry is valid."""
+
+    calls: list = []
+
+    def bind_tools(self, tools: Any, **kwargs: Any) -> "_InvalidThenValid":
+        return self
+
+    def _generate(self, messages: Any, stop: Any = None, run_manager: Any = None, **kwargs: Any) -> Any:
+        from langchain_core.outputs import ChatGeneration, ChatResult
+        type(self).calls.append(1)
+        args = {**REPLY, "fields_captured": {}} if len(type(self).calls) == 1 else REPLY
+        msg = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": args,
+                                                 "id": f"call_{len(type(self).calls)}"}])
+        return ChatResult(generations=[ChatGeneration(message=msg)])
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.xfail(strict=True, reason="G-139 reopened 2026-10-01: an answer turn's one call admits no "
+                                       "structured-output retry — the fix waits on the founder (G-119 vs T69)")
+def test_g139_an_invalid_structured_reply_still_ends_in_a_coached_reply(monkeypatch) -> None:
+    """G-139's registered D7 (owed since 2026-09-30, never written): an answer turn whose first
+    structured reply fails validation still ends in the coach's own reply, not one written in code."""
+    _InvalidThenValid.calls = []
+    real_llm = _c.get_llm
+    monkeypatch.setattr(_c, "get_llm", lambda role, **kw: _InvalidThenValid(messages=iter([]))
+                        if role == "coach" else real_llm(role, **kw))
+
+    async def coherent(self: Any, belt: str, coach: str) -> CoherenceResult:
+        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False, on_topic=True, reason="")
+
+    async def passing(self: Any, belt: str, coach: str) -> CoachingGraderVerdict:
+        return CoachingGraderVerdict(criteria=[])
+    monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
+    monkeypatch.setattr(DMAICGraderMiddleware, "_grade", passing)
+
+    plan = CoachingPlan(focus_field="problem_statement", status="asked", move="challenge",
+                        judgment=SufficiencyJudgment(verdict="insufficient", reason="5W2H incomplete"),
+                        answer="paying suppliers is slow and messy", messages=1,
+                        retrieval_strategy="single_hop", retrieval_hops=[])
+    out = asyncio.run(_c.executor("define", _state(coaching_plan=plan)))
+
+    reply = next(m for m in reversed(out["messages"]) if isinstance(m, AIMessage))
+    record = reply.additional_kwargs[moves.MOVE_RECORD_KEY]
+    assert not record.get("fallback"), record.get("limit")
+    assert "sustainable or one-off" in str(reply.content)
