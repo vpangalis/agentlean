@@ -1026,6 +1026,12 @@ async def upload_file(
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    # T59 (DEF-134): the upload's phase is the case's, set here — the client's field is not trusted
+    # (its `uploaded_at` is the server's clock too: `process_upload`'s timestamp).
+    if phase != case.current_phase:
+        logger.info("upload: the client sent phase %r; the case is in %r — filed under the case's",
+                    phase, case.current_phase)
+    phase = case.current_phase
 
     # ADR-0066: the upload is saved to the blob below, so the blob's case stays as loaded; the
     # current Define values are READ from the checkpoint through a copy.
@@ -1564,6 +1570,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         logger.error("decide_gate() error: %s", e)
         raise HTTPException(500, f"Graph error: {str(e)}")
 
+    _refuse_degraded(result)                                   # T29 (DEF-122)
     if request.decision == "approve":
         # ADR-0063: the approved record is the graph's — the output mapper wrote it to the
         # Store in this run. The case blob gets that same document, written once, here.
@@ -1665,6 +1672,7 @@ async def submit_gate(request: GateSubmitRequest,
             message=("The Define report is ready for your team's review. Approve it, "
                      "or reject it naming what needs to change."))
 
+    _refuse_degraded(result)                                   # T29 (DEF-122)
     reply = _last_ai(result)
     payload = conversation.transport(reply) if reply is not None else {}
     verdict = dict(payload.get("gate_verdict") or {})
@@ -1742,6 +1750,15 @@ async def submit_gate(request: GateSubmitRequest,
                  (f"Parked: {names}. Complete {'it' if len(held) == 1 else 'them'} to submit. " if held else "")
                  + f"Not quite ready yet. {len(missing)} item(s) still needed."),
     )
+
+
+def _refuse_degraded(result: Any) -> None:
+    """T29 (DEF-122): a gate run whose node failed ended in the degraded reply (`graph.degraded_handler`)
+    — nothing was changed. The gate routes answer 503 with it, never "not ready" or a 500."""
+    reply = _last_ai(result)
+    if reply is not None and (getattr(reply, "additional_kwargs", None) or {}).get("degraded"):
+        from backend.core.graph import DEGRADED_REPLY
+        raise HTTPException(503, DEGRADED_REPLY)
 
 
 #: R6 amendment (DEF-100) — an approval sent by someone other than the project lead.

@@ -4656,9 +4656,15 @@
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t29_every_node_with_an_external_write_has_an_error_handler_that_undoes",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "§3 Route → graph",
+     "§3.6 node-level error handlers"
+    ],
     "procedure": [],
-    "code": [],
+    "code": [
+     "agent-improve/backend/core/graph.py::_undo_gate_write",
+     "agent-improve/backend/core/graph.py::degraded_handler"
+    ],
     "guidance": []
    },
    "lane": "B",
@@ -4985,9 +4991,13 @@
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t59_an_upload_s_phase_and_uploaded_at_are_set_by_the_server",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "§2.8 the upload pipeline"
+    ],
     "procedure": [],
-    "code": [],
+    "code": [
+     "agent-improve/backend/gateway/routes.py::upload_file"
+    ],
     "guidance": []
    },
    "lane": "C",
@@ -5188,7 +5198,9 @@
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_the_ui_loads_nothing_from_outside_the_product",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "C5 runs inside the intranet"
+    ],
     "procedure": [],
     "code": [
      "agent-improve/ui/index.html"

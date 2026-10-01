@@ -177,6 +177,9 @@ sequenceDiagram
 **Route → graph** (`gateway/routes.py`). Every graph run goes through `_run_turn`: `graph.ainvoke`
 as a task raced against `_until_disconnect`; a client gone first cancels it (499). The run holds the
 case's Blob lease (`blob.case_lease`, 60 s; T11): a second writer is answered 409 and runs nothing.
+Every parent node with an external write (the phase nodes, the input guard) carries
+`error_handler=graph.degraded_handler` (T29): a failed approval's Store record is removed, the
+Belt gets the degraded reply in code (a gate route answers 503), and a failed guard ends the turn.
 
 | Route | Graph input | Config (`_graph_config`) | After the run |
 |---|---|---|---|

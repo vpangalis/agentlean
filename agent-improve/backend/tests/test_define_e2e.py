@@ -1396,10 +1396,6 @@ def test_t28_turn_latency_p50_and_p99_are_recorded_per_phase() -> None:
     _not_written('DEF-121')
 
 
-def test_t29_every_node_with_an_external_write_has_an_error_handler_that_undoes() -> None:
-    """DEF-122 — Every node with an external write has an `error_handler` that undoes it and routes to a degraded answer"""
-    _not_written('DEF-122')
-
 
 def test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p() -> None:
     """DEF-123 — A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved"""
@@ -1456,10 +1452,6 @@ def test_t58_knowledge_lookups_always_include_the_general_methodology() -> None:
     _not_written('DEF-133')
 
 
-def test_t59_an_upload_s_phase_and_uploaded_at_are_set_by_the_server() -> None:
-    """DEF-134 — An upload's `phase` and `uploaded_at` are set by the server"""
-    _not_written('DEF-134')
-
 
 def test_t60_evidence_series_are_re_parsed_at_use_and_never_stored_in_state() -> None:
     """DEF-135 — Evidence series are re-parsed at use and never stored in state"""
@@ -1497,6 +1489,14 @@ def test_the_ui_loads_nothing_from_outside_the_product() -> None:
     found = [f"{p.name}:{n}: {line.strip()[:120]}" for p in sorted(ui.glob("*.html"))
              for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1) if external.search(line)]
     assert not found, "C5: the UI loads from outside the product:\n" + "\n".join(found)
+    # what the screens load instead ships with them, and loads nothing external itself
+    for p in sorted(ui.glob("*.html")):
+        for href in re.findall(r"""<link[^>]+href\s*=\s*["']([^"']+\.css)["']""", p.read_text(encoding="utf-8")):
+            css = ui / href
+            assert css.exists(), f"{p.name} links {href}, which does not ship"
+            assert not re.search(r"url\(\s*[\"']?https?://", css.read_text(encoding="utf-8")), f"{href} loads from outside"
+            for font in re.findall(r"url\(\s*[\"']?\./([^\"')?]+)", css.read_text(encoding="utf-8")):
+                assert (css.parent / font).exists(), f"{href} needs {font}, which does not ship"
 
 
 def test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3() -> None:
@@ -2819,3 +2819,78 @@ def test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching(
             f"the report screen ({fn}) offers an edit control"
     html = re.search(r"function defineReportHtml\([\s\S]*?\n}\n", ui)
     assert html and "'Project lead'" in html.group(0) and "'Champion'" in html.group(0)
+
+
+def test_t29_every_node_with_an_external_write_has_an_error_handler_that_undoes(env, monkeypatch, stub_planner) -> None:
+    """DEF-122 — T29: every parent-graph node with an external write carries an `error_handler`
+    (graph.degraded_handler). (a) An approval whose run fails AFTER the approved record was put in
+    the Store: the record is removed (only what this run wrote), nothing is written to the case,
+    and POST /gate/decision answers 503 with the degraded reply — never a 500 or a half-approved
+    case. (b) The input guard failing after its audit write: the Belt gets the degraded reply and
+    the turn goes no further — fail closed, no phase runs (the audit entry stays, R19)."""
+    from backend.core import graph as graph_mod
+    from backend.core import guard
+    from backend.core.store import get_store
+    from backend.phases.mappers_common import read_gate_document, write_gate_document
+
+    builder = graph_mod.graph_builder()
+    for name in [*(f"{p}_phase" for p in graph_mod.PHASE_ORDER), guard.NODE]:
+        assert builder.nodes[name].error_handler_node, f"{name} has an external write and no error_handler"
+
+    def failing_mapper(child, parent, store):
+        write_gate_document(store, parent, "define", child)          # the external write …
+        raise RuntimeError("the registry is unreachable")             # … then the approval fails
+    monkeypatch.setitem(graph_mod.OUTPUT_MAPPERS, "define", failing_mapper)
+    _submit(env)
+    r = _decide(env, decision="approve")
+    assert r.status_code == 503 and r.json()["detail"] == graph_mod.DEGRADED_REPLY, r.text
+    assert read_gate_document(get_store(), CASE_ID, "define") == {}, "the approved record outlived the failure"
+    assert not env.written and env.case.current_phase == "define", "a failed approval changed the case"
+
+    def failing_record(*a, **k):
+        raise RuntimeError("the audit store is unreachable")
+    monkeypatch.setattr(guard, "record", failing_record)
+    planned = stub_planner.calls
+    ask = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                        "message": "Where do we stand?"})
+    assert ask.status_code == 200, ask.text
+    assert ask.json()["answer"] == graph_mod.DEGRADED_REPLY, ask.json()["answer"]
+    assert stub_planner.calls == planned, "a turn passed a failed guard"
+
+
+def test_t59_an_upload_s_phase_and_uploaded_at_are_set_by_the_server(env, monkeypatch) -> None:
+    """DEF-134 — T59: an upload's `phase` and `uploaded_at` are the server's. The client says
+    "measure" while the case is in Define: the file is filed under Define, its record says so, and
+    `uploaded_at` is the server's clock at the request — never a value the client sent."""
+    import datetime as dt
+
+    from backend.gateway import routes
+    from backend.storage.models import UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/minutes.csv"
+
+    async def index(*a, **k):
+        return "idx-minutes"
+
+    async def interpret(*a, **k):
+        return UploadInterpretation(summary="Meeting minutes.")
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    _shields(monkeypatch)
+    assert env.case.current_phase == "define"
+    before = dt.datetime.now(dt.timezone.utc)
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "measure",
+                                         "uploaded_at": "1999-01-01T00:00:00+00:00"},
+                        files={"file": ("minutes.csv", b"week,late\n1,3\n2,4\n", "text/csv")})
+    after = dt.datetime.now(dt.timezone.utc)
+    assert r.status_code == 200, r.text
+    body = r.json()["file"]
+    assert body["phase"] == "define", body
+    at = dt.datetime.fromisoformat(body["uploaded_at"])
+    assert before <= at <= after, (before, at, after)
+    assert not env.case.phases["measure"].uploads, "filed under the phase the client named"
+    kept = [u for u in env.case.phases["define"].uploads if u.filename == "minutes.csv"]
+    assert kept and kept[0].uploaded_at == body["uploaded_at"]

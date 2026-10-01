@@ -49,6 +49,8 @@ from typing import Any, Callable, Optional
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
+from langgraph.errors import NodeError
+from langgraph.types import Command
 
 from backend.core import guard
 from backend.core.checkpointer import get_checkpointer
@@ -263,7 +265,13 @@ def phase_node(phase: str) -> Callable[..., Any]:
         # ADR-0063 — the subgraph returns `final` only from gate_apply after approval: the
         # output mapper writes the approved record to the Store and advances the phase.
         if result.get("final"):
-            advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
+            try:
+                advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
+            except Exception:
+                # T29 (DEF-122): the approved record must not outlive a failed approval — undone here,
+                # only if the Store holds exactly what this run wrote; the node's error_handler answers.
+                _undo_gate_write(store, str(state["case_id"]), phase, dict(result["final"]))
+                raise
             update.update(advanced)
             logger.info("%s: approved — record in the Store, current_phase -> %s",
                         phase, advanced.get("current_phase"))
@@ -401,16 +409,59 @@ def route_to_phase(state: SupervisorState) -> str:
     return f"{current}_phase"
 
 
+#: T29 (DEF-122) — the reply written in code when a node with an external write fails.
+DEGRADED_REPLY = ("Something went wrong on our side and this step did not go through — nothing was "
+                  "changed. Please send it again in a moment.")
+
+
+def _undo_gate_write(store: Any, case_id: str, phase: str, written: dict[str, Any]) -> None:
+    """T29: remove the approved record this run put, and only that — a record the Store held from an
+    earlier approval (a different value) is left alone."""
+    from backend.phases.mappers_common import read_gate_document
+    from backend.storage import layout
+    try:
+        if store is not None and read_gate_document(store, case_id, phase) == written:
+            store.delete((layout.STORE_ROOT, case_id, layout.KIND_ARTIFACTS), phase)
+            logger.warning("%s: T29 — the approval failed after its Store write; the record was removed", phase)
+    except Exception as exc:  # noqa: BLE001 — the original failure is what the Belt must hear about
+        logger.error("%s: T29 — the approved record could not be removed after a failed approval: %s", phase, exc)
+
+
+def degraded_handler(node: str) -> Callable[..., Any]:
+    """T29 (DEF-122): the `error_handler=` of every parent node with an external write — a phase node
+    (the approved record, undone by `_undo_gate_write`) and the input guard (its audit entry stays:
+    the trail is never edited, R19). It answers in code; the node's own edges route on (§1.2: no
+    `goto` beside a static edge) — a phase node's edge ends the run, and the guard's reply is marked
+    blocked, so `route_to_phase` ends it too and `without_blocked` keeps it from every later model
+    input: fail closed, a failed guard never passes the turn on. (A closure, not a class: §2.)"""
+    async def handler(state: SupervisorState, error: NodeError,
+                      config: Optional[RunnableConfig] = None) -> Command:
+        cause = getattr(error, "error", error)
+        # Refusals the routes answer by name are not failures to cover: a case in no phase (501),
+        # state from a newer release (409, ADR-0065), a timed-out run's own handler (T70).
+        from backend.core.errors import StateSchemaVersionError
+        if isinstance(cause, (PhaseNotWired, StateSchemaVersionError, asyncio.CancelledError)):
+            raise cause
+        logger.error("%s: FAILED (%s: %s) — answered with the degraded reply (T29)",
+                     node, type(cause).__name__, cause)
+        extra: dict[str, Any] = {"degraded": {"node": node, "error": type(cause).__name__}}
+        if node == guard.NODE:
+            extra[guard.NODE] = {"status": "blocked", "threat": "unavailable", "rule": "guard failed",
+                                 "shield": "not asked"}
+        return Command(update={"messages": [AIMessage(content=DEGRADED_REPLY, additional_kwargs=extra)]})
+    return handler
+
+
 def graph_builder() -> StateGraph:
     """THE builder (T89): production and tests compile this one. Uncompiled, so the
     topology can be asserted on the builder itself."""
     builder = StateGraph(SupervisorState)
     for phase in PHASE_ORDER:
-        builder.add_node(f"{phase}_phase", phase_node(phase))
+        builder.add_node(f"{phase}_phase", phase_node(phase), error_handler=degraded_handler(f"{phase}_phase"))
         builder.add_edge(f"{phase}_phase", END)
     builder.add_node(ESCALATE_NODE, escalate_node)
     builder.add_edge(ESCALATE_NODE, END)
-    builder.add_node(guard.NODE, guard.input_guard)
+    builder.add_node(guard.NODE, guard.input_guard, error_handler=degraded_handler(guard.NODE))
     builder.add_edge(START, guard.NODE)
     builder.add_conditional_edges(guard.NODE, route_to_phase, [*(f"{p}_phase" for p in PHASE_ORDER), END])
     return builder

@@ -30,7 +30,11 @@ PHASE_NODES = {f"{p}_phase" for p in PHASE_ORDER}
 
 
 def test_exactly_the_five_phase_nodes_plus_escalation() -> None:
-    assert set(graph_builder().nodes) == PHASE_NODES | {ESCALATE_NODE, "input_guard"}
+    nodes = set(graph_builder().nodes)
+    # T29 (DEF-122): LangGraph registers each node's error_handler as a node of its own.
+    handlers = {n for n in nodes if n.startswith("__error_handler__")}
+    assert nodes - handlers == PHASE_NODES | {ESCALATE_NODE, "input_guard"}
+    assert handlers == {f"__error_handler__{n}" for n in PHASE_NODES | {"input_guard"}}
 
 
 def test_the_one_graph_carries_both_persistence_primitives(monkeypatch) -> None:
