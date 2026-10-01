@@ -2485,7 +2485,7 @@
   },
   {
    "id": "DEF-056",
-   "description": "The Belt can upload evidence to a Define case; the file lands, is indexed once, and carries an interpretation — and files picked on the create screen are really uploaded.",
+   "description": "The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries an interpretation, never the fallback text. The create form offers no file picker until R10 is ratified (W5; founder 2026-10-01, G-73 fixed by removal).",
    "clause": "what they say is kept and every change is dated",
    "depends_on": [
     "DEF-001"
@@ -2505,7 +2505,8 @@
     ],
     "code": [
      "agent-improve/backend/gateway/routes.py",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_8_the_belt_can_upload_evidence"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_8_the_belt_can_upload_evidence",
+     "agent-improve/ui/index.html"
     ],
     "guidance": []
    },

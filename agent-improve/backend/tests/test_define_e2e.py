@@ -351,9 +351,61 @@ def test_a_failed_turn_is_readable_and_stays() -> None:
     _not_written('DEF-055')
 
 
-def test_an_upload_lands_once_and_is_indexed() -> None:
-    """DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once, and carries an interpretation — and files picked on the create screen """
-    _not_written('DEF-056')
+def test_an_upload_lands_once_and_is_indexed(env, monkeypatch) -> None:
+    """DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once, and
+    carries an interpretation (never the fallback text, G-98) — the same bytes uploaded again are not
+    a second document (G-97). Uploads happen in the workspace: the create form offers no file picker
+    until R10 (W5; founder 2026-10-01 — G-73 is fixed by removal)."""
+    from pathlib import Path
+
+    from backend.gateway import routes
+    from backend.storage.models import UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    written: list = []
+    indexed: list = []
+
+    async def upload_file(*a, **k):
+        written.append(a[1] if len(a) > 1 else k.get("filename"))
+        return f"uploads/{CASE_ID}/late_payments.csv"
+
+    async def index(case_id, record, **k):
+        indexed.append((case_id, record["filename"], k["content_digest"]))
+        return "idx-late-payments"
+
+    async def interpret(*a, **k):
+        return UploadInterpretation(summary="Weekly counts of supplier invoices paid after their 30-day terms.")
+
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    _shields(monkeypatch)
+    csv = "week,invoices,late\n2026-01-05,120,28\n2026-01-12,131,30\n".encode()
+
+    def send():
+        return env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                               files={"file": ("late_payments.csv", csv, "text/csv")})
+
+    first = send()
+    assert first.status_code == 200, first.text
+    body = first.json()
+    assert body["indexed"] is True and body["evidence_index_id"] == "idx-late-payments", body
+    assert body["summary"].startswith("Weekly counts"), body["summary"]
+    assert "INTERPRETATION UNAVAILABLE" not in body["summary"]
+    assert written == ["late_payments.csv"] and len(indexed) == 1
+    kept = [u for u in env.case.phases["define"].uploads if u.filename == "late_payments.csv"]
+    assert len(kept) == 1 and kept[0].evidence_index_id == "idx-late-payments" and kept[0].summary == body["summary"]
+
+    again = send()                                         # G-97: the same bytes, 22 s later
+    assert again.status_code == 200, again.text
+    assert again.json()["unchanged"] is True
+    assert written == ["late_payments.csv"] and len(indexed) == 1, "the same file landed or was indexed twice"
+    assert len([u for u in env.case.phases["define"].uploads if u.filename == "late_payments.csv"]) == 1
+
+    html = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    create = html[html.index('id="scr-create"'):html.index('id="scr-search"')]
+    assert 'type="file"' not in create and "handleCreateFiles" not in html, \
+        "the create form offers a file picker whose files are never uploaded (G-73; W5: not until R10)"
 
 
 def test_the_coach_quotes_an_uploaded_document() -> None:

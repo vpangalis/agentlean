@@ -471,21 +471,9 @@ a{text-decoration:none;color:inherit}
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title"><i class="ti ti-paperclip"></i> Supporting documents <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3)">(optional)</span></div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Any existing reports or data files. The AI reads these before your first session.</div>
-        <div class="up-zone" onclick="document.getElementById('create-file-input').click()">
-          <i class="ti ti-upload"></i>
-          <div class="uz-t">Drop files here or click to browse</div>
-          <div class="uz-s">PDF · Excel · Word · CSV · images accepted</div>
-        </div>
-        <input type="file" id="create-file-input" multiple style="display:none" onchange="handleCreateFiles(this)">
-        <div class="uploaded-files" id="create-uploaded"></div>
-      </div>
-
       <div class="info-box">
         <i class="ti ti-info-circle"></i>
-        <p>Once created, the AI guide opens in the Define phase. Team members join any time using the case number. No account or password needed.</p>
+        <p>Once created, the AI guide opens in the Define phase. Team members join any time using the case number. No account or password needed. Add reports or data files from the workspace, where the coach reads them.</p>
       </div>
 
       <button class="btn-primary" onclick="submitCreateCase()">
@@ -1034,11 +1022,6 @@ function renderTeamList(){
       <div style="flex:1"><div class="tr-name">${m.name}</div><div class="tr-role">${m.role}</div></div>
       ${m.leader?'<span class="tr-badge">leader</span>':''}
     </div>`).join('');
-}
-
-function handleCreateFiles(input){
-  const el=document.getElementById('create-uploaded');
-  el.innerHTML=[...input.files].map(f=>`<div class="uf-row"><i class="ti ti-file"></i>${f.name}</div>`).join('');
 }
 
 async function submitCreateCase(){
