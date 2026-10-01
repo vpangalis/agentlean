@@ -1959,7 +1959,7 @@
   },
   {
    "id": "DEF-044",
-   "description": "At the gate, constraints (2c) and the Define rubric (2d) grade the document and can send it back to coaching with feedback; the shared cap is 3.",
+   "description": "At the gate the Define rubric (layer 2d) grades the document and can send it back to coaching with the failed criteria named; the shared cap is 3. Constraints (layer 2c) arrive with the phases that have a constraint set (founder 2026-10-01: Define has none).",
    "clause": "a complete case ASSEMBLES a gate document",
    "depends_on": [
     "DEF-043"
@@ -4469,10 +4469,10 @@
   },
   {
    "id": "DEF-116",
-   "description": "`thread_id` comes from an authenticated session, never from the request body (with R8)",
+   "description": "`thread_id` comes from an authenticated session, never from the request body (with R8) Built on the R8a session: after the personal invite / one-time code sign-in (DEF-103) the thread_id comes from that session; Entra ID (DEF-102) replaces it as the source when it lands (founder 2026-10-01).",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
-    "DEF-102"
+    "DEF-103"
    ],
    "test": "backend/tests/test_define_e2e.py::test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque",
    "sources": {
@@ -5068,7 +5068,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-150"
+    ]
    },
    "requirement": "T65",
    "belt_impact": "degraded",

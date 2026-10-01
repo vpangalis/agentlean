@@ -1531,6 +1531,19 @@
    "lane": [
     "C"
    ]
+  },
+  {
+   "id": "G-150",
+   "symptom": "THE GATE ATTEMPT COUNT RESETS EVERY TURN, SO THE THIRD FAILED ATTEMPT CAN NEVER ESCALATE. mappers_common.new_phase_state seeds gate_attempts 0 each turn and the phase record (ADR-0066) does not carry it; validation_stack counts from that 0, so separate POST /gate submissions each read attempt 1. Found 2026-10-01 reading the escalation path for DEF-137 (T65) — Attaches to: ADR-0039, ADR-0066, §34.",
+   "requirement": [
+    "T65"
+   ],
+   "feature": [
+    "DEF-137"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }
