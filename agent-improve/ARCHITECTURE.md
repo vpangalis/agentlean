@@ -210,6 +210,10 @@ flowchart LR
 | Attached | `graph.compile(checkpointer=…)` on the parent graph only | `graph.compile(store=…)` on the parent graph only; nodes receive it as a parameter | Called by routes, never by the graph |
 | Versioned (ADR-0065) | `state_schema_version` in each checkpoint's metadata and pending-write blob | The same key beside each record's own keys, removed on read | The same key on the case document |
 
+**Unfinished work** (ADR-0066, `phases/record.py`): each reply carries its phase's record — captured
+values, statuses, the change log (each entry: value, prior value, when, who, why, source; R16), read
+uploads and the coach's citations. Approval hands the log and the citations to the case blob.
+
 **How a checkpoint is written.**
 - One blob per checkpoint: `checkpoints/{case_id}/latest.json` plus `history/{checkpoint_id}.json`;
   the body's fields are `core/checkpointer.py`'s.

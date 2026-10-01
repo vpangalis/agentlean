@@ -474,6 +474,10 @@ async def _with_unfinished_work(case: CaseDocument) -> CaseDocument:
         held.structured = dict(rec.get("structured") or {})
         held.field_status = {f: dict(v) for f, v in (rec.get("field_status") or {}).items()}
         held.field_log = [dict(e) for e in (rec.get("field_log") or [])]
+        # G-148 (DEF-061) — the coach's citations from every turn, as the record keeps them.
+        if rec.get("citations"):
+            from backend.core.citations import CitationRecord
+            held.citations = [CitationRecord(**c) for c in rec["citations"]]
     return out
 
 
@@ -1440,6 +1444,8 @@ def assemble_gate_document(
                       for c in (getattr(record, "citations", None) or [])],
         "uploads": [u.model_dump() if hasattr(u, "model_dump") else dict(u)
                     for u in (getattr(record, "uploads", None) or [])],
+        # G-147 (DEF-061) — the change log, read with the rest so the write hands it over.
+        "field_log": [dict(e) for e in (getattr(record, "field_log", None) or [])],
     }
     rows = review_rows(phase, artifacts)
     gaps = [f"{r['field']} — Belt accepted gap"
@@ -1551,6 +1557,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
             submitted_by=request.actor,
             summary=f"Define report approved by {request.actor} (R6)",
             citations=evidence["citations"], uploads=evidence["uploads"],
+            field_log=evidence["field_log"],                    # G-147 (DEF-061)
         )
         idx = PHASE_ORDER.index(request.phase)
         next_phase = PHASE_ORDER[idx + 1] if idx < len(PHASE_ORDER) - 1 else None
@@ -1669,6 +1676,7 @@ async def submit_gate(request: GateSubmitRequest,
             # looking for it.
             citations=evidence["citations"],
             uploads=evidence["uploads"],
+            field_log=evidence["field_log"],                    # G-147 (DEF-061)
         )
         idx = PHASE_ORDER.index(request.phase)
         next_phase = (

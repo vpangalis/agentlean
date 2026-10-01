@@ -224,6 +224,8 @@ def phase_node(phase: str) -> Callable[..., Any]:
             "field_log": [dict(e) for e in (result.get("field_log") or [])],
             # Step 6.61 (R5) — where each field stands after this turn.
             "field_status": {f: dict(v) for f, v in (result.get("field_status") or {}).items()},
+            # G-148 (DEF-061) — this turn's citations; the record keeps them.
+            "citations": [dict(c) for c in (result.get("citations") or []) if isinstance(c, dict)],
             # DEF-108 (W5) — the uploads this turn read; the record keeps them read.
             "uploads_consumed": {str(u["blob_path"]): str(u["consumed_at"])
                                  for u in (result.get("uploads") or [])

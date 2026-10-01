@@ -356,7 +356,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
     """
     after = {f: dict(v) for f, v in field_status.items()}
     base: dict[str, Any] = {"judgment": None, "answer": "", "messages": 0, "pending": None,
-            "store": {}, "stored_field": None, "reason": ""}
+            "store": {}, "stored_field": None, "reason": "", "confirmed": None}
 
     def done(field: Optional[str], fields: Any, status: str, move: str, **kw: Any) -> dict:
         out = {**base, "field": field, "fields": tuple(fields or ()), "status": status,
@@ -464,8 +464,10 @@ async def decide(phase: str, artifacts: dict[str, Any],
         nxt = current(phase, merged, after)
         if nxt is not None:
             after[nxt[0]] = {"status": ASKED}
+        # R16 (DEF-021, DEF-082): what the change log needs from the read-back just confirmed.
         return done(nxt[0] if nxt else None, nxt[1] if nxt else (), status, STORE_AND_ADVANCE,
-                    store=store, stored_field=field)
+                    store=store, stored_field=field,
+                    confirmed={k: pending.get(k) for k in ("belt_words", "reasons", "sources")})
 
     if pending and action == CHANGE_CLICK:
         words = str(pending.get("belt_words") or "")

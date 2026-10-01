@@ -76,35 +76,43 @@ def test_g139_two_identical_structured_replies_still_end_in_a_coached_reply(monk
     assert _TwiceUnlessSerial.parallel and all(p is False for p in _TwiceUnlessSerial.parallel)
 
 
-class _InvalidThenValid(GenericFakeChatModel):
-    """The first structured reply fails validation (`fields_captured` an object, not a list) — run
-    define_runthrough_20261001T083638, turn 10 — and the retry is valid."""
 
+
+class _FirstShape(GenericFakeChatModel):
+    """The coach's one structured reply carries `fields_captured` in the shape the class names —
+    `{}` (run 083638 turn 10, 104934 turn 8) or ONE entry object (104934 turn 33) — never a list."""
+
+    shape: Any = None
     calls: list = []
 
-    def bind_tools(self, tools: Any, **kwargs: Any) -> "_InvalidThenValid":
+    def bind_tools(self, tools: Any, **kwargs: Any) -> "_FirstShape":
         return self
 
     def _generate(self, messages: Any, stop: Any = None, run_manager: Any = None, **kwargs: Any) -> Any:
         from langchain_core.outputs import ChatGeneration, ChatResult
         type(self).calls.append(1)
-        args = {**REPLY, "fields_captured": {}} if len(type(self).calls) == 1 else REPLY
-        msg = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": args,
+        msg = AIMessage(content="", tool_calls=[{"name": "CoachingResponse",
+                                                 "args": {**REPLY, "fields_captured": type(self).shape},
                                                  "id": f"call_{len(type(self).calls)}"}])
         return ChatResult(generations=[ChatGeneration(message=msg)])
 
 
 import pytest  # noqa: E402
 
+ONE_ENTRY = {"field_name": "problem_statement", "value": "Invoices are paid late across three sites.",
+             "source": "belt"}
 
-@pytest.mark.xfail(strict=True, reason="G-139 reopened 2026-10-01: an answer turn's one call admits no "
-                                       "structured-output retry — the fix waits on the founder (G-119 vs T69)")
-def test_g139_an_invalid_structured_reply_still_ends_in_a_coached_reply(monkeypatch) -> None:
-    """G-139's registered D7 (owed since 2026-09-30, never written): an answer turn whose first
-    structured reply fails validation still ends in the coach's own reply, not one written in code."""
-    _InvalidThenValid.calls = []
+
+@pytest.mark.parametrize("shape,name,captured", [({}, "empty_object", []),
+                                                 (ONE_ENTRY, "single_entry", [ONE_ENTRY])])
+def test_g139_an_invalid_structured_reply_still_ends_in_a_coached_reply(monkeypatch, shape, name, captured) -> None:
+    """G-139's registered D7 (owed since 2026-09-30), fixed by ADR-0075 (founder 2026-10-01): an
+    answer turn whose structured reply carries `fields_captured` as `{}` or as one entry object ends
+    in the coach's own reply within its one call — the parse reads `[]` and a one-item list — and the
+    normalization is in step_log with the turn, the element and the shape."""
+    _FirstShape.shape, _FirstShape.calls = shape, []
     real_llm = _c.get_llm
-    monkeypatch.setattr(_c, "get_llm", lambda role, **kw: _InvalidThenValid(messages=iter([]))
+    monkeypatch.setattr(_c, "get_llm", lambda role, **kw: _FirstShape(messages=iter([]))
                         if role == "coach" else real_llm(role, **kw))
 
     async def coherent(self: Any, belt: str, coach: str) -> CoherenceResult:
@@ -125,3 +133,7 @@ def test_g139_an_invalid_structured_reply_still_ends_in_a_coached_reply(monkeypa
     record = reply.additional_kwargs[moves.MOVE_RECORD_KEY]
     assert not record.get("fallback"), record.get("limit")
     assert "sustainable or one-off" in str(reply.content)
+    assert len(_FirstShape.calls) == 1, "one coach call — within the answer turn's share"
+    logged = next(e["fields_captured_normalized"] for e in out["step_log"] if "fields_captured_normalized" in e)
+    assert [(e["element"], e["shape"]) for e in logged] == [("problem_statement", name)], logged
+    assert all(isinstance(e, dict) and isinstance(e["turn"], int) for e in logged)

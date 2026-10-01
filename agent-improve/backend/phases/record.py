@@ -26,7 +26,12 @@ KEY = "phase_record"
 
 
 def empty(phase: str) -> dict[str, Any]:
-    return {"phase": phase, "structured": {}, "field_status": {}, "field_log": [], "consumed": {}}
+    return {"phase": phase, "structured": {}, "field_status": {}, "field_log": [], "consumed": {},
+            "citations": []}
+
+
+def _citation_key(c: dict[str, Any]) -> tuple[str, str]:
+    return (str(c.get("index_name") or ""), str(c.get("document_id") or ""))
 
 
 def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[str, Any]:
@@ -54,8 +59,12 @@ def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[st
     entries = list(payload.get("field_log") or [])
     if entries:
         log = merge_field_log(log, entries)
+    # G-148 (DEF-061) — the coach's citations, kept across turns (one per source document).
+    cites: dict[tuple[str, str], dict[str, Any]] = {_citation_key(c): dict(c) for c in prior.get("citations") or []}
+    for c in payload.get("citations") or []:
+        cites.setdefault(_citation_key(c), dict(c))
     out = {"phase": phase, "structured": structured, "field_status": status, "field_log": log,
-           "consumed": consumed}
+           "consumed": consumed, "citations": list(cites.values())}
     return out
 
 

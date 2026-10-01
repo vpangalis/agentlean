@@ -54,6 +54,7 @@ from azure.storage.blob.aio import (
 
 from backend.core.config import settings
 from backend.core.citations import CitationRecord
+from backend.core.substate import merge_field_log
 from backend.storage import layout
 from backend.storage.models import (
     AnalystOutputRecord,
@@ -252,6 +253,7 @@ async def write_phase_gate(
     citations: list[dict] | None = None,
     uploads: list[dict] | None = None,
     analyst_output: Optional[dict] = None,
+    field_log: list[dict] | None = None,
 ) -> None:
     """Write the approved gate document into the phase record — MERGING.
 
@@ -337,6 +339,10 @@ async def write_phase_gate(
                           for u in uploads]
     if analyst_output is not None:
         record.analyst_output = AnalystOutputRecord(**analyst_output)
+    # G-147 (DEF-061): the change log lives in the checkpoint until approval (ADR-0066); the
+    # caller hands it over here, merged on the entries' keys, so nothing already logged is lost.
+    if field_log is not None:
+        record.field_log = merge_field_log(list(record.field_log or []), [dict(e) for e in field_log])
 
     case.phases[phase] = record
 

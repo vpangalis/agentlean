@@ -82,6 +82,7 @@ from backend.core.prompts import (
 )
 from backend.core.state import ImproveGraphState
 from backend.core.substate import (
+    FIELDS_CAPTURED_NORMALIZED,
     CoachingPlan,
     CoachingResponse,
     PhaseState,
@@ -575,7 +576,7 @@ async def _plan_turn(phase: str, state: PhaseState,
     return CoachingPlan(
         focus_field=d["field"], status=d["status"], move=d["move"],
         judgment=d["judgment"], answer=d["answer"], messages=d["messages"],
-        pending=d["pending"], store=d["store"], stored_field=d["stored_field"],
+        pending=d["pending"], store=d["store"], stored_field=d["stored_field"], confirmed=d["confirmed"],
         statuses=d["statuses"], field_status=d["field_status"], reason=d["reason"],
         retrieval_strategy=_retrieval_strategy(phase),
     )
@@ -1263,6 +1264,25 @@ def _turn_ordinal(state: PhaseState) -> int:
                if isinstance(m, HumanMessage))
 
 
+#: R16 (DEF-082) — where a stored value came from: typed by the Belt (their own words stored), read
+#: from an upload, or proposed by the coach (a composed or structured read-back) and confirmed.
+FIELD_LOG_SOURCES: tuple[str, ...] = ("typed", "upload", "coach_proposed")
+
+
+def _value_source(field: str, value: Any, pending: Optional[dict[str, Any]]) -> str:
+    """R16's source for one stored value, decided in code from the read-back the Belt confirmed: the
+    coach's capture marked `upload` → upload; the stored text is found in the Belt's own words (a
+    string, or a MetricValue's raw) → typed; anything else the coach composed → coach_proposed."""
+    pending = pending or {}
+    if (pending.get("sources") or {}).get(field) == "upload":
+        return "upload"
+    words = " ".join(str(pending.get("belt_words") or "").split())
+    said = value.get("raw") if isinstance(value, dict) and "raw" in value else value
+    if words and isinstance(said, str) and " ".join(said.split()) and " ".join(said.split()) in words:
+        return "typed"
+    return "coach_proposed"
+
+
 def _field_log_entries(
     phase: str,
     turn: int,
@@ -1270,6 +1290,9 @@ def _field_log_entries(
     prior: dict[str, Any],
     reply: CoachingResponse | None,
     at: str,
+    *,
+    pending: Optional[dict[str, Any]] = None,
+    by: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """One entry per CHANGE this turn made to a captured field — step 6.33.
 
@@ -1293,7 +1316,9 @@ def _field_log_entries(
     values out of `artifacts` from this step on — and not reconstructable for
     anything captured before it.
     """
-    reasons: dict[str, str] = {}
+    # DEF-021 (G-89's fix): since 6.61 a value is stored on the Confirm turn, from the read-back the
+    # Belt confirmed — so the reason the coach captured THEN travels on the pending value.
+    reasons: dict[str, str] = {str(k): str(v) for k, v in ((pending or {}).get("reasons") or {}).items() if v}
     for entry in ((reply.fields_captured if reply else None) or []):
         if not isinstance(entry, dict):
             continue
@@ -1315,7 +1340,9 @@ def _field_log_entries(
             "value":       value,
             "prior_value": prior[field] if seen else None,
             "timestamp":   at,
-            "reason":      reasons.get(field),
+            "reason":      reasons.get(field) if seen else None,
+            "by":          by,                                       # R16: the signed-in person
+            "source":      _value_source(field, value, pending),
         })
     return entries
 
@@ -1984,6 +2011,9 @@ async def executor(
     # against the coach's limit, capped per lookup by T51.
     tool_model_calls: dict[str, int] = {}
     fusion.TURN_TOOL_MODEL_CALLS.set(tool_model_calls)
+    # G-139 (ADR-0075) — each `fields_captured` the parse normalized this turn, by shape.
+    normalized: list[str] = []
+    FIELDS_CAPTURED_NORMALIZED.set(normalized)
 
     # ADR-0068 / ADR-0069 — the turn type, decided in code from the move and the phase state,
     # recorded in step_log; the tools it offers are the turn_tools middleware's.
@@ -2278,7 +2308,14 @@ async def executor(
         # ADR-0071: the read-back's MetricValues are what the Belt sees (below) and the chart draws.
         from backend.phases.define.parse import METRIC_FIELDS
         read = {f: v for f, v in store.items() if phase == "define" and f in METRIC_FIELDS}
-        pending = {**pending, "proposed": {**kept, **read}, "store": store}
+        # DEF-021 / DEF-082 (R16) — the reason the Belt gave for a change, and where each value came
+        # from, as the coach captured them in this read-back; the Confirm writes them to the log.
+        captures = [e for e in (reply.fields_captured if reply else None) or [] if isinstance(e, dict)]
+        pending = {**pending, "proposed": {**kept, **read}, "store": store,
+                   "reasons": {str(e.get("field_name")): str(e["reason"]).strip()
+                               for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
+                   "sources": {str(e.get("field_name")): str(e.get("source") or "")
+                               for e in captures if e.get("field_name")}}
         kept = {}
     artifacts = {**prior_artifacts, **kept}
 
@@ -2310,6 +2347,8 @@ async def executor(
     log_entries = _field_log_entries(
         phase, turn_ordinal, kept, prior_artifacts, reply,
         datetime.now(timezone.utc).isoformat(),
+        pending=(plan.confirmed if plan is not None and move == moves.STORE_AND_ADVANCE else None),
+        by=((config or {}).get("configurable") or {}).get("current_user"),
     )
 
     # ── 6.20 — the write paths. Three things §39.x.7 specifies were READ by
@@ -2446,9 +2485,12 @@ async def executor(
             # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one
             # coherence verdict and one grader pass each).
             turn_type=turn_type,                                   # ADR-0068
+            # G-139 (ADR-0075) — every normalization: the turn, the element, which shape.
+            fields_captured_normalized=[{"turn": turn_ordinal, "element": plan.focus_field if plan else None,
+                                         "shape": s} for s in normalized],
             # ADR-0074 point 5 — on an upload turn: the file, the element and each criterion's result.
             upload_check=({"file": routed.get("filename"), "element": (routed.get("element_check") or {}).get("element"),
-                           "criteria": [(c.get("criterion"), c.get("result"))
+                           "criteria": [{"criterion": c.get("criterion"), "result": c.get("result")}
                                         for c in (routed.get("element_check") or {}).get("criteria") or []]}
                           if routed is not None else None),
             # T87 — personal data redacted in this turn's tool results, by type and count.

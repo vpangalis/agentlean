@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 64 of 162 Define features pass, 1 more proven on earlier code (core 61 of 153) — A 32/68 · B 20/35 · C 6/36 · integrator 6/23 (record older than the source) · M1: 46 proven · 1 awaiting fresh run · 0 open |
-| **Next — lane A** | DEF-077 — R13 hard limit: no turn exceeds 45 s; a turn that would answers with what it has and says so (T24's proof). |
+| **Headline** | 68 of 162 Define features pass (core 65 of 153) — A 35/68 · B 21/35 · C 6/36 · integrator 6/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
+| **Next — lane A** | DEF-022 — A Belt can revise a field they already confirmed while a later field is current, and the revision is judged, read back and re-confirmed. |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-055 — A failed turn tells the Belt what happened in words, stays on screen, and never renders an error as an empty state. |
 | **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-10-01 |

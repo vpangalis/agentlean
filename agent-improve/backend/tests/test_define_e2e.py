@@ -173,10 +173,6 @@ def test_the_belt_can_see_captured_and_missing_fields() -> None:
     _not_written('DEF-020')
 
 
-def test_a_correction_keeps_the_belts_reason() -> None:
-    """DEF-021 — When the Belt corrects a stored value, their stated reason is kept with the change in field_log.reason."""
-    _not_written('DEF-021')
-
 
 def test_a_confirmed_field_can_be_revised() -> None:
     """DEF-022 — A Belt can revise a field they already confirmed while a later field is current, and the revision is judged, read back and re-confirmed."""
@@ -424,10 +420,6 @@ def test_the_reply_streams_and_a_drop_abandons() -> None:
 
 
 
-
-def test_the_gate_write_keeps_the_change_log_and_uploads() -> None:
-    """DEF-061 — The gate write keeps the Belt's change log, citations and uploads."""
-    _not_written('DEF-061')
 
 
 def test_measure_starts_from_the_approved_define_record(env) -> None:
@@ -963,10 +955,6 @@ def test_a_failed_turn_stays_readable_with_a_reference_id() -> None:
     _not_written('DEF-081')
 
 
-def test_every_element_version_records_who_when_why_and_source() -> None:
-    """DEF-082 — Every element value keeps its full history: value, when, who, the reason for a change, and its source (typed, upload, or coach-proposed and confirmed)"""
-    _not_written('DEF-082')
-
 
 def test_every_request_is_explained_with_a_marked_sample() -> None:
     """DEF-083 — Every request explains what is asked and why, with a sample marked 'Sample only — …'; built from the case's context once enough is confirmed; never st"""
@@ -1306,7 +1294,8 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
     assert "(p. " not in said.split("\n\n")[0], "a method-book page reached the Belt"
     check = next(e["upload_check"] for e in steps if isinstance(e, dict) and e.get("upload_check"))
     assert check == {"file": "supplier_complaints.csv", "element": "business_case",
-                     "criteria": [("what", "supported"), ("baseline", "not_covered")]}, check
+                     "criteria": [{"criterion": "what", "result": "supported"},
+                                  {"criterion": "baseline", "result": "not_covered"}]}, check
     # (b) and only once: the record keeps it read
     assert turn("Where do we start?") != "upload"
     assert "supplier_complaints.csv" not in moves_seen[-1]
@@ -2390,3 +2379,109 @@ def test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_uni
     chart = drawn[1]
     assert (chart["baseline"], chart["target"], chart["unit"]) == (23.0, 5.0, "%"), chart
     assert chart["target_date"] == "2027-03-31", chart
+
+
+#: Package 2a (DEF-021, DEF-082, DEF-061) — one flow through the real routes and graph: the Belt
+#: reopens a confirmed element (W9), gives a new value and why, the coach reads it back, the Belt
+#: confirms.
+NEW_GOAL = "Bring late supplier payments down from 23% to under 4% by March 2027."
+GOAL_REASON = "the finance director raised the bar after the penalties came in"
+GOAL_CITATION = {"agent_origin": "agent_improve", "index_name": "methodology",
+                 "document_id": "bb-ebook-p51", "relevance_summary": "a goal names baseline, target and date"}
+
+
+def _revise_goal(env, monkeypatch) -> dict:
+    """Revise `goal_statement` and confirm the new value; returns GET /cases' Define record."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_define_report import COMPLETE
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    assert COMPLETE["goal_statement"] != NEW_GOAL
+    _coach_saying(monkeypatch, "What would you like the goal to say now?")
+    ask(action="revise", element="goal_statement", message="The goal needs to change.")
+    reply = {**REPLY, "message": f'Your goal: "{NEW_GOAL}" Is this right?', "citations": [GOAL_CITATION],
+             "fields_captured": [{"field_name": "goal_statement", "value": NEW_GOAL, "source": "belt",
+                                  "reason": GOAL_REASON}]}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "c1"}])]))
+        if role == "coach" else planner(role, **kw))
+    ask(message=NEW_GOAL)                     # the Belt's new value; the coach reads it back
+    _coach_saying(monkeypatch, "Thank you.")
+    ask(action="confirm", message="Confirm")
+    define = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert define["structured"]["goal_statement"] == NEW_GOAL, define["structured"].get("goal_statement")
+    return define
+
+
+def _goal_change(define: dict) -> dict:
+    changes = [e for e in define.get("field_log") or [] if e.get("field") == "goal_statement"]
+    assert changes, f"no change log entry for the goal: {define.get('field_log')}"
+    return changes[-1]
+
+
+def test_a_correction_keeps_the_belts_reason(env, monkeypatch) -> None:
+    """DEF-021 — G-89's fix (its ruled direction): the read-back's capture carries the Belt's stated
+    reason for changing a confirmed value; it travels with the pending value and the Confirm writes
+    it to field_log.reason, with the value it replaced."""
+    from backend.core.substate import CoachingResponse
+    from backend.tests.test_define_report import COMPLETE
+
+    assert "reason" in (CoachingResponse.model_fields["fields_captured"].description or ""), \
+        "the coach is never asked for a reason (G-89)"
+    entry = _goal_change(_revise_goal(env, monkeypatch))
+    assert entry["reason"] == GOAL_REASON, entry
+    assert entry["value"] == NEW_GOAL and entry["prior_value"] == COMPLETE["goal_statement"], entry
+
+
+def test_every_element_version_records_who_when_why_and_source(env, monkeypatch) -> None:
+    """DEF-082 — R16: each version of an element records the value, when, who (the signed-in
+    person), the reason for a change and the source — typed by the Belt, read from an upload, or
+    proposed by the coach and confirmed; nothing is overwritten; the history is viewable per element
+    (the History tab draws it from the case's field_log)."""
+    from pathlib import Path
+
+    from backend.core.substate import FIELD_LOG_ENTRY_KEYS
+    from backend.phases.nodes_common import FIELD_LOG_SOURCES
+
+    assert {"by", "source"} <= set(FIELD_LOG_ENTRY_KEYS)
+    define = _revise_goal(env, monkeypatch)
+    entry = _goal_change(define)
+    assert entry["by"] == "ana" and entry["timestamp"] and entry["reason"] == GOAL_REASON, entry
+    assert entry["source"] == "typed", entry                        # the Belt's own words were stored
+    assert set(FIELD_LOG_SOURCES) == {"typed", "upload", "coach_proposed"}
+    assert entry["prior_value"], "nothing is overwritten: the value replaced is on the entry"
+    # schema 5: an entry written under version 4 has no `by` or `source`; it migrates unchanged
+    from backend.core import migrations
+    assert 4 in migrations.MIGRATIONS and migrations.current() >= 5
+    v4 = {"field_log": [{"key": "define:1:team", "field": "team", "value": "x", "prior_value": None,
+                         "timestamp": "2026-09-30T10:00:00+00:00", "reason": None}]}
+    assert migrations.migrate(v4, 4) == v4
+    ui = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    assert "function renderElementHistory" in ui
+    assert "field_log" in ui[ui.index("function renderElementHistory"):][:1500]
+
+
+def test_the_gate_write_keeps_the_change_log_and_uploads(env, monkeypatch) -> None:
+    """DEF-061 — G-147, G-148: the approval write carries the phase's change log (held in the
+    checkpoint since ADR-0066, never in the blob mid-conversation), the citations the coach made on
+    earlier turns, and the uploads."""
+    _revise_goal(env, monkeypatch)
+    _submit(env)
+    r = _decide(env, decision="approve")
+    assert r.status_code == 200, r.text
+    written = env.written[-1]
+    log = written.get("field_log") or []
+    assert any(e.get("field") == "goal_statement" and e.get("value") == NEW_GOAL for e in log), \
+        f"the change log did not reach the approval write: {log}"
+    cites = written.get("citations") or []
+    assert any(c.get("document_id") == GOAL_CITATION["document_id"] for c in cites), \
+        f"the coach's citation did not reach the approval write: {cites}"
+    assert "uploads" in written

@@ -23,12 +23,13 @@ remains the live schema until step 11.1.
 """
 from __future__ import annotations
 
+import contextvars
 import operator
 from typing import Annotated, Any, Literal, NotRequired, Optional, TypedDict
 
 from langchain_core.messages import BaseMessage
 from langgraph.managed import RemainingSteps
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SufficiencyJudgment(BaseModel):
@@ -147,6 +148,12 @@ class CoachingPlan(BaseModel):
     stored_field: Optional[str] = Field(
         default=None, description="The position the Belt confirmed this turn.",
     )
+    confirmed: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=("R16 (DEF-021, DEF-082; schema version 5): on a confirming turn, the read-back "
+                     "the Belt confirmed — its words, the reason for a change and each value's source — "
+                     "for the change log. Never shown to the coach."),
+    )
     statuses: dict[str, str] = Field(
         default_factory=dict,
         description="Every position's status AFTER this turn's change — what section 3 shows.",
@@ -197,6 +204,14 @@ class CoachingPlan(BaseModel):
         if self.retrieval_strategy == "single_hop" and self.retrieval_hops:
             object.__setattr__(self, "retrieval_hops", [])
         return self
+
+
+#: G-139 (ADR-0075, founder 2026-10-01) — this turn's normalizations of `fields_captured`, one
+#: shape name each ("empty_object", "single_entry"). The executor sets a fresh list per turn and
+#: copies it into the turn's step_log entry; the validator only appends (a ContextVar holding a
+#: list, so a parse in a copied context still reaches the turn's list).
+FIELDS_CAPTURED_NORMALIZED: contextvars.ContextVar[list[str] | None] = contextvars.ContextVar(
+    "fields_captured_normalized", default=None)
 
 
 class CoachingResponse(BaseModel):
@@ -358,13 +373,34 @@ class CoachingResponse(BaseModel):
             "Values INSIDE those objects are still strings.\n"
             "  baseline_estimate, target_value → NOT an object you build: "
             "the Belt's own words, as a string; the number, the unit and the "
-            "direction are read from them in code (ADR-0071)."
+            "direction are read from them in code (ADR-0071).\n"
+            "\n"
+            "`reason` (G-89, R16): when this read-back CHANGES a value the Belt "
+            "confirmed earlier, add `reason` to the entry — why the Belt is "
+            "changing it, in their words, from what they said; leave it out "
+            "when they gave none or the value is new."
         ),
     )
     citations: list[dict] = Field(
         default_factory=list,
         description="Sources referenced this turn, from retrieval tool results.",
     )
+    @field_validator("fields_captured", mode="before")
+    @classmethod
+    def _one_list(cls, value: Any) -> Any:
+        """G-139 (ADR-0075): gpt-4o, through ToolStrategy, returns this list field in two other
+        shapes — an empty object `{}` (a challenge, live 083638 turn 10 and 104934 turn 8) and ONE
+        entry object (a read-back, 104934 turn 33). Refused, either ended an answer turn in a reply
+        written in code. Read as `[]` and as a one-item list; anything else is left to fail."""
+        shape = ("empty_object" if isinstance(value, dict) and not value
+                 else "single_entry" if isinstance(value, dict) and "field_name" in value else None)
+        if shape is None:
+            return value
+        seen = FIELDS_CAPTURED_NORMALIZED.get()
+        if seen is not None:
+            seen.append(shape)
+        return [] if shape == "empty_object" else [value]
+
     contradiction_flag: Optional[dict] = Field(
         default=None,
         description=(
@@ -483,6 +519,8 @@ def split_captures(values: Any) -> tuple[dict[str, Any], list[str]]:
 FIELD_LOG_ENTRY_KEYS: tuple[str, ...] = (
     "key", "field", "phase", "turn", "value", "prior_value",
     "timestamp", "reason",
+    # R16 (DEF-082, schema version 5): who confirmed it, and where the value came from.
+    "by", "source",
 )
 
 

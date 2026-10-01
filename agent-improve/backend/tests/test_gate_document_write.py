@@ -115,6 +115,7 @@ def test_the_evidence_travels_with_the_document() -> None:
     """
     case = _case(dict(COMPLETE))
     _, evidence = assemble_gate_document(case, PHASE)
-    assert set(evidence) == {"citations", "uploads"}
+    # G-147 (DEF-061): the change log travels with them to the approval write.
+    assert set(evidence) == {"citations", "uploads", "field_log"}
     assert isinstance(evidence["citations"], list)
     assert isinstance(evidence["uploads"], list)

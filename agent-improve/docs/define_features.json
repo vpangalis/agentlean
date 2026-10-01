@@ -942,9 +942,11 @@
    "test": "backend/tests/test_define_e2e.py::test_a_correction_keeps_the_belts_reason",
    "sources": {
     "architecture": [
-     "§6 PhaseState",
+     "ADR-0066 the phase record",
      "§20 CoachingResponse (fields_captured)",
-     "§37"
+     "§20 CoachingResponse (fields_captured: reason)",
+     "§37",
+     "§6 PhaseState"
     ],
     "procedure": [
      "Appendix H row 7",
@@ -952,6 +954,7 @@
      "G-89"
     ],
     "code": [
+     "agent-improve/backend/phases/moves.py::decide",
      "agent-improve/backend/phases/nodes_common.py::_field_log_entries"
     ],
     "guidance": []
@@ -2738,6 +2741,8 @@
    "test": "backend/tests/test_define_e2e.py::test_the_gate_write_keeps_the_change_log_and_uploads",
    "sources": {
     "architecture": [
+     "ADR-0066 the phase record",
+     "§33 the gate write",
      "§33.2 (nothing may be omitted)"
     ],
     "procedure": [
@@ -2745,6 +2750,8 @@
      "Step 6.42"
     ],
     "code": [
+     "agent-improve/backend/phases/record.py::merge",
+     "agent-improve/backend/storage/blob.py::write_phase_gate",
      "agent-improve/backend/tests/test_gate_write.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads"
     ],
     "guidance": []
@@ -3467,9 +3474,16 @@
    ],
    "test": "backend/tests/test_define_e2e.py::test_every_element_version_records_who_when_why_and_source",
    "sources": {
-    "architecture": [],
+    "architecture": [
+     "ADR-0066 the phase record",
+     "R16"
+    ],
     "procedure": [],
-    "code": [],
+    "code": [
+     "agent-improve/backend/core/substate.py::FIELD_LOG_ENTRY_KEYS",
+     "agent-improve/backend/phases/nodes_common.py::_value_source",
+     "agent-improve/ui/index.html"
+    ],
     "guidance": []
    },
    "lane": "A",
@@ -4238,7 +4252,8 @@
     "gaps": [
      "G-143",
      "G-145",
-     "G-146"
+     "G-146",
+     "G-149"
     ]
    },
    "requirement": "W5",

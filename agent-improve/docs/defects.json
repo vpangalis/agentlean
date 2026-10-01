@@ -1518,6 +1518,19 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-149",
+   "symptom": "DEF-108 LOGGED ITS UPLOAD CHECK AS TUPLES. 5ad8479 wrote step_log upload_check.criteria as (criterion, result) tuples; CLAUDE.md rules §10.3: step_log entries are dicts with named keys, never tuples. Found 2026-10-01 re-reading the state rules while building package 2a — Attaches to: §10.3, ADR-0074 point 5.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-108"
+   ],
+   "lane": [
+    "C"
+   ]
   }
  ]
 }

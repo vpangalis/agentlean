@@ -406,6 +406,8 @@ def new_phase_state(
         state["artifacts"] = dict(carried.get("structured") or {})
         state["field_log"] = [dict(e) for e in (carried.get("field_log") or [])]
         state["field_status"] = {f: dict(v) for f, v in (carried.get("field_status") or {}).items()}
+        # G-148 (DEF-061) — the citations earlier turns made.
+        state["citations"] = [dict(c) for c in (carried.get("citations") or [])]
         # DEF-108 (W5) — an upload a turn read stays read; the Store copy never carries that.
         read = dict(carried.get("consumed") or {})
         state["uploads"] = [{**u, "consumed_at": u.get("consumed_at") or read.get(str(u.get("blob_path")))}

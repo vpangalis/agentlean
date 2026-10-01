@@ -8,7 +8,7 @@ differs from a fresh generation. Founder ruling 6, 2026-09-29: moved out of ARCH
 
 ### 4.2 Declarations
 
-**State schema version 4** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
+**State schema version 5** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
 
 #### `SupervisorState` — `core/state.py`
 
@@ -71,6 +71,7 @@ class CoachingPlan(BaseModel):
     pending:            Optional[dict] = None
     store:              dict[str, Any] = {}
     stored_field:       Optional[str] = None
+    confirmed:          Optional[dict[str, Any]] = None
     statuses:           dict[str, str] = {}
     field_status:       dict[str, dict[str, Any]] = {}
     reason:             str = ''

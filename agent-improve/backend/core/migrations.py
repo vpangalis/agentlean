@@ -116,7 +116,15 @@ def migrate_v3_to_v4(values: Mapping[str, Any]) -> dict[str, Any]:
 
 #: {N: migrate_vN_to_vN+1}. Adding a state change raises STATE_SCHEMA_VERSION by one and adds
 #: its function here, with its fixture test.
-MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4}
+def migrate_v4_to_v5(values: Mapping[str, Any]) -> dict[str, Any]:
+    """DEF-082 / DEF-061 (R16, G-147, G-148): a `field_log` entry gains `by` and `source`, and a phase
+    record (ADR-0066) gains `citations`. A no-op: an entry written under version 4 has neither and
+    reads as None — who and where were not recorded then, and nothing is guessed."""
+    return dict(values)
+
+
+MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
+                                    4: migrate_v4_to_v5}
 
 
 def current() -> int:

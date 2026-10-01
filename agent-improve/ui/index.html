@@ -623,7 +623,8 @@ a{text-decoration:none;color:inherit}
 
       <!-- HISTORY VIEW -->
       <div class="view" id="view-history">
-        <div id="history-content"><div style="color:var(--text3);font-size:12px">No sessions yet for this phase.</div></div>
+        <div id="element-history"></div>
+<div id="history-content"><div style="color:var(--text3);font-size:12px">No sessions yet for this phase.</div></div>
       </div>
     </div>
 
@@ -6673,7 +6674,27 @@ async function generateSessionSummary(date, turns) {
   if(S.tab === 'history') renderHistory();
 }
 
+// R16 (DEF-082) — every version of each element, newest first: the value, when, who, why it changed
+// and where it came from, read from the phase's field_log. Nothing here edits a value (R6).
+const SOURCE_LABEL={typed:'typed by the team',upload:'read from an upload',coach_proposed:'proposed by the coach and confirmed'};
+function renderElementHistory(){
+  const box=document.getElementById('element-history');
+  if(!box)return;
+  const log=((S.case?.phases||{})[S.phase]||{}).field_log||[];
+  if(!log.length){box.innerHTML='';return;}
+  const byField={};
+  log.forEach(e=>{(byField[e.field]=byField[e.field]||[]).push(e);});
+  const val=v=>escapeHtml(typeof v==='string'?v:JSON.stringify(v));
+  box.innerHTML='<div class="card-title"><i class="ti ti-history"></i> Element history</div>'+
+    Object.keys(byField).map(f=>`<details class="el-hist"><summary>${escapeHtml(f.replace(/_/g,' '))} · ${byField[f].length} version${byField[f].length>1?'s':''}</summary>`+
+      byField[f].slice().reverse().map(e=>`<div class="el-ver"><div>${val(e.value)}</div>`+
+        `<div style="font-size:11px;color:var(--text3)">${escapeHtml((e.timestamp||'').replace('T',' ').slice(0,16))}`+
+        `${e.by?' · '+escapeHtml(e.by):''}${e.source?' · '+escapeHtml(SOURCE_LABEL[e.source]||e.source):''}`+
+        `${e.reason?' · why: '+escapeHtml(e.reason):''}</div></div>`).join('')+'</details>').join('');
+}
+
 function renderHistory() {
+  renderElementHistory();
   const history = S.case?.conversation_history || [];
   const el = document.getElementById('history-content');
   if(!history.length) {
