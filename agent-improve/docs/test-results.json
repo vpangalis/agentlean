@@ -1,9 +1,9 @@
 {
- "source_hash": "7e007e97803ab77d",
- "commit": "2bad956",
+ "source_hash": "1975ef5f30c8afa0",
+ "commit": "d1549ff",
  "commit_matches_source": false,
- "full_run_hash": "7e007e97803ab77d",
- "recorded_at": "2026-10-01T11:56:11+00:00",
+ "full_run_hash": "1975ef5f30c8afa0",
+ "recorded_at": "2026-10-01T12:17:32+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -505,7 +505,7 @@
   "backend/tests/test_define_e2e.py::test_the_gate_screen_shows_the_document_and_acts_on_the_pause": "skipped",
   "backend/tests/test_define_e2e.py::test_the_gate_write_keeps_the_change_log_and_uploads": "passed",
   "backend/tests/test_define_e2e.py::test_the_lead_role_can_be_handed_over_and_is_recorded": "skipped",
-  "backend/tests/test_define_e2e.py::test_the_metric_entry_mirrors_the_confirmed_scalars": "skipped",
+  "backend/tests/test_define_e2e.py::test_the_metric_entry_mirrors_the_confirmed_scalars": "passed",
   "backend/tests/test_define_e2e.py::test_the_overview_text_is_served_from_the_skill_files": "skipped",
   "backend/tests/test_define_e2e.py::test_the_problem_statement_and_the_process_steps_are_linked_both_ways": "skipped",
   "backend/tests/test_define_e2e.py::test_the_product_reaches_nothing_outside_the_intranet": "skipped",
@@ -513,7 +513,7 @@
   "backend/tests/test_define_e2e.py::test_the_read_back_buttons_send_the_action": "passed",
   "backend/tests/test_define_e2e.py::test_the_reply_streams_and_a_drop_abandons": "skipped",
   "backend/tests/test_define_e2e.py::test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching": "skipped",
-  "backend/tests/test_define_e2e.py::test_the_rubric_grades_the_gate_document_and_can_fail_it": "skipped",
+  "backend/tests/test_define_e2e.py::test_the_rubric_grades_the_gate_document_and_can_fail_it": "passed",
   "backend/tests/test_define_e2e.py::test_the_savings_calculation_is_taught_and_reads_percent_once": "skipped",
   "backend/tests/test_define_e2e.py::test_the_screen_says_what_is_happening_while_a_turn_runs": "skipped",
   "backend/tests/test_define_e2e.py::test_the_screen_shows_the_service_is_ready_before_the_first_message": "skipped",
@@ -1677,8 +1677,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "c0a690d2f232a103",
-  "recorded_at": "2026-10-01T11:31:39+00:00",
+  "source_hash": "7e007e97803ab77d",
+  "recorded_at": "2026-10-01T11:56:11+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2289,7 +2289,7 @@
    "backend/tests/test_define_e2e.py::test_report_sections_show_a_labelled_picture_where_the_data_allows": "skipped",
    "backend/tests/test_define_e2e.py::test_sipoc_is_shown_as_a_table_and_as_a_process_diagram": "skipped",
    "backend/tests/test_define_e2e.py::test_structured_fields_arrive_structured_or_are_refused": "passed",
-   "backend/tests/test_define_e2e.py::test_t11_exactly_one_writer_per_thread_id_at_a_time_a_blob_lease": "skipped",
+   "backend/tests/test_define_e2e.py::test_t11_exactly_one_writer_per_thread_id_at_a_time_a_blob_lease": "passed",
    "backend/tests/test_define_e2e.py::test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque": "skipped",
    "backend/tests/test_define_e2e.py::test_t13_the_case_blob_is_never_written_mid_conversation_only_at_gate_appro": "passed",
    "backend/tests/test_define_e2e.py::test_t17_the_retention_sweep_never_removes_a_paused_thread": "passed",

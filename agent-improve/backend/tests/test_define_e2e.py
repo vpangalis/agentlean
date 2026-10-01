@@ -186,10 +186,6 @@ def test_a_contradiction_stops_in_a_node_and_resumes() -> None:
     _not_written('DEF-040')
 
 
-def test_the_metric_entry_mirrors_the_confirmed_scalars() -> None:
-    """DEF-042 — The gate document's phase_metrics entry mirrors the confirmed baseline and target, derived at assembly with no model call."""
-    _not_written('DEF-042')
-
 
 def test_a_submission_missing_a_field_is_refused_by_name(env) -> None:
     """DEF-043 — Layer 2b refuses a gate submission missing any gate-required field and names what
@@ -217,10 +213,6 @@ def test_a_submission_missing_a_field_is_refused_by_name(env) -> None:
     assert named == set(gone), body["missing_fields"]
     assert named == set(missing_gate_fields("define", record.structured)), "the validator and the prompt disagree"
 
-
-def test_the_rubric_grades_the_gate_document_and_can_fail_it() -> None:
-    """DEF-044 — At the gate, constraints (2c) and the Define rubric (2d) grade the document and can send it back to coaching with feedback; the shared cap is 3."""
-    _not_written('DEF-044')
 
 
 def test_define_gate_has_no_warning_path() -> None:
@@ -2689,3 +2681,44 @@ def test_t11_exactly_one_writer_per_thread_id_at_a_time_a_blob_lease(env, monkey
     monkeypatch.setattr(blob, "_container", broken)
     box.leased.clear()
     assert ask().status_code == 200, "a lease that cannot be taken must not refuse the Belt"
+
+
+def test_the_metric_entry_mirrors_the_confirmed_scalars(env, stub_planner) -> None:
+    """DEF-042 — §39.1.9: GET /gate/review's document carries one phase_metrics entry per registry
+    metric; the first (the primary) mirrors the CONFIRMED baseline and target — the same MetricValues,
+    name and unit verbatim from the registry, source "stated" — derived at assembly with no model
+    call; any further registry metric is "not addressed this phase"."""
+    from backend.tests.test_define_report import COMPLETE
+
+    calls = stub_planner.calls
+    r = env.client.get(f"/gate/review/{CASE_ID}/define")
+    assert r.status_code == 200, r.text
+    doc = r.json()["document"]
+    entries = doc["phase_metrics"]
+    registry = COMPLETE["metric_definitions"]
+    assert len(entries) == len(registry) and entries, entries
+    primary = entries[0]
+    assert (primary["name"], primary["unit"]) == (registry[0]["name"], registry[0]["unit"]), primary
+    assert primary["baseline_estimate"] == COMPLETE["baseline_estimate"], primary
+    assert primary["target_value"] == COMPLETE["target_value"], primary
+    assert primary["source"] == "stated"
+    assert all(e["baseline_estimate"] == "not addressed this phase" for e in entries[1:]), entries
+    assert stub_planner.calls == calls, "assembly made a model call"
+
+
+def test_the_rubric_grades_the_gate_document_and_can_fail_it(env, monkeypatch) -> None:
+    """DEF-044 — as amended (founder 2026-10-01): at the gate the Define rubric (layer 2d) grades the
+    document; a failed criterion sends it back to coaching with the criterion named — the report is
+    not paused for acceptance — and the failure counts against the shared cap of 3."""
+    from backend.validation import rubric
+
+    async def one_fails(criteria, document):
+        out = [rubric.CriterionVerdict(criterion=c, status="pass") for c, _, _ in criteria]
+        out[0] = rubric.CriterionVerdict(criterion=out[0].criterion, status="fail",
+                                         feedback="the business case names no cost")
+        return rubric.GraderVerdict(verdicts=out)
+    monkeypatch.setattr(rubric, "_llm_verdicts", one_fails)
+    body = _submit(env)
+    assert body["passed"] is False and body.get("awaiting_acceptance") is not True, body
+    assert any("the business case names no cost" in m for m in body["missing_fields"]), body
+    assert _decide(env, decision="approve").status_code == 409, "a failed report was offered for approval"
