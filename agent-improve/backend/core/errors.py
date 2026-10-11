@@ -74,3 +74,8 @@ class StateSchemaVersionError(Exception):
 class CaseBusyError(Exception):
     """T11 (DEF-115, ADR-0018): another turn holds this case's Blob lease — one writer per
     `thread_id` at a time. The route answers 409; nothing of the second turn ran."""
+
+
+class ShieldTransientError(Exception):
+    """G-154: Prompt Shields failed transiently (connection, timeout, 5xx) on the input guard's
+    first attempt. The node's retry policy runs the guard once more; the last attempt fails closed."""

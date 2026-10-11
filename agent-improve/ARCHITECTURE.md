@@ -115,7 +115,7 @@ flowchart TB
 ```
 
 - **Main graph** (`core/graph.py::graph_builder`, the one builder, ADR-0063), edges as drawn;
-  `input_guard` is ADR-0057. `route_to_phase` makes no model call. There are no phase-to-phase edges; a turn ends after its one phase.
+  `input_guard` is ADR-0057; a transient Prompt Shields failure is retried once by its retry policy, then it fails closed (G-154). `route_to_phase` makes no model call. There are no phase-to-phase edges; a turn ends after its one phase.
   `get_graph()` compiles the builder once per process with the checkpointer and store; every route
   and test uses it.
 - **Wrapper node** (`phase_node`): input mapper (worker thread) → `await subgraph.ainvoke(child)`,

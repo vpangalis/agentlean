@@ -461,7 +461,8 @@ def graph_builder() -> StateGraph:
         builder.add_edge(f"{phase}_phase", END)
     builder.add_node(ESCALATE_NODE, escalate_node)
     builder.add_edge(ESCALATE_NODE, END)
-    builder.add_node(guard.NODE, guard.input_guard, error_handler=degraded_handler(guard.NODE))
+    builder.add_node(guard.NODE, guard.input_guard, retry_policy=guard.RETRY,
+                     error_handler=degraded_handler(guard.NODE))
     builder.add_edge(START, guard.NODE)
     builder.add_conditional_edges(guard.NODE, route_to_phase, [*(f"{p}_phase" for p in PHASE_ORDER), END])
     return builder

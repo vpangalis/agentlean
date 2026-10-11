@@ -1580,6 +1580,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-154",
+   "symptom": "ONE PROMPT SHIELDS TIMEOUT REFUSED AN ORDINARY BELT ANSWER. Run define_runthrough_20261011T152731, turn 26 (rid 8bcb0725): the input guard's call to Content Safety ended in a ReadTimeout at the client's 5 s limit (step_log input_guard:define:97 - error 'ReadTimeout', not a 429 or a 5xx), and the guard failed closed on that single attempt: the Belt's answer was refused with 'screening unavailable' and the run's DEF-005 and DEF-006 checks failed on the turn. Fail closed is right (ADR-0057); failing closed on one transient error, with no second try, is not. The text was never judged an attack (T91 holds). Found 2026-10-11 on package 6's live run.",
+   "requirement": [
+    "T71"
+   ],
+   "feature": [
+    "DEF-149"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }

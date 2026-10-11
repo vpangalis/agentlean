@@ -116,6 +116,8 @@ def _usage(model: Any, result: Any) -> dict[str, Any]:
     meta = dict(getattr(msg, "response_metadata", None) or {})
     return {"input_tokens": int(usage.get("input_tokens") or 0),
             "output_tokens": int(usage.get("output_tokens") or 0),
+            # G-153 (founder 2026-10-11): "length" is a call cut off at its token limit.
+            "finish_reason": meta.get("finish_reason"),
             "model": str(meta.get("model_name") or getattr(model, "deployment_name", None)
                          or getattr(model, "model_name", None) or type(model).__name__)}
 

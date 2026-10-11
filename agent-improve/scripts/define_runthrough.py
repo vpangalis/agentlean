@@ -389,7 +389,9 @@ def main() -> int:
                "guard_mode": _guard_mode(),
                # Founder 2026-09-30 (review of 309f9fc), item 4: tokens per role, per model and in
                # total, so the run's cost can be computed from the deployments' prices.
-               "tokens": token_totals(CALLS), **out}
+               "tokens": token_totals(CALLS),
+               # G-153 (founder 2026-10-11): the calls cut off at their token limit, counted per run.
+               "cut_offs": cut_offs(CALLS), **out}
     summary["cost"] = _cost(summary["tokens"])
     _write(rec, summary)
     print(json.dumps(summary, indent=1, default=str))
@@ -409,6 +411,13 @@ def _cost(tokens: dict[str, Any]) -> dict[str, Any]:
         return run_cost(tokens.get("by_model") or {}, load_prices())
     except UnpricedModel as exc:
         return {"usd": None, "within_ceiling": False, "error": str(exc)}
+
+
+def cut_offs(calls: list[dict[str, Any]]) -> dict[str, Any]:
+    """G-153: how many model calls stopped at their token limit (finish reason "length"), and which."""
+    cut = [{"kind": c.get("kind"), "at": c.get("at"), "output_tokens": c.get("output_tokens")}
+           for c in calls if c.get("finish_reason") == "length"]
+    return {"count": len(cut), "calls": cut}
 
 
 def exit_code(summary: dict[str, Any], sends: list[Any]) -> int:

@@ -35,9 +35,12 @@ from typing import Any, Optional
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.runtime import get_runtime
 from langgraph.store.base import BaseStore
+from langgraph.types import RetryPolicy
 
 from backend.core import content_safety, guard_messages
+from backend.core.errors import ShieldTransientError
 from backend.core.state import SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -67,6 +70,11 @@ FIXED_RULES: tuple[tuple[str, str], ...] = (
 #: Zero-width and bidirectional control characters — text hidden from a human reader.
 _HIDDEN = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
 _ENCODED = re.compile(r"[A-Za-z0-9+/=]{200,}")
+#: G-154 — a transient Prompt Shields failure is tried once more, then the guard fails closed. An
+#: attack verdict is an answer, not an error, and is never retried (nor is a content block, T92).
+ATTEMPTS = 2
+RETRY = RetryPolicy(max_attempts=ATTEMPTS, initial_interval=0.5, jitter=False,
+                    retry_on=lambda exc: isinstance(exc, ShieldTransientError))
 
 
 def fixed_rules(text: str) -> Optional[tuple[str, str]]:
@@ -134,6 +142,16 @@ def current_field(state: SupervisorState, store: Optional[BaseStore]) -> Optiona
     return found[0] if found else None
 
 
+def _attempt() -> int:
+    """This run of the node: 1, then 2 on the retry (LangGraph's `ExecutionInfo.node_attempt`);
+    1 outside a graph run."""
+    try:
+        info = getattr(get_runtime(), "execution_info", None)
+    except Exception:  # noqa: BLE001 — called outside a graph run (a test calling the node)
+        return 1
+    return int(getattr(info, "node_attempt", 1) or 1)
+
+
 def record(store: Optional[BaseStore], case_id: str, phase: str, n: int, verdict: dict[str, Any]) -> None:
     """The verdict into the decision trail — never the text."""
     if store is None:
@@ -164,8 +182,12 @@ async def input_guard(state: SupervisorState, config: Optional[RunnableConfig] =
                        if content_safety.development_mode() else
                        {"status": "blocked", "threat": "unavailable", "rule": "not configured", "shield": "not configured"})
         elif not shield["reachable"]:
+            attempt = _attempt()
+            if shield.get("transient") and attempt < ATTEMPTS:
+                # G-154 — the node's retry policy runs the guard once more; nothing is recorded yet.
+                raise ShieldTransientError(shield["error"])
             verdict = {"status": "blocked", "threat": "unavailable", "rule": "unreachable", "shield": "unreachable",
-                       "error": shield["error"]}
+                       "error": shield["error"], "attempts": attempt}
         elif shield["user_attack"]:
             verdict = {"status": "blocked", "threat": "A", "rule": "prompt shields", "shield": "attack"}
         else:

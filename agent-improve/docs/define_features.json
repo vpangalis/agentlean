@@ -5493,7 +5493,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-154"
+    ]
    },
    "requirement": "T71",
    "belt_impact": "wrong_data",

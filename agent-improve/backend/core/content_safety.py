@@ -12,6 +12,7 @@ It never raises. It returns a verdict dict the caller decides on:
     user_attack       the user prompt was judged an attack
     document_attacks  one bool per document
     error             why it was not reachable (empty otherwise)
+    transient         when not reachable: a connection failure, timeout or 5xx (G-154)
 
 Fail closed is the CALLER's rule (the input guard, the upload pipeline): unreachable blocks the
 turn or the upload. Not configured blocks in production; elsewhere the fixed rules stand alone
@@ -100,8 +101,17 @@ async def shield(user_prompt: str | None = None, documents: list[str] | None = N
         verdict["reachable"] = True
     except Exception as exc:  # noqa: BLE001 — the caller fails closed on any failure
         verdict["error"] = f"{type(exc).__name__}: {exc}"[:200]
+        verdict["transient"] = transient(exc)
     return verdict
 
 
+def transient(exc: BaseException) -> bool:
+    """G-154: worth one more try — a connection failure, a timeout or a 5xx. Not a 4xx (a 429 is
+    the tier's limit, a 401 the key), and never an answer: an attack verdict is not an error."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    return isinstance(exc, (httpx.TimeoutException, httpx.TransportError))
+
+
 __all__ = ["shield", "configured", "required", "development_mode", "check_startup", "is_content_filter",
-           "retry_on", "API_VERSION", "MAX_CHARS"]
+           "retry_on", "transient", "API_VERSION", "MAX_CHARS"]
