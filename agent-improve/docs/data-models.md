@@ -8,7 +8,7 @@ differs from a fresh generation. Founder ruling 6, 2026-09-29: moved out of ARCH
 
 ### 4.2 Declarations
 
-**State schema version 6** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
+**State schema version 7** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
 
 #### `SupervisorState` — `core/state.py`
 
@@ -57,9 +57,10 @@ class PhaseState(TypedDict):
 
 ```python
 class SufficiencyJudgment(BaseModel):
-    verdict:          Literal['sufficient', 'insufficient', 'not_an_answer']
-    reason:           str
-    failed_criterion: Optional[str] = None
+    verdict:            Literal['sufficient', 'insufficient', 'not_an_answer']
+    reason:             str
+    failed_criterion:   Optional[str] = None
+    calculation_inputs: Optional[dict[str, str]] = None
 
 class CoachingPlan(BaseModel):
     focus_field:        Optional[str]

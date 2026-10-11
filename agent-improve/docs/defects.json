@@ -1567,6 +1567,19 @@
     "tooling"
    ],
    "control": "backend/tests/test_capability_rows.py _trace_aged_out (TRACE_RETENTION_DAYS = 14): row 35 skips, labelled NOT a pass, when the recorded turn is older than the retention; proved by test_g152_a_trace_past_retention_is_not_read_as_missing."
+  },
+  {
+   "id": "G-153",
+   "symptom": "A CUT-OFF COACH REPLY REACHED THE BELT AS AN EMPTY TURN. Run define_runthrough_20261011T152731, turn 5 (rid c6d57393, team read-back): the coach's one call stopped at its 1,500-token limit (finish_reason length) with no text and no CoachingResponse, so the agent loop ended with no structured reply. The executor's containment covered a timeout, the backstop, the content filter and the call limit, not this: the turn returned an empty AIMessage, the reply's four blocks were empty, no fallback was marked, and the run record read the PREVIOUS turn's move record. The coherence check, finding no text this turn, walked back past the Belt's message and judged the previous turn's reply ('parroting'), degrading the turn and skipping the grader. Found 2026-10-11 on package 6's live run (DEF-005 and DEF-006 failed on turn 5).",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-006"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

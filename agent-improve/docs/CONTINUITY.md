@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 80 of 162 Define features pass (core 75 of 153) — A 38/68 · B 29/35 · C 7/36 · integrator 6/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
+| **Headline** | 82 of 162 Define features pass (core 76 of 153) — A 40/68 · B 29/35 · C 7/36 · integrator 6/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
 | **Next — lane A** | DEF-084 — The high-level process element captures per-step duration (avg/min/max with unit), frequency and problem notes with who said them, and end-t |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-104 — The creator of a case is its project lead; only the lead adds or removes members and assigns roles; the lead is shown on the form, header, l |

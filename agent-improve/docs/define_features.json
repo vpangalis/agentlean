@@ -285,7 +285,8 @@
      "28"
     ],
     "gaps": [
-     "G-123"
+     "G-123",
+     "G-153"
     ]
    },
    "requirement": "R1",
@@ -708,6 +709,7 @@
    "test": "backend/tests/test_define_e2e.py::test_the_savings_calculation_is_taught_and_reads_percent_once",
    "sources": {
     "architecture": [
+     "ADR-0077 calculations run in code",
      "§43.1 seven-step computation pattern",
      "§69.1 conventions",
      "§69.2 S-F37"
@@ -719,6 +721,7 @@
      "Step 6.56 (the calculation turn)"
     ],
     "code": [
+     "agent-improve/backend/core/prompts.py::CALCULATION_TEACH",
      "agent-improve/backend/knowledge/computation.py::_num",
      "agent-improve/backend/knowledge/computation.py::calculate_expected_savings"
     ],
@@ -758,9 +761,10 @@
    "test": "backend/tests/test_define_e2e.py::test_a_calculation_is_recorded_with_its_five_keys",
    "sources": {
     "architecture": [
-     "§7 (computation_results shape)",
+     "ADR-0077 calculations run in code",
      "§33.2 gate document parts",
-     "§39.x.7"
+     "§39.x.7",
+     "§7 (computation_results shape)"
     ],
     "procedure": [
      "Appendix H row 10",
@@ -770,7 +774,8 @@
     ],
     "code": [
      "agent-improve/backend/phases/nodes_common.py::_computation_results",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_10_calculations_are_recorded"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_10_calculations_are_recorded",
+     "agent-improve/backend/phases/nodes_common.py::_judgment_prompt"
     ],
     "guidance": []
    },

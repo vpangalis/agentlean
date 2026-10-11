@@ -237,17 +237,19 @@ def calculate_expected_savings(
     assert base is not None and target is not None
     assert cost is not None and volume is not None
 
+    # G-100 / ADR-0077 point 6 — ONE percent convention: the baseline and target are defect RATES,
+    # so "23%", "23" and "0.23" are the same rate, 0.23 (`_as_fraction`: above 1 is a percent).
+    base, target = _as_fraction(base), _as_fraction(target)
     gap = base - target
     savings = gap * volume * cost
     return {
         "annual_savings": _fmt(savings, 2),
         "currency": "as supplied in unit_cost",
         "calculation_note": (
-            f"({_fmt(base)} baseline − {_fmt(target)} target) "
+            f"({_fmt(base * 100)}% baseline − {_fmt(target * 100)}% target) "
             f"× {_fmt(volume)} units/year × {_fmt(cost)} per unit "
-            f"= {_fmt(savings, 2)}. Check the units agree: if the gap is in "
-            f"percentage points, the volume and unit cost must be on the same "
-            f"basis."
+            f"= {_fmt(savings, 2)} a year. Check the units agree: the rates are shares of the "
+            f"yearly volume, and the unit cost is the cost of one defect."
         ),
     }
 

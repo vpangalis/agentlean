@@ -447,7 +447,7 @@ def _judgment_prompt(phase: str, state: PhaseState, field: str, previous: str,
     phase script says it needs, this project's framing, and the Belt's words."""
     context = " ".join(str(state.get("phase_context") or "").split()) or \
         "(no phase context was composed)"
-    return PLANNER_JUDGMENT_PROMPT.format(
+    prompt = PLANNER_JUDGMENT_PROMPT.format(
         phase=phase, field=field,
         needs=field_needs(phase, field) or f"(the phase script gives no block for {field})",
         context=context[:1500],
@@ -455,6 +455,14 @@ def _judgment_prompt(phase: str, state: PhaseState, field: str, previous: str,
         previous=previous or "(none — the latest message is the first answer)",
         latest=latest or "(empty)",
     )
+    # ADR-0077 — the inputs of this element's calculation the case does not hold yet.
+    from backend.core.prompts import PLANNER_CALCULATION_INPUTS
+    from backend.phases import calculations
+    missing = calculations.missing_inputs(phase, field, dict(state.get("artifacts") or {}))
+    if missing:
+        prompt += PLANNER_CALCULATION_INPUTS.format(
+            inputs="\n".join(f"  {name}: {what}" for name, what in missing.items()))
+    return prompt
 
 
 async def _judge(phase: str, state: PhaseState, field: str, previous: str,
@@ -1662,7 +1670,9 @@ def _limit_diagnosis(turn: list, coach_limit: int) -> dict[str, Any]:
             tool_results.append({"name": m.name, "status": getattr(m, "status", None),
                                  "content": str(m.content)[:800]})
     last = responses[-1] if responses else {}
-    if last.get("tool_calls"):
+    if last.get("finish_reason") == "length":
+        why = "the coach's response was cut off at its token limit before the structured reply (G-153)"
+    elif last.get("tool_calls"):
         names = ", ".join(str(c["name"]) for c in last["tool_calls"])
         errs = [t for t in tool_results if t.get("status") == "error"]
         why = (f"the coach's last response asked for tool(s) {names}"
@@ -2032,6 +2042,21 @@ async def executor(
     normalized: list[str] = []
     FIELDS_CAPTURED_NORMALIZED.set(normalized)
 
+    # ADR-0077 — the element's calculation, run in code (never by the coach) once every input is
+    # present: confirmed values from state, the rest from the judgment's `calculation_inputs`. The
+    # row joins this turn's state, so the coach is shown the figure (state injection), and the record.
+    from backend.phases import calculations
+    calc_row = calculations.run(
+        phase, plan.focus_field if plan else None, dict(state.get("artifacts") or {}),
+        (plan.judgment.calculation_inputs if plan is not None and plan.judgment is not None else None),
+        _turn_ordinal(state))
+    if calc_row is not None:
+        logger.info("%s.executor: ADR-0077 — %s run in code: %s", phase, calc_row["tool"],
+                    (calc_row["result"] or {}).get("annual_savings"))
+        arts = dict(state.get("artifacts") or {})
+        arts["computation_results"] = [*(arts.get("computation_results") or []), calc_row]
+        state = {**state, "artifacts": arts}  # type: ignore[typeddict-item]
+
     # ADR-0068 / ADR-0069 — the turn type, decided in code from the move and the phase state,
     # recorded in step_log; the tools it offers are the turn_tools middleware's.
     turn_type = turn_type_of(plan, state)
@@ -2153,6 +2178,19 @@ async def executor(
                        phase, coach_limit, TURN_MODEL_CALLS, limit_diagnosis["why"])
         produced = [*produced[:-1], AIMessage(content=fallback.message)]
         result = {**result, "messages": produced, "structured_response": fallback}
+    # G-153 — the loop ended with no structured reply and no limit notice: the coach's call was cut
+    # off at its token limit (run 152731, turn 5) or ended on text alone. Contained as the limit is:
+    # the move's reply is written in code, never an empty turn, and the diagnosis rides on the record.
+    unfinished = not limited and result.get("structured_response") is None
+    if unfinished:
+        limit_diagnosis = _limit_diagnosis(produced[len(history):], coach_limit)
+        fallback = _fallback_reply(phase, plan)
+        fell_back = True
+        logger.warning("%s.executor: the coach's turn ended with no structured reply (G-153) — the "
+                       "move's reply is written in code. Diagnosis: %s", phase, limit_diagnosis["why"])
+        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
+        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
+        result = {**result, "messages": produced, "structured_response": fallback}
     coach_calls = sum(1 for m in produced[len(history):] if isinstance(m, AIMessage)) - (1 if limited else 0)
     reply: CoachingResponse | None = result.get("structured_response")
     # The agent echoes the conversation it was given and appends its own turn.
@@ -2171,6 +2209,12 @@ async def executor(
         citations.extend(_anchored(reply.citations or [], state))
         if turn_type == turn_tools.UPLOAD:
             reply = _with_upload_check(phase, reply, _unread_upload(state), plan.focus_field if plan else None)
+        if plan is not None and plan.move == moves.READ_BACK:
+            # ADR-0077 point 4 — the figure and how it was calculated, one line in code.
+            line = calculations.how_it_was_calculated(
+                calculations.latest(dict(state.get("artifacts") or {}), phase, plan.focus_field))
+            if line and line not in (reply.message or ""):
+                reply = reply.model_copy(update={"message": f"{(reply.message or '').rstrip()}\n\n{line}"})
         new_messages = _with_coaching_text(new_messages, reply)
 
         # §50.1's four blocks are OPTIONAL as of §56 amendment v1.64, and an
@@ -2448,7 +2492,8 @@ async def executor(
         logger.error(
             "%s.executor: DEFECT — the coach did not finish its %s move (%s); the "
             "reply was written by code (containment, not a fix).",
-            phase, move, "timeout" if timed_out else "runaway loop backstop")
+            phase, move, "timeout" if timed_out else "content filter" if filtered else
+            "call limit" if limited else "no structured reply" if unfinished else "runaway loop backstop")
         if record is not None:
             record["fallback"] = True
             if limit_diagnosis is not None:
@@ -2478,7 +2523,10 @@ async def executor(
         # happens here or not at all. **6.61: `kept`, never `captured`** —
         # the route writes `draft` into the case record, so a value the coach
         # returned but the Belt has not confirmed must not be in it (§20 v1.75).
-        "draft": dict(kept),
+        # ADR-0077: a calculation run this turn reaches the record now — it is not a Belt value
+        # awaiting confirmation, and the record only keeps what `draft` carries.
+        "draft": ({**kept, "computation_results": artifacts.get("computation_results") or []}
+                  if calc_row is not None else dict(kept)),
         "artifacts": artifacts,
         # Returned as THIS TURN's entries only. The channel's reducer folds
         # them onto what the input mapper seeded — which is the whole reason

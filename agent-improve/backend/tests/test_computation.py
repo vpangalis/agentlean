@@ -372,8 +372,17 @@ def test_expected_savings_states_the_multiplication() -> None:
     r = run(C.calculate_expected_savings, baseline_value="10",
             target_value="4", unit_cost="2", annual_volume="1000")
     note = r["calculation_note"]
-    assert "12000" in note.replace(",", "")
-    assert "baseline" in note and "target" in note
+    # G-100 / ADR-0077: the baseline and target are rates — "10" is 10% — so (10% − 4%) × 1000 × 2.
+    assert num(r, "annual_savings") == pytest.approx(120.0)
+    assert "10% baseline" in note and "4% target" in note and "= 120" in note
+
+
+def test_expected_savings_reads_one_percent_convention() -> None:
+    """G-100 (DEF-016): "23%", "23" and "0.23" are one rate — one saving, never 100× apart."""
+    savings = [num(run(C.calculate_expected_savings, baseline_value=b, target_value=t,
+                       unit_cost="9", annual_volume="42000"), "annual_savings")
+               for b, t in (("23%", "5%"), ("23", "5"), ("0.23", "0.05"))]
+    assert savings == [pytest.approx(68040.0)] * 3, savings
 
 
 def test_expected_savings_asks_rather_than_inventing_a_cost() -> None:

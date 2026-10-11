@@ -1692,6 +1692,29 @@ Return one verdict, with a one-sentence reason:
 Judge only from the Belt's own words. Never count anything the Belt did not say.
 """
 
+#: ADR-0077 — appended to the judgment prompt when the element's calculation lacks inputs the case
+#: does not hold; the judgment extracts them, code runs the calculation.
+PLANNER_CALCULATION_INPUTS = """
+CALCULATION INPUTS — this element's calculation is run in code, never by you. From the
+Belt's own words (the answer so far and the latest message), put in `calculation_inputs`
+each of these the Belt has stated, keyed by the name on the left:
+{inputs}
+Leave out any the Belt has not stated; never estimate one. This does not change the verdict.
+"""
+
+#: ADR-0077 point 5 (DEF-016) — added to section 4 on the turn that teaches an element with a
+#: calculation: the coach explains the calculation before any figure exists; code will run it.
+CALCULATION_TEACH = (
+    "THIS ELEMENT HAS A CALCULATION — teach it now, before any figure exists. Explain, in plain "
+    "words, how the cost of the gap is worked out: (the baseline rate − the target rate) × how many "
+    "units go through in a year × what one defect costs. Then ask for the two figures it needs: "
+    "the cost of one defect (with its currency) and the yearly volume. Do not work out a figure "
+    "yourself: once the Belt has given both, the calculation is run in code and shown to them."
+)
+
+#: ADR-0077 point 4 — the line under a read-back of an element with a calculation, written in code.
+CALCULATION_LINE = "Calculated: about {figure} a year — {how}."
+
 #: Inserted into the judgment prompt while a read-back awaits confirmation.
 PLANNER_JUDGMENT_READING_BACK = """
 A READ-BACK of the answer so far is awaiting the Belt's confirmation, and the

@@ -278,6 +278,9 @@ class CoherenceMiddleware(AgentMiddleware):
             return "\n\n".join(parts)
         messages = (state or {}).get("messages") if isinstance(state, dict) else []
         for message in reversed(list(messages or [])):
+            # G-153 — this turn's reply only: an earlier turn's text is not judged as this one's.
+            if str(getattr(message, "type", "")) == "human":
+                break
             if str(getattr(message, "type", "")) == "ai" and str(message.content).strip():
                 return str(message.content)
         return ""

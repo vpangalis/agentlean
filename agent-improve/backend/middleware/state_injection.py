@@ -423,6 +423,11 @@ class BeforeModelStateInjection(AgentMiddleware):
             lines.append(f"The planner's judgment: {judgment.verdict} — {judgment.reason}")
         if not any(isinstance(m, AIMessage) for m in (self._state.get("messages") or [])):
             lines.append(MOVE_OPENING)
+        from backend.phases import calculations
+        if plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE) and calculations.calculation_for(self.phase, field):
+            # ADR-0077 point 5 (DEF-016): the calculation is taught before any figure exists.
+            from backend.core.prompts import CALCULATION_TEACH
+            body = f"{body}\n\n{CALCULATION_TEACH}"
         if self._upload:
             # DEF-108 (W5) — ahead of the move, and named as the one exception to its "nothing
             # else": after it, a read-back obeyed the preamble and left the file out (live, 083638).

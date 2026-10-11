@@ -129,8 +129,14 @@ def migrate_v5_to_v6(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+def migrate_v6_to_v7(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0077 (DEF-016): the planner's judgment gains `calculation_inputs`. A no-op: a judgment
+    written under version 6 has none and reads as None — nothing was extracted then."""
+    return dict(values)
+
+
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
-                                    4: migrate_v4_to_v5, 5: migrate_v5_to_v6}
+                                    4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7}
 
 
 def current() -> int:

@@ -74,6 +74,15 @@ class SufficiencyJudgment(BaseModel):
             "Empty for 'sufficient' and 'not_an_answer'."
         ),
     )
+    calculation_inputs: Optional[dict[str, str]] = Field(
+        default=None,
+        description=(
+            "ADR-0077 — ONLY when the prompt lists CALCULATION INPUTS: each listed input the Belt "
+            "has stated, keyed by its name, as the Belt's own words with the number (for example "
+            "{\"unit_cost\": \"£9\", \"annual_volume\": \"42,000 invoices\"}). Leave out any input "
+            "the Belt did not state — never estimate one. Empty otherwise."
+        ),
+    )
 
 
 class CoachingPlan(BaseModel):

@@ -168,6 +168,9 @@ sequenceDiagram
    current at upload (`element_check`, ADR-0074); code writes the reply's file part from it, ahead
    of the coach's words. The file is then read, kept in the phase record's `consumed`, unless the
    read raised.
+5a. Calculations run in code, never by the coach (ADR-0077, `phases/calculations.py`): inputs from
+   confirmed values, the rest from the judgment's `calculation_inputs`; the row joins
+   `computation_results`; the read-back carries the figure and how; the teaching turn explains it.
 6. The executor counts `rag_lookup_*` calls and answers instead of searching at
    `COACH_HOP_BUDGET` (`phases/nodes_common.py`).
 7. The move record and quality feedback travel in the reply's `additional_kwargs`, round-tripped

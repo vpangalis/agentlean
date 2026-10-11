@@ -7,6 +7,7 @@ differs from a fresh generation; rules 2b and 12 do not count it.
 """
 from __future__ import annotations
 
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -60,7 +61,8 @@ def test_a_changed_field_changes_the_block(tmp_path) -> None:
                                      "    failed_criterion: Optional[int] = Field(", 1),
                         encoding="utf-8")
     new = gm.generate(tmp_path)
-    assert "failed_criterion: Optional[int]" in new and new != gm.generate(_PROJECT)
+    # the block aligns a class's field types in a column, so the spacing depends on the longest name
+    assert re.search(r"failed_criterion:\s+Optional\[int\]", new) and new != gm.generate(_PROJECT)
 
 
 def test_only_the_text_between_the_markers_is_replaced() -> None:

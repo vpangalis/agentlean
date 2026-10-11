@@ -158,14 +158,6 @@ def test_every_turn_is_graded_on_all_four_blocks() -> None:
     _not_written('DEF-015')
 
 
-def test_the_savings_calculation_is_taught_and_reads_percent_once() -> None:
-    """DEF-016 — The savings calculation is TAUGHT before its number is given, and '23%', '23' and '0.23' give the same saving (one percent convention)."""
-    _not_written('DEF-016')
-
-
-def test_a_calculation_is_recorded_with_its_five_keys() -> None:
-    """DEF-017 — A calculation the coach ran is recorded in computation_results with its five keys and appears in the gate document without the coach retyping the numb"""
-    _not_written('DEF-017')
 
 
 def test_the_belt_can_see_captured_and_missing_fields() -> None:
@@ -2992,3 +2984,110 @@ process.stdout.write(JSON.stringify(out));
     assert got["left"] == 0 and "Is this right?" in got["after"], "the retried turn did not replace the card"
     assert f"Reference: {got['ref']}" not in got["after"], "the card stayed after a successful retry"
     assert got["clickAgain"] == "confirm", "the retry did not resend the click"
+
+
+def _walk_the_benefits_analysis(env, monkeypatch, stub_planner) -> dict:
+    """ADR-0077 through the real routes and graph: the benefits analysis is taught, the Belt gives the
+    cost of one late invoice and the yearly volume, the judgment extracts them, code runs the
+    calculation, the read-back shows the figure and how, the Belt confirms. Returns what was seen."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.middleware import state_injection
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    order = [f for f, _ in moves.positions("define")]
+    at = order.index("benefits_analysis")
+    before = {f for p, fs in moves.positions("define")[:at] for f in fs}
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items() if k in before}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:at]}
+    record.field_status["benefits_analysis"] = {"status": moves.NOT_TAUGHT}
+    seen: dict = {"moves": []}
+    compose = state_injection.BeforeModelStateInjection._compose_move
+
+    def spy(self):
+        out = compose(self)
+        seen["moves"].append(out)
+        return out
+    monkeypatch.setattr(state_injection.BeforeModelStateInjection, "_compose_move", spy)
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def stored() -> dict:
+        return env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"].get("structured") or {}
+
+    _coach_saying(monkeypatch, "Let's work out what the gap costs.")
+    ask(message="Next, please.")
+    seen["teaching"] = seen["moves"][-1]
+    inputs = {"unit_cost": "£9", "annual_volume": "42,000 invoices"}
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", failed_criterion="impact-type",
+                                                reason="impact type, schedule and finance contact missing",
+                                                calculation_inputs=inputs)
+    _coach_saying(monkeypatch, "Is the saving sustainable or one-off?")
+    ask(message="Each late invoice costs us about £9, and we pay around 42,000 supplier invoices a year.")
+    seen["after_inputs"] = stored().get("computation_results") or []
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all four parts given",
+                                                calculation_inputs=inputs)
+    benefits = {"cost_of_gap": "about £68,000 a year", "impact_type": "sustainable",
+                "realisation_schedule": "from Q2 2027, about £17,000 a quarter", "finance_contact": "Sam Reid"}
+    _coach_saying(monkeypatch, "Here is your benefits analysis: about £68,000 a year, sustainable, from Q2 "
+                               "2027, Sam Reid validates it. Is this right?",
+                  captured=[{"field_name": "benefits_analysis", "value": benefits, "source": "belt"}])
+    seen["read_back"] = ask(message="Sustainable, from Q2 2027 at about £17,000 a quarter; Sam Reid in finance "
+                                    "validates it.")["answer"]
+    seen["rows_before_confirm"] = stored().get("computation_results") or []
+    _coach_saying(monkeypatch, "Thank you.")
+    ask(action="confirm", message="Confirm")
+    seen["structured"] = stored()
+    r = env.client.get(f"/gate/review/{CASE_ID}/define")
+    assert r.status_code == 200, r.text
+    seen["review"] = r.json()
+    return seen
+
+
+def test_the_savings_calculation_is_taught_and_reads_percent_once(env, monkeypatch, stub_planner) -> None:
+    """DEF-016 — ADR-0077 (founder 2026-10-11), G-151, G-100: the savings calculation is TAUGHT on
+    the turn that opens the benefits analysis — before any figure exists, the coach is told to explain
+    (baseline rate − target rate) × yearly volume × cost of one defect and to ask for the two figures —
+    then run in code once the Belt has given them; the read-back carries the figure and one line on how
+    it was calculated; and "23%", "23" and "0.23" give the same saving (one percent convention)."""
+    from backend.core.prompts import CALCULATION_TEACH
+    from backend.knowledge.computation import calculate_expected_savings
+
+    seen = _walk_the_benefits_analysis(env, monkeypatch, stub_planner)
+    assert CALCULATION_TEACH in seen["teaching"], "the teaching turn does not teach the calculation"
+    assert "Calculated:" not in seen["teaching"], "a figure appeared before the calculation was taught"
+    assert "Calculated: about 68040 a year" in seen["read_back"], seen["read_back"][-300:]
+    assert "(23% baseline − 5% target) × 42000 units/year × 9 per unit" in seen["read_back"], seen["read_back"][-300:]
+    savings = [calculate_expected_savings.invoke({"baseline_value": b, "target_value": t, "unit_cost": "9",
+                                                  "annual_volume": "42000"})["annual_savings"]
+               for b, t in (("23%", "5%"), ("23", "5"), ("0.23", "0.05"))]
+    assert len(set(savings)) == 1 and float(savings[0]) == 68040.0, savings
+
+
+def test_a_calculation_is_recorded_with_its_five_keys(env, monkeypatch, stub_planner) -> None:
+    """DEF-017 — ADR-0077: the calculation code ran is recorded in computation_results with its five
+    keys (tool, inputs, result, turn, phase) the turn the inputs arrive — once, not again on the
+    read-back — reaches the record, and appears in the gate document and the report without the coach
+    retyping the number."""
+    seen = _walk_the_benefits_analysis(env, monkeypatch, stub_planner)
+    rows = seen["after_inputs"]
+    assert len(rows) == 1, f"the calculation was not recorded when its inputs arrived: {rows}"
+    row = rows[0]
+    assert set(row) == {"tool", "inputs", "result", "turn", "phase"}, row
+    assert row["tool"] == "calculate_expected_savings" and row["phase"] == "define"
+    assert row["inputs"] == {"baseline_value": "23.0%", "target_value": "5.0%", "unit_cost": "£9",
+                             "annual_volume": "42,000 invoices"}, row["inputs"]
+    assert row["result"]["annual_savings"] == "68040", row["result"]
+    assert len(seen["rows_before_confirm"]) == 1, "the same calculation was run twice"
+    assert seen["structured"].get("computation_results") == rows, "the row did not survive the Confirm"
+    # the gate document (assembled once every element is confirmed — the rest from the fixture)
+    from backend.phases.gate_registry import GATE_SPECS
+    from backend.tests.test_define_report import COMPLETE
+    doc = GATE_SPECS["define"].assemble({**COMPLETE, **seen["structured"]}, [], [], []).model_dump()
+    assert doc["computation_results"] == rows, doc["computation_results"]
+    savings = seen["review"]["report"]["sections"][1]["savings"]
+    assert savings and savings["result"]["annual_savings"] == "68040", savings
