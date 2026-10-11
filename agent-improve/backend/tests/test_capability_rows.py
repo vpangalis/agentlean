@@ -729,6 +729,10 @@ def test_row_35_every_define_turn_leaves_a_langsmith_trace(turn) -> None:
     if not any("|" in ns for ns in record["spaces"]):
         pytest.skip("the latest turn never reached the coach (no executor ran), so it "
                     "made no model call to trace" + NOT_A_PASS)
+    if _trace_aged_out(record["t0"]):
+        pytest.skip(f"{CASE_ID}'s latest turn ({record['t0']:%Y-%m-%d}) is older than LangSmith's "
+                    f"{TRACE_RETENTION_DAYS}-day trace retention, so its trace no longer exists to read; "
+                    "a traced live turn re-proves the row (G-152)" + NOT_A_PASS)
     called = _tools_called(record)
     client, project, reason = _langsmith()
     runs = None
@@ -736,6 +740,26 @@ def test_row_35_every_define_turn_leaves_a_langsmith_trace(turn) -> None:
         runs = _trace_for(client, project, record)
     problems = _row_35(runs, called, reason)
     assert not problems, "; ".join(problems)
+
+
+#: G-152 — LangSmith keeps a base-tier trace 14 days; an older turn's trace is gone, not missing.
+TRACE_RETENTION_DAYS = 14
+
+
+def _trace_aged_out(t0: dt.datetime, now: dt.datetime | None = None) -> bool:
+    """G-152: row 35 reads a recorded turn's trace; past the retention it cannot exist, and its
+    absence then says nothing about the code — the row skips (NOT a pass) instead of failing."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    stamp = t0 if t0.tzinfo else t0.replace(tzinfo=dt.timezone.utc)
+    return now - stamp > dt.timedelta(days=TRACE_RETENTION_DAYS)
+
+
+def test_g152_a_trace_past_retention_is_not_read_as_missing() -> None:
+    """G-152's control: the retention cut-off, tested without the network."""
+    now = dt.datetime(2026, 10, 11, tzinfo=dt.timezone.utc)
+    assert _trace_aged_out(dt.datetime(2026, 9, 24, tzinfo=dt.timezone.utc), now)
+    assert not _trace_aged_out(dt.datetime(2026, 10, 1, tzinfo=dt.timezone.utc), now)
+    assert _trace_aged_out(dt.datetime(2026, 9, 1), now), "a naive stamp is read as UTC"
 
 
 def _tools_called(record: dict) -> set[str]:

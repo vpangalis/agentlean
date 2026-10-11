@@ -1557,6 +1557,16 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-152",
+   "symptom": "THE FULL SUITE FAILED ON A DATE, NOT ON A CHANGE: capability row 35 reads the LangSmith trace of IMPR-2026-0E5's latest turn (2026-09-25), and on 2026-10-11 that trace was past LangSmith's 14-day base retention, so test_row_35_every_define_turn_leaves_a_langsmith_trace asserted 'the turn left NO LangSmith trace' and every push was refused (founder ruling 4.3 needs a passing full run). The code had not changed: the evidence the row reads had expired. Found 2026-10-11 pushing eae3092.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "backend/tests/test_capability_rows.py _trace_aged_out (TRACE_RETENTION_DAYS = 14): row 35 skips, labelled NOT a pass, when the recorded turn is older than the retention; proved by test_g152_a_trace_past_retention_is_not_read_as_missing."
   }
  ]
 }
