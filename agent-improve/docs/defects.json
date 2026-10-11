@@ -1544,6 +1544,19 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-151",
+   "symptom": "THE COACH CAN NEVER RUN A CALCULATION. Since ADR-0069 a turn offers tools by its type (teaching: lookups, propose_template, load_skill; upload: the evidence tools; answer: none) and no type offers a computation tool, so calculate_expected_savings, bound to the Define executor, is unreachable. Evidence: define_runthrough_20261001T132032 — the benefits analysis was confirmed with the figure the scripted Belt typed ('about £68,000 a year ... from the savings calculation'); computation_results is empty in the final case. Found 2026-10-01 building DEF-016 — Attaches to: ADR-0069, §43.1, §69.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-016"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }
