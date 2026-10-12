@@ -141,10 +141,6 @@ def test_every_node_of_a_turn_is_checkpointed(monkeypatch, stub_planner, stub_co
 
 
 
-def test_a_coherence_rejection_asks_the_coach_again() -> None:
-    """DEF-014 — When coherence rejects a reply, the coach is asked again inside the turn (a new model call), within the latency the founder rules."""
-    _not_written('DEF-014')
-
 
 
 
@@ -3618,6 +3614,8 @@ def test_coherence_judges_the_belts_words(env, monkeypatch, stub_planner) -> Non
     assert "never parroting" in teach and "script" in teach
     assert "REQUIRED" in read_back and "never parroting" in read_back
     assert "never parroting" in store and "Confirm" in store
+    # G-158: a store is not asked to confirm again, and the last element's store asks nothing.
+    assert "must NOT ask the Belt to confirm it again" in store and "with no question, is correct" in store
     assert "Parroting here is repeating the Belt's answer" in challenge
     assert all("ONLY against THE BELT SAID" in t for t in (teach, read_back, store, challenge))
     assert coherence._move_text(None) == ""
@@ -3756,6 +3754,23 @@ def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_
     _askd(env, action="confirm", message="Confirm")
     assert "secondary_metrics" not in _define(env)["structured"], "the sample was stored as the Belt's answer"
     assert _define(env)["field_status"]["secondary_metrics"]["status"] != moves.CONFIRMED
+    # G-159 (run 134606): a sample built only from the Belt's confirmed values (here their goal) quotes
+    # the Belt — an answer matching it is theirs, and a Confirm stores it.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "target_value")
+    env.case.phases["define"].structured["goal_statement"] = \
+        "Reduce the late payment rate from 23% to under 5% by 31 March 2027."
+    own = "Late payment rate: under 5% by 31 March 2027."
+    _coach_with(monkeypatch, "Next: the target.", example=own)
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="a number in the baseline's unit")
+    _coach_with(monkeypatch, f'Your target: "{own}" Is this right?',
+                captured=[{"field_name": "target_value", "value": own, "source": "belt"}])
+    _askd(env, message=own)
+    _coach_with(monkeypatch, "Thank you.")
+    _askd(env, action="confirm", message="Confirm")
+    assert _define(env)["structured"]["target_value"]["value"] == 5.0, "the Belt's own target was refused as a copy"
 
 
 def _page(names: tuple[str, ...], script: str) -> dict:
@@ -4041,3 +4056,86 @@ def test_the_problem_statement_and_the_process_steps_are_linked_both_ways(env, m
                             {"field_name": "problem_5w2h", "value": fivew, "source": "belt"}])
     third = _askd(env, message="It shows when invoices are archived.")
     assert third["move"] == moves.CHALLENGE and "Archive" in third["answer"], third
+
+
+def test_a_coherence_rejection_asks_the_coach_again(env, monkeypatch, stub_planner) -> None:
+    """DEF-014 — founder ruling 2026-10-12, through the routes and graph: when coherence rejects a
+    teaching turn's reply, the coach is asked once more (a second model call, the rejection's reason as
+    quality feedback — never as the Belt's message), the second reply is not re-checked and is what the
+    Belt reads, and step_log's one layer-2a record says so. An answer turn keeps its single call — no
+    re-ask; and a turn without the time left to answer again inside 45 s sends the first reply, recorded
+    "coherence rejected, no re-ask (time)"."""
+    from langchain_core.messages import AIMessage
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.gateway import routes
+    from backend.middleware.coherence import CoherenceMiddleware
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+    from backend.validation.schemas import CoherenceResult
+
+    checks: list[str] = []
+
+    async def reject(self, belt: str, coach: str) -> CoherenceResult:
+        checks.append(coach)
+        return CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False, on_topic=True,
+                               reason="the reply never asks the Belt anything.")
+    monkeypatch.setattr(CoherenceMiddleware, "_check", reject)
+    seen: list[list] = []
+    real_llm = nodes_common.get_llm
+    generate = _FakeCoach._generate
+
+    def coach_twice(first: str, second: str) -> None:
+        def call(text: str, n: int) -> AIMessage:
+            return AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "id": f"call_014_{n}",
+                                                      "args": {**REPLY, "message": text}}])
+        fake = _FakeCoach(messages=iter([call(first, 1), call(second, 2)]))
+
+        def spy(self, messages, *a, **k):
+            seen.append(list(messages))
+            return generate(self, messages, *a, **k)
+        monkeypatch.setattr(_FakeCoach, "_generate", spy)
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: fake if role == "coach" else real_llm(role, **kw))
+    steps: list = []
+    monkeypatch.setattr(nodes_common, "_step", _recording(nodes_common._step, steps))
+
+    # 1. A teaching turn: rejected, asked again, the second reply reaches the Belt.
+    _at_element(env, "secondary_metrics")
+    coach_twice("Secondary metrics are what else might change.", "Secondary metrics are what else might "
+                "change when the fix works. What will you watch?")
+    r = _askd(env, message="Next, please.")
+    assert len(seen) == 2, "the coach was not asked again"
+    assert len(checks) == 1, "the second reply was re-checked"
+    assert "What will you watch?" in r["answer"], r["answer"]
+    feedback = seen[1][-1]
+    assert feedback.type == "system" and "not from the Belt" in str(feedback.content), feedback
+    assert not any(getattr(m, "type", "") == "human" and "QUALITY FEEDBACK" in str(m.content) for m in seen[1])
+    record = [s for s in steps if s.get("layer") == "coherence"]
+    assert len(record) == 1 and record[0]["reask"].startswith("asked again"), record
+    hist = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
+    assert not any("QUALITY FEEDBACK" in str(t.get("text") or "") for t in hist), "the feedback reached the conversation"
+
+    # 2. An answer turn: its single call, no re-ask.
+    for log in (seen, checks, steps):
+        log.clear()
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="names no side effect")
+    coach_twice("That names no side effect yet.", "SHOULD NOT BE SEEN")
+    r = _askd(env, message="We will watch things.")
+    assert len(seen) == 1 and "SHOULD NOT BE SEEN" not in r["answer"], r["answer"]
+    assert [s for s in steps if s.get("layer") == "coherence"][0]["reask"] == \
+        "coherence rejected, no re-ask (answer turn)"
+
+    # 3. No time left inside 45 s: the first reply goes out, and step_log says why.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "secondary_metrics")
+    for log in (seen, checks, steps):
+        log.clear()
+    config = routes._graph_config
+    monkeypatch.setattr(routes, "_graph_config", lambda *a, **k: (lambda c: (
+        c["configurable"].update(turn_started=c["configurable"]["turn_started"] - 44.0), c)[1])(config(*a, **k)))
+    coach_twice("Secondary metrics are what else might change.", "SHOULD NOT BE SEEN")
+    r = _askd(env, message="Next, please.")
+    assert len(seen) == 1 and "SHOULD NOT BE SEEN" not in r["answer"], r["answer"]
+    assert [s for s in steps if s.get("layer") == "coherence"][0]["reask"] == \
+        "coherence rejected, no re-ask (time)"

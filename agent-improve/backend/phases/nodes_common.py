@@ -48,6 +48,7 @@ import contextvars
 import json
 import logging
 import re
+import time
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
 from langchain.agents import create_agent
@@ -57,7 +58,7 @@ from langchain.agents.middleware import (
     SummarizationMiddleware,
     ToolRetryMiddleware,
 )
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from backend.core.tracing import child_span
 from langgraph.errors import GraphRecursionError
@@ -1039,6 +1040,7 @@ def _build_executor(
     coherence_log: Optional[list[dict[str, Any]]] = None,
     coach_limit: int = TURN_MODEL_CALLS - AFTER_AGENT_CALLS,
     turn_type: str = turn_tools.TEACHING,
+    reask: Optional[dict[str, Any]] = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
@@ -1089,6 +1091,7 @@ def _build_executor(
         phase, focus_field=plan.focus_field if plan else None,
         on_verdict=coherence_log.append if coherence_log is not None else None,
         move=plan.move if plan else None,       # G-155 / DEF-013
+        reask=reask,                            # DEF-014
     )
     agent = create_agent(
         model=get_llm("coach", max_tokens=1500),
@@ -2155,10 +2158,18 @@ async def executor(
     script_log: list[dict[str, Any]] = []
     # G-96 — layer 2a's verdicts, a rejection with its reason, for step_log.
     coherence_log: list[dict[str, Any]] = []
+    # DEF-014 (founder ruling 2026-10-12): the terms of one re-ask after a coherence rejection — never on
+    # an answer turn (ADR-0069's single call), within the coach's share (T69), inside the turn's 45 s
+    # (R13) and the node's own wall (T70).
+    started = time.time()
+    turn_started = ((config or {}).get("configurable") or {}).get("turn_started")
+    reask = {"allowed": calls_before == 0, "coach_limit": coach_limit, "started": started,
+             "deadline": (float(turn_started) + 45.0) if turn_started else None,
+             "wall": started + EXECUTOR_RUN_TIMEOUT}
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
         script_log=script_log, coherence_log=coherence_log, coach_limit=coach_limit,
-        turn_type=turn_type,
+        turn_type=turn_type, reask=reask,
     )
     # ── the planner's named call, executed before the model runs ──────
     # §17, step 6.21, option C. `prior` is what the agent is invoked with;
@@ -2282,6 +2293,9 @@ async def executor(
     # `messages` reduces with `operator.add`, so returning more than the tail
     # would duplicate the exchange on every turn.
     new_messages = produced[len(history):]
+    # DEF-014: the re-ask's quality feedback was for the coach this turn only — never kept in the
+    # conversation, where a later turn would read it (it is in step_log).
+    new_messages = [m for m in new_messages if not isinstance(m, SystemMessage)]
 
     # 6.57 — what the model wrote in `progress`, kept before the executor
     # writes the computed step over it (below, after the capture merge).
@@ -2413,8 +2427,10 @@ async def executor(
     # C3 (DEF-083): nor is a sample the coach showed — this turn's, or the one the Belt is answering.
     from backend.middleware.skills import matches_sample
     sample = _previous_sample(state)
+    # G-159: the Belt's confirmed values — a sample built only from them quotes the Belt.
+    belt_own = {k: v for k, v in prior_artifacts.items() if k != "computation_results"}
     example_refused = sorted(f for f, v in kept.items()
-                             if example_match(v, phase) or (sample and matches_sample(v, sample)))
+                             if example_match(v, phase) or (sample and matches_sample(v, sample, belt_own)))
     if example_refused:
         kept = {f: v for f, v in kept.items() if f not in example_refused}
         logger.warning(
@@ -2460,7 +2476,7 @@ async def executor(
         # is the Belt's own typed words (a plain-text answer stores those). Left out, the Confirm
         # cannot complete the element, and the Belt is asked for their own answer.
         shown = _previous_sample(state)
-        copied = sorted(f for f, v in store.items() if shown and matches_sample(v, shown))
+        copied = sorted(f for f, v in store.items() if shown and matches_sample(v, shown, belt_own))
         if copied:
             store = {f: v for f, v in store.items() if f not in copied}
             logger.warning("%s.executor: C3 — the answer to `%s` reproduces the sample the Belt was "

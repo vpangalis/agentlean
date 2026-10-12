@@ -1,9 +1,9 @@
 {
- "source_hash": "cb599d758a63b21b",
- "commit": "5b7b321",
- "commit_matches_source": true,
+ "source_hash": "4b424c9f2a7763f8",
+ "commit": "c482dea",
+ "commit_matches_source": false,
  "full_run_hash": "5dcda834e1848611",
- "recorded_at": "2026-10-12T13:00:34+00:00",
+ "recorded_at": "2026-10-12T14:25:46+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -413,7 +413,7 @@
   "backend/tests/test_defects.py::test_ids_are_unique_and_none_was_lost_in_the_move": "passed",
   "backend/tests/test_defects.py::test_the_feature_links_agree_with_the_feature_list_both_ways": "passed",
   "backend/tests/test_define_e2e.py::test_a_calculation_is_recorded_with_its_five_keys": "passed",
-  "backend/tests/test_define_e2e.py::test_a_coherence_rejection_asks_the_coach_again": "skipped",
+  "backend/tests/test_define_e2e.py::test_a_coherence_rejection_asks_the_coach_again": "passed",
   "backend/tests/test_define_e2e.py::test_a_confirmed_field_can_be_revised": "passed",
   "backend/tests/test_define_e2e.py::test_a_contradiction_stops_in_a_node_and_resumes": "skipped",
   "backend/tests/test_define_e2e.py::test_a_correction_keeps_the_belts_reason": "passed",

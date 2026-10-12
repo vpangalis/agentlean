@@ -639,7 +639,8 @@
      "12"
     ],
     "gaps": [
-     "G-104"
+     "G-104",
+     "G-158"
     ]
    },
    "requirement": "R1",
@@ -3537,7 +3538,10 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-159",
+     "G-160"
+    ]
    },
    "requirement": "C3",
    "belt_impact": "degraded",

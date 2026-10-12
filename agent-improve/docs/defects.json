@@ -1632,6 +1632,45 @@
    "lane": [
     "integrator"
    ]
+  },
+  {
+   "id": "G-158",
+   "symptom": "A STORE TURN IS REJECTED FOR NOT ASKING THE BELT TO CONFIRM AGAIN, AND THE RE-ASK THEN WRITES THAT QUESTION IN. Run 132229 (DEF-014 on the staged source): the coherence judge rejected three store-and-advance turns — 29 'no confirmation question or read back of what the Belt will watch' (the reply taught secondary metrics and asked for them), 33 'does not specifically mention the stored value', 35 (the last element: nothing left to ask) 'no confirmation question or follow-up'. DEF-014's re-ask passed the reason on, and at turn 33 the coach's second reply asked 'The SIPOC map has been stored. Does it accurately reflect what you intended?' instead of teaching issues and barriers. DEF-013's run test failed: 3 restating turns rejected, at most 2 allowed. The judge's store-move text says what the coach does, not what it must not be asked for: no second confirmation of a value already confirmed, the element's name enough to say what was stored, and no next element after the last one.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-014"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-159",
+   "symptom": "THE BELT'S OWN TARGET IS REFUSED AS A COPY OF THE SAMPLE, BECAUSE THE COACH BUILT THE SAMPLE FROM THE BELT'S GOAL. Run 134606 (IMPR-2026-252), turns 20-23: teaching the target, the coach showed 'Sample only … \"Late payment rate: under 5%.\"' — built from the Belt's confirmed goal 'Reduce the late payment rate from 23% to under 5% by 31 March 2027.' The Belt answered 'Late payment rate: under 5% of supplier invoices.'; C3's copied-sample check (DEF-083) matched it to the sample and left it out of the read-back's store, the read-back still offered Confirm, and the Confirm stored nothing ('Nothing was stored for Target yet'). The next turn read the same words back and stored them, since only the latest sample is compared. DEF-008's run test failed: a Confirm click that did not store.",
+   "requirement": [
+    "C3"
+   ],
+   "feature": [
+    "DEF-083"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-160",
+   "symptom": "WHEN C3 REFUSES A COPIED SAMPLE, THE READ-BACK STILL OFFERS A CONFIRM THAT CANNOT STORE, AND SAYS NOTHING. Seen in G-159's run 134606, turn 21: the copied value was left out of the pending store, but the read-back went ahead with its Confirm and no word to the Belt that the answer matched the sample; the Confirm then said 'the read-back did not include the target value'. DEF-083's design says the Belt is asked for their own answer. Registered with G-159; fixed in its own package.",
+   "requirement": [
+    "C3"
+   ],
+   "feature": [
+    "DEF-083"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

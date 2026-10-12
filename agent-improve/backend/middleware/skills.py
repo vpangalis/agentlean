@@ -199,11 +199,17 @@ def worked_examples(phase: str) -> tuple[str, ...]:
     return tuple(n for n in (_norm(r) for r in raw) if len(n) >= EXAMPLE_MIN_CHARS)
 
 
-def matches_sample(value: Any, sample: str) -> bool:
+def matches_sample(value: Any, sample: str, belt: Any = None) -> bool:
     """C3 (DEF-083): does `value` reproduce `sample` — a sample the coach showed, built from the
-    case — by the same test `example_match` applies to the script's worked examples (§22)?"""
+    case — by the same test `example_match` applies to the script's worked examples (§22)?
+
+    G-159: a sample every word of which is already in `belt` — the Belt's own confirmed values —
+    quotes the Belt, so an answer matching it is the Belt's, not a copy."""
     v, s = _norm(_flatten(value)), _norm(sample or "")
     if len(v) < EXAMPLE_MIN_CHARS or len(s) < EXAMPLE_MIN_CHARS:
+        return False
+    own = set(_norm(_flatten(belt)).split())
+    if own and set(s.split()) <= own:
         return False
     return s in v or v in s or SequenceMatcher(None, v.split(), s.split(),
                                                autojunk=False).ratio() >= EXAMPLE_MATCH_RATIO

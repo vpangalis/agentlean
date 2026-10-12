@@ -606,6 +606,8 @@ def _graph_config(case: CaseDocument, phase: str, user: str, entry: str) -> dict
             "thread_id": case.case_id,
             "entry": entry,
             "current_user": user,
+            # DEF-014 (founder 2026-10-12): when the turn started — a re-ask must fit inside R13's 45 s.
+            "turn_started": time.time(),
             "case_metadata": {
                 "title": case.title,
                 "belt_level": case.belt_level,

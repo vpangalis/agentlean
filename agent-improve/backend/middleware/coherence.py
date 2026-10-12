@@ -49,7 +49,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from langchain.agents.middleware import AgentMiddleware
+from langchain.agents.middleware import AgentMiddleware, hook_config
 
 from backend.core.llm import get_llm
 from backend.middleware.skills import CONFIRM, script_step
@@ -161,6 +161,7 @@ class CoherenceMiddleware(AgentMiddleware):
         focus_field: str | None = None,
         on_verdict: Callable[[dict[str, Any]], None] | None = None,
         move: str | None = None,
+        reask: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.phase = phase
@@ -169,6 +170,13 @@ class CoherenceMiddleware(AgentMiddleware):
         self.focus_field = focus_field
         #: G-155 / DEF-013 — the move code decided; the judge reads "parroting" against it.
         self.move = move
+        #: DEF-014 (founder ruling 2026-10-12) — the re-ask's terms for this turn, set by the executor:
+        #: `allowed` (not an answer turn), `coach_limit` (the coach's share of the turn's calls),
+        #: `deadline` (the turn's 45 s, epoch seconds) and `wall` (the node's own limit, epoch seconds).
+        #: None: no re-ask (a stack built without the executor).
+        self.reask = reask
+        #: Set when the coach has been asked again this turn; its second reply is not re-checked.
+        self.reasked = False
         #: G-96 — each verdict, handed to the node that owns `step_log`; the
         #: grader's `on_evaluation` is the same shape (S-C14 B6).
         self.on_verdict = on_verdict
@@ -178,10 +186,16 @@ class CoherenceMiddleware(AgentMiddleware):
         self.last: CoherenceResult | None = None
         self.step: dict[str, Any] | None = None
 
+    @hook_config(can_jump_to=["model"])
     async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
         """B1-B3. Async, because §1.4 makes the agent loop async."""
         coach_text = self._coach_text(state)
         if not coach_text:
+            return None
+        if self.reasked:
+            # DEF-014 — the coach's second reply is not re-checked (founder ruling 2026-10-12); the grader
+            # stays down for it, as it did for the first (self.degraded is still set). The turn's one
+            # layer-2a record already says so.
             return None
 
         belt_text = self._belt_text(state)
@@ -227,7 +241,21 @@ class CoherenceMiddleware(AgentMiddleware):
         # B3 — degrade, and tell position 8 to stand down. The grader reads
         # `self.degraded` directly; see SKIP_GRADER_KEY.
         self.degraded = True
-        self._record(result)
+        # DEF-014 (founder ruling 2026-10-12): ask the coach once more — not on an answer turn (its one
+        # call, ADR-0069), only within the coach's share of the turn's calls (T69), and only if the time
+        # left allows a second reply inside 45 s; otherwise the first reply goes out. The turn's one
+        # layer-2a record says which.
+        why_not = self._why_no_reask(state)
+        self._record(result, reask=("asked again — the second reply is not re-checked" if why_not is None
+                                    else f"coherence rejected, no re-ask ({why_not})"))
+        if why_not is None:
+            from langchain_core.messages import SystemMessage
+
+            from backend.core.prompts import COHERENCE_REASK
+            self.reasked = True
+            logger.info("%s.coherence: the coach is asked once more (DEF-014)", self.phase)
+            return {"jump_to": "model", "messages": [SystemMessage(
+                content=COHERENCE_REASK.format(reason=result.reason or "it did not hold together."))]}
         logger.warning(
             "%s.coherence: reply rejected; degrading the turn and SKIPPING the "
             "grader — grading a response already known to be incoherent spends "
@@ -235,6 +263,37 @@ class CoherenceMiddleware(AgentMiddleware):
             self.phase,
         )
         return None
+
+    #: DEF-014 — what closing the turn needs after the agent: kept free of a re-ask.
+    REASK_RESERVE_S = 3.0
+
+    def _why_no_reask(self, state: Any) -> str | None:
+        """None when the coach may be asked once more; else the reason step_log records."""
+        import time
+        terms = self.reask or {}
+        if not terms.get("allowed"):
+            return "answer turn" if self.reask is not None else "not configured"
+        made = self._coach_calls(state)
+        if made >= int(terms.get("coach_limit") or 0):
+            return "call budget"
+        started = float(terms.get("started") or time.time())
+        now = time.time()
+        # The second reply is estimated to take as long as the first did with its check.
+        needed = (now - started) + self.REASK_RESERVE_S
+        limit = min(float(terms.get("deadline") or now + 45.0), float(terms.get("wall") or now + 40.0))
+        return "time" if now + needed > limit else None
+
+    @staticmethod
+    def _coach_calls(state: Any) -> int:
+        """The coach's model calls this turn: its AI messages after the Belt's last message."""
+        messages = (state or {}).get("messages") if isinstance(state, dict) else []
+        n = 0
+        for message in reversed(list(messages or [])):
+            kind = str(getattr(message, "type", ""))
+            if kind == "human":
+                break
+            n += kind == "ai"
+        return n
 
     def after_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
         """Sync entry point. The check is a model call, so there is no
@@ -253,7 +312,7 @@ class CoherenceMiddleware(AgentMiddleware):
                                 belt=belt[:2000], coach=coach[:4000])
         return CoherenceResult.model_validate(await model.ainvoke(prompt))
 
-    def _record(self, result: CoherenceResult) -> None:
+    def _record(self, result: CoherenceResult, reask: str | None = None) -> None:
         """G-96 — every verdict to `step_log`, a rejection with its reason.
 
         Before this a rejection's reason reached a log line only, so a
@@ -271,6 +330,7 @@ class CoherenceMiddleware(AgentMiddleware):
             "grader_skipped": self.degraded,
             "attempts": self.attempts,
             "script_step": {k: step.get(k) for k in ("position", "field", "step")},
+            **({"reask": reask} if reask else {}),          # DEF-014
         })
 
     # ── reading the turn ─────────────────────────────────────────────────

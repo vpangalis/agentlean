@@ -1734,6 +1734,12 @@ SAMPLE_FROM_CASE = ("SAMPLE: in `example`, write a short sample answer for this 
                     "— the form of a good answer, made relevant to this case. Never present it as the "
                     "Belt's answer and never capture it; it is marked as a sample in code.")
 
+#: DEF-014 (founder ruling 2026-10-12) — the coach asked once more after a coherence rejection. Quality
+#: feedback to the coach, never presented as the Belt's message (§21).
+COHERENCE_REASK = ("QUALITY FEEDBACK — from the system, not from the Belt. Your reply was not accepted: "
+                   "{reason} Write the reply again for the same move, fixing exactly that; keep everything "
+                   "else the move asks for, and return it in the same structured form.")
+
 #: G-155 / DEF-013 — the coherence judge is told the move code decided for the turn, so "parroting" is
 #: judged against what the move requires: a read-back must restate the Belt's value, a store must name
 #: it, a teaching turn quotes the script. Parroting is judged ONLY against the Belt's own latest words.
@@ -1750,7 +1756,11 @@ COHERENCE_MOVES: dict[str, str] = {
                   "2 only on whether the reply asks the Belt to confirm or correct it."),
     "store_and_advance": ("The Belt has just confirmed a value (their message is a Confirm click or a plain "
                           "yes). The coach says what was stored — the Belt's earlier value — and teaches the "
-                          "next element. Naming the stored value is required and is never parroting."),
+                          "next element. Naming the stored value is required and is never parroting. G-158: "
+                          "the value is ALREADY confirmed — the reply must NOT ask the Belt to confirm it again; "
+                          "its question is the next element's. Naming the element stored is enough to say what "
+                          "was stored. After the last element there is no next one: saying Define is complete "
+                          "and what happens next, with no question, is correct."),
     "challenge": ("The coach says what the Belt's answer still lacks. Parroting here is repeating the Belt's "
                   "answer back without naming what is missing."),
     "respond": ("The Belt asked something that is not an answer; the coach answers it and asks again. "
