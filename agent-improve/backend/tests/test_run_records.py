@@ -33,6 +33,16 @@ def test_g153_a_call_cut_off_at_its_token_limit_is_counted_per_run() -> None:
     assert '"cut_offs": cut_offs(CALLS)' in src, "the run's summary does not carry the count"
 
 
+def test_g153_a_run_with_more_than_one_cut_off_fails() -> None:
+    """Founder ruling 2026-10-12: strict output was probed and refused, so a cut-off reply stays answered
+    in code — and a run with more than one cut-off fails (exit 5)."""
+    ok = {"cost": {"within_ceiling": True}}
+    assert define_runthrough.CUT_OFF_LIMIT == 1
+    assert define_runthrough.exit_code({**ok, "cut_offs": {"count": 1, "calls": []}}, []) == 0
+    assert define_runthrough.exit_code({**ok, "cut_offs": {"count": 2, "calls": []}}, []) == 5
+    assert define_runthrough.exit_code(ok, []) == 0
+
+
 def test_a_failed_run_is_kept_marked_and_never_read_as_the_latest(tmp_path) -> None:
     good, bad = "20261011T155414", "20261011T152731"
     for stamp in (good, bad):

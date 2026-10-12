@@ -1,9 +1,9 @@
 {
- "source_hash": "e971feb8303bf7aa",
- "commit": "016e358",
+ "source_hash": "93588be937aaeb07",
+ "commit": "da40c8b",
  "commit_matches_source": false,
  "full_run_hash": "5dcda834e1848611",
- "recorded_at": "2026-10-11T16:39:56+00:00",
+ "recorded_at": "2026-10-12T07:26:45+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1450,6 +1450,7 @@
   "backend/tests/test_run_cost.py::test_the_price_file_is_dated_sourced_and_prices_every_model_the_runs_used": "passed",
   "backend/tests/test_run_records.py::test_a_failed_run_is_kept_marked_and_never_read_as_the_latest": "passed",
   "backend/tests/test_run_records.py::test_g153_a_call_cut_off_at_its_token_limit_is_counted_per_run": "passed",
+  "backend/tests/test_run_records.py::test_g153_a_run_with_more_than_one_cut_off_fails": "passed",
   "backend/tests/test_runthrough_tokens.py::test_each_call_records_its_tokens_and_the_run_totals_them": "passed",
   "backend/tests/test_session_start.py::test_the_session_start_hook_prints_every_section": "passed",
   "backend/tests/test_size_budget.py::test_an_unbudgeted_file_is_never_measured": "passed",

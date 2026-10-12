@@ -420,9 +420,15 @@ def cut_offs(calls: list[dict[str, Any]]) -> dict[str, Any]:
     return {"count": len(cut), "calls": cut}
 
 
+#: G-153 (founder ruling 2026-10-12): a cut-off coach reply is answered in code, permanently; a run
+#: with more than this many cut-offs fails.
+CUT_OFF_LIMIT = 1
+
+
 def exit_code(summary: dict[str, Any], sends: list[Any]) -> int:
     """0 when the run passed; 3 when anything reached LangSmith; 4 when the run cost more than
-    R12's ceiling (or could not be priced) — the acceptance test fails."""
+    R12's ceiling (or could not be priced); 5 when more than CUT_OFF_LIMIT model calls were cut
+    off at their token limit (G-153) — the acceptance test fails."""
     if sends:
         return 3
     cost = summary.get("cost") or {}
@@ -430,6 +436,10 @@ def exit_code(summary: dict[str, Any], sends: list[Any]) -> int:
         why = cost.get("error") or "USD {} over the ceiling of USD {}".format(cost.get("usd"), cost.get("ceiling_usd"))
         print(f"R12 COST CEILING: {why} — the run fails")
         return 4
+    cut = int((summary.get("cut_offs") or {}).get("count") or 0)
+    if cut > CUT_OFF_LIMIT:
+        print(f"G-153 CUT-OFFS: {cut} model calls stopped at their token limit (limit {CUT_OFF_LIMIT}) — the run fails")
+        return 5
     return 0
 
 

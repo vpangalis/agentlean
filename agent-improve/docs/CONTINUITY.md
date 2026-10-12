@@ -15,7 +15,7 @@
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
-| **Block regenerated** | 2026-10-11 |
+| **Block regenerated** | 2026-10-12 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.

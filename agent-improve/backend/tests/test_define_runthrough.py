@@ -78,6 +78,9 @@ def test_define_run_through(run) -> None:
     assert s["model_calls"] <= 150, s["model_calls"]
     assert s["langsmith_sends"] == 0
     assert s.get("stopped") == "done", f"the walk stopped: {s.get('stopped')} (stuck at {s.get('stuck_at')})"
+    # G-153 (founder ruling 2026-10-12): a cut-off reply is answered in code; more than one a run fails.
+    assert "cut_offs" in s, "the record does not count its cut-off calls (G-153)"
+    assert s["cut_offs"]["count"] <= 1, f"{s['cut_offs']['count']} calls cut off at their token limit: {s['cut_offs']}"
     missing = [f for f in ORDER if not _structured(run).get(f)]
     assert not missing, f"not stored: {missing}"
 
