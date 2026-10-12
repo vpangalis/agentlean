@@ -2463,6 +2463,7 @@ async def executor(
     # what a confirmation will store, and nothing reaches `artifacts` now.
     carried: dict[str, Any] = {}
     link: Optional[str] = None
+    copied: list[str] = []
     if move == moves.READ_BACK and pending is not None:
         # G-118 (DEF-157) — a part of the element this read-back lacks but an earlier read-back of
         # it carried (the CTQs, after a Change) is carried into it, shown to the Belt below, and
@@ -2473,8 +2474,8 @@ async def executor(
         kept = {**kept, **carried}
         store = moves.pending_store(phase, pending, kept, prior_artifacts)
         # C3 (DEF-083): what a Confirm would store is never the sample the Belt was shown — even when it
-        # is the Belt's own typed words (a plain-text answer stores those). Left out, the Confirm
-        # cannot complete the element, and the Belt is asked for their own answer.
+        # is the Belt's own typed words (a plain-text answer stores those). G-160: no read-back is then
+        # offered (a Confirm could not store it); the Belt is told why and asked for their own answer.
         shown = _previous_sample(state)
         copied = sorted(f for f, v in store.items() if shown and matches_sample(v, shown, belt_own))
         if copied:
@@ -2518,7 +2519,17 @@ async def executor(
     # Belt's words kept. Answered again with the same mismatch, the read-back goes ahead and says so.
     focus_before = dict((state.get("field_status") or {}).get(plan.focus_field) or {}) \
         if plan is not None and plan.focus_field else {}
-    link_challenge = bool(link and not resend and not focus_before.get("link_raised")
+    # G-160 (C3, DEF-083): an answer that reproduces the sample is not read back for a Confirm that could
+    # not store it — the element stays asked, the Belt's words kept, and the reply says why (below).
+    sample_challenge = bool(copied and not resend and move == moves.READ_BACK and pending is not None
+                            and plan and plan.focus_field)
+    if sample_challenge and plan is not None and plan.focus_field and pending is not None:
+        field_status[plan.focus_field] = {
+            "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
+            "messages": int(pending.get("messages") or 1),
+            **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
+            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
+    link_challenge = bool(link and not resend and not sample_challenge and not focus_before.get("link_raised")
                           and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
     if link_challenge and plan is not None and plan.focus_field and pending is not None:
         field_status[plan.focus_field] = {
@@ -2528,7 +2539,8 @@ async def executor(
             **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
         logger.info("%s.executor: R18 — the read-back of `%s` is raised as a challenge: %s",
                     phase, plan.focus_field, link)
-    elif not resend and move == moves.READ_BACK and pending is not None and plan and plan.focus_field:
+    elif (not resend and not sample_challenge and move == moves.READ_BACK and pending is not None
+          and plan and plan.focus_field):
         field_status[plan.focus_field] = {**field_status.get(plan.focus_field, {}),
                                           "status": moves.ANSWERED, "pending": pending}
 
@@ -2612,6 +2624,13 @@ async def executor(
         if reply is not None:
             reply = reply.model_copy(update={"message": FALLBACK_RESEND, "explanation": "",
                                              "example": "", "prompt": ""})
+    elif sample_challenge and plan is not None:
+        # G-160 — the reason, written in code; no read-back is offered this turn.
+        from backend.core.prompts import SAMPLE_COPIED
+        said = SAMPLE_COPIED.format(element=guard_messages.element_name(phase, plan.focus_field or ""))
+        new_messages = _with_text(new_messages, said)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": said, "explanation": "", "example": "", "prompt": ""})
     elif link_challenge and link:
         # ADR-0078 point 5 — the challenge, written in code; no read-back is offered this turn.
         from backend.core.prompts import LINK_CHALLENGE
@@ -2632,11 +2651,14 @@ async def executor(
     # a message from the Belt. Attached even when the turn degraded, so a
     # confirmed value the plan stored is not taught again.
     record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND)
-                          and not resend and not link_challenge else None, kept)
+                          and not resend and not link_challenge and not sample_challenge else None, kept)
     if resend and record is not None:
         # G-140 — no read-back is offered, so the screen draws no Confirm (it draws one only under
         # a `read_back` move); `resend` says why.
         record.update({"move": moves.RESPOND, "pending": None, "resend": True})
+    if sample_challenge and record is not None:
+        # G-160 — a challenge, not a read-back: no Confirm is drawn; `sample_copied` says why.
+        record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "sample_copied": copied})
     if link_challenge and record is not None:
         # ADR-0078 point 5 — a challenge, not a read-back: no Confirm is drawn; `link` says why.
         record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "link": link})

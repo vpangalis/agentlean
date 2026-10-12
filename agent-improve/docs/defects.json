@@ -1697,6 +1697,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-163",
+   "symptom": "A READ-BACK WHOSE STORE LACKS A FIELD STILL OFFERS A CONFIRM, AND THE BELT LEARNS ONLY AFTER CLICKING IT THAT NOTHING WAS STORED. Found by the silent-refusal audit (founder ruling 2026-10-12, quality stop item 1). The pending store of a read-back can lack a field of the element when: a baseline or target carries no number (ADR-0071) or the baseline no unit (G-135); a SIPOC does not parse to its six columns (G-121); a structured capture is refused as malformed, empty or a copied worked example (§22). The read-back is shown with a Confirm; the Confirm stores nothing and says so ('Nothing was stored for … yet'), then reads back again — the click is wasted and the reason comes late. Only two causes are guarded: a code-written read-back (G-140, founder ruling 1, 2026-09-30: the Belt is asked to send the answer again) and a copied sample (G-160). Proposed: one rule for every read-back — a store lacking a field of the element is not offered for a Confirm; the reply, written in code, names what is missing. Not fixed: it widens G-140's ruled scope.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-008"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

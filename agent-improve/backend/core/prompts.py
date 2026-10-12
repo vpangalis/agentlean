@@ -1733,6 +1733,10 @@ SAMPLE_FROM_CASE = ("SAMPLE: in `example`, write a short sample answer for this 
                     "project's own confirmed facts in section 3 (its business case and problem statement) "
                     "— the form of a good answer, made relevant to this case. Never present it as the "
                     "Belt's answer and never capture it; it is marked as a sample in code.")
+#: G-160 (C3, DEF-083) — written in code when an answer reproduces the sample the Belt was shown: it is not
+#: read back for a Confirm (which could not store it); the Belt is told why and asked for their own.
+SAMPLE_COPIED = ("Not stored: your answer for {element} matches the sample I showed, which only shows the form "
+                 "of a good answer. Please give your own answer, for your own process.")
 
 #: DEF-014 (founder ruling 2026-10-12) — the coach asked once more after a coherence rejection. Quality
 #: feedback to the coach, never presented as the Belt's message (§21).

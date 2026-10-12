@@ -3745,16 +3745,18 @@ def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_
     later = _askd(env, message="Next, please.")
     assert SAMPLE_FROM_CASE in composed[-1], composed[-1][-600:]
     assert later["example"] == f"{SAMPLE_MARK}\n{sample}", later["example"]
-    # The Belt copies the sample: it is read back, but a Confirm stores nothing of it.
+    # The Belt copies the sample: it is never stored, and (G-160) never read back for a Confirm that could
+    # not store it — the Belt is told why, in code, and asked for their own answer; the element stays asked.
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names side effects")
     copied = "supplier queries per week, and AP overtime hours each month"
     _coach_with(monkeypatch, f'Your secondary metrics: "{copied}". Is this right?',
                 captured=[{"field_name": "secondary_metrics", "value": sample, "source": "belt"}])
-    _askd(env, message=sample)
-    _coach_with(monkeypatch, "Thank you.")
-    _askd(env, action="confirm", message="Confirm")
+    told = _askd(env, message=sample)
+    assert told["move"] == moves.CHALLENGE, "a read-back with a Confirm was offered for the copied sample"
+    assert told["answer"].startswith("Not stored: your answer for") and "matches the sample" in told["answer"], told["answer"]
+    status = _define(env)["field_status"]["secondary_metrics"]
+    assert status["status"] == moves.ASKED and not status.get("pending") and status["answer"] == sample, status
     assert "secondary_metrics" not in _define(env)["structured"], "the sample was stored as the Belt's answer"
-    assert _define(env)["field_status"]["secondary_metrics"]["status"] != moves.CONFIRMED
     # G-159 (run 134606): a sample built only from the Belt's confirmed values (here their goal) quotes
     # the Belt — an answer matching it is theirs, and a Confirm stores it.
     env.holder["saver"]._container.blobs.clear()
