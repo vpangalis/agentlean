@@ -141,6 +141,14 @@ def _stored(artifacts: dict[str, Any], field: str) -> bool:
     return not is_empty_capture(artifacts.get(field))
 
 
+def store_missing(fields: Any, artifacts: dict[str, Any], store: dict[str, Any]) -> list[str]:
+    """G-163 — the ONE test of whether a read-back can complete its position: the fields a Confirm of
+    `store` would still leave unstored, given what `artifacts` already holds. The Confirm refuses on it
+    (below) and the executor never offers a Confirm on it (`nodes_common`), so the two cannot disagree."""
+    merged = {**artifacts, **store}
+    return [f for f in fields if not _stored(merged, f)]
+
+
 def focus(phase: str, artifacts: dict[str, Any]) -> Optional[tuple[str, tuple[str, ...]]]:
     """The first position not yet confirmed, or `None` when all are."""
     for field, fields in positions(phase):
@@ -430,12 +438,12 @@ async def decide(phase: str, artifacts: dict[str, Any],
     if pending and (action == CONFIRM_CLICK or (action is None and is_confirmation(belt))):
         store = dict(pending.get("store") or {})
         merged = {**artifacts, **store}
-        if not all(_stored(merged, f) for f in fields):
+        if store_missing(fields, artifacts, store):
             # A yes to a read-back that cannot complete the position (a
             # structure refused): nothing is stored, the read-back is made again.
             # DEF-029 / G-117: the reason names what was missing, so the coach's next read-back
             # carries it and the executor tells the Belt, in code, that nothing was stored.
-            missing = [f for f in fields if not _stored(merged, f)]
+            missing = store_missing(fields, artifacts, store)
             # ADR-0072 — a refused Confirm is a failed attempt; the third brings the offer.
             tries = int(entry.get("attempts") or 0) + 1
             if tries >= PARK_AFTER:

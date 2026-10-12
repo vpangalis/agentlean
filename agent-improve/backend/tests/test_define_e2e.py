@@ -2208,17 +2208,17 @@ def test_g121_a_structured_element_is_never_confirmed_as_prose(env, monkeypatch)
     def stored():
         return (env.client.get(f"/cases/{CASE_ID}").json().get("phases") or {}).get("define", {}).get("structured") or {}
 
-    # 1 — four columns: the read-back offers prose; Confirm stores nothing and asks for the two missing.
+    # 1 — four columns: G-163 (founder ruling 2026-10-12) — no read-back with a Confirm that could not
+    #     store it; the reply, written in code, names the two missing columns, and nothing is stored.
     partial = "Suppliers: our suppliers. Inputs: invoices. Process: receive, match, approve, pay. Outputs: paid invoices."
     _coach_saying(monkeypatch, f'Here is your SIPOC as you gave it: "{partial}" Is this right?',
                   captured=[{"field_name": "process_map_sipoc", "value": partial, "source": "belt"}])
-    ask(message=partial)
-    body = ask(message="Confirm", action="confirm")
+    body = ask(message=partial)
     assert "process_map_sipoc" not in stored(), "an incomplete SIPOC was stored"
     assert body.get("move_field") == "process_map_sipoc", f"moved on without the SIPOC: {body.get('move_field')}"
-    assert body.get("move") == "challenge", body.get("move")
-    assert re.search(r"nothing (was|is) stored", body["answer"], re.I), body["answer"]
-    assert "customers" in body["answer"] and "process metrics" in body["answer"], body["answer"]
+    assert body.get("move") == "challenge", "a Confirm was offered for a SIPOC it could not store"
+    assert re.search(r"not stored yet", body["answer"], re.I), body["answer"]
+    assert "customers and process metrics columns" in body["answer"], body["answer"]
 
     # 2 — the two missing columns given: the six parse, Confirm stores the SIPOC as six columns.
     rest = "Customers: the suppliers and ward managers. Process metrics: days to pay."
@@ -3531,6 +3531,37 @@ def test_t43_every_log_line_carries_request_id_case_id_and_phase(env, monkeypatc
     stray = [(rec.name, rec.getMessage()[:80]) for rec in ours
              if (rec.case_id, rec.phase) != (CASE_ID, "define")]
     assert not stray, stray
+
+
+def test_g163_a_read_back_that_cannot_store_never_offers_a_confirm(env, monkeypatch, stub_planner) -> None:
+    """G-163 (founder ruling 2026-10-12): one rule for every read-back — when a Confirm could not store
+    it, no Confirm is offered: the reply, written in code, says what is missing, the element stays
+    asked with the Belt's words, and nothing is stored. The case G-137 saw live: a read-back of the
+    baseline that leaves out the metric's definition, so there is no unit to read the baseline by
+    (G-135). Given in full, it is read back for a Confirm as usual."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    _at_element(env, "baseline_estimate")
+    _coach_with(monkeypatch, "Next: the primary metric and its baseline.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names the metric and its level")
+    words = "Late payment rate: 23% of supplier invoices were paid late from January to June 2026."
+    _coach_with(monkeypatch, f'Your baseline: "{words}" Is this right?',
+                captured=[{"field_name": "baseline_estimate", "value": words, "source": "belt"}])
+    told = _askd(env, message=words)
+    assert told["move"] == moves.CHALLENGE, "a Confirm was offered for a baseline it could not store"
+    assert told["answer"].startswith("Not stored yet"), told["answer"]
+    assert "metric definitions" in told["answer"] and "a number with its unit for the baseline estimate" in told["answer"]
+    status = _define(env)["field_status"]["baseline_estimate"]
+    assert status["status"] == moves.ASKED and not status.get("pending") and status["answer"] == words, status
+    assert "baseline_estimate" not in _define(env)["structured"]
+    _coach_with(monkeypatch, f'Your baseline: "{words}" Is this right?',
+                captured=[{"field_name": "baseline_estimate", "value": words, "source": "belt"},
+                          {"field_name": "metric_definitions", "value": COMPLETE["metric_definitions"],
+                           "source": "belt"}])
+    assert _askd(env, message=words)["move"] == moves.READ_BACK
 
 
 def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(env) -> None:

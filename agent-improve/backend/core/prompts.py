@@ -1737,6 +1737,10 @@ SAMPLE_FROM_CASE = ("SAMPLE: in `example`, write a short sample answer for this 
 #: read back for a Confirm (which could not store it); the Belt is told why and asked for their own.
 SAMPLE_COPIED = ("Not stored: your answer for {element} matches the sample I showed, which only shows the form "
                  "of a good answer. Please give your own answer, for your own process.")
+#: G-163 — written in code when a read-back could not be stored by a Confirm (a part missing or not in
+#: its shape): no Confirm is offered; the Belt is told what is missing.
+STORE_SHORT = ("Not stored yet: your answer for {element} still needs {missing}. Please add it in your own "
+               "words, and I will read the whole answer back to you.")
 
 #: DEF-014 (founder ruling 2026-10-12) — the coach asked once more after a coherence rejection. Quality
 #: feedback to the coach, never presented as the Belt's message (§21).
