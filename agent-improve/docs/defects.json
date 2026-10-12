@@ -1710,6 +1710,29 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-164",
+   "symptom": "DEF-014'S RE-ASK COUNTS THE COACH'S MODEL CALLS ITSELF. Framework conformance audit (founder ruling 2026-10-12): CoherenceMiddleware._coach_calls counts AI messages after the Belt's last message to decide whether the call budget allows a re-ask, while ModelCallLimitMiddleware already keeps that count as `run_model_call_count` in the agent state — the count turn_tools reads (G-131). ADR-0059 (ACCEPTED) rejects hand-written counters. The two can disagree (an AI message is not always one model call). 8D — D2 IS: backend/middleware/coherence.py _coach_calls, committed 7cabf9d. D2 IS-NOT: the hop cap (ADR-0059 point 3 keeps it custom). D4 OCCURRENCE: written to make the re-ask's budget check without reading what the call limit already holds. D4 ESCAPE: no pattern or review step looks for a second call counter; the commit declared 'Design: unchanged'. D5 FIX (proposed, not built): read `run_model_call_count` from the state. D7 PREVENT (proposed pattern line): `\\+=\\s*\\w+\\s*==\\s*[\"']ai[\"']` in backend/middleware/** and backend/phases/** — 'model calls this run are ModelCallLimitMiddleware's run_model_call_count, never a count of AI messages (ADR-0059)'.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-014"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-165",
+   "symptom": "A HAND-WRITTEN RETRY LOOP AROUND AN LLM CALL ESCAPED THE PATTERN HOOK, AND THE PATTERNS ARE NOT APPLIED AT COMMIT. Framework conformance audit (founder ruling 2026-10-12): scripts/ingest_knowledge.py:496 (_classify, committed 82b9251, 2026-09-27) loops `for attempt in range(CLASSIFIER_MAX_ATTEMPTS)` around `_classifier().invoke(...)` — pattern-9-hand-rolled-llm-retry matches it. The PreToolUse hook applies .claude/config/deprecated_patterns.yaml only to Write/Edit/MultiEdit; an edit made through Bash or a script is never checked, and the commit guard does not apply the patterns to staged code (it only checks the file's rule citations). A scan of the tracked tree today: 3 hits, this one real. 8D — D2 IS: the ingestion script's classifier call. D2 IS-NOT: runtime coaching code (ModelRetryMiddleware, RetryPolicy in use). D4 OCCURRENCE: a retry written by hand for a plain (non-agent) call. D4 ESCAPE: the pattern check runs only on editor writes, never on the staged tree. D5 FIX (proposed, not built): the model client's own max_retries for the classifier, or Runnable.with_retry; and the commit guard applies every deprecated pattern to staged files. D7 PREVENT: the commit-time pattern check (no new pattern line needed: pattern-9 already matches).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: the commit guard applies .claude/config/deprecated_patterns.yaml to every staged file, so a Bash or script edit is checked like an editor write."
   }
  ]
 }
