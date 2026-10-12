@@ -1,0 +1,141 @@
+"""Founder ruling 2026-10-12 (quality stop, item 2): replay the two per-turn judges OFFLINE on the
+evaluation set, and score them against the founder's labels.
+
+For each turn in `evals/define/judge_turns.json` the coherence judge (layer 2a) and the coaching grader
+are rebuilt for that turn's move and script step and asked about the reply they judged (a re-asked
+turn's first reply) — the same calls the executor makes, nothing else: no graph, no run. The grader
+is replayed on EVERY turn, coherence-rejected ones included, which is what DEF-015's option A will do.
+
+Scored against `evals/define/judge_labels.json` ({turn id: {"reply_good": true|false, "rejection_right":
+true|false|null}}), per judge, for the verdicts the runs RECORDED and the verdicts REPLAYED now:
+  false-reject rate = rejected replies labelled good / replies labelled good
+  false-accept rate = accepted replies labelled not good / replies labelled not good
+A turn with no label is replayed and reported, not scored. Calls, tokens, cost and time are reported.
+
+    cd agent-improve; python -m scripts.judge_replay [--only <turn id> ...]
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+EVALS = Path(__file__).resolve().parents[1] / "evals" / "define"
+TURNS = EVALS / "judge_turns.json"
+LABELS = EVALS / "judge_labels.json"
+#: Above this false-reject rate the founder's ruling stops the work for options (fix, merge, remove).
+FALSE_REJECT_STOP = 0.20
+
+
+def _step(turn: dict[str, Any]) -> dict[str, Any] | None:
+    """The script step as the judge derives it (coherence.aafter_agent): a confirm step from the
+    field captured, otherwise explain-show-ask for the field in focus."""
+    from backend.middleware.skills import CONFIRM, script_step
+    rec = turn.get("script_step") or {}
+    field = rec.get("field")
+    if not field:
+        return None
+    return script_step("define", [field] if rec.get("step") == CONFIRM else [], field)
+
+
+async def replay(turn: dict[str, Any]) -> dict[str, Any]:
+    from backend.middleware.coherence import CoherenceMiddleware
+    from backend.middleware.grader import DMAICGraderMiddleware
+    coherence = CoherenceMiddleware("define", move=turn["move"], focus_field=(turn.get("script_step") or {}).get("field"))
+    coherence.step = _step(turn)
+    t0 = time.time()
+    c = await coherence._check(turn["belt"], turn["reply_judged"])
+    t1 = time.time()
+    g = await DMAICGraderMiddleware("define", move=turn["move"])._grade(turn["belt"], turn["reply_judged"])
+    t2 = time.time()
+    return {"id": turn["id"],
+            "coherence": {"coherent": c.coherent, "is_parroting": c.is_parroting, "reason": c.reason,
+                          "seconds": round(t1 - t0, 1)},
+            "grader": {"passed": g.passed, "failed": [{"criterion": f.criterion, "reason": f.feedback} for f in g.failed],
+                       "seconds": round(t2 - t1, 1)}}
+
+
+def _overridden(turn: dict[str, Any], coherent: bool, is_parroting: bool) -> bool:
+    """G-155's code override, applied to a replayed verdict as the middleware applies it: on a
+    restating move, a rejection for parroting alone is not a rejection."""
+    from backend.middleware.coherence import RESTATING_MOVES
+    return coherent or (turn["move"] in RESTATING_MOVES and is_parroting)
+
+
+def rates(verdicts: dict[str, bool], labels: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """`verdicts`: turn id -> accepted. Scored against `reply_good` where it is labelled."""
+    good = [i for i, l in labels.items() if i in verdicts and l.get("reply_good") is True]
+    bad = [i for i, l in labels.items() if i in verdicts and l.get("reply_good") is False]
+    fr = [i for i in good if not verdicts[i]]
+    fa = [i for i in bad if verdicts[i]]
+    return {"labelled": len(good) + len(bad),
+            "false_reject_rate": round(len(fr) / len(good), 2) if good else None, "false_rejects": fr,
+            "false_accept_rate": round(len(fa) / len(bad), 2) if bad else None, "false_accepts": fa}
+
+
+def report(turns: list[dict[str, Any]], replays: list[dict[str, Any]], labels: dict[str, dict[str, Any]],
+           cost: dict[str, Any], seconds: float) -> dict[str, Any]:
+    by = {r["id"]: r for r in replays}
+    recorded_coh = {t["id"]: bool(t["coherence"]["coherent"]) for t in turns}
+    recorded_grd = {t["id"]: t["grader"]["status"] == "pass" for t in turns if t.get("grader")}
+    replay_coh = {i: _overridden(next(t for t in turns if t["id"] == i), r["coherence"]["coherent"],
+                                 r["coherence"]["is_parroting"]) for i, r in by.items()}
+    replay_grd = {i: r["grader"]["passed"] for i, r in by.items()}
+    rejections = [t["id"] for t in turns if not t["coherence"]["coherent"]]
+    judged = [i for i in rejections if (labels.get(i) or {}).get("rejection_right") is not None]
+    wrong = [i for i in judged if labels[i]["rejection_right"] is False]
+    out: dict[str, Any] = {
+        "turns": len(turns), "replayed": len(replays),
+        "coherence": {"recorded": rates(recorded_coh, labels), "replayed": rates(replay_coh, labels),
+                      "replay_agrees_with_recorded": sum(replay_coh[i] == recorded_coh[i] for i in replay_coh)},
+        "grader": {"recorded": rates(recorded_grd, labels), "replayed": rates(replay_grd, labels),
+                   "replay_agrees_with_recorded": sum(replay_grd[i] == recorded_grd[i]
+                                                      for i in replay_grd if i in recorded_grd)},
+        "rejections_labelled_wrong": {"of": len(judged), "wrong": wrong,
+                                      "share": round(len(wrong) / len(judged), 2) if judged else None},
+        "cost": cost, "seconds": round(seconds, 1),
+        "per_turn_seconds": round(seconds / max(1, len(replays)), 1),
+    }
+    stop = [j for j in ("coherence", "grader")
+            if (out[j]["replayed"]["false_reject_rate"] or 0) > FALSE_REJECT_STOP
+            or (out[j]["recorded"]["false_reject_rate"] or 0) > FALSE_REJECT_STOP]
+    out["stop"] = {"limit": FALSE_REJECT_STOP, "judges_over": stop}
+    return out
+
+
+def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--only", nargs="*", default=None)
+    args = ap.parse_args()
+    from scripts.define_runthrough import _cost
+    from scripts.move_proof_661 import CALLS, _count_model_calls, token_totals
+    from scripts.coaching_proof_656 import _tracing_off
+    _tracing_off()
+    _count_model_calls(200)
+    turns = json.loads(TURNS.read_text(encoding="utf-8"))["turns"]
+    if args.only:
+        turns = [t for t in turns if t["id"] in set(args.only)]
+    labels = json.loads(LABELS.read_text(encoding="utf-8")) if LABELS.exists() else {}
+    started = time.time()
+
+    async def all_turns() -> list[dict[str, Any]]:
+        return [await replay(t) for t in turns]
+    replays = asyncio.run(all_turns())
+    seconds = time.time() - started
+    out = report(turns, replays, labels, _cost(token_totals(CALLS)), seconds)
+    stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
+    path = EVALS / f"judge_replay_{stamp}.json"
+    path.write_text(json.dumps({"summary": out, "replays": replays}, indent=1, ensure_ascii=False) + "\n",
+                    encoding="utf-8")
+    print(json.dumps(out, indent=1, ensure_ascii=False))
+    print(f"record: {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

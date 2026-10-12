@@ -82,3 +82,32 @@ def test_a_failed_run_is_kept_marked_and_never_read_as_the_latest(tmp_path) -> N
         mark_failed_run.mark(good, "  ", tmp_path)
     with pytest.raises(FileNotFoundError):
         mark_failed_run.mark("20990101T000000", "no such run", tmp_path)
+
+
+def test_the_judge_evaluation_scores_false_rejects_and_false_accepts_against_the_labels() -> None:
+    """Founder ruling 2026-10-12 (quality stop, item 2): the offline evaluation keeps every coherence
+    rejection, samples the grader fails and the accepted turns by move, and scores a judge's verdicts
+    against the founder's labels — false-reject rate over the replies labelled good, false-accept rate
+    over the replies labelled not good; an unlabelled turn is not scored."""
+    from scripts import judge_eval_set, judge_replay
+
+    def turn(i: str, move: str, coherent: bool, grade: str | None) -> dict:
+        return {"id": i, "move": move, "coherence": {"coherent": coherent},
+                "grader": {"status": grade} if grade else None}
+    turns = ([turn(f"r{i}", "challenge", False, None) for i in range(3)]
+             + [turn(f"f{i}", m, True, "failed") for i, m in enumerate(["read_back"] * 20 + ["challenge"] * 5)]
+             + [turn(f"a{i}", "store_and_advance", True, "pass") for i in range(10)])
+    picked = judge_eval_set.pick(turns)
+    ids = [t["id"] for t in picked]
+    assert ids[:3] == ["r0", "r1", "r2"], "every coherence rejection is kept"
+    fails = [t for t in picked if t["grader"] and t["grader"]["status"] == "failed"]
+    assert len(fails) == judge_eval_set.FAILS_SAMPLED and {t["move"] for t in fails} == {"read_back", "challenge"}
+    assert len(picked) == 3 + judge_eval_set.FAILS_SAMPLED + judge_eval_set.ACCEPTED
+
+    labels = {"a": {"reply_good": True}, "b": {"reply_good": True}, "c": {"reply_good": False},
+              "d": {"reply_good": False}, "e": {}}
+    accepted = {"a": False, "b": True, "c": True, "d": False, "e": False}
+    r = judge_replay.rates(accepted, labels)
+    assert r["labelled"] == 4 and r["false_rejects"] == ["a"] and r["false_reject_rate"] == 0.5
+    assert r["false_accepts"] == ["c"] and r["false_accept_rate"] == 0.5
+    assert judge_replay.FALSE_REJECT_STOP == 0.20
