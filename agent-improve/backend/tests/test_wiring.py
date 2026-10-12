@@ -159,7 +159,9 @@ def test_wired_10_0_the_blocks_reach_the_response(wired) -> None:
     """10.0 — the four blocks and the grader's warning, through the real graph."""
     body, _ = wired
     for k in ("explanation", "example", "prompt"):
-        assert body[k] == REPLY[k], k
+        from backend.core.prompts import SAMPLE_MARK
+        # C3 (DEF-083): the sample block carries its mark, written in code.
+        assert body[k] == (f"{SAMPLE_MARK}\n{REPLY[k]}" if k == "example" else REPLY[k]), k
     assert body["progress"].startswith("Define · Step"), body["progress"]
     assert body["grader_warning"], "the grader FAILED this turn; its warning must reach the Belt"
 

@@ -71,5 +71,7 @@ def test_g138_an_empty_teaching_block_never_reaches_the_belt(stub_coach) -> None
     reply = next(m for m in reversed(out["messages"]) if isinstance(m, AIMessage))
     blocks = reply.additional_kwargs["coaching_blocks"]
     script = teaching_blocks("define", "team")
+    from backend.core.prompts import SAMPLE_MARK
     for k in ("explanation", "example", "prompt"):
-        assert blocks[k] == script[k], k
+        # C3 (DEF-083): the sample the Belt is shown carries its mark, written in code.
+        assert blocks[k] == (f"{SAMPLE_MARK}\n{script[k]}" if k == "example" else script[k]), k

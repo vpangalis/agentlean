@@ -244,9 +244,19 @@ def test_run_a_complete_case_assembles_a_gate_document(run) -> None:
 
 # ── stubs: named by a feature, not written yet (6.67) ──────────────────────
 
-def test_runthrough_metric_meaning_comes_from_the_registry() -> None:
-    """DEF-018 — not written yet (a stub, step 6.67): When the Belt's metric first comes up, the coach explains what it means, why Define cares and how to read it — from the """
-    _not_written('DEF-018')
+def test_runthrough_metric_meaning_comes_from_the_registry(run) -> None:
+    """DEF-018 — R2, on the live run: when the Belt's metric first comes up (the read-back of position
+    5), the reply explains what it means — the registry entry the Belt gave, word for word, never
+    invented — why Define cares and how to read it, in a line written in code."""
+    reg = (_structured(run).get("metric_definitions") or [{}])[0]
+    meaning = str(reg.get("meaning") or "").rstrip(".")
+    assert meaning, "the run registered no metric meaning"
+    backs = [t for t in run["turns"] if (t.get("reply") or {}).get("move") == "read_back"
+             and (t.get("reply") or {}).get("move_field") == "baseline_estimate"]
+    assert backs, "no read-back of position 5 in the run"
+    answer = str(backs[-1]["reply"].get("answer") or "")
+    assert "About your metric" in answer and meaning in answer, answer[-500:]
+    assert "Measure checks this baseline" in answer, answer[-500:]
 
 
 def test_runthrough_no_reply_carries_a_link(run) -> None:
@@ -310,3 +320,23 @@ def test_the_record_prices_its_own_tokens(run) -> None:
     again = run_cost((s.get("tokens") or {}).get("by_model") or {}, load_prices())
     assert s["cost"]["usd"] == again["usd"] and s["cost"]["by_model"] == again["by_model"], (s["cost"], again)
     assert again["within_ceiling"] is True and again["usd"] > 0, again
+
+
+def test_run_the_judge_does_not_take_a_restating_move_for_parroting(run) -> None:
+    """DEF-013 — G-155, on the live run: the coherence judge rules on the Belt's words against the
+    move code decided, so a teaching turn (quoting the script), a read-back (restating the Belt's
+    value) and a store (naming it) are not degraded as parroting: at most two such turns in a run,
+    where 22 to 26 of about 33 were before (runs 155414, 162235, 073807)."""
+    degraded = [(t["n"], (t.get("reply") or {}).get("move")) for t in run["turns"]
+                if "coach" in (t.get("model_calls") or []) and "coherence" in t["model_calls"]
+                and "grader" not in t["model_calls"]
+                and (t.get("reply") or {}).get("move") in ("teach", "read_back", "store_and_advance")]
+    assert len(degraded) <= 2, degraded
+
+
+def test_run_most_coaching_turns_are_graded(run) -> None:
+    """DEF-015 on the live run: the grader runs on the coaching turns — a turn goes ungraded only
+    when coherence rejected it (S-C13 B3) — at least 90% of them."""
+    coached = [t for t in run["turns"] if "coach" in (t.get("model_calls") or [])]
+    graded = [t for t in coached if "grader" in t["model_calls"]]
+    assert coached and len(graded) >= 0.9 * len(coached), (len(graded), len(coached))

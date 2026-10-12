@@ -1593,6 +1593,19 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-155",
+   "symptom": "THE COHERENCE JUDGE DEGRADED THREE TURNS IN FOUR AS 'PARROTING'. In runs 155414, 162235 and 073807 (2026-10-11/12) coherence rejected 24, 22 and 26 of about 33 coaching turns — mostly the turn after a Confirm click (the coach names the stored value and teaches the next element) and read-backs (the coach restates the Belt's value, as the move requires), with the reason 'parroting the Belt's own words back without adding new information'. Each rejection degrades the turn and stands the grader down (S-C13 B3), so the coaching rubric graded almost nothing. The judge was told the script step but not the move code decided, and the step on a store turn named the stored field's CONFIRM while the reply taught the next one. Found 2026-10-12 building the coaching-quality package (DEF-013, DEF-015).",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-013"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

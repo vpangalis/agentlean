@@ -128,6 +128,18 @@ words with no confirmation question and nothing added.
 """
 
 
+#: G-155 (DEF-013) — the moves whose reply must restate the Belt's words or quote the script.
+RESTATING_MOVES: frozenset[str] = frozenset({"teach", "read_back", "store_and_advance"})
+
+
+def _move_text(move: str | None) -> str:
+    """G-155 / DEF-013 — the move section of the judge's prompt; "" when no move was decided."""
+    from backend.core.prompts import COHERENCE_MOVE_COMMON, COHERENCE_MOVES
+    if not move or move not in COHERENCE_MOVES:
+        return ""
+    return COHERENCE_MOVE_COMMON.format(move=move.replace("_", " ").upper(), what=COHERENCE_MOVES[move])
+
+
 def _step_text(step: dict[str, Any] | None) -> str:
     """G-96 — the step section of the judge's prompt; "" when there is none."""
     if not step:
@@ -148,12 +160,15 @@ class CoherenceMiddleware(AgentMiddleware):
         self, phase: str, max_retries: int = COHERENCE_MAX_RETRIES, *,
         focus_field: str | None = None,
         on_verdict: Callable[[dict[str, Any]], None] | None = None,
+        move: str | None = None,
     ) -> None:
         super().__init__()
         self.phase = phase
         self.max_retries = max_retries
         #: G-96 — the planner's focus field, for a turn that captures nothing.
         self.focus_field = focus_field
+        #: G-155 / DEF-013 — the move code decided; the judge reads "parroting" against it.
+        self.move = move
         #: G-96 — each verdict, handed to the node that owns `step_log`; the
         #: grader's `on_evaluation` is the same shape (S-C14 B6).
         self.on_verdict = on_verdict
@@ -185,6 +200,17 @@ class CoherenceMiddleware(AgentMiddleware):
         # held for it. Until then one check decides.
         self.attempts = 1
         result = await self._check(belt_text, coach_text)
+        if (not result.coherent and self.move in RESTATING_MOVES and result.is_parroting
+                and result.is_conclusive and result.on_topic):
+            # G-155 (DEF-013): the model's verdict stands as given, but code decides which of its three
+            # answers apply to the move: a move that must restate the Belt's words (a read-back, a
+            # store) or quote the script (a teaching turn) cannot fail on "parroting" alone. The
+            # override is recorded with the judge's own reason, never hidden.
+            logger.info("%s.coherence: %s — 'parroting' does not apply to this move; not degraded "
+                        "(G-155). The judge said: %s", self.phase, self.move, result.reason)
+            result = result.model_copy(update={
+                "coherent": True,
+                "reason": f"[parroting does not apply to a {self.move} — G-155] {result.reason}"})
         self.last = result
         if result.coherent:
             self._record(result)
@@ -219,7 +245,7 @@ class CoherenceMiddleware(AgentMiddleware):
         reads as a deliberate override.
         """
         model = get_llm("coherence").with_structured_output(CoherenceResult)
-        prompt = _PROMPT.format(phase=self.phase, step=_step_text(self.step),
+        prompt = _PROMPT.format(phase=self.phase, step=_step_text(self.step) + _move_text(self.move),
                                 belt=belt[:2000], coach=coach[:4000])
         return CoherenceResult.model_validate(await model.ainvoke(prompt))
 

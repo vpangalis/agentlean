@@ -1715,6 +1715,48 @@ CALCULATION_TEACH = (
 #: ADR-0077 point 4 — the line under a read-back of an element with a calculation, written in code.
 CALCULATION_LINE = "Calculated: about {figure} a year — {how}."
 
+#: DEF-018 (R2) — when the Belt's metric first comes up (the read-back of position 5), what it means,
+#: from the registry entry the Belt gave — never invented — why Define cares, and how to read it.
+METRIC_MEANING_LINE = ("About your metric — {name} ({unit}): {meaning} Define fixes it as the project's "
+                       "measure: Measure checks this baseline against data, and Control compares the "
+                       "result with it. Read it the same way every time — {reading}.")
+METRIC_READING = {"%": "as a share of all cases, counted over the same period",
+                  "": "as a count over the same period, from the same source"}
+
+#: C3 (DEF-083) — the mark every sample carries, written in code at the head of the `example` block.
+SAMPLE_MARK = ("Sample only — to show the form of a good answer. Do not copy it; answer for your own "
+               "process.")
+#: C3 — which sample the coach shows: the script's worked example, or one built from the case.
+SAMPLE_FROM_SCRIPT = ("SAMPLE: in `example`, show the phase script's worked example for this element. It "
+                      "shows the form of a good answer; it is never the Belt's.")
+SAMPLE_FROM_CASE = ("SAMPLE: in `example`, write a short sample answer for this element built from this "
+                    "project's own confirmed facts in section 3 (its business case and problem statement) "
+                    "— the form of a good answer, made relevant to this case. Never present it as the "
+                    "Belt's answer and never capture it; it is marked as a sample in code.")
+
+#: G-155 / DEF-013 — the coherence judge is told the move code decided for the turn, so "parroting" is
+#: judged against what the move requires: a read-back must restate the Belt's value, a store must name
+#: it, a teaching turn quotes the script. Parroting is judged ONLY against the Belt's own latest words.
+COHERENCE_MOVE_COMMON = (
+    "\nTHIS TURN'S MOVE, decided in code before the coach wrote: {move}.\n{what}\n"
+    "Parroting is judged ONLY against THE BELT SAID below — never against the coaching script, its "
+    "worked example, or values the Belt confirmed earlier.\n")
+COHERENCE_MOVES: dict[str, str] = {
+    "teach": ("The coach explains the element from the script, shows the script's worked example and asks "
+              "for the Belt's version. The script and the example are the coach's material, not the Belt's "
+              "words: quoting them is never parroting."),
+    "read_back": ("The coach restates the Belt's value in the Belt's words and asks whether it is right. "
+                  "Restating the Belt's words is REQUIRED by this move and is never parroting; judge question "
+                  "2 only on whether the reply asks the Belt to confirm or correct it."),
+    "store_and_advance": ("The Belt has just confirmed a value (their message is a Confirm click or a plain "
+                          "yes). The coach says what was stored — the Belt's earlier value — and teaches the "
+                          "next element. Naming the stored value is required and is never parroting."),
+    "challenge": ("The coach says what the Belt's answer still lacks. Parroting here is repeating the Belt's "
+                  "answer back without naming what is missing."),
+    "respond": ("The Belt asked something that is not an answer; the coach answers it and asks again. "
+                "Parroting here is repeating the Belt's question back without answering it."),
+}
+
 #: Inserted into the judgment prompt while a read-back awaits confirmation.
 PLANNER_JUDGMENT_READING_BACK = """
 A READ-BACK of the answer so far is awaiting the Belt's confirmation, and the

@@ -1088,6 +1088,7 @@ def _build_executor(
     coherence = CoherenceMiddleware(
         phase, focus_field=plan.focus_field if plan else None,
         on_verdict=coherence_log.append if coherence_log is not None else None,
+        move=plan.move if plan else None,       # G-155 / DEF-013
     )
     agent = create_agent(
         model=get_llm("coach", max_tokens=1500),
@@ -1382,6 +1383,35 @@ def _with_progress(messages: list, reply: CoachingResponse, label: str) -> list:
 
 #: §50.1's render contract — the blocks besides `message`, in render order.
 COACHING_BLOCKS: tuple[str, ...] = ("explanation", "example", "prompt", "progress")
+
+
+def _strip_mark(example: str) -> str:
+    """A sample without the C3 mark in front of it."""
+    from backend.core.prompts import SAMPLE_MARK
+    return example.replace(SAMPLE_MARK, "", 1).strip()
+
+
+def _with_sample_mark(reply: CoachingResponse | None) -> CoachingResponse | None:
+    """C3 (DEF-083): every sample the Belt is shown carries the mark, written in code."""
+    from backend.core.prompts import SAMPLE_MARK
+    example = str(getattr(reply, "example", "") or "").strip() if reply is not None else ""
+    if reply is None or not example or example.startswith(SAMPLE_MARK):
+        return reply
+    return reply.model_copy(update={"example": f"{SAMPLE_MARK}\n{example}"})
+
+
+def _previous_sample(state: Any) -> str:
+    """The sample under the request the Belt is answering now — the previous reply's `example`
+    block when that reply asked for information (teach, challenge, store and advance). A read-back's
+    block is not a request's sample: it may carry the very value the Belt is confirming."""
+    for m in reversed(list((state or {}).get("messages") or [])):
+        if isinstance(m, AIMessage):
+            kw = m.additional_kwargs or {}
+            move = (kw.get(moves.MOVE_RECORD_KEY) or {}).get("move")
+            if move not in (moves.TEACH, moves.CHALLENGE, moves.STORE_AND_ADVANCE):
+                return ""
+            return _strip_mark(str((kw.get("coaching_blocks") or {}).get("example") or ""))
+    return ""
 
 
 def _attach_blocks(messages: list, reply: CoachingResponse | None,
@@ -1744,6 +1774,37 @@ def _with_metric_reading(messages: list, reply: CoachingResponse | None, store: 
         msg = messages[i]
         if isinstance(msg, AIMessage) and msg.text.strip():
             text = f"{msg.text.rstrip()}{chr(10) * 2}{lines}"
+            if reply is not None:
+                reply.message = text
+            out = list(messages)
+            out[i] = AIMessage(content=text, additional_kwargs=dict(msg.additional_kwargs or {}),
+                               id=msg.id, name=msg.name)
+            return out
+    return messages
+
+
+def _metric_meaning(store: dict[str, Any]) -> Optional[str]:
+    """DEF-018 — the line under position 5's read-back, from the primary metric's registry entry the
+    Belt gave (`metric_definitions[0]`), or None when it carries no meaning."""
+    from backend.core.prompts import METRIC_MEANING_LINE, METRIC_READING
+    reg = store.get("metric_definitions")
+    first = reg[0] if isinstance(reg, list) and reg and isinstance(reg[0], dict) else {}
+    meaning = str(first.get("meaning") or "").strip()
+    if not meaning:
+        return None
+    unit = str(first.get("unit") or "").strip()
+    reading = METRIC_READING["%" if "%" in unit or "percent" in unit.lower() else ""]
+    return METRIC_MEANING_LINE.format(name=str(first.get("name") or "the primary metric").replace("_", " "),
+                                      unit=unit or "no unit given",
+                                      meaning=meaning.rstrip(".") + ".", reading=reading)
+
+
+def _with_code_line(messages: list, reply: CoachingResponse | None, line: str) -> list:
+    """The last AI message with one line written in code after it — a NEW message (§4.5)."""
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if isinstance(msg, AIMessage) and msg.text.strip():
+            text = f"{msg.text.rstrip()}{chr(10) * 2}{line}"
             if reply is not None:
                 reply.message = text
             out = list(messages)
@@ -2325,7 +2386,11 @@ async def executor(
     # way, or similarity >= 0.80 after normalising) is refused and reported,
     # exactly as a malformed one is: the field stays uncaptured, so the coach
     # asks again, and the turn does not fail for the Belt.
-    example_refused = sorted(f for f, v in kept.items() if example_match(v, phase))
+    # C3 (DEF-083): nor is a sample the coach showed — this turn's, or the one the Belt is answering.
+    from backend.middleware.skills import matches_sample
+    sample = _previous_sample(state)
+    example_refused = sorted(f for f, v in kept.items()
+                             if example_match(v, phase) or (sample and matches_sample(v, sample)))
     if example_refused:
         kept = {f: v for f, v in kept.items() if f not in example_refused}
         logger.warning(
@@ -2366,6 +2431,15 @@ async def executor(
                    if f != pending.get("field") and f not in kept and f in earlier}
         kept = {**kept, **carried}
         store = moves.pending_store(phase, pending, kept, prior_artifacts)
+        # C3 (DEF-083): what a Confirm would store is never the sample the Belt was shown — even when it
+        # is the Belt's own typed words (a plain-text answer stores those). Left out, the Confirm
+        # cannot complete the element, and the Belt is asked for their own answer.
+        shown = _previous_sample(state)
+        copied = sorted(f for f, v in store.items() if shown and matches_sample(v, shown))
+        if copied:
+            store = {f: v for f, v in store.items() if f not in copied}
+            logger.warning("%s.executor: C3 — the answer to `%s` reproduces the sample the Belt was "
+                           "shown; it will not be stored", phase, ", ".join(copied))
         # ADR-0071: the read-back's MetricValues are what the Belt sees (below) and the chart draws.
         from backend.phases.define.parse import METRIC_FIELDS
         read = {f: v for f, v in store.items() if phase == "define" and f in METRIC_FIELDS}
@@ -2447,6 +2521,11 @@ async def executor(
     new_messages = _with_carried(new_messages, reply, phase, carried)
     if move == moves.READ_BACK and phase == "define" and pending is not None:
         new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
+        # DEF-018 — the metric's first appearance: its meaning from the Belt's registry entry, in code.
+        meaning = _metric_meaning({**dict(pending.get("proposed") or {}), **dict(pending.get("store") or {})}) \
+            if "metric_definitions" in (pending.get("fields") or []) else None
+        if meaning:
+            new_messages = _with_code_line(new_messages, reply, meaning)
     # ADR-0070 — the element's visual, drawn by the program with the gate document's own function:
     # on a read-back from the coach's structured values ("not yet confirmed"), after Confirm from
     # the stored values. No model call draws.
@@ -2476,6 +2555,7 @@ async def executor(
         if reply is not None:
             reply = reply.model_copy(update={"message": FALLBACK_RESEND, "explanation": "",
                                              "example": "", "prompt": ""})
+    reply = _with_sample_mark(reply)            # C3 (DEF-083)
     _attach_blocks(new_messages, reply, MAX_ITERATIONS_WARNING if failed else None)
 
     # ── 6.61 — the move record and the quality feedback ride on the reply ──

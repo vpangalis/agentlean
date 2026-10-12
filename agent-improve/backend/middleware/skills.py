@@ -199,6 +199,16 @@ def worked_examples(phase: str) -> tuple[str, ...]:
     return tuple(n for n in (_norm(r) for r in raw) if len(n) >= EXAMPLE_MIN_CHARS)
 
 
+def matches_sample(value: Any, sample: str) -> bool:
+    """C3 (DEF-083): does `value` reproduce `sample` — a sample the coach showed, built from the
+    case — by the same test `example_match` applies to the script's worked examples (§22)?"""
+    v, s = _norm(_flatten(value)), _norm(sample or "")
+    if len(v) < EXAMPLE_MIN_CHARS or len(s) < EXAMPLE_MIN_CHARS:
+        return False
+    return s in v or v in s or SequenceMatcher(None, v.split(), s.split(),
+                                               autojunk=False).ratio() >= EXAMPLE_MATCH_RATIO
+
+
 def example_match(value: Any, phase: str) -> str | None:
     """The worked example `value` reproduces, or None (§22)."""
     v = _norm(_flatten(value))

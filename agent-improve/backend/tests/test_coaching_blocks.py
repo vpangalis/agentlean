@@ -61,6 +61,13 @@ REPLY = CoachingResponse(
 BLOCKS = ("explanation", "example", "prompt", "progress")
 
 
+def _sent(k: str) -> str:
+    """A block as the Belt receives it: the sample carries the C3 mark (DEF-083)."""
+    from backend.core.prompts import SAMPLE_MARK
+    v = getattr(REPLY, k)
+    return f"{SAMPLE_MARK}\n{v}" if k == "example" and v else v
+
+
 def _failing() -> CoachingGraderVerdict:
     return CoachingGraderVerdict(criteria=[CriterionResult(
         criterion="Coach must challenge weak inputs with specific follow-up questions",
@@ -125,7 +132,7 @@ def test_the_reply_message_carries_the_four_blocks(monkeypatch, stub_planner) ->
     blocks = reply.additional_kwargs.get("coaching_blocks")
     assert blocks is not None, f"no coaching_blocks on the reply: {sorted(reply.additional_kwargs)}"
     for k in BLOCKS:
-        assert blocks[k] == getattr(REPLY, k), k
+        assert blocks[k] == _sent(k), k
     assert reply.content == REPLY.message, "message stays the transcript entry (§50.1)"
 
 
@@ -187,7 +194,7 @@ def test_the_response_carries_four_blocks_and_the_warning(monkeypatch, stub_plan
     body = _ask(monkeypatch, _executor_messages(monkeypatch, _failing()))
     assert body["answer"] == REPLY.message
     for k in BLOCKS:
-        assert body.get(k) == getattr(REPLY, k), (k, body.get(k))
+        assert body.get(k) == _sent(k), (k, body.get(k))
     assert "business case" in body["prompt"]
     assert body.get("grader_warning") == MAX_ITERATIONS_WARNING
 
@@ -211,7 +218,7 @@ def test_the_reloaded_history_keeps_the_blocks(monkeypatch, stub_planner) -> Non
     assert body["_saved_history"] == [], "/ask wrote the case blob"
     ai = conversation.message_to_turn([m for m in messages if isinstance(m, AIMessage)][-1], 0)
     for k in BLOCKS:
-        assert ai.get(k) == getattr(REPLY, k), k
+        assert ai.get(k) == _sent(k), k
     assert ai.get("grader_warning") == MAX_ITERATIONS_WARNING
 
 

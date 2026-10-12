@@ -255,15 +255,11 @@ class DMAICGraderMiddleware(AgentMiddleware):
 
     @staticmethod
     def _coach_text(state: Any) -> str:
-        response = (state or {}).get("structured_response") if isinstance(
-            state, dict) else getattr(state, "structured_response", None)
-        if response is not None and str(getattr(response, "message", None) or ""):
-            return str(response.message)
-        messages = (state or {}).get("messages") if isinstance(state, dict) else []
-        for message in reversed(list(messages or [])):
-            if str(getattr(message, "type", "")) == "ai" and str(message.content).strip():
-                return str(message.content)
-        return ""
+        """DEF-015 — the whole reply the Belt sees: `message` and the explanation, example and question
+        blocks (§50.1), and only this turn's (G-153) — read exactly as coherence reads it. The rubric's
+        "shows before asking" cannot be graded on `message` alone."""
+        from backend.middleware.coherence import CoherenceMiddleware
+        return CoherenceMiddleware._coach_text(state)
 
     @staticmethod
     def _belt_text(state: Any) -> str:

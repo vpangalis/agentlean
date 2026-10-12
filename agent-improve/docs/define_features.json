@@ -565,7 +565,7 @@
    "depends_on": [
     "DEF-005"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_coherence_judges_the_belts_words",
+   "test": "backend/tests/test_define_runthrough.py::test_run_the_judge_does_not_take_a_restating_move_for_parroting",
    "sources": {
     "architecture": [
      "§19.7 coherence (layer 2a)",
@@ -593,7 +593,8 @@
     ],
     "gaps": [
      "G-102",
-     "G-99"
+     "G-99",
+     "G-155"
     ]
    },
    "requirement": "R1",

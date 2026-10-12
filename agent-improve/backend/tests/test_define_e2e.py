@@ -139,26 +139,14 @@ def test_every_node_of_a_turn_is_checkpointed(monkeypatch, stub_planner, stub_co
 
 
 
-def test_coherence_judges_the_belts_words() -> None:
-    """DEF-013 — The coherence judge rules on the Belt's words, not the coach's: a reply that quotes the script is not degraded, a real parrot still is."""
-    _not_written('DEF-013')
-
 
 def test_a_coherence_rejection_asks_the_coach_again() -> None:
     """DEF-014 — When coherence rejects a reply, the coach is asked again inside the turn (a new model call), within the latency the founder rules."""
     _not_written('DEF-014')
 
 
-def test_every_turn_is_graded_on_all_four_blocks() -> None:
-    """DEF-015 — Every coaching turn is graded by the coaching rubric, the grader sees all four blocks (not only 'message'), and its verdict lands in step_log."""
-    _not_written('DEF-015')
 
 
-
-
-def test_the_belt_can_see_captured_and_missing_fields() -> None:
-    """DEF-020 — At any point the Belt can ask what is done and what is missing, and the coach shows the captured and missing fields from check_gate_status — the same """
-    _not_written('DEF-020')
 
 
 
@@ -910,10 +898,6 @@ process.stdout.write(JSON.stringify({{html}}));
 
 
 
-
-def test_every_request_is_explained_with_a_marked_sample() -> None:
-    """DEF-083 — Every request explains what is asked and why, with a sample marked 'Sample only — …'; built from the case's context once enough is confirmed; never st"""
-    _not_written('DEF-083')
 
 
 def test_the_as_is_process_captures_step_performance_structured() -> None:
@@ -3562,3 +3546,191 @@ def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(
     assert "AZURE_OPENAI_API_KEY" in out.stderr and "cannot start" in out.stderr, out.stderr[-500:]
     assert "AZURE_OPENAI_API_KEY" in REQUIRED_CREDENTIALS
     assert env.client.get("/health").status_code == 200, "with its credentials the app does not answer"
+
+
+
+def _recording(fn, into: list):
+    """`fn`, wrapped to append each result to `into` — a spy that changes nothing it watches."""
+    def spy(*a, **k):
+        out = fn(*a, **k)
+        into.append(out)
+        return out
+    return spy
+
+def _coach_with(monkeypatch, message: str, example: str = "", captured: list | None = None) -> None:
+    """The coach model, faked to write `message` with `example` as its sample block."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    reply = {**REPLY, "message": message, "example": example, "fields_captured": captured or []}
+    real = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "call_c3"}])]))
+        if role == "coach" else real(role, **kw))
+
+
+def _at_element(env, field: str) -> None:
+    """Every element before `field` confirmed from the complete case; `field` not taught yet."""
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    walk = moves.positions("define")
+    i = [f for f, _ in walk].index(field)
+    later = {f for _, fs in walk[i:] for f in fs}
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items() if k not in later}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f, _ in walk[:i]}
+    record.field_status[field] = {"status": moves.NOT_TAUGHT}
+
+
+def test_coherence_judges_the_belts_words(env, monkeypatch, stub_planner) -> None:
+    """DEF-013 (wiring) — G-155: the coherence judge is built with the move code decided for the turn,
+    and its prompt reads "parroting" against that move: a read-back and a store must restate the
+    Belt's value (never parroting), a teaching turn quotes the script (never parroting), a challenge
+    that only repeats the Belt's answer still is."""
+    from backend.middleware import coherence
+
+    built: list = []
+    init = coherence.CoherenceMiddleware.__init__
+
+    def spy(self, *a, **k):
+        init(self, *a, **k)
+        built.append(self.move)
+    monkeypatch.setattr(coherence.CoherenceMiddleware, "__init__", spy)
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Here is what secondary metrics are.")
+    _askd(env, message="Next, please.")
+    assert built and built[-1] == "teach", built
+    teach, read_back, store, challenge = (coherence._move_text(m) for m in
+                                          ("teach", "read_back", "store_and_advance", "challenge"))
+    assert "never parroting" in teach and "script" in teach
+    assert "REQUIRED" in read_back and "never parroting" in read_back
+    assert "never parroting" in store and "Confirm" in store
+    assert "Parroting here is repeating the Belt's answer" in challenge
+    assert all("ONLY against THE BELT SAID" in t for t in (teach, read_back, store, challenge))
+    assert coherence._move_text(None) == ""
+
+    # The judge says "parroting" and nothing else: a teaching turn is not degraded (the override is
+    # recorded with the judge's reason), a challenge still is.
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import nodes_common
+    from backend.validation.schemas import CoherenceResult
+
+    async def parrot(self, belt: str, coach: str) -> CoherenceResult:
+        return CoherenceResult(coherent=False, is_conclusive=True, is_parroting=True, on_topic=True,
+                               reason="parroting the Belt's words")
+    monkeypatch.setattr(coherence.CoherenceMiddleware, "_check", parrot)
+    steps: list = []
+    step = nodes_common._step
+    monkeypatch.setattr(nodes_common, "_step", _recording(step, steps))
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Here is what secondary metrics are.")
+    _askd(env, message="Next, please.")
+    verdict = [s for s in steps if s.get("layer") == "coherence"][-1]
+    assert verdict["degraded"] is False and "G-155" in verdict["reason"], verdict
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="names no side effect")
+    _coach_saying(monkeypatch, "That names no side effect yet.")
+    assert _askd(env, message="We will watch things.")["move"] == "challenge"
+    verdict = [s for s in steps if s.get("layer") == "coherence"][-1]
+    assert verdict["degraded"] is True, verdict
+
+
+def test_every_turn_is_graded_on_all_four_blocks(env, monkeypatch) -> None:
+    """DEF-015 — through the routes and graph: a coaching turn is graded by the coaching rubric on the
+    whole reply — message, explanation, example and question — and the verdict lands in step_log."""
+    from backend.middleware.grader import DMAICGraderMiddleware
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY
+    from backend.validation.schemas import CoachingGraderVerdict
+
+    graded: list[str] = []
+
+    async def grade(self, belt: str, coach: str) -> CoachingGraderVerdict:
+        graded.append(coach)
+        return CoachingGraderVerdict(criteria=[])
+    monkeypatch.setattr(DMAICGraderMiddleware, "_grade", grade)
+    steps: list = []
+    step = nodes_common._step
+    monkeypatch.setattr(nodes_common, "_step", _recording(step, steps))
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Here is what secondary metrics are.")
+    _askd(env, message="Next, please.")
+    assert graded, "the turn was not graded"
+    for block in ("explanation", "example", "prompt"):
+        assert str(REPLY[block])[:30] in graded[-1], (block, graded[-1][:300])
+    assert any(s.get("node") == "coaching_grader" or "coaching_grader" in str(s.get("key", "")) for s in steps) \
+        or any("coaching_grader" in str(s) for s in steps), [s.get("node") for s in steps]
+
+
+def test_the_belt_can_see_captured_and_missing_fields(env, monkeypatch, stub_planner) -> None:
+    """DEF-020 — through the routes and graph: when the Belt asks where they stand (not an answer), the
+    coach is given what is confirmed and what is still missing — the missing list computed by the
+    gate's own layer 2b (`missing_gate_fields`) — to answer from."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases.gate_registry import missing_gate_fields
+    from backend.tests.test_wiring import _FakeCoach
+
+    seen: list[str] = []
+    generate = _FakeCoach._generate
+
+    def spy(self, messages, *a, **k):
+        seen.append(" ".join(m.text if hasattr(m, "text") else str(m.content) for m in messages))
+        return generate(self, messages, *a, **k)
+    monkeypatch.setattr(_FakeCoach, "_generate", spy)
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Here is what secondary metrics are.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks where the project stands")
+    _coach_saying(monkeypatch, "So far you have confirmed ten elements; three remain.")
+    r = _askd(env, message="What is done and what is still missing?")
+    assert r["move"] == "respond", r["move"]
+    given = seen[-1]
+    structured = _define(env)["structured"]
+    missing = missing_gate_fields("define", structured)
+    assert missing and all(m in given for m in missing), (missing, given[given.find("STILL MISSING"):][:400])
+    assert "STILL MISSING" in given
+    assert all(f in given for f in ("business_case", "benefits_analysis")), "the confirmed elements are not given"
+
+
+def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_planner) -> None:
+    """DEF-083 — C3, through the routes and graph: every request's sample reaches the Belt marked
+    'Sample only — …'; before the business case and the problem statement are confirmed the coach is
+    told to show the script's worked example, after them a sample built from the case; and a Belt
+    answer that copies the sample is never stored as theirs."""
+    from backend.core.prompts import SAMPLE_FROM_CASE, SAMPLE_FROM_SCRIPT, SAMPLE_MARK
+    from backend.core.substate import SufficiencyJudgment
+    from backend.middleware import state_injection
+    from backend.phases import moves
+
+    composed: list[str] = []
+    compose = state_injection.BeforeModelStateInjection._compose_move
+    monkeypatch.setattr(state_injection.BeforeModelStateInjection, "_compose_move", _recording(compose, composed))
+    # Early: the team is taught before the problem statement exists — the script's example.
+    _at_element(env, "team")
+    _coach_with(monkeypatch, "Next: the team.", example="Leader: Anna. Sponsor: Marco.")
+    early = _askd(env, message="Next, please.")
+    assert SAMPLE_FROM_SCRIPT in composed[-1] and SAMPLE_FROM_CASE not in composed[-1]
+    assert early["example"].startswith(SAMPLE_MARK), early["example"][:80]
+    # Later: built from the case.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "secondary_metrics")
+    sample = "For your invoices: supplier queries per week, and AP overtime hours each month."
+    _coach_with(monkeypatch, "Next: the secondary metrics.", example=sample)
+    later = _askd(env, message="Next, please.")
+    assert SAMPLE_FROM_CASE in composed[-1], composed[-1][-600:]
+    assert later["example"] == f"{SAMPLE_MARK}\n{sample}", later["example"]
+    # The Belt copies the sample: it is read back, but a Confirm stores nothing of it.
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names side effects")
+    copied = "supplier queries per week, and AP overtime hours each month"
+    _coach_with(monkeypatch, f'Your secondary metrics: "{copied}". Is this right?',
+                captured=[{"field_name": "secondary_metrics", "value": sample, "source": "belt"}])
+    _askd(env, message=sample)
+    _coach_with(monkeypatch, "Thank you.")
+    _askd(env, action="confirm", message="Confirm")
+    assert "secondary_metrics" not in _define(env)["structured"], "the sample was stored as the Belt's answer"
+    assert _define(env)["field_status"]["secondary_metrics"]["status"] != moves.CONFIRMED
