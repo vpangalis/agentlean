@@ -3988,6 +3988,11 @@ def test_the_as_is_process_captures_step_performance_structured(env, monkeypatch
     moved = migrations.migrate(v7, 7)
     assert [(s["id"], s["name"]) for s in moved["artifacts"]["process_map_sipoc"]["process_steps"]] == [
         ("S1", "Receive"), ("S2", "Approve"), ("S3", "Pay")]
+    # G-156: the change log carries the SIPOC too — a logged value keeps matching the stored one.
+    logged = {"field": "process_map_sipoc", "turn": 21, "value": v7["artifacts"]["process_map_sipoc"],
+              "prior_value": None}
+    moved_log = migrations.migrate({**v7, "field_log": [logged]}, 7)["field_log"][0]
+    assert moved_log["value"] == moved["artifacts"]["process_map_sipoc"] and moved_log["turn"] == 21
     assert migrations.current() >= 8 and 7 in migrations.MIGRATIONS
 
 

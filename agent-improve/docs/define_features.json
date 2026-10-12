@@ -3567,7 +3567,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-156"
+    ]
    },
    "requirement": "R17",
    "belt_impact": "degraded",

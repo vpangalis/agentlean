@@ -162,7 +162,27 @@ def migrate_v7_to_v8(values: Mapping[str, Any]) -> dict[str, Any]:
     captured = out.get("captured_by_phase")
     if isinstance(captured, dict) and isinstance(captured.get("define"), dict):
         out["captured_by_phase"] = {**captured, "define": _sipoc_steps(captured["define"])}
+    if "field_log" in out:
+        out["field_log"] = _sipoc_log(out["field_log"])
     return _sipoc_steps(out)
+
+
+def _sipoc_log(log: Any) -> Any:
+    """The change log (R16) carries the SIPOC too: a logged value and its prior value in the new shape —
+    the same value, nothing else of the entry changed (ADR-0078 point 6)."""
+    def entry(e: Any) -> Any:
+        if not isinstance(e, dict) or e.get("field") != "process_map_sipoc":
+            return e
+        out = dict(e)
+        for k in ("value", "prior_value"):
+            if isinstance(out.get(k), dict):
+                out[k] = _sipoc_steps({"process_map_sipoc": out[k]})["process_map_sipoc"]
+        return out
+    if isinstance(log, list):
+        return [entry(e) for e in log]
+    if isinstance(log, dict):
+        return {k: entry(v) for k, v in log.items()}
+    return log
 
 
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
@@ -237,11 +257,16 @@ def migrate_case(data: Mapping[str, Any], found: int) -> dict[str, Any]:
     phases: dict[str, Any] = {}
     for name, record in (data.get("phases") or {}).items():
         rec = dict(record or {})
-        moved = migrate({"artifacts": dict(rec.get("structured") or {}),
-                         "field_status": dict(rec.get("field_status") or {})}, found, "case record")
+        state = {"artifacts": dict(rec.get("structured") or {}),
+                 "field_status": dict(rec.get("field_status") or {})}
+        if rec.get("field_log") is not None:
+            state["field_log"] = rec["field_log"]                    # ADR-0078: the log carries values too
+        moved = migrate(state, found, "case record")
         if rec.get("structured") is not None:
             rec["structured"] = moved["artifacts"]
         rec["field_status"] = moved["field_status"]
+        if "field_log" in moved:
+            rec["field_log"] = moved["field_log"]
         phases[name] = rec
     out["phases"] = phases
     out[VERSION_KEY] = current()

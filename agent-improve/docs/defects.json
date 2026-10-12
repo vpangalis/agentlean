@@ -1606,6 +1606,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-156",
+   "symptom": "THE v7->v8 MIGRATION MISSED THE CHANGE LOG. After 71c821c (ADR-0078), the full suite failed capability row 5 on the live case IMPR-2026-0E5: 'process_map_sipoc holds a value other than the one captured at turn 21'. Loading the case migrated the stored SIPOC's text steps into step entries, but the field_log entry of turn 21 kept the text form, so the record and its own change log no longer agreed. ADR-0078 point 6 says 'wherever state carries a Define SIPOC'; the log is one of those carriers and was not listed. Found 2026-10-12 pushing 71c821c (the push was refused).",
+   "requirement": [
+    "R17"
+   ],
+   "feature": [
+    "DEF-084"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }
