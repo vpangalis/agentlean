@@ -1140,6 +1140,25 @@ function navClickPhase(phase) {
   // Future locked phase — do nothing
 }
 
+// DEF-053 — in Define the bar and its label come from the server's define_progress (GET /cases),
+// the function the reply's step label uses: "Define · Step n of 13", the fill moving within Define's
+// share of the bar as elements are confirmed.
+function defineProgressBar(p){
+  if(!p||!p.of)return null;
+  const done=Math.max(0,Math.min(p.of,(p.position||1)-1));
+  return {width:Math.round(5+17*done/p.of),label:p.label||`Define · Step ${p.position} of ${p.of}`};
+}
+
+// DEF-053 — the suggested next step names the element the coach is on (define_elements' current
+// row); null once every element is confirmed, when the gate is the next step.
+function defineNextStep(elements){
+  const rows=elements||[];
+  if(rows.length&&rows.every(r=>r.status==='confirmed'))return null;
+  const at=rows.find(r=>r.status==='current')||rows.find(r=>r.status==='open')||rows.find(r=>r.status==='parked');
+  return at?{field:at.field,html:`<strong>${escapeHtml(at.name)}</strong> — step ${at.n} of ${rows.length}. `
+    +`The coach is working on this element with you; answer in the chat.`}:null;
+}
+
 function renderPhaseNav(){
   const phaseOrder=['define','measure','analyse','improve','control'];
   const currentIdx=phaseOrder.indexOf(S.phase);
@@ -1149,8 +1168,9 @@ function renderPhaseNav(){
   const highlightPhase = S.previewPhase || S.phase;
   const highlightIdx = phaseOrder.indexOf(highlightPhase);
   const progPct=[5,22,44,66,88];
-  document.getElementById('prog-fill').style.width=(progPct[currentIdx]||5)+'%';
-  document.getElementById('prog-label').textContent=`Phase ${currentIdx+1} of 5`;
+  const inDefine=S.phase==='define'&&defineProgressBar(S.case&&S.case.define_progress);
+  document.getElementById('prog-fill').style.width=(inDefine?inDefine.width:(progPct[currentIdx]||5))+'%';
+  document.getElementById('prog-label').textContent=inDefine?inDefine.label:`Phase ${currentIdx+1} of 5`;
   phaseOrder.forEach((ph,i)=>{
     const el=document.getElementById('pi-'+ph);
     const pb=el.querySelector('.pb');
@@ -5365,8 +5385,22 @@ function renderChat(){
 
     let suggestionHtml = '';
     let hintCardsHtml = '';
+    // DEF-053 — in Define the next step is the element the coach is on, never a v1 field group.
+    const defineStep = isDefine && S.case && S.case.define_elements
+      ? defineNextStep(S.case.define_elements) : undefined;
 
-    if (!nextGroup) {
+    if (defineStep !== undefined) {
+      suggestionHtml = `<div style="margin:8px 0;padding:8px 10px;
+        background:#EAF4FC;border-radius:6px;
+        border-left:2px solid #0070BA;font-size:12px;
+        color:#00305A;line-height:1.6">
+        <span style="font-size:10px;color:#0070BA;font-weight:600;
+          text-transform:uppercase;letter-spacing:.04em">
+          Suggested next step</span><br>
+        ${defineStep ? defineStep.html
+          : 'All thirteen elements are confirmed. Open the <strong>Gate tab</strong> and submit for gate review.'}
+      </div>`;
+    } else if (!nextGroup) {
       // All work products complete — suggest gate submission
       suggestionHtml = `<div style="margin:8px 0;padding:8px 10px;
         background:#EAF4FC;border-radius:6px;
@@ -6158,7 +6192,9 @@ async function sendMessage(action, element){
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();
       // W9 (DEF-079) — the progress view's element statuses, recomputed by the server after the turn.
-      try{const c=await apiJSON(`${API}/cases/${S.case.case_id}`);if(c&&c.define_elements)S.case.define_elements=c.define_elements;}catch(e){}
+      // DEF-053 — and the progress bar's step, so it moves turn by turn.
+      try{const c=await apiJSON(`${API}/cases/${S.case.case_id}`);if(c&&c.define_elements)S.case.define_elements=c.define_elements;
+        if(c&&c.define_progress)S.case.define_progress=c.define_progress;}catch(e){}
       renderPhaseNav();
       renderDiagram();
       renderSteps();

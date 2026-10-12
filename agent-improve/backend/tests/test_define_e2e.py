@@ -218,10 +218,6 @@ def test_the_four_blocks_reach_the_screen() -> None:
     _not_written('DEF-052')
 
 
-def test_the_progress_bar_and_next_step_follow_the_coach() -> None:
-    """DEF-053 — The progress bar reads 'n of 12' from define_progress and moves turn by turn; the suggested next step always names the field the coach is on."""
-    _not_written('DEF-053')
-
 
 def _run_page(functions: tuple[str, ...], script: str) -> dict:
     """The page's own functions (ui/index.html), run in node against stubs of the DOM, with
@@ -3091,3 +3087,67 @@ def test_a_calculation_is_recorded_with_its_five_keys(env, monkeypatch, stub_pla
     assert doc["computation_results"] == rows, doc["computation_results"]
     savings = seen["review"]["report"]["sections"][1]["savings"]
     assert savings and savings["result"]["annual_savings"] == "68040", savings
+
+
+def test_the_progress_bar_and_next_step_follow_the_coach(env, monkeypatch, stub_planner) -> None:
+    """DEF-053 — R1: the progress bar reads 'n of 13' from define_progress and moves turn by turn; the
+    suggested next step always names the field the coach is on. Through the real routes and graph:
+    GET /cases carries define_progress (the function the reply's step label uses) and define_elements;
+    the page's own renderPhaseNav, defineProgressBar and defineNextStep run in node on what the server
+    sent — before the team is answered, and again after the Belt confirms it."""
+    import json
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {"business_case": COMPLETE["business_case"]}
+    record.field_status = {"business_case": {"status": moves.CONFIRMED}}
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def screen() -> dict:
+        case = env.client.get(f"/cases/{CASE_ID}").json()
+        page = _run_page(("function defineProgressBar", "function defineNextStep", "function renderPhaseNav"),
+                         _PAGE_STUBS + f"""
+const S={{phase:'define',case:{json.dumps({k: case[k] for k in ("define_progress", "define_elements")})}}};
+const row=()=>({{style:{{}},classList:{{add(){{}},remove(){{}},contains(){{return false}}}},querySelector:()=>({{}}),
+  nextElementSibling:null}});
+for(const ph of ['define','measure','analyse','improve','control'])els['pi-'+ph]=row();
+els['prog-fill']={{style:{{}}}};
+function buildCaseFilesNav(){{return ''}}
+renderPhaseNav();
+const step=defineNextStep(S.case.define_elements);
+process.stdout.write(JSON.stringify({{width:els['prog-fill'].style.width,label:els['prog-label'].textContent,step}}));
+""")
+        return {"case": case, "page": page}
+
+    first = screen()
+    assert first["case"]["define_progress"] == {"position": 2, "of": 13, "field": "team",
+                                                "label": "Define · Step 2 of 13"}, first["case"]["define_progress"]
+    assert first["page"]["label"] == "Define · Step 2 of 13", first["page"]
+    assert first["page"]["step"]["field"] == "team" and "step 2 of 13" in first["page"]["step"]["html"], first["page"]
+
+    _coach_saying(monkeypatch, "Next: the team. Who leads it, who sponsors it, who owns the process?")
+    taught = ask(message="Next, please.")
+    assert taught["progress"] == "Define · Step 2 of 13", taught["progress"]
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="leader, sponsor and owner named")
+    _coach_saying(monkeypatch, "Your team, read back. Is this right?",
+                  captured=[{"field_name": "team", "value": COMPLETE["team"], "source": "belt"}])
+    read_back = ask(message="Priya leads it, Tom sponsors it, Lena owns the process.")
+    assert read_back["move"] == moves.READ_BACK and read_back["progress"] == "Define · Step 2 of 13", read_back
+    _coach_saying(monkeypatch, "Next: the voice of the customer.")
+    confirmed = ask(action="confirm", message="Confirm")
+    assert confirmed["progress"] == "Define · Step 3 of 13", confirmed["progress"]
+
+    second = screen()
+    assert second["case"]["define_progress"]["position"] == 3, second["case"]["define_progress"]
+    assert second["page"]["label"] == confirmed["progress"] == "Define · Step 3 of 13", second["page"]
+    assert int(second["page"]["width"].rstrip("%")) > int(first["page"]["width"].rstrip("%")), (first, second)
+    current = next(r for r in second["case"]["define_elements"] if r["status"] == "current")
+    assert second["page"]["step"]["field"] == current["field"] == "voc_summary", second["page"]["step"]
+    assert current["name"] in second["page"]["step"]["html"]

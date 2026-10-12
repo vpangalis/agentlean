@@ -1827,6 +1827,9 @@ async def get_case(case_id: str):
         "define", dict((define.structured if define else None) or {}),
         dict((define.field_status if define else None) or {}),
         lambda f: guard_messages.element_name("define", f))
+    # DEF-053 — the screen's progress bar reads "n of 13" from the function the reply's step uses.
+    from backend.phases.define.schema import define_progress
+    payload["define_progress"] = define_progress(dict((define.structured if define else None) or {}))
     files: list[dict] = []
     for phase_name, phase_record in (payload.get("phases") or {}).items():
         for upload in (phase_record or {}).get("uploads") or []:
