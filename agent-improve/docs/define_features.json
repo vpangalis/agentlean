@@ -4127,7 +4127,7 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "api",
-   "pilot": true
+   "pilot": false
   },
   {
    "id": "DEF-104",
@@ -4155,7 +4155,7 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "api",
-   "pilot": true
+   "pilot": false
   },
   {
    "id": "DEF-105",
@@ -4456,7 +4456,7 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "screen",
-   "pilot": true
+   "pilot": false
   },
   {
    "id": "DEF-115",
@@ -4520,7 +4520,7 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "api",
-   "pilot": true
+   "pilot": false
   },
   {
    "id": "DEF-117",

@@ -359,7 +359,7 @@ told who is working on it.
 **W16 Connection status** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
 Before the first message the screen shows whether the service is reachable and ready.
 
-**W17 The sign-in window explains itself** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0079
+**W17 The sign-in window explains itself** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
 When someone opens a case, the sign-in window says what it is, who may enter, and what to do if they
 cannot. It names the project lead. Example wording:
 
@@ -402,7 +402,7 @@ The user is identified by the customer's single sign-on — Microsoft Entra ID f
 Agent Improve stores no passwords. A case is visible only to its team; roles project lead, team
 member, Champion. The project lead adds team members by their company identity (e-mail).
 
-**R8a Access without single sign-on** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-01 · MoSCoW: Must · Design: ADR-0079
+**R8a Access without single sign-on** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-01 · MoSCoW: Must · Design: none
 Where single sign-on is not available, only the people the project lead registered on the team can
 open the case (W17). Entering a registered name is allowed in development and demos only; before any
 customer data is used, each team member enters through a personal invite (a link or one-time code
@@ -410,7 +410,7 @@ sent to their e-mail or handed over in person by the project lead). *Amendment (
 pilot):* a code is single-use and expires after 72 hours; each sign-in records who and when. E-mail
 delivery comes later, as an adapter for the customer's mail system.
 
-**R8b The project lead** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0079
+**R8b The project lead** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
 The person who creates a case is its project lead. Only the project lead adds or removes team members
 and assigns their roles. The lead is shown on the create form ("You will be the project lead"), in the
 workspace header, in the case list and in the sign-in window (W17).
