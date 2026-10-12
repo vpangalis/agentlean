@@ -14,6 +14,12 @@ from pydantic.v1 import BaseSettings, Field
 #: so the founder can delete them in the portal; drift pattern-12 bans the old name.
 KNOWLEDGE_INDEX_DEFAULT = "improve_knowledge_index_v3"
 
+#: DEF-093 / G-157 (founder ruling 2026-10-12; ADR-0080): R13's limit for one coaching turn, in seconds, and
+#: the time kept for closing the turn after the graph returns. The route's deadline and the re-ask's time
+#: guard (ADR-0079) read the same two numbers, so neither plans past the other.
+TURN_LIMIT_S = 45.0
+TURN_CLOSE_RESERVE_S = 3.0
+
 
 class Settings(BaseSettings):
     AZURE_OPENAI_ENDPOINT: str = Field(

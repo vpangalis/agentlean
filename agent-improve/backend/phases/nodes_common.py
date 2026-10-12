@@ -67,7 +67,7 @@ from langgraph.types import Command, interrupt
 
 from backend.core import content_safety, guard, guard_messages, pii
 from backend.middleware import turn_tools
-from backend.core.config import settings
+from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S, settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
 from backend.knowledge import fusion
@@ -2183,7 +2183,7 @@ async def executor(
     started = time.time()
     turn_started = ((config or {}).get("configurable") or {}).get("turn_started")
     reask = {"allowed": calls_before == 0, "coach_limit": coach_limit, "started": started,
-             "deadline": (float(turn_started) + 45.0) if turn_started else None,
+             "deadline": (float(turn_started) + TURN_LIMIT_S - TURN_CLOSE_RESERVE_S) if turn_started else None,
              "wall": started + EXECUTOR_RUN_TIMEOUT}
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,

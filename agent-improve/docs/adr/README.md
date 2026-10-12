@@ -116,4 +116,5 @@ Generated from each file's status line; never typed.
 | [0074](0074-upload-judged-at-interpretation.md) | An upload is judged against the current element when it is interpreted | ACCEPTED | — |
 | [0078](0078-process-step-performance-stored-per-step.md) | The as-is process stores its performance per step, and the problem is located in it | ACCEPTED | — |
 | [0079](0079-coherence-reask-through-the-after-agent-hook.md) | A coherence rejection asks the coach again through layer 2a's after_agent hook | ACCEPTED | — |
+| [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | — |
 <!-- END ADR INDEX -->

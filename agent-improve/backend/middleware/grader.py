@@ -49,7 +49,7 @@ from typing import Any, Callable, Optional
 
 from langchain.agents.middleware import AgentMiddleware
 
-from backend.core.llm import get_llm
+from backend.core.llm import REQUEST_TIMEOUTS, get_llm
 from backend.core.prompts import COACHING_QUALITY_RUBRIC
 from backend.middleware.coherence import CoherenceMiddleware
 from backend.validation.schemas import CoachingGraderVerdict
@@ -191,7 +191,16 @@ class DMAICGraderMiddleware(AgentMiddleware):
         # the coach to rewrite (step 6.53, gated on G-83's latency ruling);
         # until then `max_iterations` is held for that step and one call is made.
         self._iterations = 1
-        verdict = await self._grade(belt_text, coach_text)
+        try:
+            verdict = await self._grade(belt_text, coach_text)
+        except REQUEST_TIMEOUTS:
+            # G-157 / DEF-093 (ADR-0080): the grade ran out of time — recorded, and the reply goes out
+            # without a grade (no warning: nothing failed).
+            logger.warning("%s.grader: the grade ran out of time — the reply is kept, not graded", self.phase)
+            if self.on_evaluation is not None:
+                self.on_evaluation({"layer": "coaching_grader", "iteration": 1, "status": "not checked (time)",
+                                    "criteria_failed": [], "feedback": [], "failed": [], "move": self.move})
+            return None
         self._evaluations = [verdict]
         self._emit(verdict)
         if verdict.passed:

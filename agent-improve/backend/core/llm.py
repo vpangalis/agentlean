@@ -17,6 +17,7 @@ import threading
 from functools import lru_cache
 from typing import Any
 
+import openai
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
 from langchain_openai import AzureChatOpenAI
@@ -91,6 +92,31 @@ ROLE_TEMPERATURES: dict[str, float] = {
 # baseline that moves on its own. `test_llm.py` asserts it.
 
 
+#: G-157 / DEF-093 (founder ruling 2026-10-12, option B; ADR-0080): every model call has a REQUEST
+#: TIMEOUT, set on the model client per role (the framework's own `timeout`), so a stalled call ends
+#: instead of waiting for the SDK default of 600 s. A judge that runs out is recorded "not checked
+#: (time)" and the coach's finished reply is kept; the turn as a whole is bounded by the route's 45 s
+#: deadline. Seconds, per HTTP request.
+ROLE_TIMEOUTS: dict[str, float] = {
+    "coach": 25.0,       # the reply, up to 1500 tokens, inside the executor's 40 s wall
+    "planner": 10.0,     # the one judgment
+    "synthesis": 20.0,
+    "vision": 20.0,
+    "reasoning": 15.0,
+    "extraction": 8.0,   # a lookup's query variants
+    "coherence": 8.0,    # layer 2a
+    "constraint": 8.0,
+    "grader": 8.0,
+    "summarizer": 15.0,
+    "intent": 8.0,
+}
+
+
+#: G-157 / DEF-093 (ADR-0080): what a model client raises when its request timeout runs out (max_retries=0,
+#: so the SDK does not retry it first). A judge catches it BY NAME and records "not checked (time)".
+REQUEST_TIMEOUTS: tuple[type[BaseException], ...] = (openai.APITimeoutError,)
+
+
 def role_temperature(role: str) -> float:
     """The ratified default temperature for `role`, or DEFAULT_TEMPERATURE."""
     return ROLE_TEMPERATURES.get(role, DEFAULT_TEMPERATURE)
@@ -101,6 +127,7 @@ def _build_llm(
     deployment: str,
     temperature: float,
     max_tokens: int | None,
+    timeout: float | None = None,
 ) -> AzureChatOpenAI:
     """Construct one `AzureChatOpenAI`, cached per (deployment, temperature,
     max_tokens).
@@ -121,6 +148,8 @@ def _build_llm(
         api_key=os.environ["AZURE_OPENAI_API_KEY"],
         temperature=temperature,
         max_tokens=max_tokens,
+        # G-157 / DEF-093 (ADR-0080): the role's request timeout — §44's bounded request timeout.
+        timeout=timeout,
         # ── RETRY IS THE MIDDLEWARE'S, AND ONLY THE MIDDLEWARE'S (step 6.4) ──
         #
         # **The zero is explicit and must stay explicit.** Deleting this line
@@ -218,7 +247,7 @@ def get_llm(
         temperature = role_temperature(role)
 
     with _BUILD_LOCK:
-        return _build_llm(deployment, temperature, max_tokens)
+        return _build_llm(deployment, temperature, max_tokens, ROLE_TIMEOUTS[role])
 
 
 def block_text(message: BaseMessage) -> str:

@@ -1,9 +1,9 @@
 {
- "source_hash": "b5e78d4334cfbfc9",
- "commit": "aa64922",
+ "source_hash": "2e137aa8a4edf746",
+ "commit": "1741475",
  "commit_matches_source": false,
  "full_run_hash": "5dcda834e1848611",
- "recorded_at": "2026-10-12T17:06:03+00:00",
+ "recorded_at": "2026-10-12T17:42:55+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -460,6 +460,7 @@
   "backend/tests/test_define_e2e.py::test_g120_a_target_written_as_a_limit_is_judged_in_code": "passed",
   "backend/tests/test_define_e2e.py::test_g121_a_structured_element_is_never_confirmed_as_prose": "passed",
   "backend/tests/test_define_e2e.py::test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_unit": "passed",
+  "backend/tests/test_define_e2e.py::test_g157_a_turn_never_runs_past_its_deadline": "passed",
   "backend/tests/test_define_e2e.py::test_g163_a_read_back_that_cannot_store_never_offers_a_confirm": "passed",
   "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record": "passed",
   "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told": "skipped",

@@ -51,7 +51,7 @@ from typing import Any, Callable
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
 
-from backend.core.llm import get_llm
+from backend.core.llm import REQUEST_TIMEOUTS, get_llm
 from backend.middleware.skills import CONFIRM, script_step
 from backend.validation.schemas import CoherenceResult
 
@@ -224,7 +224,15 @@ class CoherenceMiddleware(AgentMiddleware):
         # rewrites the reply first; that is step 6.53, and `max_retries` is
         # held for it. Until then one check decides.
         self.attempts = 1
-        result = await self._check(belt_text, coach_text)
+        try:
+            result = await self._check(belt_text, coach_text)
+        except REQUEST_TIMEOUTS:
+            # G-157 / DEF-093 (ADR-0080): the judge's request timeout ran out — the coach's finished reply
+            # is kept, unchecked, and the record says so; a stalled check never discards a reply.
+            logger.warning("%s.coherence: the check ran out of time — the reply is kept, not checked", self.phase)
+            self._record(CoherenceResult(coherent=True, is_conclusive=False, is_parroting=False, on_topic=True,
+                                         reason="not checked (time)"))
+            return None
         if (not result.coherent and self.move in RESTATING_MOVES and result.is_parroting
                 and result.is_conclusive and result.on_topic):
             # G-155 (DEF-013): the model's verdict stands as given, but code decides which of its three

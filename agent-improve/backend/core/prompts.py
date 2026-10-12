@@ -1739,6 +1739,10 @@ SAMPLE_COPIED = ("Not stored: your answer for {element} matches the sample I sho
                  "of a good answer. Please give your own answer, for your own process.")
 #: G-163 — written in code when a read-back could not be stored by a Confirm (a part missing or not in
 #: its shape): no Confirm is offered; the Belt is told what is missing.
+#: DEF-093 / G-157 (founder ruling 2026-10-12, option B; ADR-0080) — the reply when a coaching turn reaches
+#: its deadline: the turn was stopped and changed nothing (no store, no read-back), as G-140's resend.
+TURN_DEADLINE_REPLY = ("That took longer than it should, so I stopped it before it finished. Nothing new was "
+                       "stored and nothing of yours is lost — please send your message again.")
 #: The PII line (founder ruling 2026-10-12; T87, ADR-0062): personal details masked in an upload are
 #: hidden from the coach — the Belt is told, in code, at upload and when the coach's lookups read them.
 PII_HIDDEN_UPLOAD = ("Hidden from the coach before it read this file: {what}. Your file itself is unchanged; "

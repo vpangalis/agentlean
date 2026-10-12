@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import conversation, pii
-from backend.core.prompts import PII_HIDDEN_UPLOAD
+from backend.core.prompts import PII_HIDDEN_UPLOAD, TURN_DEADLINE_REPLY
 from backend.core.request_context import set_case_id, set_phase
 from backend.core.errors import CaseBusyError, StateSchemaVersionError
 from backend.core.graph import RECURSION_LIMIT
@@ -333,7 +333,18 @@ async def _until_disconnect(http: Request) -> None:
 
 # `state` is the graph input: a state dict for a turn, or `Command(resume=...)`
 # when `decide_gate` resumes the Define pause — hence `Any`, not `dict`.
-async def _run_turn(graph, state: Any, config: dict, http: Request):
+#: DEF-093 / G-157 (founder ruling 2026-10-12, option B; ADR-0080): the coaching turn's limit, counted from
+#: `turn_started` (stamped by `_graph_config`), less the closing reserve — both owned by `core/config.py`.
+#: LangGraph has no whole-run deadline (per node `TimeoutPolicy`, per superstep `step_timeout` only —
+#: checked 2026-10-12), so the route bounds the run itself.
+from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S  # noqa: E402
+
+
+class TurnDeadline(Exception):
+    """The coaching turn reached its deadline; the run was cancelled (DEF-093)."""
+
+
+async def _run_turn(graph, state: Any, config: dict, http: Request, deadline: bool = False):
     """Run one turn, ABANDONING it if the client goes first (§47 req 1).
 
     ═══════════════════════════════════════════════════════════════════════
@@ -382,7 +393,7 @@ async def _run_turn(graph, state: Any, config: dict, http: Request):
     thread_id = str(((config or {}).get("configurable") or {}).get("thread_id") or "")
     try:
         async with blob.case_lease(thread_id):
-            return await _run_turn_held(graph, state, config, http)
+            return await _run_turn_held(graph, state, config, http, deadline)
     except CaseBusyError:
         raise HTTPException(409, CASE_BUSY)
 
@@ -399,13 +410,19 @@ def _bind(case_id: Any, phase: Any) -> None:
     set_phase(str(phase) if phase else None)
 
 
-async def _run_turn_held(graph, state: Any, config: dict, http: Request):
-    """`_run_turn`'s body, inside the case's lease."""
+async def _run_turn_held(graph, state: Any, config: dict, http: Request, deadline: bool = False):
+    """`_run_turn`'s body, inside the case's lease. With `deadline` (a coaching turn, DEF-093), the run is
+    cancelled — exactly as a disconnect cancels it — when the turn's 45 s, less the closing reserve, are
+    spent: `TurnDeadline`."""
     task = asyncio.create_task(graph.ainvoke(state, config=config))
     watch = asyncio.create_task(_until_disconnect(http))
+    left = None
+    if deadline:
+        started = float(((config or {}).get("configurable") or {}).get("turn_started") or time.time())
+        left = max(0.0, started + TURN_LIMIT_S - TURN_CLOSE_RESERVE_S - time.time())
     try:
         done, _ = await asyncio.wait(
-            {task, watch}, return_when=asyncio.FIRST_COMPLETED
+            {task, watch}, timeout=left, return_when=asyncio.FIRST_COMPLETED
         )
         if task not in done:
             task.cancel()
@@ -417,6 +434,8 @@ async def _run_turn_held(graph, state: Any, config: dict, http: Request):
                 await task
             except asyncio.CancelledError:
                 pass
+            if watch not in done:
+                raise TurnDeadline()
             raise ClientGone()
         return task.result()
     finally:
@@ -780,8 +799,22 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
             graph, config, case, [conversation.turn_to_message(user_turn)]
         )
         # §47 requirement 1 — ABANDON on disconnect. See `_run_turn`.
-        result = await _run_turn(graph, state, config, http)
+        result = await _run_turn(graph, state, config, http, deadline=True)
         _mirror_asks(request.case_id, phase, result)
+    except TurnDeadline:
+        # DEF-093 / G-157 (ADR-0080): the run was cancelled at the deadline; nothing after the last
+        # completed step was checkpointed, so the turn changed nothing a Confirm or a store depends on.
+        # The Belt is told, in code, to send the message again; step_log records the deadline.
+        logger.warning("ask() reached the %.0f s turn deadline for %s — the run was cancelled",
+                       TURN_LIMIT_S, request.case_id)
+        try:
+            from backend.core.store import get_store as _store   # read at call time
+            _store().put(("projects", request.case_id, "step_log"), f"deadline:{phase}:{now}",
+                         {"layer": "turn_deadline", "limit_s": TURN_LIMIT_S, "phase": phase, "at": now})
+        except Exception as exc:  # noqa: BLE001 — the audit write must not change the reply
+            logger.error("ask(): the turn deadline could not be recorded: %s", exc)
+        return AskResponse(answer=TURN_DEADLINE_REPLY, phase=request.phase,
+                           gate_status=GateStatus(phase=request.phase, passed=False, attempts=0))
     except ClientGone:
         logger.info(
             "ask() ABANDONED for %s — client disconnected mid-turn; "

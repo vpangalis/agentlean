@@ -923,6 +923,92 @@ def test_the_screen_says_what_is_happening_while_a_turn_runs() -> None:
     _not_written('DEF-092')
 
 
+def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner) -> None:
+    """G-157 / DEF-093 (founder ruling 2026-10-12, option B; ADR-0080), through the routes and graph:
+    every model role's client has a request timeout; a judge whose call runs out keeps the coach's
+    finished reply and records "not checked (time)"; and a coaching turn that reaches its deadline is
+    cancelled in the route — the Belt is told to send the message again, nothing is stored, the
+    checkpoint is consistent and the next turn resumes cleanly."""
+    import time as _time
+
+    import openai
+    from langchain_core.messages import AIMessage
+
+    from backend.core import llm
+    from backend.gateway import routes
+    from backend.middleware.coherence import CoherenceMiddleware
+    from backend.middleware.grader import DMAICGraderMiddleware
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    # 1. Every role's client carries its request timeout (the SDK default of 600 s is never in force).
+    assert set(llm.ROLE_TIMEOUTS) == set(llm.ROLE_DEPLOYMENTS)
+    for role in llm.ROLE_DEPLOYMENTS:
+        assert llm.get_llm(role).request_timeout == llm.ROLE_TIMEOUTS[role], role
+
+    # 2. A judge that runs out of time: the reply is kept, unchecked, and the record says so.
+    steps: list = []
+    monkeypatch.setattr(nodes_common, "_step", _recording(nodes_common._step, steps))
+    timeout = openai.APITimeoutError(request=__import__("httpx").Request("POST", "https://x"))
+
+    async def late(self, *_a, **_k):
+        raise timeout
+    monkeypatch.setattr(CoherenceMiddleware, "_check", late)
+    monkeypatch.setattr(DMAICGraderMiddleware, "_grade", late)
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
+    r = _askd(env, message="Next, please.")
+    assert "What will you watch?" in r["answer"], r["answer"]
+    coherence = [s for s in steps if s.get("layer") == "coherence"]
+    graded = [s for s in steps if s.get("layer") == "coaching_grader"]
+    assert coherence[-1]["reason"] == "not checked (time)" and graded[-1]["status"] == "not checked (time)"
+
+    # 3. The turn deadline: a coach that would run past it. The route cancels the run.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "secondary_metrics")
+    monkeypatch.setattr(routes, "TURN_LIMIT_S", 2.0)
+    monkeypatch.setattr(routes, "TURN_CLOSE_RESERVE_S", 0.0)
+    slow = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "id": "slow",
+                                              "args": {**REPLY, "message": "TOO LATE"}}])
+    import asyncio
+    agenerate = _FakeCoach._agenerate
+
+    async def sleepy(self, messages, *a, **k):          # a slow model call awaits, as the network does
+        await asyncio.sleep(4.0)
+        return self._generate(messages, *a, **k)
+    monkeypatch.setattr(_FakeCoach, "_agenerate", sleepy, raising=False)
+    real = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([slow]))
+                        if role == "coach" else real(role, **kw))
+    before = env.client.get(f"/cases/{CASE_ID}").json()
+    t0 = _time.time()
+    r = _askd(env, message="Next, please.")
+    assert _time.time() - t0 < 3.5, "the deadline did not end the turn"
+    assert r["answer"] == routes.TURN_DEADLINE_REPLY and r["move"] is None, r
+    after = env.client.get(f"/cases/{CASE_ID}").json()
+    # The checkpoint is what an abandoned turn leaves (§47): the Belt's message, no reply, nothing stored
+    # or changed — no pending read-back a Confirm could meet, the element's status as before.
+    turns = [(h.get("role"), h.get("text")) for h in after["conversation_history"]]
+    assert turns == [("user", "Next, please.")], turns
+    assert after["phases"]["define"]["field_status"]["secondary_metrics"] ==         before["phases"]["define"]["field_status"]["secondary_metrics"]
+    assert after["phases"]["define"].get("structured") == before["phases"]["define"].get("structured")
+    _time.sleep(4.5)                      # the cancelled call's thread finishes; nothing may land after it
+    monkeypatch.setattr(routes, "TURN_LIMIT_S", 45.0)
+    monkeypatch.setattr(_FakeCoach, "_agenerate", agenerate)
+    monkeypatch.setattr(nodes_common, "get_llm", real)
+    _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
+    r = _askd(env, message="Next, please.")
+    assert "What will you watch?" in r["answer"] and r["move"] == moves.TEACH, r
+    final = env.client.get(f"/cases/{CASE_ID}").json()
+    roles = [h.get("role") for h in final["conversation_history"]]
+    assert roles == ["user", "user", "ai"], roles
+    assert "TOO LATE" not in str(final), "the cancelled turn's reply landed after the deadline"
+    # NodeTimeoutError is caught by its own name (it is not a TimeoutError — langgraph/errors.py).
+    import inspect
+    assert "isinstance(error.error, NodeTimeoutError)" in inspect.getsource(nodes_common.executor_timeout_handler)
+
+
 def test_define_is_done_within_forty_turns_none_over_45_seconds() -> None:
     """DEF-093 — A fresh case with the scripted persona reaches an approved Define report in at most 40 Belt turns, no turn over 45 s, no element unreachable; the run-"""
     _not_written('DEF-093')
@@ -4237,7 +4323,7 @@ def test_a_coherence_rejection_asks_the_coach_again(env, monkeypatch, stub_plann
         log.clear()
     config = routes._graph_config
     monkeypatch.setattr(routes, "_graph_config", lambda *a, **k: (lambda c: (
-        c["configurable"].update(turn_started=c["configurable"]["turn_started"] - 44.0), c)[1])(config(*a, **k)))
+        c["configurable"].update(turn_started=c["configurable"]["turn_started"] - 39.5), c)[1])(config(*a, **k)))
     coach_twice("Secondary metrics are what else might change.", "SHOULD NOT BE SEEN")
     r = _askd(env, message="Next, please.")
     assert len(seen) == 1 and "SHOULD NOT BE SEEN" not in r["answer"], r["answer"]
