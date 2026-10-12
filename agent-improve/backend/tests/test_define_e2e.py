@@ -4102,6 +4102,23 @@ def test_a_coherence_rejection_asks_the_coach_again(env, monkeypatch, stub_plann
     steps: list = []
     monkeypatch.setattr(nodes_common, "_step", _recording(nodes_common._step, steps))
 
+    # 0. G-161 containment (founder ruling 2026-10-12): while the judge runs log-only, a rejection is
+    #    recorded and changes nothing — no re-ask, the first reply goes out.
+    from backend.middleware import coherence as coherence_module
+    assert coherence_module.COHERENCE_MODE == "log_only"
+    _at_element(env, "secondary_metrics")
+    coach_twice("Secondary metrics are what else might change.", "SHOULD NOT BE SEEN")
+    r = _askd(env, message="Next, please.")
+    assert len(seen) == 1 and "SHOULD NOT BE SEEN" not in r["answer"], r["answer"]
+    record = [s for s in steps if s.get("layer") == "coherence"]
+    assert record[0]["reask"] == "coherence rejected, no re-ask (log-only, G-161)" and record[0]["mode"] == "log_only"
+    for log in (seen, checks, steps):
+        log.clear()
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    # DEF-014's re-ask, as built — it returns when the containment is removed ("enforce").
+    monkeypatch.setattr(coherence_module, "COHERENCE_MODE", "enforce")
+
     # 1. A teaching turn: rejected, asked again, the second reply reaches the Belt.
     _at_element(env, "secondary_metrics")
     coach_twice("Secondary metrics are what else might change.", "Secondary metrics are what else might "

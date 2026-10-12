@@ -128,6 +128,13 @@ words with no confirmation question and nothing added.
 """
 
 
+#: G-161 containment (founder ruling 2026-10-12, D3): the judge runs LOG-ONLY — every verdict is recorded,
+#: a rejection asks the coach nothing again and changes no reply (the grader still stands down on it:
+#: grading a rejected reply is DEF-015 option A, paused). Removal condition: `scripts/judge_replay.py`
+#: shows the judge's false-reject rate under 20% against the founder's labels; then "enforce".
+COHERENCE_MODE = "log_only"
+
+
 #: G-155 (DEF-013) — the moves whose reply must restate the Belt's words or quote the script.
 RESTATING_MOVES: frozenset[str] = frozenset({"teach", "read_back", "store_and_advance"})
 
@@ -271,6 +278,8 @@ class CoherenceMiddleware(AgentMiddleware):
         """None when the coach may be asked once more; else the reason step_log records."""
         import time
         terms = self.reask or {}
+        if COHERENCE_MODE == "log_only":
+            return "log-only, G-161"
         if not terms.get("allowed"):
             return "answer turn" if self.reask is not None else "not configured"
         made = self._coach_calls(state)
@@ -328,6 +337,7 @@ class CoherenceMiddleware(AgentMiddleware):
             "degraded": self.degraded,
             # B3 — the grader stands down on exactly this flag.
             "grader_skipped": self.degraded,
+            "mode": COHERENCE_MODE,                # G-161 containment
             "attempts": self.attempts,
             "script_step": {k: step.get(k) for k in ("position", "field", "step")},
             **({"reask": reask} if reask else {}),          # DEF-014
