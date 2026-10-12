@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 95 of 162 Define features pass (core 89 of 153) — A 45/68 · B 30/35 · C 13/36 · integrator 7/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
-| **Next — lane A** | DEF-084 — The high-level process element captures per-step duration (avg/min/max with unit), frequency and problem notes with who said them, and end-t |
-| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
+| **Headline** | 70 of 162 Define features pass, 29 more proven on earlier code (core 68 of 153) — A 23/68 · B 28/35 · C 14/36 · integrator 5/23 · M1: 25 proven · 22 awaiting fresh run · 0 open |
+| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
+| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-104 — The creator of a case is its project lead; only the lead adds or removes members and assigns roles; the lead is shown on the form, header, l |
-| **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
-| **Run-through record** | current |
+| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-10-12 |

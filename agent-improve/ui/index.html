@@ -584,6 +584,9 @@ a{text-decoration:none;color:inherit}
           <div class="typing" id="typing">AI is thinking...</div>
           <input type="file" id="chat-file-input" style="display:none" onchange="handleChatFile(this)">
           <div class="input-container">
+            <!-- W8 (DEF-080): the standing label on the coaching screen -->
+            <div class="ai-label" id="ai-label" style="font-size:10px;color:#5B6B7C;padding:2px 2px 6px">
+              <i class="ti ti-robot"></i> AI coach — it can be wrong; you confirm every value.</div>
             <div class="reply-box">
               <div class="cinput-label">Your reply</div>
               <div class="input-box">
@@ -636,6 +639,8 @@ a{text-decoration:none;color:inherit}
 
 <script>
 const API = 'http://127.0.0.1:8020';
+// W8 (DEF-080) — the standing label, one wording on every coaching screen and the overview.
+const AI_COACH_LABEL = 'AI coach — it can be wrong; you confirm every value.';
 
 // A server-written message goes into innerHTML in one place (loadRegistry's
 // failure panel), so it is escaped. `detail` is backend prose today, but an
@@ -2941,9 +2946,22 @@ function renderOverview(){
   document.getElementById('view-overview').innerHTML = `
     <div style="display:block;height:100%;overflow:hidden">
       <div style="overflow-y:auto;height:100%;padding:24px 32px">
+        ${coachScopeHtml()}
         ${leftColHtml}
       </div>
     </div>`;
+}
+
+// W8 (DEF-080) — the overview says what the coach does and does not do.
+function coachScopeHtml() {
+  return `<div id="coach-scope" style="background:#F6F8FB;border:0.5px solid #D8DEE6;border-radius:8px;
+      padding:10px 14px;margin-bottom:16px;font-size:11px;line-height:1.6;color:#2C3E50">
+    <div style="font-weight:600;margin-bottom:4px">${escapeHtml(AI_COACH_LABEL)}</div>
+    <div><strong>What the coach does:</strong> explains each part of the method, shows a worked example,
+      asks for your answer, checks it against the method's criteria and reads it back for you to confirm.</div>
+    <div><strong>What it does not do:</strong> it does not decide for you, store anything you have not
+      confirmed, invent your figures, or approve the report — you and your team do.</div>
+  </div>`;
 }
 
 // Helper: toggle inline explainer panel under a step in Define overview

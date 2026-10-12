@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import conversation
+from backend.core.request_context import set_case_id, set_phase
 from backend.core.errors import CaseBusyError, StateSchemaVersionError
 from backend.core.graph import RECURSION_LIMIT
 from backend.gateway.schemas import (
@@ -144,6 +145,7 @@ async def summarise_session(request: SummariseRequest) -> SummariseResponse:
 async def get_session_context(request: ContextRequest) -> ContextResponse:
     """Generate a re-entry greeting based on current gate status.
     Called when user opens the AI guide tab after a break."""
+    _bind(request.case_id, getattr(request, "phase", None))   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     case = await blob.load_case(request.case_id)
@@ -387,6 +389,13 @@ async def _run_turn(graph, state: Any, config: dict, http: Request):
 #: T11 (DEF-115) — said to a second person whose turn arrives while the case's lease is held.
 CASE_BUSY = ("Someone else on the team is working on this case right now. Wait a moment and send "
              "your message again — nothing of yours was lost.")
+
+
+def _bind(case_id: Any, phase: Any) -> None:
+    """T43 (DEF-129): the request's case and phase into the logging context — every log line of the
+    request, the graph's nodes included (they run in tasks that inherit it), names them."""
+    set_case_id(str(case_id) if case_id else None)
+    set_phase(str(phase) if phase else None)
 
 
 async def _run_turn_held(graph, state: Any, config: dict, http: Request):
@@ -721,6 +730,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     the Belt never saw is unacceptable in a system whose premise is that the
     Belt approves what gets committed.
     """
+    _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
@@ -855,6 +865,7 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
     document is assembled only when assembly would succeed, so the screen never
     shows a half-built document as though it were the real one.
     """
+    _bind(case_id, phase)   # T43 (DEF-129): every log line of the request names them
     if phase not in GATE_SPECS:
         raise HTTPException(400, f"Unknown phase: {phase}")
     if not blob.storage_configured():
@@ -1006,6 +1017,7 @@ async def upload_file(
     Returns a flat ``file`` dict in the CaseFile shape alongside the legacy
     response fields for backward compatibility.
     """
+    _bind(case_id, phase)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
@@ -1289,6 +1301,7 @@ async def delete_case_file(case_id: str, file_id: str):
     class that never defined one, so the branch never ran. Step 3.5 preserved
     the behaviour and dropped the probe rather than adding a deleter, which
     would be a new capability and not a structural refactor."""
+    _bind(case_id, None)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
@@ -1528,6 +1541,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     Belt back to the first of them; this route persists it as `/ask` does.
     Until R8 the Belt is the actor.
     """
+    _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
     from langgraph.types import Command
 
     if request.phase != "define":
@@ -1625,6 +1639,7 @@ async def submit_gate(request: GateSubmitRequest,
     approval writes the gate document and advances the phase. The other four
     phases, which have no report to accept yet, still write here when they pass.
     """
+    _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     case = await blob.load_case(request.case_id)
@@ -1810,6 +1825,7 @@ async def get_case(case_id: str):
     """Load full case document. Also projects every per-phase upload
     into a flat ``files`` array in CaseFile shape so the UI can render
     a single grouped files panel without walking each phase record."""
+    _bind(case_id, None)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     case = await blob.load_case(case_id)

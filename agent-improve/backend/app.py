@@ -11,8 +11,13 @@ from starlette.types import ASGIApp
 from starlette.requests import Request
 from starlette.responses import Response
 
-from backend.core.config import settings
-from backend.core.errors import StateSchemaVersionError
+from backend.core.config import check_credentials, settings
+
+# T67 (DEF-139): without its credentials the app exits with status 1 as it loads — before uvicorn
+# serves, so the process's exit status is 1 (a failed start-up hook would exit with uvicorn's 3).
+check_credentials()
+
+from backend.core.errors import StateSchemaVersionError  # noqa: E402
 from backend.core.tracing import init_tracing
 from backend.core.logging_setup import configure_logging
 from backend.core.request_context import (

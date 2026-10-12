@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from typing import Optional
 
 from pydantic.v1 import BaseSettings, Field
@@ -207,4 +208,29 @@ settings = Settings(
     CONTENT_SAFETY_KEY=os.getenv("CONTENT_SAFETY_KEY"),
 )
 
-__all__ = ["Settings", "settings"]
+#: T67 (DEF-139), §11.4: the credentials Agent Improve cannot run a turn without — the coaching
+#: models, retrieval and the case store. Missing at start-up, the app exits with status 1.
+REQUIRED_CREDENTIALS: tuple[str, ...] = (
+    "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
+    "AZURE_SEARCH_ENDPOINT", "AZURE_SEARCH_API_KEY",
+    "AZURE_BLOB_CONNECTION_STRING",
+)
+
+
+def missing_credentials(s: "Settings | None" = None) -> list[str]:
+    """The required credentials that are not set (blank counts as not set)."""
+    s = s or settings
+    return [name for name in REQUIRED_CREDENTIALS if not str(getattr(s, name, "") or "").strip()]
+
+
+def check_credentials() -> None:
+    """T67: name every missing credential on stderr and exit with status 1 — before the app
+    accepts a request, so a container without them never receives traffic (§11.4)."""
+    missing = missing_credentials()
+    if missing:
+        print("Agent Improve cannot start — required credential(s) missing: " + ", ".join(missing)
+              + ". Set them in agent-improve/.env or the environment.", file=sys.stderr)
+        raise SystemExit(1)
+
+
+__all__ = ["Settings", "settings", "REQUIRED_CREDENTIALS", "missing_credentials", "check_credentials"]

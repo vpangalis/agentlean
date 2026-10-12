@@ -138,10 +138,6 @@ def test_every_node_of_a_turn_is_checkpointed(monkeypatch, stub_planner, stub_co
         graph_mod.get_graph.cache_clear()
 
 
-def test_a_qualified_yes_is_treated_as_a_correction() -> None:
-    """DEF-009 — A typed plain yes confirms like the button; a yes carrying 'but/actually/change…' is treated as a correction and judged again."""
-    _not_written('DEF-009')
-
 
 def test_coherence_judges_the_belts_words() -> None:
     """DEF-013 — The coherence judge rules on the Belt's words, not the coach's: a reply that quotes the script is not degraded, a real parrot still is."""
@@ -912,10 +908,6 @@ process.stdout.write(JSON.stringify({{html}}));
     assert [(e["event"], e["field"]) for e in events] == [("return", "baseline_estimate")], events
 
 
-def test_every_coaching_screen_says_it_is_an_ai_coach() -> None:
-    """DEF-080 — Every coaching screen carries the standing label 'AI coach — it can be wrong; you confirm every value'; the overview states what the coach does and do"""
-    _not_written('DEF-080')
-
 
 
 
@@ -1410,10 +1402,6 @@ def test_t42_validation_and_extraction_steps_are_traced_spans() -> None:
     _not_written('DEF-128')
 
 
-def test_t43_every_log_line_carries_request_id_case_id_and_phase() -> None:
-    """DEF-129 — Every log line carries `request_id`, case id and phase"""
-    _not_written('DEF-129')
-
 
 def test_t50_a_drop_of_more_than_10_in_any_eval_metric_blocks_release() -> None:
     """DEF-130 — A drop of more than 10% in any eval metric blocks release"""
@@ -1450,10 +1438,6 @@ def test_t66_a_tier_2_criterion_can_never_fail_a_gate() -> None:
     """DEF-138 — A Tier 2 criterion can never fail a gate"""
     _not_written('DEF-138')
 
-
-def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing() -> None:
-    """DEF-139 — Start-up exits with status 1 when a required credential is missing"""
-    _not_written('DEF-139')
 
 
 def test_t68_a_second_region_fallback_exists_before_launch_deferred() -> None:
@@ -3477,3 +3461,104 @@ def test_e2e_a_code_written_reply_never_shows_a_placeholder(env, monkeypatch) ->
     answer = r.json()["answer"]
     assert answer.strip(), "no reply"
     assert not re.search(r"\{[a-z_]+(\[[^\]]*\])?\}", answer), answer
+
+
+def test_a_qualified_yes_is_treated_as_a_correction(env, monkeypatch, stub_planner) -> None:
+    """DEF-009 — R3, through the routes and graph: under a read-back, a typed plain yes ("Yes, that's
+    right") confirms like the button and stores the value; a yes carrying a correction ("Yes but add
+    supplier overtime") stores nothing and is judged again as an answer."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    def read_back(words: str) -> None:
+        _coach_saying(monkeypatch, "What would you like to change in the secondary metrics?")
+        _askd(env, action="revise", element="secondary_metrics", message="Change: secondary metrics")
+        stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names a side effect")
+        _coach_saying(monkeypatch, f'Your secondary metrics: "{words}". Is this right?',
+                      captured=[{"field_name": "secondary_metrics", "value": words, "source": "belt"}])
+        assert _askd(env, message=words)["move"] == moves.READ_BACK
+
+    read_back("supplier queries and approval days")
+    _coach_saying(monkeypatch, "Thank you.")
+    yes = _askd(env, message="Yes, that's right")
+    assert yes["move"] == moves.STORE_AND_ADVANCE, yes["move"]
+    assert _define(env)["structured"]["secondary_metrics"] == "supplier queries and approval days"
+
+    read_back("supplier queries")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="adds overtime")
+    _coach_saying(monkeypatch, 'Your secondary metrics: "supplier queries and overtime". Is this right?',
+                  captured=[{"field_name": "secondary_metrics", "value": "supplier queries and overtime",
+                             "source": "belt"}])
+    qualified = _askd(env, message="Yes but add supplier overtime")
+    assert qualified["move"] != moves.STORE_AND_ADVANCE, qualified["move"]
+    assert qualified["move"] == moves.READ_BACK and "overtime" in qualified["answer"], qualified
+    assert _define(env)["structured"]["secondary_metrics"] == "supplier queries and approval days", \
+        "a qualified yes stored a value"
+
+
+def test_every_coaching_screen_says_it_is_an_ai_coach(env) -> None:
+    """DEF-080 — W8: the coaching screen, as the app serves it, carries the standing label 'AI coach —
+    it can be wrong; you confirm every value', and the overview (drawn by the page's own
+    coachScopeHtml) says what the coach does and does not do."""
+    import json
+    import re
+
+    page = env.client.get("/")
+    assert page.status_code == 200, page.status_code
+    label = "AI coach — it can be wrong; you confirm every value."
+    chat = page.text[page.text.find('id="view-chat"'):]
+    assert label in chat[:chat.find('id="chat-input"')], "the coaching screen has no standing label"
+    constant = re.search(r"const AI_COACH_LABEL = '([^']+)'", page.text)
+    assert constant and constant.group(1) == label, "the overview's label differs from the screen's"
+    got = _run_page(("function coachScopeHtml",), _PAGE_STUBS + f"""
+const AI_COACH_LABEL={json.dumps(label)};
+process.stdout.write(JSON.stringify({{html:coachScopeHtml()}}));
+""")
+    assert label in got["html"], got["html"]
+    assert "What the coach does:" in got["html"] and "What it does not do:" in got["html"], got["html"]
+    assert "approve the report" in got["html"] and "confirmed" in got["html"]
+
+
+def test_t43_every_log_line_carries_request_id_case_id_and_phase(env, monkeypatch, caplog) -> None:
+    """DEF-129 — T43: every log line a /ask turn writes — the route's and the graph's nodes' —
+    carries the request id the caller sent, the case id and the phase."""
+    import logging
+
+    from backend.core.logging_setup import _ContextFilter
+
+    caplog.set_level(logging.INFO)
+    caplog.handler.addFilter(_ContextFilter())
+    _coach_saying(monkeypatch, "Here is where we stand.")
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Where do we stand?"}, headers={"x-request-id": "rid-t43"})
+    assert r.status_code == 200, r.text
+    ours = [rec for rec in caplog.records if rec.name.startswith("backend.")
+            and getattr(rec, "request_id", "-") == "rid-t43"]
+    assert len(ours) >= 3, [(r.name, r.getMessage()[:60]) for r in caplog.records][:10]
+    names = {rec.name for rec in ours}
+    assert any(n.startswith("backend.phases") for n in names), names     # the graph's nodes too
+    stray = [(rec.name, rec.getMessage()[:80]) for rec in ours
+             if (rec.case_id, rec.phase) != (CASE_ID, "define")]
+    assert not stray, stray
+
+
+def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(env) -> None:
+    """DEF-139 — T67, §11.4: started without a required credential, the app exits with status 1 and
+    names it, before it serves anything; with its credentials it starts and answers."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from backend.core.config import REQUIRED_CREDENTIALS
+
+    project = Path(__file__).resolve().parents[2]
+    bare = {k: v for k, v in os.environ.items() if k != "AZURE_OPENAI_API_KEY"}
+    # The .env file would put the key back; the start is otherwise the real one (the app module loads).
+    start = "import dotenv; dotenv.load_dotenv = lambda *a, **k: False; import backend.app"
+    out = subprocess.run([sys.executable, "-c", start], cwd=project, env=bare,
+                         capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert out.returncode == 1, (out.returncode, out.stderr[-500:])
+    assert "AZURE_OPENAI_API_KEY" in out.stderr and "cannot start" in out.stderr, out.stderr[-500:]
+    assert "AZURE_OPENAI_API_KEY" in REQUIRED_CREDENTIALS
+    assert env.client.get("/health").status_code == 200, "with its credentials the app does not answer"

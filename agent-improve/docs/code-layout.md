@@ -14,7 +14,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | — | `app.py` C | — | `RequestIdMiddleware`, `startup`, `shutdown` |
 | `core/` | `checkpointer.py` C | Azure Blob checkpointer for Agent Improve. | `ConcurrentTurnError`, `AzureBlobCheckpointSaver`, `get_checkpointer` |
 |  | `citations.py` C | Citation models for Agent Improve. | `CitationRecord`, `CitationBundle` |
-|  | `config.py` C | — | `KNOWLEDGE_INDEX_DEFAULT`, `Settings` |
+|  | `config.py` C | — | `KNOWLEDGE_INDEX_DEFAULT`, `Settings`, `REQUIRED_CREDENTIALS`, `missing_credentials`, `check_credentials` |
 |  | `content_safety.py` | Azure AI Content Safety — Prompt Shields. ADR-0057 (ACCEPTED, fail closed); T71, T72. | `API_VERSION`, `TIMEOUT_S`, `MAX_CHARS`, `configured`, `development_mode`, `required`, `is_content_filter`, `retry_on`, `check_startup`, `shield`, `transient` |
 |  | `conversation.py` | Conversation <-> `messages` marshalling — procedure step 4.2. | `V1_PRESENTATION_KEYS`, `COACHING_BLOCK_KEYS`, `MOVE_RECORD_KEY`, `QUALITY_FEEDBACK_KEY`, `TURN_RECORD_KEYS`, `message_to_turn`, `turn_to_message`, `transport`, `strip_transport` |
 |  | `diagrams.py` C | Diagram types and schemas for `propose_diagram` — procedure step 6.2. | `DIAGRAM_TYPES`, `SIPOC_COLUMNS`, `SIPOC_SOURCES`, `DiagramError`, `sipoc_columns`, `build_sipoc`, `build_mindmap_5w2h`, `build_baseline_target`, `BUILDERS` |
