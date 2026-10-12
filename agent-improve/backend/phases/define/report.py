@@ -80,6 +80,96 @@ def _metric(artifacts: dict[str, Any], field: str) -> str | None:
     return None if v is None else metric_text(v)
 
 
+#: C1 (DEF-086) — each key field with a one-line explanation of what it is, in plain words.
+FIELD_EXPLAIN: dict[str, str] = {
+    "team": "Who works on the project, and in what role.",
+    "project_lead": "The person who leads the project day to day.",
+    "champion": "The manager who backs the project and decides when it needs a decision.",
+    "business_case": "Why the project deserves time and people.",
+    "cost_of_gap": "What the problem costs a year if nothing changes.",
+    "impact_type": "Whether the saving lasts or happens once.",
+    "realisation_schedule": "When the saving is expected to show.",
+    "finance_contact": "Who in finance checks the figure.",
+    "five_w_two_h": "The seven questions that pin the problem down.",
+    "problem_statement": "The problem in one sentence, built from the seven answers.",
+    "objective": "What success looks like, with a number and a date.",
+    "scope": "What the project covers, and what it deliberately leaves out.",
+    "voc_summary": "What the customers of the process say they need.",
+    "ctqs": "Each customer need turned into a requirement that can be measured.",
+    "primary": "The measure the project is judged on.",
+    "baseline_target": "Where the measure stands today, and where it should be.",
+    "target_date": "When the target should be reached.",
+    "secondary_metrics": "What else is watched, so the fix does not cause a new problem.",
+    "sipoc": "The process on one page: who supplies it, its steps, what it produces and for whom.",
+    "process_metrics": "What is measured on the process's outputs.",
+    "issues": "What could stop the project.",
+}
+
+#: C1 — the sentence that tells a reader how to read each visual.
+VISUAL_READ: dict[str, str] = {
+    "mindmap_5w2h": "Read from the centre out: each branch answers one of the seven questions about the problem.",
+    "baseline_target": ("The first bar is where the measure stands today, the second where it should be by "
+                        "the target date; the gap between them is the project's job."),
+    "sipoc": ("Read left to right: suppliers provide the inputs, the process steps turn them into outputs, and "
+              "the outputs go to the customers."),
+    "benefit_timeline": ("What the gap costs each year, the saving the project expects, and when that saving "
+                         "is expected to land — the same figures as the text beside it."),
+}
+
+_NOT_YET = "Not confirmed yet."
+
+
+def _summaries(a: dict[str, Any], body: dict[int, dict[str, Any]]) -> dict[int, str]:
+    """C1 (DEF-086) — each section's short plain-language summary: what it shows and what it means for
+    the project, built in code from the confirmed values only (never a value the section lacks)."""
+    s1, s2, s3, s4, s5, s6, s7 = (body[n] for n in range(1, 8))
+    team = s1.get("team") or []
+    champion = (s1.get("champion") or {}).get("name")
+    one = (f"{s1.get('project_lead') or 'The project lead'} leads the project"
+           + (f"; {champion} is the Champion, who decides" if champion else "")
+           + f"; {len(team)} people are on the team." if team else _NOT_YET)
+    b = s2.get("benefits") or {}
+    two = (f"Closing the gap is worth {b.get('cost_of_gap')} ({b.get('impact_type')}); the saving is "
+           f"expected {b.get('realisation_schedule')}, checked by {b.get('finance_contact')}."
+           if b else _NOT_YET)
+    def sentence(text: Any) -> str:
+        t = str(text).strip()
+        return t if t.endswith((".", "!", "?")) else f"{t}."
+    three = (f"The problem: {sentence(s3['problem_statement'])}"
+             + (f" Success: {sentence(s3['objective'])}" if s3.get("objective") else "")
+             if s3.get("problem_statement") else _NOT_YET)
+    ctqs = s4.get("ctqs") or []
+    four = (f"{len(ctqs)} customer need{'s' if len(ctqs) != 1 else ''} turned into measurable "
+            f"requirement{'s' if len(ctqs) != 1 else ''}." if ctqs else _NOT_YET)
+    primary = s5.get("primary") or {}
+    five = (f"Success is measured by {str(primary.get('name') or 'the primary metric').replace('_', ' ')}: from "
+            f"{s5.get('baseline') or 'a baseline not confirmed yet'} today to {s5.get('target') or 'a target not confirmed yet'}"
+            + (f" by {s5['target_date']}" if s5.get("target_date") else "") + "."
+            if primary else _NOT_YET)
+    names = parse_steps_names(s6)
+    six = (f"The process runs in {len(names)} step{'s' if len(names) != 1 else ''}, from {names[0]} to {names[-1]}."
+           if names else _NOT_YET)
+    issues = s7.get("issues") or []
+    seven = (f"{len(issues)} issue{'s' if len(issues) != 1 else ''} could stop the project." if issues else _NOT_YET)
+    return {1: one, 2: two, 3: three, 4: four, 5: five, 6: six, 7: seven}
+
+
+def parse_steps_names(section6: dict[str, Any]) -> list[str]:
+    """The step names section 6 draws (the SIPOC's process column)."""
+    return [str(n) for n in ((section6.get("sipoc") or {}).get("process_steps") or []) if str(n).strip()]
+
+
+def _issues(value: Any) -> list[str]:
+    """Section 7's issues as a list: one per line or per ';', else the whole answer as one."""
+    import re
+    text = str(value or "").strip()
+    if not text:
+        return []
+    parts = [p.strip(" -•\t") for p in re.split(r"\n|;", text)]
+    return [p for p in parts if p] or [text]
+
+
+
 def _savings(artifacts: dict[str, Any]) -> dict[str, Any] | None:
     rows = [r for r in (artifacts.get("computation_results") or [])
             if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
@@ -131,11 +221,17 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
             "target_date": _value(a, "target_date"),
             "secondary_metrics": _value(a, "secondary_metrics"),
             "other_registered": registry[1:]},
-        6: {"sipoc": {k: sipoc.get(k) for k in SIPOC_KEYS} if isinstance(sipoc, dict) else {}},
-        7: {"issues_and_barriers": _value(a, "issues_and_barriers")},
+        # The drawn columns (step names as the diagram shows them) and what is measured on the outputs.
+        6: {"sipoc": ({**_sipoc_columns(sipoc), "process_metrics": sipoc.get("process_metrics")}
+                      if isinstance(sipoc, dict) else {})},
+        7: {"issues_and_barriers": _value(a, "issues_and_barriers"),
+            "issues": _issues(_value(a, "issues_and_barriers"))},
     }
+    # C1 (DEF-086): each section's plain-language summary, and its key fields' one-line explanations.
+    summaries = _summaries(a, body)
     sections = [{"n": n, "title": title, "fields": list(fields),
-                 "complete": all(_value(a, f) is not None for f in fields), **body[n]}
+                 "complete": all(_value(a, f) is not None for f in fields), **body[n],
+                 "summary": summaries[n]}
                 for n, title, fields in REPORT_SECTIONS]
     missing = [f for f in DEFINE_REQUIRED_FOR_GATE_FIELDS if _value(a, f) is None]
     history = {f: h for f, h in value_history(field_log, "define").items() if h["changes"] > 1}
@@ -143,8 +239,16 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
                 for f in DEFINE_FIELD_ORDER]
     # ADR-0070: the report's visuals, drawn from the stored values by the reply's own function.
     from backend.phases.define.visuals import report_visuals
+    visuals = report_visuals(a)                       # R5 section 2's timeline among them (DEF-088)
     return {"sections": sections, "complete": not missing, "missing": missing,
-            "elements": elements, "history": history, "visuals": report_visuals(a)}
+            "elements": elements, "history": history, "visuals": visuals, "explain": FIELD_EXPLAIN,
+            "read": {k: VISUAL_READ[k] for k in visuals if k in VISUAL_READ}}
 
 
-__all__ = ["FIVE_W_TWO_H_QUESTIONS", "REPORT_SECTIONS", "define_report", "element_of"]
+def _sipoc_columns(sipoc: dict[str, Any]) -> dict[str, list[str]]:
+    from backend.core.diagrams import sipoc_columns
+    return sipoc_columns(sipoc)
+
+
+__all__ = ["FIVE_W_TWO_H_QUESTIONS", "REPORT_SECTIONS", "FIELD_EXPLAIN", "VISUAL_READ", "define_report",
+           "element_of"]

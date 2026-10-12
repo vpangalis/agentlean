@@ -22,11 +22,11 @@ from backend.phases.define.parse import as_metric, parse_limit, primary_unit
 VISUAL_OF: dict[str, str] = {
     "problem_statement": "mindmap_5w2h", "baseline_estimate": "baseline_target",
     "goal_statement": "baseline_target", "target_value": "baseline_target",
-    "process_map_sipoc": "sipoc",
+    "process_map_sipoc": "sipoc", "benefits_analysis": "benefit_timeline",
 }
 #: Where the reply carries each visual (the UI's keys, `gateway/schemas.py::AskResponse`).
 UI_KEY: dict[str, str] = {"sipoc": "sipoc_diagram", "mindmap_5w2h": "visualisation",
-                          "baseline_target": "visualisation"}
+                          "baseline_target": "visualisation", "benefit_timeline": "visualisation"}
 #: The 5W2H mind map's slots, from the stored `problem_5w2h` keys.
 _5W2H_SLOTS = {"what": "what", "where": "where", "when": "when", "who": "who_affected", "why": "why",
                "how_much": "how_much", "how": "how_often"}
@@ -60,6 +60,17 @@ def _baseline_target(values: dict[str, Any], field: Optional[str]) -> dict[str, 
         direction=(target or {}).get("direction", "equal"), target_date=_date(values.get("target_date")))
 
 
+def _benefit_timeline(values: dict[str, Any]) -> dict[str, Any]:
+    """R5 section 2 (DEF-088): the cost of the gap, the expected saving and when it lands — only the
+    figures the benefits analysis and the recorded calculation carry (C1: never a value the text lacks)."""
+    b = values["benefits_analysis"]
+    rows = [r for r in (values.get("computation_results") or [])
+            if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
+    saving = ((rows[-1].get("result") or {}).get("annual_savings")) if rows else None
+    return {"type": "benefit_timeline", "cost_of_gap": b.get("cost_of_gap"), "impact_type": b.get("impact_type"),
+            "expected_saving": saving, "realisation_schedule": b.get("realisation_schedule")}
+
+
 def _date(value: Any) -> Optional[str]:
     """The ISO date in the Belt's words when there is one (G-132), else the words."""
     import re
@@ -79,6 +90,8 @@ def draw(kind: str, values: dict[str, Any], *, confirmed: bool,
                 {slot: values["problem_5w2h"].get(k) for k, slot in _5W2H_SLOTS.items()})
         elif kind == "baseline_target":
             payload = _baseline_target(values, field)
+        elif kind == "benefit_timeline" and isinstance(values.get("benefits_analysis"), dict):
+            payload = _benefit_timeline(values)
         else:
             return None
     except diagrams.DiagramError:
@@ -97,7 +110,7 @@ def report_visuals(artifacts: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """The gate document's visuals, from the stored values — by the same `draw`."""
     out: dict[str, dict[str, Any]] = {}
     for kind, field in (("mindmap_5w2h", "problem_statement"), ("baseline_target", "target_value"),
-                        ("sipoc", "process_map_sipoc")):
+                        ("sipoc", "process_map_sipoc"), ("benefit_timeline", "benefits_analysis")):
         payload = draw(kind, artifacts, confirmed=True, field=field)
         if payload:
             out[kind] = payload

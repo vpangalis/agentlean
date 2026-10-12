@@ -359,10 +359,6 @@ def test_the_coach_quotes_an_uploaded_document() -> None:
     _not_written('DEF-057')
 
 
-def test_the_gate_screen_shows_the_document_and_acts_on_the_pause() -> None:
-    """DEF-058 — The gate screen shows the live gate document (one progress bar for Define), and the approve/reject controls act on the paused gate."""
-    _not_written('DEF-058')
-
 
 def test_the_reply_streams_and_a_drop_abandons() -> None:
     """DEF-059 — The coach's reply appears as it is written (server-sent events), and a dropped client abandons the turn."""
@@ -910,10 +906,6 @@ def test_the_problem_statement_and_the_process_steps_are_linked_both_ways() -> N
     _not_written('DEF-085')
 
 
-def test_every_phase_report_reads_as_a_business_document() -> None:
-    """DEF-086 — Each phase report is laid out in visual sections, each with a heading, a plain-language summary and key fields with a one-line explanation; built only"""
-    _not_written('DEF-086')
-
 
 def test_report_sections_show_a_labelled_picture_where_the_data_allows() -> None:
     """DEF-087 — Where a section's data allows, the report shows a labelled diagram or chart with a sentence on how to read it, beside the table carrying the same valu"""
@@ -934,10 +926,6 @@ def test_the_welcome_summary_is_built_in_code_from_confirmed_values() -> None:
     """DEF-090 — The coaching page greets the Belt by name and summarises confirmed and open elements, assembled in code without a model call; replaces the browser rec"""
     _not_written('DEF-090')
 
-
-def test_nothing_typed_or_sent_is_lost_on_reload() -> None:
-    """DEF-091 — A typed unsent message survives a reload; every sent turn and confirmation survives a reload or restart."""
-    _not_written('DEF-091')
 
 
 def test_the_screen_says_what_is_happening_while_a_turn_runs() -> None:
@@ -1086,10 +1074,6 @@ def test_values_for_other_elements_in_one_answer_are_read_back() -> None:
     """DEF-098 — When an answer carries values for other unconfirmed elements, the coach reads them back for confirmation; nothing is stored before confirmation."""
     _not_written('DEF-098')
 
-
-def test_sipoc_is_shown_as_a_table_and_as_a_process_diagram() -> None:
-    """DEF-099 — R2 amendment: SIPOC is shown both as a table and as a process diagram; 5W2H keeps its live mind map."""
-    _not_written('DEF-099')
 
 
 
@@ -2881,7 +2865,8 @@ function renderChips(){} function renderPhaseNav(){} function renderDiagram(){} 
 function renderLiveViz(){} function showSectionToast(){} function renderGate(){}
 """
     js = (harness + "\n" + "\n".join(fn(n) for n in ("escapeHtml", "renderTurn", "failureWords", "failedTurnHtml",
-                                                      "retryTurn", "appendMsgToDOM", "sendMessage"))
+                                                      "retryTurn", "appendMsgToDOM", "draftKey", "clearDraft",
+                                                      "sendMessage"))
           + "\n(async()=>{\n" + script + "\n})().catch(e=>{console.error(e);process.exit(1)});")
     out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
@@ -3734,3 +3719,175 @@ def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_
     _askd(env, action="confirm", message="Confirm")
     assert "secondary_metrics" not in _define(env)["structured"], "the sample was stored as the Belt's answer"
     assert _define(env)["field_status"]["secondary_metrics"]["status"] != moves.CONFIRMED
+
+
+def _page(names: tuple[str, ...], script: str) -> dict:
+    """The page's own functions by name (any `function`/`async function`), run in node with `script`."""
+    import json
+    import re
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    parts = []
+    for n in names:
+        m = re.search(r"^(?:async )?function " + re.escape(n) + r"\(.*?^\}", src, re.M | re.S)
+        assert m, f"{n} not found in ui/index.html"
+        parts.append(m.group(0))
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+        f.write("\n".join(parts) + "\n" + script)
+        path = f.name
+    out = subprocess.run([node, path], capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+_DOM = """
+const els={};const document={getElementById:id=>(els[id]=els[id]||{id,innerHTML:'',dataset:{}}),querySelectorAll:()=>[]};
+function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+"""
+
+
+def test_every_phase_report_reads_as_a_business_document(env) -> None:
+    """DEF-086 — C1: the Define report the server pauses on, drawn by the page's own defineReportHtml:
+    every section opens with a plain-language summary of what it shows and what it means, its key
+    fields carry a one-line explanation, every visual says how to read it — and all of it is built
+    only from confirmed values: an element not confirmed reads "Not confirmed yet" and its figures
+    appear nowhere."""
+    import json
+
+    _submit(env)
+    rep = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    got = _page(("benefitTimelineHtml", "defineReportHtml"), _DOM + f"""
+process.stdout.write(JSON.stringify({{html:defineReportHtml({json.dumps(rep)}, false)}}));""")
+    html = got["html"]
+    for s in rep["sections"]:
+        assert s["summary"] and s["summary"] != "Not confirmed yet.", s["n"]
+        assert html.count('class="sec-summary"') == 7 and s["summary"].replace("&", "&amp;")[:40] in html, s["n"]
+    assert html.count('class="field-why"') >= 15, html.count('class="field-why"')
+    assert "What the problem costs a year if nothing changes." in html
+    assert html.count('class="visual-read"') == len(rep["visuals"]) == 4, rep["visuals"].keys()
+    # Only confirmed values: the benefits analysis is not confirmed.
+    env.case.phases["define"].structured.pop("benefits_analysis")
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    rep = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    s2 = next(s for s in rep["sections"] if s["n"] == 2)
+    assert s2["summary"] == "Not confirmed yet." and "benefit_timeline" not in rep["visuals"]
+    got = _page(("benefitTimelineHtml", "defineReportHtml"), _DOM + f"""
+process.stdout.write(JSON.stringify({{html:defineReportHtml({json.dumps(rep)}, false)}}));""")
+    assert "£68k" not in got["html"] and "Sam" not in got["html"].split("2 · ")[1].split("3 · ")[0]
+
+
+def test_the_gate_screen_shows_the_document_and_acts_on_the_pause(env) -> None:
+    """DEF-058 — R5: the gate screen draws the live gate document from GET /gate/review with ONE progress
+    bar for Define (the confirmed elements of thirteen, as the server counts them), and the decision
+    the page's own decideDefineReport sends acts on the paused gate (approved, the gate passes)."""
+    import json
+
+    _submit(env)
+    d = env.client.get(f"/gate/review/{CASE_ID}/define").json()
+    done = sum(1 for e in d["report"]["elements"] if e["confirmed"])
+    got = _page(("benefitTimelineHtml", "defineReportHtml", "decideDefineReport"), _DOM + f"""
+const S={{case:{{case_id:{json.dumps(CASE_ID)}}},user:{json.dumps(ACTOR)}}};const API='';const sent=[];
+async function apiJSON(url,opts){{sent.push({{url,body:JSON.parse(opts.body)}});return {{message:'ok'}}}}
+function toast(){{}} async function openWorkspace(){{}} function selectTab(){{}} function renderGate(){{}}
+const html=defineReportHtml({json.dumps(d["report"])}, false);
+(async()=>{{await decideDefineReport('approve');process.stdout.write(JSON.stringify({{html,sent}}))}})();""")
+    html = got["html"]
+    assert html.count('class="define-progress"') == 1, "not one progress bar for Define"
+    assert f'data-done="{done}" data-of="13"' in html and f"{done} of 13 elements confirmed" in html
+    body = got["sent"][0]["body"]
+    assert got["sent"][0]["url"].endswith("/gate/decision") and body["decision"] == "approve"
+    r = env.client.post("/gate/decision", json=body)
+    assert r.status_code == 200, r.text
+    assert env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"].get("gate_passed") is True
+
+
+def test_sipoc_is_shown_as_a_table_and_as_a_process_diagram(env, monkeypatch, stub_planner) -> None:
+    """DEF-099 — R2 amendment, through the routes and graph: the SIPOC a read-back carries is drawn by
+    the page's own renderSipocDiagram both as a table and as a process diagram (the steps in order,
+    suppliers and inputs on one side, outputs and customers on the other); the 5W2H read-back's mind
+    map is drawn live by render5W2HMindmap with the Belt's answers on its branches."""
+    import json
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.tests.test_define_report import COMPLETE
+
+    sipoc = {"suppliers": "Suppliers", "inputs": "Supplier invoices", "outputs": "Payments",
+             "customers": "Suppliers", "process_metrics": "days to pay",
+             "process_steps": "Receive invoice; Approve invoice; Pay supplier"}
+    _at_element(env, "process_map_sipoc")
+    _coach_saying(monkeypatch, "Next: the high-level process.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all six columns")
+    _coach_saying(monkeypatch, "Your process, read back. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": sipoc, "source": "belt"}])
+    viz = _askd(env, message="Receive invoice, approve it, pay the supplier.")["sipoc_diagram"]
+    assert viz and viz["process_steps"] == ["Receive invoice", "Approve invoice", "Pay supplier"], viz
+    got = _page(("renderSipocDiagram",), _DOM + f"""
+const v={json.dumps(viz)};renderSipocDiagram(v,'s1');const table=els['s1'].innerHTML;
+els['s2']={{id:'s2',innerHTML:'',dataset:{{sipocTab:'flow'}}}};renderSipocDiagram(v,'s2');
+process.stdout.write(JSON.stringify({{table,flow:els['s2'].innerHTML}}));""")
+    for view in ("table", "flow"):
+        h = got[view]
+        i, j, k = (h.index(s) for s in ("Receive invoice", "Approve invoice", "Pay supplier"))
+        assert i < j < k, view
+    flow = got["flow"]
+    assert flow.index("Supplier invoices") < flow.index("Receive invoice") < flow.index("Payments"), \
+        "the flow is not suppliers and inputs, then the steps, then outputs and customers"
+    assert got["table"] != got["flow"]
+    # 5W2H: the live mind map carries the Belt's answers on its branches.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "problem_statement")
+    _coach_saying(monkeypatch, "Next: the problem statement.")
+    _askd(env, message="Next, please.")
+    _coach_saying(monkeypatch, "Your problem statement, read back. Is this right?",
+                  captured=[{"field_name": "problem_statement", "value": COMPLETE["problem_statement"], "source": "belt"},
+                            {"field_name": "problem_5w2h", "value": COMPLETE["problem_5w2h"], "source": "belt"}])
+    mm = _askd(env, message="what answer, where answer …")["visualisation"]
+    assert mm and mm["type"] == "mindmap_5w2h", mm
+    got = _page(("mindmapFromServer", "render5W2HMindmap"), _DOM + f"""
+const window={{}};
+render5W2HMindmap({json.dumps(mm)},'m');process.stdout.write(JSON.stringify({{html:els['m'].innerHTML}}));""")
+    for answer in ("what answer", "where answer", "when answer", "how_much answer"):
+        assert answer in got["html"], answer
+    assert "not yet captured" not in got["html"]
+
+
+def test_nothing_typed_or_sent_is_lost_on_reload(env, monkeypatch, stub_planner) -> None:
+    """DEF-091 — W11: a typed, unsent message survives a reload (the page keeps it per case and puts it
+    back when the case opens; a sent one is cleared), and every sent turn and Confirm survives a reload
+    or a restart (the case's conversation_history, from the checkpoint, through the routes)."""
+    from backend.core.substate import SufficiencyJudgment
+
+    got = _page(("draftKey", "saveDraft", "restoreDraft", "clearDraft"), """
+const store={};const localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=String(v)},removeItem:k=>{delete store[k]}};
+const els={'chat-input':{value:''}};const document={getElementById:id=>els[id]};
+let S={case:{case_id:'C1'}};
+els['chat-input'].value='Half-typed answer';saveDraft();
+els['chat-input'].value='';restoreDraft();const restored=els['chat-input'].value;
+S={case:{case_id:'C2'}};els['chat-input'].value='';restoreDraft();const other=els['chat-input'].value;
+S={case:{case_id:'C1'}};clearDraft();els['chat-input'].value='';restoreDraft();const afterSend=els['chat-input'].value;
+process.stdout.write(JSON.stringify({restored,other,afterSend}));""")
+    assert got == {"restored": "Half-typed answer", "other": "", "afterSend": ""}, got
+    # Every sent turn and Confirm survives a restart.
+    _coach_saying(monkeypatch, "What would you like to change in the secondary metrics?")
+    _askd(env, action="revise", element="secondary_metrics", message="Change: secondary metrics")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names a side effect")
+    _coach_saying(monkeypatch, 'Your secondary metrics: "supplier queries". Is this right?',
+                  captured=[{"field_name": "secondary_metrics", "value": "supplier queries", "source": "belt"}])
+    _askd(env, message="supplier queries")
+    _coach_saying(monkeypatch, "Thank you.")
+    _askd(env, action="confirm", message="Confirm")
+    env.restart()
+    hist = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
+    users = [t.get("text") or t.get("content") for t in hist if t.get("role") == "user"]
+    assert "supplier queries" in users and "Confirm" in users, users
+    assert sum(1 for t in hist if t.get("role") == "ai") >= 3

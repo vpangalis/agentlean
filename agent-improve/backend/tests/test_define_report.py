@@ -219,7 +219,7 @@ def _render(report: dict, passed: bool = False) -> str:
     if node is None:
         pytest.skip("node is not installed — the report cannot be rendered; this is NOT a pass")
     src = UI.read_text(encoding="utf-8")
-    js = (_fn(src, "escapeHtml") + "\n" + _fn(src, "defineReportHtml")
+    js = (_fn(src, "escapeHtml") + "\n" + _fn(src, "benefitTimelineHtml") + "\n" + _fn(src, "defineReportHtml")
           + f"\nprocess.stdout.write(defineReportHtml({json.dumps(report)}, {json.dumps(passed)}));")
     out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
@@ -255,9 +255,10 @@ def test_adr_0070_the_report_draws_its_visuals_with_the_replys_function() -> Non
     drawing function the coach's reply uses after Confirm — the two pictures cannot differ."""
     from backend.phases.define import visuals
     report = define_report(COMPLETE)
-    assert sorted(report["visuals"]) == ["baseline_target", "mindmap_5w2h", "sipoc"]
+    # R5 section 2's benefit timeline (DEF-088) is drawn by the same function as the others.
+    assert sorted(report["visuals"]) == ["baseline_target", "benefit_timeline", "mindmap_5w2h", "sipoc"]
     for field, kind in (("target_value", "baseline_target"), ("process_map_sipoc", "sipoc"),
-                        ("problem_statement", "mindmap_5w2h")):
+                        ("problem_statement", "mindmap_5w2h"), ("benefits_analysis", "benefit_timeline")):
         drawn = visuals.for_field(field, COMPLETE, confirmed=True)
         assert drawn is not None, field
         reply_visual = drawn[1]

@@ -590,7 +590,7 @@ a{text-decoration:none;color:inherit}
             <div class="reply-box">
               <div class="cinput-label">Your reply</div>
               <div class="input-box">
-                <textarea class="ctxt" id="chat-input" placeholder="Type here — Enter to send, Shift+Enter for new line" rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+                <textarea class="ctxt" id="chat-input" placeholder="Type here — Enter to send, Shift+Enter for new line" rows="2" oninput="saveDraft()" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
                 <div class="cupload" onclick="document.getElementById('chat-file-input').click()"><i class="ti ti-paperclip"></i></div>
                 <button class="csend" onclick="sendMessage()"><i class="ti ti-arrow-up"></i></button>
               </div>
@@ -1077,6 +1077,16 @@ async function joinCase(){
 }
 
 // ─── WORKSPACE ───────────────────────────────────────────────────
+// W11 (DEF-091) — a typed, unsent message survives a reload: kept per case in this browser while it is
+// typed, put back when the case opens, cleared when it is sent. Storage may be refused (a private
+// window): then nothing is kept, and nothing fails.
+function draftKey(){return 'agentlean-draft:'+((S.case&&S.case.case_id)||'');}
+function saveDraft(){try{const v=document.getElementById('chat-input').value;
+  if(v)localStorage.setItem(draftKey(),v);else localStorage.removeItem(draftKey());}catch(e){}}
+function restoreDraft(){try{const input=document.getElementById('chat-input');const v=localStorage.getItem(draftKey());
+  if(v&&!input.value)input.value=v;}catch(e){}}
+function clearDraft(){try{localStorage.removeItem(draftKey());}catch(e){}}
+
 async function openWorkspace(caseId){
   try{
     // A 404 body is `{detail:"Case X not found"}` — assigning it to S.case
@@ -1095,6 +1105,7 @@ async function openWorkspace(caseId){
     showScreen('scr-workspace');
     renderPhaseNav();
     selectPhase(S.phase);
+    restoreDraft();   // W11 (DEF-091): a message typed and not sent is back in the box
   }catch(e){
     // Stay on the landing screen. Half-opening a workspace is worse than not
     // opening one, because the Belt cannot tell which case they are looking at.
@@ -4455,6 +4466,38 @@ function renderGate() {
   renderDefineReport(isPassed);
 }
 
+// R5 section 2 (DEF-088) — the cost of the gap, the expected saving and when it lands: the same
+// figures as the text beside it (C1), drawn as three labelled steps of a timeline.
+function benefitTimelineHtml(v) {
+  const cell = (label, value) => `<div style="flex:1;padding:6px 8px;border-left:3px solid #0070BA;background:#F4F8FC">
+      <div style="font-size:9px;color:#5B6B7C;text-transform:uppercase;letter-spacing:.04em">${label}</div>
+      <div style="font-size:11px;color:#2C3E50;font-weight:600">${escapeHtml(value == null || value === '' ? '—' : String(value))}</div></div>`;
+  return `<div class="benefit-timeline" style="display:flex;gap:6px;margin:8px 0 2px">
+    ${cell('Cost of the gap today', v.cost_of_gap)}
+    ${cell('Expected saving a year', v.expected_saving)}
+    ${cell('When it lands', v.realisation_schedule)}${v.impact_type ? cell('Impact', v.impact_type) : ''}</div>`;
+}
+
+// DEF-088 — the baseline → target chart (ADR-0070's payload): two bars on one scale, the target
+// line dated. Drawn into `containerId`; nothing when there is no number to draw.
+function baselineTargetHtml(v) {
+  if (!v || (v.baseline == null && v.target == null)) return '';
+  const top = Math.max(Number(v.baseline) || 0, Number(v.target) || 0) || 1;
+  const bar = (label, value, colour) => value == null ? '' : `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+      <div style="width:70px;font-size:10px;color:#5B6B7C">${label}</div>
+      <div style="flex:1;background:#F0EEE8;border-radius:3px"><div style="height:12px;border-radius:3px;
+        width:${Math.max(2, Math.round(100 * Number(value) / top))}%;background:${colour}"></div></div>
+      <div style="width:70px;font-size:11px;font-weight:600;color:#2C3E50">${escapeHtml(String(value))}${escapeHtml(v.unit || '')}</div></div>`;
+  return `<div class="baseline-target" style="margin:6px 0">
+    <div style="font-size:10px;color:#5B6B7C;margin-bottom:2px">${escapeHtml(String(v.metric || '').replace(/_/g, ' '))}</div>
+    ${bar('Today', v.baseline, '#B3261E')}${bar(v.target_date ? 'By ' + v.target_date : 'Target', v.target, '#1E6B3A')}</div>`;
+}
+
+function renderBaselineTarget(v, containerId) {
+  const el = document.getElementById(containerId);
+  if (el) el.innerHTML = baselineTargetHtml(v);
+}
+
 // ─── THE DEFINE REPORT (R5) ───────────────────────────────────────
 // Pure: the report JSON in, HTML out — so a headless check can drive it.
 function defineReportHtml(rep, isPassed) {
@@ -4469,8 +4512,15 @@ function defineReportHtml(rep, isPassed) {
           border-bottom:0.5px solid #F0EEE8;vertical-align:top">${t(r[c[0]])}</td>`).join('')}</tr>`).join('')}
       </table>`
     : t(null);
-  const line = (label, v) => `<div style="font-size:11px;line-height:1.6;margin:2px 0">
-      <span style="color:#5B6B7C;font-weight:600">${label}:</span> ${t(v)}</div>`;
+  // C1 (DEF-086): a key field carries its one-line explanation, in plain words, under its value.
+  const explain = rep.explain || {};
+  const why = key => key && explain[key]
+    ? `<div class="field-why" style="font-size:9.5px;color:#8A93A0;margin:-1px 0 3px">${escapeHtml(explain[key])}</div>` : '';
+  const line = (label, v, key) => `<div style="font-size:11px;line-height:1.6;margin:2px 0">
+      <span style="color:#5B6B7C;font-weight:600">${label}:</span> ${t(v)}</div>${why(key)}`;
+  const read = kind => (rep.read || {})[kind]
+    ? `<div class="visual-read" style="font-size:9.5px;color:#5B6B7C;font-style:italic;margin:2px 0 6px">How to read it: ${escapeHtml(rep.read[kind])}</div>` : '';
+  const vis = rep.visuals || {};
   const hist = rep.history || {};
   const changed = fields => fields.filter(f => hist[f]).map(f => {
     const h = hist[f];
@@ -4488,7 +4538,8 @@ function defineReportHtml(rep, isPassed) {
         <span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:8px;
           background:${s.complete ? '#E8F4EC' : '#FDECEC'};color:${s.complete ? '#1E6B3A' : '#B3261E'}">
           ${s.complete ? 'confirmed' : 'incomplete'}</span>
-      </div>${body}${changed(s.fields || [])}</div>`;
+      </div>${s.summary ? `<div class="sec-summary" style="font-size:11px;color:#2C3E50;line-height:1.5;
+        margin:0 0 8px;padding:6px 8px;background:#F7F9FB;border-radius:6px">${escapeHtml(s.summary)}</div>` : ''}${body}${changed(s.fields || [])}</div>`;
 
   const s1 = sec(1), p = s1.project || {};
   const s2 = sec(2), b = s2.benefits || {}, sv = s2.savings;
@@ -4497,39 +4548,54 @@ function defineReportHtml(rep, isPassed) {
   const prim = s5.primary || {};
   const sipoc = s6.sipoc || {};
 
+  // DEF-058 — one progress bar for Define: the elements confirmed of the thirteen.
+  const els = rep.elements || [];
+  const done = els.filter(e => e.confirmed).length;
+  const progress = els.length ? `<div class="define-progress" data-done="${done}" data-of="${els.length}"
+      style="margin:0 0 12px"><div style="font-size:10px;color:#5B6B7C;margin-bottom:3px">${done} of ${els.length} elements confirmed</div>
+      <div style="height:6px;background:#E4E2DC;border-radius:3px;overflow:hidden"><div style="height:100%;
+      width:${Math.round(100 * done / els.length)}%;background:#0070BA"></div></div></div>` : '';
+
   const html = [
     `<div style="font-size:15px;font-weight:600;color:#2C3E50;margin:4px 0 2px">
        Define report${p.title ? ' — ' + escapeHtml(p.title) : ''}</div>
      <div style="font-size:10px;color:#6B7A8D;margin-bottom:12px">Phase 1 of 5 ·
-       assembled from the values you confirmed — nothing here is proposed by the coach</div>`,
-    card(s1, line('Project', p.title) + line('Project lead', s1.project_lead || p.leader) +
-      line('Champion', s1.champion ? s1.champion.name : 'not named in the team yet') +
+       assembled from the values you confirmed — nothing here is proposed by the coach</div>` + progress,
+    card(s1, line('Project', p.title) + line('Project lead', s1.project_lead || p.leader, 'project_lead') +
+      line('Champion', s1.champion ? s1.champion.name : 'not named in the team yet', 'champion') +
       line('Belt level', p.belt_level) +
       line('Department', p.department) +
-      table(s1.team, [['name', 'Name'], ['role', 'Role'], ['function', 'Function']])),
-    card(s2, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s2.business_case)}</div>` +
-      line('Cost of the gap', b.cost_of_gap) + line('Impact', b.impact_type) +
-      line('Realisation schedule', b.realisation_schedule) + line('Finance contact', b.finance_contact) +
+      table(s1.team, [['name', 'Name'], ['role', 'Role'], ['function', 'Function']]) + why('team')),
+    card(s2, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s2.business_case)}</div>` + why('business_case') +
+      line('Cost of the gap', b.cost_of_gap, 'cost_of_gap') + line('Impact', b.impact_type, 'impact_type') +
+      line('Realisation schedule', b.realisation_schedule, 'realisation_schedule') +
+      line('Finance contact', b.finance_contact, 'finance_contact') +
       (sv ? line('Expected-savings calculation', ((sv.result || {}).calculation_note) ||
-                                                  ((sv.result || {}).annual_savings)) : '')),
-    card(s3, `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin:2px 0">5W2H</div>` +
+                                                  ((sv.result || {}).annual_savings)) : '') +
+      (vis.benefit_timeline ? benefitTimelineHtml(vis.benefit_timeline) + read('benefit_timeline') : '')),
+    card(s3, `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin:2px 0">5W2H</div>` + why('five_w_two_h') +
+      (vis.mindmap_5w2h ? `<div id="report-mindmap"></div>` + read('mindmap_5w2h') : '') +
       table(s3.five_w_two_h, [['question', 'Question'], ['answer', 'Answer']]) +
       `<div style="font-size:11px;line-height:1.6;background:#F4F8FC;border-left:3px solid #0070BA;
-        padding:6px 8px;margin:6px 0"><strong>Problem.</strong> ${t(s3.problem_statement)}</div>` +
-      line('Objective', s3.objective) +
+        padding:6px 8px;margin:6px 0"><strong>Problem.</strong> ${t(s3.problem_statement)}</div>` + why('problem_statement') +
+      line('Objective', s3.objective, 'objective') +
       `<div style="display:flex;gap:10px;margin-top:4px">
         <div style="flex:1">${line('In scope', scope.in_scope)}</div>
-        <div style="flex:1">${line('Out of scope', scope.out_scope)}</div></div>`),
-    card(s4, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s4.voc_summary)}</div>` +
-      `<div style="font-size:10px;font-weight:600;color:#5B6B7C">Critical to quality (CTQs)</div>` +
+        <div style="flex:1">${line('Out of scope', scope.out_scope)}</div></div>` + why('scope')),
+    card(s4, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s4.voc_summary)}</div>` + why('voc_summary') +
+      `<div style="font-size:10px;font-weight:600;color:#5B6B7C">Critical to quality (CTQs)</div>` + why('ctqs') +
       table(s4.ctqs, [['customer', 'Customer'], ['need', 'Need'], ['requirement', 'Requirement (measurable)']])),
-    card(s5, line('Primary metric', prim.name ? `${prim.name} (${prim.unit || ''}) — ${prim.meaning || ''}` : null) +
-      line('Baseline → target', (s5.baseline || s5.target) ? `${s5.baseline || '—'} → ${s5.target || '—'}` : null) +
-      line('By', s5.target_date) + line('Secondary metrics', s5.secondary_metrics) +
+    card(s5, line('Primary metric', prim.name ? `${prim.name} (${prim.unit || ''}) — ${prim.meaning || ''}` : null, 'primary') +
+      line('Baseline → target', (s5.baseline || s5.target) ? `${s5.baseline || '—'} → ${s5.target || '—'}` : null, 'baseline_target') +
+      (vis.baseline_target ? `<div id="report-target"></div>` + read('baseline_target') : '') +
+      line('By', s5.target_date, 'target_date') + line('Secondary metrics', s5.secondary_metrics, 'secondary_metrics') +
       ((s5.other_registered || []).length
         ? line('Also registered', s5.other_registered.map(m => m.name).join(', ')) : '')),
-    card(s6, `<div id="report-sipoc"></div>` + line('Measured on the outputs', sipoc.process_metrics)),
-    card(s7, `<div style="font-size:11px;line-height:1.6">${t(s7.issues_and_barriers)}</div>`),
+    card(s6, why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +
+      line('Measured on the outputs', sipoc.process_metrics, 'process_metrics')),
+    card(s7, ((s7.issues || []).length
+        ? `<ul style="font-size:11px;line-height:1.6;margin:0 0 0 16px;padding:0">${s7.issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
+        : `<div style="font-size:11px;line-height:1.6">${t(s7.issues_and_barriers)}</div>`) + why('issues')),
   ];
   const missing = rep.missing || [];
   if (missing.length && !isPassed) {
@@ -4564,6 +4630,10 @@ async function renderDefineReport(isPassed) {
   if (document.getElementById('report-sipoc')) {
     renderSipocDiagram({...sipoc, draft: false, confirmed: true}, 'report-sipoc');
   }
+  // DEF-088 — the report's other visuals, from the server's payloads (ADR-0070's one drawing).
+  const vis = rep.visuals || {};
+  if (vis.mindmap_5w2h && document.getElementById('report-mindmap')) render5W2HMindmap(vis.mindmap_5w2h, 'report-mindmap');
+  if (vis.baseline_target) renderBaselineTarget(vis.baseline_target, 'report-target');
   if (typeof renderDefineReportActions === 'function') renderDefineReportActions(d, rep, isPassed);
 }
 
@@ -6160,7 +6230,7 @@ async function sendMessage(action, element){
   const text=action?({confirm:'Confirm',change:'Change',park:'Park and move on',try_again:'Try again',
     revise:(picked&&picked.status==='parked'?'Resume: ':'Change: ')+(picked?picked.name:element)}[action]||action):input.value.trim();
   if(!text||!S.case)return;
-  if(!action)input.value='';
+  if(!action){input.value='';clearDraft();}
   document.querySelectorAll('.rb-actions').forEach(el=>el.remove());
   // Add user turn
   const userTurn={turn:S.localChat.length+1,role:'user',user:S.user,text,timestamp:new Date().toISOString(),citations:[]};
@@ -7001,10 +7071,23 @@ function renderSipocDiagram(sipoc, containerId) {
   container._sipocData = sipoc;
 }
 
+// DEF-099 (R2: "5W2H keeps its live mind map") — the server's mind map (ADR-0070, `visuals.draw`) is flat:
+// {what, where, when, who_affected, why, how_much, how_often, filled_count, confirmed}. This drawing
+// reads `data.fields`; read flat, every branch was "not yet captured". Mapped here, once, for both the
+// reply's live map and the report's.
+function mindmapFromServer(viz) {
+  if (!viz || viz.data || viz.what === undefined && viz.where === undefined) return viz;
+  const fields = {what: viz.what, where: viz.where, when: viz.when, who_affected: viz.who_affected,
+                  why_it_matters: viz.why, how_much_baseline: viz.how_much, how_goal: viz.how_often};
+  return {...viz, data: {problem_summary: viz.what || 'Problem being defined…', fields},
+          draft: viz.confirmed === false, captured_count: viz.filled_count || 0, total_count: viz.total_count || 7};
+}
+
 function render5W2HMindmap(viz, containerId) {
   if (!viz || viz.type !== 'mindmap_5w2h') return;
   const container = document.getElementById(containerId);
   if (!container) return;
+  viz = mindmapFromServer(viz);
 
   const data = viz.data || {};
   const fields = data.fields || {};
