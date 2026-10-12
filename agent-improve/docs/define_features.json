@@ -604,7 +604,7 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": true
   },
   {
    "id": "DEF-014",
@@ -649,7 +649,7 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": true
   },
   {
    "id": "DEF-015",
@@ -697,7 +697,7 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": true
   },
   {
    "id": "DEF-016",
@@ -844,7 +844,7 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": true
   },
   {
    "id": "DEF-019",
@@ -939,7 +939,7 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": true
   },
   {
    "id": "DEF-021",
@@ -3546,7 +3546,7 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": true
   },
   {
    "id": "DEF-084",
