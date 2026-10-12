@@ -1725,7 +1725,7 @@
    "depends_on": [
     "DEF-037"
    ],
-   "test": "backend/tests/test_capture_accumulates.py::test_a_change_records_both_values_with_their_turns",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_a_changed_value_keeps_its_prior_value_dated",
    "sources": {
     "architecture": [
      "§6",
@@ -2452,7 +2452,7 @@
    "depends_on": [
     "DEF-002"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_failed_turn_is_readable_and_stays",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_a_failed_turn_from_the_server_is_readable_and_stays",
    "sources": {
     "architecture": [
      "G-70 a lost turn is reported, not toasted",
@@ -2971,7 +2971,7 @@
    "description": "For every Define element the coach's script explains what it is and why it matters, shows a worked example marked as an illustration, asks, and lists the element's acceptance criteria with the manual's page; the 5W2H and the SIPOC show the completed diagram.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
-   "test": "backend/tests/test_define_skill.py::test_r2_every_element_explains_shows_asks_and_lists_its_criteria",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_every_element_is_taught_explain_show_ask",
    "sources": {
     "architecture": [
      "§39.1"
@@ -3041,7 +3041,7 @@
    "depends_on": [
     "DEF-065"
    ],
-   "test": "backend/tests/test_define_skill.py::test_r4_thirteen_elements_with_the_benefits_analysis_and_the_ctqs",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_thirteen_elements_reach_the_screen_and_the_report",
    "sources": {
     "architecture": [
      "§63.1"
@@ -3111,7 +3111,7 @@
    "depends_on": [
     "DEF-068"
    ],
-   "test": "backend/tests/test_define_report.py::test_the_gate_screen_draws_the_seven_sections_and_both_diagrams",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_the_gate_screen_draws_the_report_the_server_sent",
    "sources": {
     "architecture": [
      "§50"
@@ -3177,7 +3177,7 @@
    "depends_on": [
     "DEF-069"
    ],
-   "test": "backend/tests/test_gate_acceptance.py::test_the_screen_offers_approve_and_reject_only_while_paused",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_approve_and_reject_follow_the_servers_pause",
    "sources": {
     "architecture": [
      "§49"
@@ -3455,7 +3455,7 @@
    "depends_on": [
     "DEF-055"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_failed_turn_stays_readable_with_a_reference_id",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_a_failed_turn_retries_against_the_server",
    "sources": {
     "architecture": [
      "app.py request_id middleware (x-request-id)",
@@ -4559,7 +4559,7 @@
    "description": "T17 (ADR-0066): no checkpoint of an open case is deleted by retention; a paused thread is one of them.",
    "clause": "the record is written once and correctly",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_t17_the_retention_sweep_never_removes_a_paused_thread",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_t17_a_paused_case_keeps_every_checkpoint",
    "sources": {
     "architecture": [],
     "procedure": [],
@@ -5212,7 +5212,7 @@
    "description": "G-114: the screens load no font, script or style from outside the product — the Tabler icon font ships with it instead of coming from a public CDN (C5).",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_the_ui_loads_nothing_from_outside_the_product",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_the_served_screens_load_nothing_from_outside",
    "sources": {
     "architecture": [
      "C5 runs inside the intranet"
@@ -5340,7 +5340,7 @@
    "description": "G-115: every tool the Define SKILL.md's allowed-tools offers the coach is bound to the Define executor or registered by its middleware — the script never offers a tool that does not exist.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_every_tool_the_define_skill_offers_is_bound",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_every_tool_the_skill_offers_is_bound_on_a_real_turn",
    "sources": {
     "architecture": [],
     "procedure": [],
@@ -5864,7 +5864,7 @@
    "description": "G-130: a reply written in code never shows the Belt a script placeholder ({baseline_estimate}); it is filled from the stored values or left out.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
-   "test": "backend/tests/test_executor.py::test_g130_a_code_written_reply_never_shows_a_script_placeholder",
+   "test": "backend/tests/test_define_e2e.py::test_e2e_a_code_written_reply_never_shows_a_placeholder",
    "sources": {
     "architecture": [],
     "procedure": [],
@@ -5958,7 +5958,7 @@
    "description": "The run-through computes each run's model cost from the tokens it recorded per model and one dated price file (config/model_prices.json); a completed Define run-through above USD 1.50 fails the acceptance test.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
-   "test": "backend/tests/test_run_cost.py::test_a_run_over_the_ceiling_fails",
+   "test": "backend/tests/test_define_runthrough.py::test_the_record_prices_its_own_tokens",
    "sources": {
     "architecture": [],
     "procedure": [],

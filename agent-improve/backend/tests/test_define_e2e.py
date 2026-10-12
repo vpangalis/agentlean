@@ -3151,3 +3151,329 @@ process.stdout.write(JSON.stringify({{width:els['prog-fill'].style.width,label:e
     current = next(r for r in second["case"]["define_elements"] if r["status"] == "current")
     assert second["page"]["step"]["field"] == current["field"] == "voc_summary", second["page"]["step"]
     assert current["name"] in second["page"]["step"]["html"]
+
+
+# ══ Founder ruling 2026-10-12 (speed-up, item 3): the built features proven end to end ═════════
+#
+# Each feature below had a passing test that drove neither the compiled graph nor the API (the
+# wiring check's "structural test"), so the board counted it built, not proven. These tests prove the
+# same behaviour through the real routes and graph; the structural tests stay as unit tests.
+
+
+def _askd(env, **body) -> dict:
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _define(env) -> dict:
+    return env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+
+
+def test_e2e_a_changed_value_keeps_its_prior_value_dated(env, monkeypatch, stub_planner) -> None:
+    """DEF-039 — through the routes and graph: a confirmed value is changed (Change, a new answer, its
+    read-back, Confirm) and field_log keeps the change dated, with the value before it readable."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.tests.test_define_report import COMPLETE
+
+    before = COMPLETE["secondary_metrics"]
+    _coach_saying(monkeypatch, "What would you like to change in the secondary metrics?")
+    _askd(env, action="revise", element="secondary_metrics", message="Change: secondary metrics")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names a side effect")
+    after = "supplier queries and the days to approve an invoice"
+    _coach_saying(monkeypatch, f'Your secondary metrics: "{after}". Is this right?',
+                  captured=[{"field_name": "secondary_metrics", "value": after, "source": "belt"}])
+    _askd(env, message=after)
+    _coach_saying(monkeypatch, "Thank you.")
+    _askd(env, action="confirm", message="Confirm")
+    rec = _define(env)
+    assert rec["structured"]["secondary_metrics"] == after, rec["structured"].get("secondary_metrics")
+    log = [e for e in (rec.get("field_log") or {}).values() if e.get("field") == "secondary_metrics"] \
+        if isinstance(rec.get("field_log"), dict) else \
+        [e for e in rec.get("field_log") or [] if e.get("field") == "secondary_metrics"]
+    assert log, rec.get("field_log")
+    last = log[-1]
+    assert last["value"] == after and last["prior_value"] == before, last
+    assert last.get("timestamp"), "the change is not dated"
+
+
+def test_e2e_every_element_is_taught_explain_show_ask(env, monkeypatch) -> None:
+    """DEF-065 — through the routes and graph: for each of the thirteen elements, a teaching turn
+    delivers that element's script to the coach — what it is, why it matters, the worked example and
+    the question — before anything is asked of the Belt."""
+    from backend.middleware import state_injection
+    from backend.middleware.skills import _field_blocks, _sections
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    import re
+
+    from backend.tests.test_wiring import _FakeCoach
+
+    seen: list[str] = []
+    generate = _FakeCoach._generate
+
+    def spy(self, messages, *a, **k):
+        # What the coach model is actually given this turn — every section of its input.
+        seen.append(" ".join(m.text if hasattr(m, "text") else str(m.content) for m in messages))
+        return generate(self, messages, *a, **k)
+    monkeypatch.setattr(_FakeCoach, "_generate", spy)
+
+    def plain(lines: list[str]) -> str:
+        text = " ".join(re.sub(r"^>\s*(\*\*[^*]+\*\*:?)?\s*", "", ln) for ln in lines)
+        return re.sub(r"[*_`]", "", text).strip()
+    from backend.gateway import routes as _routes
+    # Thirteen teaching turns in a few seconds: the per-person turn rate (T93) is not under test here.
+    monkeypatch.setattr(_routes, "TURNS_PER_MINUTE", 1000)
+    blocks = _field_blocks("define")
+    walk = moves.positions("define")
+    for i, (field, fields) in enumerate(walk):
+        record = env.case.phases["define"]
+        record.structured = {k: v for k, v in COMPLETE.items()
+                             if k not in fields and k not in {f for _, fs in walk[i + 1:] for f in fs}}
+        record.field_status = {f: {"status": moves.CONFIRMED} for f, _ in walk[:i]}
+        record.field_status[field] = {"status": moves.NOT_TAUGHT}
+        # Each element starts from the case record: no checkpoint of an earlier element's turn.
+        env.holder["saver"]._container.blobs.clear()
+        env.restart()
+        _coach_saying(monkeypatch, "Here is what this part is.")
+        calls = len(seen)
+        _askd(env, message="Next, please.")
+        assert len(seen) == calls + 1, f"{field}: the coach model was not called on its teaching turn"
+        given = re.sub(r"[*_`]", "", seen[-1])
+        sections = _sections(blocks[field][1])
+        for name in ("What it is", "Why it matters", "Ask"):
+            first = plain(sections[name])[:50]
+            assert first and first in given, (field, name, first)
+        show = next(k for k in sections if k.startswith("Show"))
+        assert plain(sections[show])[:30] in given, (field, "Show", plain(sections[show])[:30])
+
+
+def test_e2e_thirteen_elements_reach_the_screen_and_the_report(env, monkeypatch) -> None:
+    """DEF-067 — through the routes and graph: the case shows thirteen elements in order, the tenth
+    the benefits analysis and the voice of the customer carrying the CTQs; the report carries both;
+    and a benefits analysis missing parts holds the gate, naming them."""
+    from backend.phases.define.schema import DEFINE_FIELD_ORDER
+
+    rows = env.client.get(f"/cases/{CASE_ID}").json()["define_elements"]
+    assert [r["field"] for r in rows] == list(DEFINE_FIELD_ORDER) and len(rows) == 13
+    assert rows[9]["field"] == "benefits_analysis" and rows[9]["n"] == 10
+    review = env.client.get(f"/gate/review/{CASE_ID}/define").json()
+    sections = {s["n"]: s for s in review["report"]["sections"]}
+    assert sections[2]["benefits"]["finance_contact"] and sections[4]["ctqs"], sections
+    env.case.phases["define"].structured["benefits_analysis"] = {"cost_of_gap": "£68k",
+                                                                  "impact_type": "sustainable"}
+    held = env.client.post("/gate", json={"case_id": CASE_ID, "submitted_by": ACTOR, "phase": "define"})
+    assert held.status_code == 200, held.text
+    body = held.json()
+    assert not body.get("passed"), body
+    assert any("benefits analysis" in str(m) and "finance contact" in str(m)
+               for m in body.get("missing_fields") or []), body
+
+
+def test_e2e_the_gate_screen_draws_the_report_the_server_sent(env) -> None:
+    """DEF-069 — the Define report the server pauses on (POST /gate, then GET /gate/review) drawn by
+    the page's own defineReportHtml: seven sections, the 5W2H and the SIPOC, the CTQ table, one
+    primary metric from baseline to target, the Belt's text escaped."""
+    from backend.tests.test_define_report import _render
+
+    _submit(env)
+    review = env.client.get(f"/gate/review/{CASE_ID}/define")
+    assert review.status_code == 200, review.text
+    html = _render(review.json()["report"])
+    assert all(f">{n} · " in html for n in range(1, 8)), "a section is missing from the screen"
+    assert "How does it show up?" in html and "how_much answer" in html, "the 5W2H diagram"
+    assert 'id="report-sipoc"' in html, "the SIPOC diagram's host"
+    assert "paid within 30 days" in html, "the CTQ table"
+    assert "late_payment_rate (%)" in html and "23% → 5%" in html, "one primary, baseline to target"
+    assert "&lt;b&gt;sponsor" in html and "<b>sponsor</b>" not in html, "the Belt's text is escaped"
+
+
+def test_e2e_approve_and_reject_follow_the_servers_pause(env) -> None:
+    """DEF-071 — the page's own defineReportActionsHtml on what GET /gate/review says: before the
+    report is submitted, Submit; while the graph holds it paused, Approve, and Reject naming any of
+    the thirteen elements with a reason; once approved, read-only."""
+    from backend.tests.test_gate_acceptance import _actions
+
+    def screen() -> tuple[dict, str]:
+        d = env.client.get(f"/gate/review/{CASE_ID}/define").json()
+        # As the page does: read-only once the case says the Define gate passed.
+        passed = bool(env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"].get("gate_passed"))
+        return {**d, "passed": passed}, _actions(d, d["report"], passed=passed)
+    _, ready = screen()
+    assert "submitGateReview()" in ready and "decideDefineReport" not in ready, ready[:300]
+    _submit(env)
+    d, paused = screen()
+    assert d.get("awaiting_decision") is True, {k: d.get(k) for k in ("awaiting_decision", "passed")}
+    assert "decideDefineReport('approve')" in paused and "decideDefineReport('reject')" in paused
+    assert paused.count('class="reject-element"') == 13 and 'id="reject-reason"' in paused
+    r = _decide(env, decision="approve")
+    assert r.status_code == 200, r.text
+    d, done = screen()
+    assert d.get("passed") and done == "", (d.get("passed"), done[:200])
+
+
+def _server_failure(env, monkeypatch, kind: str) -> tuple[int, str]:
+    """A real failed /ask: `busy` (another turn holds the case's lease) or `graph` (the graph fails)."""
+    from backend.core.errors import CaseBusyError
+    from backend.gateway import routes
+    from backend.phases import nodes_common
+
+    with monkeypatch.context() as m:
+        if kind == "busy":
+            def held(_case_id):
+                raise CaseBusyError(_case_id)
+            m.setattr(routes.blob, "case_lease", held)
+        else:
+            def broken(role, **kw):
+                raise RuntimeError("the coach deployment answered 500")
+            m.setattr(nodes_common, "get_llm", broken)
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                          "message": "Our baseline is 23%"})
+    body = r.json()
+    return r.status_code, str(body.get("detail") or body.get("answer"))
+
+
+def test_e2e_a_failed_turn_from_the_server_is_readable_and_stays(env, monkeypatch) -> None:
+    """DEF-055 — the server's real failures as /ask answers them, drawn by the page's own
+    sendMessage: a busy case (409, the server's words) becomes a card that stays in the chat and in
+    S.localChat, the typed message back in the box; a failed graph (T29: the degraded reply, written
+    in code) is shown in words, never as an empty state; no toast."""
+    import json
+
+    from backend.core.graph import DEGRADED_REPLY
+
+    busy = _server_failure(env, monkeypatch, "busy")
+    graph = _server_failure(env, monkeypatch, "graph")
+    assert busy[0] == 409 and "Someone else on the team" in busy[1], busy
+    assert graph == (200, DEGRADED_REPLY), graph
+    got = _ui_run(f"""
+const out={{}};
+el('chat-input').value='Our baseline is 23%';
+replies=[err({busy[0]},{json.dumps(busy[1])})];
+await sendMessage();
+out.busy=el('msgs').html; out.box=el('chat-input').value; out.kept=S.localChat.filter(t=>t.role==='failed').length;
+out.redraw=S.localChat.map(renderTurn).join('');
+el('msgs').html=''; el('chat-input').value='Next answer';
+replies=[{{answer:{json.dumps(graph[1])}}}]; await sendMessage(); out.graph=el('msgs').html;
+out.toasts=toasts;
+process.stdout.write(JSON.stringify(out));
+""")
+    assert "Someone else on the team" in got["busy"], got["busy"]
+    assert got["box"] == "Our baseline is 23%", "the typed message was lost"
+    assert got["kept"] == 1 and "Someone else on the team" in got["redraw"], "the failed turn does not stay"
+    assert DEGRADED_REPLY[:40] in got["graph"], got["graph"]
+    assert got["toasts"] == [], "a failure was reported as a passing toast"
+
+
+def test_e2e_a_failed_turn_retries_against_the_server(env, monkeypatch) -> None:
+    """DEF-081 — a real busy case (409) on /ask: the page's card shows what happened, what was saved,
+    Try again and the reference id it sent as x-request-id; Try again resends the same request, which
+    the server — now free — answers, and the card gives way to the answer."""
+    import json
+
+    status, words = _server_failure(env, monkeypatch, "busy")
+    _coach_saying(monkeypatch, "Thanks — about 23% of invoices. Is this right?")
+    got = _ui_run(f"""
+const out={{}};
+el('chat-input').value='Our baseline is 23%';
+replies=[err({status},{json.dumps(words)})];
+await sendMessage();
+const t=S.localChat.find(x=>x.role==='failed');
+out.ref=t.ref; out.header=sent[0].headers['x-request-id']; out.card=el('msgs').html; out.first=sent[0].body;
+replies=[{{answer:'PLACEHOLDER'}}];
+await retryTurn(t.ref);
+out.second=sent[1].body;
+process.stdout.write(JSON.stringify(out));
+""")
+    assert got["ref"] and got["ref"] == got["header"], "the reference shown is not the id the server logs"
+    assert f"Reference: {got['ref']}" in got["card"] and "Try again" in got["card"], got["card"]
+    assert "Everything you confirmed before is saved" in got["card"], got["card"]
+    assert got["second"] == got["first"], "Try again did not resend the same request"
+    again = env.client.post("/ask", json={**got["second"], "case_id": CASE_ID})
+    assert again.status_code == 200 and again.json()["answer"], again.text
+
+
+def test_e2e_t17_a_paused_case_keeps_every_checkpoint(env, monkeypatch) -> None:
+    """DEF-118 — T17 (ADR-0066): through turns, a pause at the gate and a restart, no checkpoint of
+    the open case is removed — every blob written stays; and no production code deletes a thread or a
+    checkpoint blob (a retention sweep that ever does must make this fail)."""
+    blobs = env.holder["saver"]._container.blobs
+    _coach_saying(monkeypatch, "Here is where we stand.")
+    _askd(env, message="Where do we stand?")
+    first = set(blobs)
+    _submit(env)
+    paused = set(blobs)
+    env.restart()
+    assert env.client.get(f"/gate/review/{CASE_ID}/define").json().get("awaiting_decision") is True
+    assert first <= paused <= set(blobs), "a checkpoint of the open case was removed"
+    assert any("checkpoint" in k for k in blobs), sorted(blobs)[:5]
+    test_t17_the_retention_sweep_never_removes_a_paused_thread()
+
+
+def test_e2e_the_served_screens_load_nothing_from_outside(env) -> None:
+    """DEF-141 — G-114 (C5): the screens as the app serves them load no font, script or style from
+    outside the product, and everything they link is served by the app itself."""
+    import re
+
+    page = env.client.get("/")
+    assert page.status_code == 200 and "<html" in page.text.lower(), page.status_code
+    external = re.compile(r"""(?:<link[^>]+href|<script[^>]+src)\s*=\s*["']https?://|@import\s+(?:url\()?["']?https?://""", re.I)
+    assert not external.search(page.text), external.search(page.text)
+    for href in re.findall(r"""<link[^>]+href\s*=\s*["']([^"':]+\.css)["']""", page.text):
+        css = env.client.get("/" + href.lstrip("./"))
+        assert css.status_code == 200, (href, css.status_code)
+        assert not re.search(r"url\(\s*[\"']?https?://", css.text), f"{href} loads from outside"
+        base = href.rsplit("/", 1)[0]
+        for font in re.findall(r"url\(\s*[\"']?\./([^\"')?#]+)", css.text):
+            served = env.client.get(f"/{base.lstrip('./')}/{font}")
+            assert served.status_code == 200, (href, font, served.status_code)
+
+
+def test_e2e_every_tool_the_skill_offers_is_bound_on_a_real_turn(env, monkeypatch) -> None:
+    """DEF-145 — G-115: on a real Define turn through the routes and graph, every tool the Define
+    SKILL.md's allowed-tools offers is among the tools the executor is built with, or is the skills
+    middleware's load_skill."""
+    import re
+    from pathlib import Path
+
+    from backend.phases import nodes_common
+
+    built: list[set[str]] = []
+    real = nodes_common._executor_tools
+
+    def spy(*a, **k):
+        out = real(*a, **k)
+        built.append({t.name for t in out})
+        return out
+    monkeypatch.setattr(nodes_common, "_executor_tools", spy)
+    _coach_saying(monkeypatch, "Here is where we stand.")
+    _askd(env, message="Where do we stand?")
+    assert built, "the executor was not built on the turn"
+    skill = (Path(__file__).resolve().parents[2] / "skills" / "dmaic-define-phase" / "SKILL.md").read_text(encoding="utf-8")
+    m = re.search(r"^allowed-tools:(.*)$", skill, re.M)
+    assert m, "the Define SKILL.md has no allowed-tools line"
+    offered = {t.strip() for t in m.group(1).split(",") if t.strip()}
+    assert offered <= built[-1] | {"load_skill"}, f"offered and not bound: {sorted(offered - built[-1])}"
+
+
+def test_e2e_a_code_written_reply_never_shows_a_placeholder(env, monkeypatch) -> None:
+    """DEF-161 — G-130, where it was found: the first Measure turn after Define is approved, through
+    the routes and graph, with the coach cut off (G-153) so the reply is written in code from the
+    script's Ask line — it shows no script placeholder ({baseline_estimate})."""
+    import re
+
+    from backend.phases import nodes_common
+    from backend.tests.test_g153_cut_off_reply import _CutOff
+
+    _submit(env)
+    assert _decide(env, decision="approve").status_code == 200
+    real = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm",
+                        lambda role, **kw: _CutOff(messages=iter([])) if role == "coach" else real(role, **kw))
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "measure", "user": "ana",
+                                      "message": "Let's start Measure."})
+    assert r.status_code == 200, r.text
+    answer = r.json()["answer"]
+    assert answer.strip(), "no reply"
+    assert not re.search(r"\{[a-z_]+(\[[^\]]*\])?\}", answer), answer

@@ -39,6 +39,11 @@ from backend.phases.define.schema import DEFINE_FIELD_ORDER, DEFINE_POSITIONS  #
 
 ORDER = DEFINE_FIELD_ORDER
 
+def _not_written(fid: str) -> None:
+    """A feature not built yet — named so the board reads it as not started (founder, 2026-10-12)."""
+    pytest.fail(f"{fid}: not written yet — the lane that takes this feature writes it")
+
+
 
 def _load() -> dict[str, Any]:
     files = sorted(RECORDS.glob("define_runthrough_*.json"))
@@ -241,7 +246,7 @@ def test_run_a_complete_case_assembles_a_gate_document(run) -> None:
 
 def test_runthrough_metric_meaning_comes_from_the_registry() -> None:
     """DEF-018 — not written yet (a stub, step 6.67): When the Belt's metric first comes up, the coach explains what it means, why Define cares and how to read it — from the """
-    pytest.fail("DEF-018: not written yet")
+    _not_written('DEF-018')
 
 
 def test_runthrough_no_reply_carries_a_link(run) -> None:
@@ -270,7 +275,7 @@ def test_runthrough_no_reply_carries_a_link(run) -> None:
 
 def test_every_define_row_is_green_on_the_run_through_case() -> None:
     """DEF-064 — not written yet (a stub, step 6.67): Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run."""
-    pytest.fail("DEF-064: not written yet")
+    _not_written('DEF-064')
 
 
 # ── R3 — the validation layer, repeated on the live model ───────────────────
@@ -295,3 +300,13 @@ def test_run_the_validation_layer_is_consistent_over_five_runs() -> None:
     assert all(r["move"] == "challenge" and r["failed_criterion"] == "no-cause-no-fix"
                for r in solution), solution
     assert all(r["move"] == "read_back" for r in complete), complete
+
+def test_the_record_prices_its_own_tokens(run) -> None:
+    """DEF-164 — R12: the live run's cost, recorded in its summary, is the price file's cost of the
+    tokens the run recorded per model — recomputed here from the record, never retyped — and it is
+    within the ceiling."""
+    from scripts.run_cost import load_prices, run_cost
+    s = run["summary"]
+    again = run_cost((s.get("tokens") or {}).get("by_model") or {}, load_prices())
+    assert s["cost"]["usd"] == again["usd"] and s["cost"]["by_model"] == again["by_model"], (s["cost"], again)
+    assert again["within_ceiling"] is True and again["usd"] > 0, again
