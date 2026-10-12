@@ -64,7 +64,7 @@ Generated from each file's status line; never typed.
 | [0021](0021-one-compiled-graph.md) | One compiled graph is the only runtime path | PROPOSED | — |
 | [0022](0022-five-node-phase-cycle.md) | A phase subgraph is a cycle of five nodes | PROPOSED | — |
 | [0023](0023-routing-static-or-command.md) | A node routes by static edges or by `Command`, never both | SUPERSEDED by 0063 | — |
-| [0024](0024-thread-id-is-the-case.md) | The thread id is the case id | PROPOSED | — |
+| [0024](0024-thread-id-is-the-case.md) | The thread id is the case id | PROPOSED | refined by 0079 |
 | [0025](0025-planner-executor-split.md) | Planner and executor are separate nodes, joined by a structured plan | PROPOSED | — |
 | [0026](0026-create-agent-with-middleware.md) | The executor is `create_agent` with middleware | PROPOSED | — |
 | [0027](0027-middleware-stack.md) | A fixed middleware stack around the coach | PROPOSED | — |
@@ -114,4 +114,6 @@ Generated from each file's status line; never typed.
 | [0071](0071-baseline-and-target-as-number-with-unit.md) | Baseline and target are stored as a number with a unit | ACCEPTED | — |
 | [0072](0072-park-an-element.md) | Parking an element is a coaching move decided in code | ACCEPTED | — |
 | [0074](0074-upload-judged-at-interpretation.md) | An upload is judged against the current element when it is interpreted | ACCEPTED | — |
+| [0078](0078-process-step-performance-stored-per-step.md) | The as-is process stores its performance per step, and the problem is located in it | ACCEPTED | — |
+| [0079](0079-sign-in-by-invite-code-session-carries-the-case.md) | Sign-in by a personal invite code; the session carries the case and the person | ACCEPTED | refines 0024 |
 <!-- END ADR INDEX -->

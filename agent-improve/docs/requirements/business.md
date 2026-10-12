@@ -51,7 +51,6 @@ no release split. DRAFT and TO WRITE are out of scope until ratified.
 | 2 | R8c: may the project lead hand the lead role to another team member? | Yes — the current lead hands over; the handover is recorded (R16) |
 | 3 | R10 document formats | Word, PDF and images (images only once the vision read has a test); no Visio |
 | 5 | M1 open questions | Excel and CSV (the parsers exist); size and first KPIs decided with the Measure review |
-| 6 | R17: is the performance data per step right? | Per step: average, minimum and maximum duration with unit, how often it runs per period, the problems the team sees there and who said so; for the whole process: end-to-end lead time and runs per period |
 
 ---
 
@@ -164,7 +163,7 @@ the problem statement names the process step(s) where the problem shows (R18). R
 (amended 2026-09-29): the issues and barriers name the key issues and barriers (roadblocks) that
 could stop the project, each specific — or state "none identified at this stage" as a conscious answer.
 
-**R17 The as-is process with its performance** · ACCEPTED 2026-09-27 · open decision 6 · MoSCoW: Must · Design: none
+**R17 The as-is process with its performance** · ACCEPTED 2026-09-27, open decision 6 closed as written 2026-10-12 · MoSCoW: Must · Design: ADR-0078
 The high-level process element captures not only the SIPOC and its steps but how the process
 performs today. For each step: average, minimum and maximum duration with a unit; how often it runs
 per period; and where the team sees the key problems, in the Belt's and team's own words, with who
@@ -172,7 +171,7 @@ said it. For the whole process: end-to-end lead time and runs per period. Values
 Define, marked as such; Measure replaces them with measured data. All of it is stored in its
 structure (C6), not as prose. The element count stays thirteen — this extends the process element.
 
-**R18 The problem is located in the process** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
+**R18 The problem is located in the process** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0078
 The problem statement and the process map are linked: the problem statement names the step(s) where
 the problem shows, and those steps carry the matching problem notes (R17). The coach checks the link
 both ways — a problem that points at no step, or a step with problems that the problem statement
@@ -360,7 +359,7 @@ told who is working on it.
 **W16 Connection status** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
 Before the first message the screen shows whether the service is reachable and ready.
 
-**W17 The sign-in window explains itself** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
+**W17 The sign-in window explains itself** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0079
 When someone opens a case, the sign-in window says what it is, who may enter, and what to do if they
 cannot. It names the project lead. Example wording:
 
@@ -403,7 +402,7 @@ The user is identified by the customer's single sign-on — Microsoft Entra ID f
 Agent Improve stores no passwords. A case is visible only to its team; roles project lead, team
 member, Champion. The project lead adds team members by their company identity (e-mail).
 
-**R8a Access without single sign-on** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-01 · MoSCoW: Must · Design: none
+**R8a Access without single sign-on** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-01 · MoSCoW: Must · Design: ADR-0079
 Where single sign-on is not available, only the people the project lead registered on the team can
 open the case (W17). Entering a registered name is allowed in development and demos only; before any
 customer data is used, each team member enters through a personal invite (a link or one-time code
@@ -411,7 +410,7 @@ sent to their e-mail or handed over in person by the project lead). *Amendment (
 pilot):* a code is single-use and expires after 72 hours; each sign-in records who and when. E-mail
 delivery comes later, as an adapter for the customer's mail system.
 
-**R8b The project lead** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
+**R8b The project lead** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0079
 The person who creates a case is its project lead. Only the project lead adds or removes team members
 and assigns their roles. The lead is shown on the create form ("You will be the project lead"), in the
 workspace header, in the case list and in the sign-in window (W17).

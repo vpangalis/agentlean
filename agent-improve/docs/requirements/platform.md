@@ -29,7 +29,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T9 | A second concurrent write on one case is detected by ETag, retried, then raised — never silently overwritten | §8, §10 | Must | ADR-0018 | `test_checkpointer.py::test_concurrent_turn_raises_after_retry` |
 | T10 | The field log survives the turn boundary through the case record | §6 | Must | ADR-0019 | `test_capture_accumulates.py::test_the_log_crosses_the_turn_boundary_through_the_case_record` |
 | T11 | Exactly one writer per `thread_id` at a time (a Blob lease) | §10, §64 | Must | ADR-0018 | none |
-| T12 | `thread_id` comes from an authenticated session, never from the request body (with R8) | §16 | Must | ADR-0024 | none |
+| T12 | `thread_id` comes from an authenticated session, never from the request body (with R8) | §16 | Must | ADR-0079 | none |
 | T13 | The case blob is never written mid-conversation, only at gate approval | §10, §33.3 | Must | ADR-0066 | none |
 ### Pause and resume
 
