@@ -1756,6 +1756,15 @@ COHERENCE_MOVES: dict[str, str] = {
     "respond": ("The Belt asked something that is not an answer; the coach answers it and asks again. "
                 "Parroting here is repeating the Belt's question back without answering it."),
 }
+#: ADR-0078 point 5 (R18, DEF-085) — written in code when the problem statement and the process steps
+#: do not point at the same place; raised once, then the Belt's answer stands.
+LINK_CHALLENGE = ("Before this is stored: the problem statement and the process steps should point at the "
+                  "same place. {details} Name the step(s) where the problem shows, or add the problems the "
+                  "team sees at those steps — or tell me to keep it as it is.")
+LINK_KEPT = "Kept as you said: {details}"
+LINK_UNMATCHED = "The problem statement names {names}, which is not one of the process steps."
+LINK_QUIET = "The step(s) {names} have no problems noted, though the problem statement points there."
+LINK_IGNORED = "The step(s) {names} have problems noted that the problem statement does not mention."
 
 #: Inserted into the judgment prompt while a read-back awaits confirmation.
 PLANNER_JUDGMENT_READING_BACK = """

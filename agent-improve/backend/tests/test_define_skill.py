@@ -15,6 +15,8 @@ the coach is given — never from a copy of either.
 """
 from __future__ import annotations
 
+import re
+
 from typing import Any, cast
 
 from langchain_core.messages import HumanMessage
@@ -46,7 +48,10 @@ def test_r2_every_element_explains_shows_asks_and_lists_its_criteria() -> None:
         show = " ".join(sections["Show"])
         assert "illustration" in show.lower(), f"{field}: the example is not marked as an illustration"
         criteria = acceptance_criteria("define", field)
-        assert criteria and all("(p. " in text for _, text in criteria), (field, criteria)
+        # A criterion cites the manual's page, or the requirement that added it when the manual has
+        # none (R17, R18 — ADR-0078, founder 2026-10-12): never an uncited criterion.
+        assert criteria and all("(p. " in text or re.search(r"\(R\d+[a-z]?\)", text)
+                                for _, text in criteria), (field, criteria)
     # The 5W2H and the SIPOC show the COMPLETED diagram, as a table.
     fivew = " ".join(_sections(blocks["problem_statement"][1])["Show"])
     sipoc = " ".join(_sections(blocks["process_map_sipoc"][1])["Show"])

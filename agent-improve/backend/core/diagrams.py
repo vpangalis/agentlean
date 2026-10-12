@@ -91,7 +91,9 @@ def _as_lines(value: Any) -> list[str]:
     if value is None:
         return []
     if isinstance(value, (list, tuple)):
-        return [str(v).strip() for v in value if str(v).strip()]
+        # ADR-0078: a process step is an entry; the diagram draws its name.
+        names = [str(v.get("name") or v.get("step") or "") if isinstance(v, dict) else str(v) for v in value]
+        return [n.strip() for n in names if n.strip()]
     text = str(value)
     parts = [p.strip() for chunk in text.split("\n") for p in chunk.split(";")]
     return [p for p in parts if p]

@@ -135,8 +135,39 @@ def migrate_v6_to_v7(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+def _sipoc_steps(define: Any) -> Any:
+    """A Define mapping whose SIPOC's `process_steps` is text, with the steps as entries."""
+    if not isinstance(define, dict) or not isinstance(define.get("process_map_sipoc"), dict):
+        return define
+    sipoc = define["process_map_sipoc"]
+    if isinstance(sipoc.get("process_steps"), list) and all(isinstance(s, dict) for s in sipoc["process_steps"]):
+        return define
+    from backend.phases.define import parse
+    steps = parse.process_steps(sipoc.get("process_steps"))
+    if not steps:
+        return define                       # nothing readable as a step: kept as it was, never deleted
+    return {**define, "process_map_sipoc": {**sipoc, "process_steps": steps}}
+
+
+def migrate_v7_to_v8(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0078 (DEF-084): a stored SIPOC's `process_steps`, the Belt's text in version 7, becomes
+    step entries `{id, name, duration, problems}` — split on arrows, commas, semicolons and new
+    lines, ids in order, no performance (none was asked for) — wherever state carries a Define
+    SIPOC: `artifacts`, `final`, `draft`, the Store's case record, and a flat Define document.
+    A phase record inside a message is not migrated; its readers accept the text form."""
+    out = dict(values)
+    for key in ("artifacts", "final", "draft"):
+        if key in out:
+            out[key] = _sipoc_steps(out[key])
+    captured = out.get("captured_by_phase")
+    if isinstance(captured, dict) and isinstance(captured.get("define"), dict):
+        out["captured_by_phase"] = {**captured, "define": _sipoc_steps(captured["define"])}
+    return _sipoc_steps(out)
+
+
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
-                                    4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7}
+                                    4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7,
+                                    7: migrate_v7_to_v8}
 
 
 def current() -> int:
@@ -217,5 +248,5 @@ def migrate_case(data: Mapping[str, Any], found: int) -> dict[str, Any]:
     return out
 
 
-__all__ = ["current", "migrate_case", "migrate_v1_to_v2", "migrate_v2_to_v3", "VERSION_KEY", "UNVERSIONED", "MIGRATIONS", "version_of", "check_loadable", "migrate",
+__all__ = ["current", "migrate_case", "migrate_v1_to_v2", "migrate_v2_to_v3", "migrate_v7_to_v8", "VERSION_KEY", "UNVERSIONED", "MIGRATIONS", "version_of", "check_loadable", "migrate",
            "stamp_metadata", "stamp_record", "read_record"]

@@ -168,6 +168,24 @@ def _issues(value: Any) -> list[str]:
     parts = [p.strip(" -•\t") for p in re.split(r"\n|;", text)]
     return [p for p in parts if p] or [text]
 
+def _process_section(sipoc: Any) -> dict[str, Any]:
+    """Section 6 (ADR-0078, DEF-084): the SIPOC's columns as the diagram draws them (step names),
+    each step's performance and the whole process's, every figure as text from its MetricValue."""
+    from backend.core.diagrams import sipoc_columns
+    from backend.phases.define import parse
+    if not isinstance(sipoc, dict):
+        return {"sipoc": {}, "steps": [], "process_performance": {}}
+
+    def text(v: Any) -> str | None:
+        return parse.metric_text(v) if isinstance(v, dict) else None
+    steps = [{"id": s["id"], "name": s["name"],
+              "duration": {k: text(s["duration"].get(k)) for k in parse.DURATION_KEYS if s["duration"].get(k)},
+              "runs_per_period": text(s.get("runs_per_period")), "problems": s["problems"]}
+             for s in parse.process_steps(sipoc.get("process_steps"))]
+    perf: dict[str, Any] = sipoc["process_performance"] if isinstance(sipoc.get("process_performance"), dict) else {}
+    return {"sipoc": {**sipoc_columns(sipoc), "process_metrics": sipoc.get("process_metrics")},
+            "steps": steps,
+            "process_performance": {k: text(perf.get(k)) for k in parse.PROCESS_PERFORMANCE_KEYS if perf.get(k)}}
 
 
 def _savings(artifacts: dict[str, Any]) -> dict[str, Any] | None:
@@ -221,9 +239,9 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
             "target_date": _value(a, "target_date"),
             "secondary_metrics": _value(a, "secondary_metrics"),
             "other_registered": registry[1:]},
-        # The drawn columns (step names as the diagram shows them) and what is measured on the outputs.
-        6: {"sipoc": ({**_sipoc_columns(sipoc), "process_metrics": sipoc.get("process_metrics")}
-                      if isinstance(sipoc, dict) else {})},
+        # The drawn columns (step names as the diagram shows them), what is measured on the outputs, and
+        # each step's performance with the whole process's (ADR-0078, DEF-084).
+        6: _process_section(sipoc),
         7: {"issues_and_barriers": _value(a, "issues_and_barriers"),
             "issues": _issues(_value(a, "issues_and_barriers"))},
     }

@@ -189,7 +189,11 @@ class CoherenceMiddleware(AgentMiddleware):
         self.degraded = False
         # G-96 — the script step this reply performs, derived from what it
         # captured; the judge is told it before it is asked "is it parroting?".
-        self.step = script_step(self.phase, self._captured(state), self.focus_field)
+        # G-155 — on a teaching turn or a store, the reply teaches the element in focus (after a store,
+        # the NEXT one): its step is explain-show-ask, never the stored field's confirm, whatever the
+        # reply captured.
+        captured = [] if self.move in ("teach", "store_and_advance") else self._captured(state)
+        self.step = script_step(self.phase, captured, self.focus_field)
 
         # 6.52 B2 — ONE CHECK PER DISTINCT REPLY. The loop that stood here
         # re-checked the SAME `coach_text` up to `max_retries + 1` times: a

@@ -66,7 +66,8 @@ GOOD: dict[str, str] = {
                                  "date on every invoice; ward managers — no supplier puts "
                                  "us on stop in a quarter."),
     "problem_statement": ANSWERS[4] + (" How it shows: suppliers chase us by phone and "
-                                       "email, and some put us on stop."),
+                                       "email, and some put us on stop. The steps where it shows: "
+                                       "resolve mismatches and approve — invoices wait there."),
     "baseline_estimate": ANSWERS[5] + " It feeds our finance KPI, creditor days.",
     "project_scope": ANSWERS[6], "goal_statement": ANSWERS[7], "target_value": ANSWERS[8],
     "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31).",
@@ -85,7 +86,15 @@ GOOD: dict[str, str] = {
         "receipt, resolve mismatches, approve, then schedule and release payment. Outputs: "
         "paid invoices and remittance advice. Customers: the suppliers, and our ward "
         "managers who rely on their deliveries. Process metrics: days from invoice receipt "
-        "to payment release, and the share of invoices with a match exception."),
+        "to payment release, and the share of invoices with a match exception. "
+        "How each step performs today, roughly: receive the invoice — about 1 day (2 hours to "
+        "3 days), about 600 a week, no problems; match — about 1 day (1 hour to 2 days), about "
+        "600 a week, no problems; resolve mismatches — about 5 days (1 to 20 days), about 140 a "
+        "week, problem: buyers answer queries late (Dev said so); approve — about 4 days (1 to "
+        "15 days), about 600 a week, problem: approvers on leave and nobody covers (Lena said "
+        "so); schedule and release payment — about 2 days (1 to 4 days), two payment runs a "
+        "week, no problems. The whole process: about 12 days from receipt to payment, about "
+        "600 invoices a week."),
     "issues_and_barriers": ("Two barriers: the three sites use different approval routes, "
                             "and an ERP change freeze until January limits system changes. "
                             "One risk: AP staff turnover over the winter."),

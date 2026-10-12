@@ -551,7 +551,10 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
             # G-121 (DEF-158): the SIPOC from its labels, parsed in code — never the prose itself.
             from backend.phases.define.parse import parse_sipoc
             value = parse_sipoc(str(value or words)) or None
-        verbatim = (f == field and one_message and f not in COMPOSED_FIELDS and not structured
+        if f == "process_map_sipoc" and isinstance(value, dict):
+            # ADR-0078 (DEF-084): steps as entries with stable ids, their figures read in code.
+            value = parse.sipoc_with_performance(value, (artifacts or {}).get("process_map_sipoc"))
+        verbatim =(f == field and one_message and f not in COMPOSED_FIELDS and not structured
                     and (value is None or isinstance(value, str)))
         if verbatim:
             store[f] = words

@@ -196,7 +196,7 @@ and only it carries the baseline and the target.
 > | Question | How it is formulated | Example |
 > |---|---|---|
 > | What | the defect, in one noun phrase | invoices returned for correction |
-> | Where | the process and place | UK billing, order to invoice |
+> | Where | the process, the step(s) where it shows, and the place | UK billing, order to invoice — at "Generate invoice" |
 > | When | the period, or since when | January to June 2026 |
 > | Who | who is affected | client finance teams, credit control |
 > | Why | why it matters to them | wrong amounts delay payment and trust |
@@ -204,14 +204,15 @@ and only it carries the baseline and the target.
 > | How much | the size, against a requirement | 12% of invoices, against 3% elsewhere |
 >
 > **Show (the statement composed from it — illustration):** *"From January to June 2026, 12% of invoices produced by UK billing were returned by clients for correction — four times the 3% seen elsewhere — delaying payment for client finance teams and credit control."*
-> **Ask:** Let's answer the seven questions for your project: What is going wrong? Where? When, or since when? Who is affected? Why does it matter to them? How does it show up? How much — a rough number?
+> **Ask:** Let's answer the seven questions for your project: What is going wrong? Where — and at which step(s) of the process does it show? When, or since when? Who is affected? Why does it matter to them? How does it show up? How much — a rough number?
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `defect` — describes the defect or pain itself (p. 51)
 > - `5w2h` — answers what, where, when, who, why, how and how much (p. 49, p. 52)
 > - `magnitude` — gives the size as a number against a requirement or reference (p. 49)
 > - `no-cause-no-fix` — names no cause, no solution and no one to blame (p. 49)
+> - `located` — names the process step(s) where the problem shows (R18); ask for them if the Belt has not said
 > **Read back (composed):** the 5W2H as the Belt answered it, then the statement composed from those answers only — *"does that capture it accurately?"* *(Guard: assemble only what the Belt said; invent nothing.)*
-> **Capture as:** `problem_statement` — the composed statement; `problem_5w2h` — `{what, where, when, who, why, how, how_much}`, each in the Belt's words.
+> **Capture as:** `problem_statement` — the composed statement; `problem_5w2h` — `{what, where, when, who, why, how, how_much, steps}`, each in the Belt's words; `steps` is a list of the step(s) where the problem shows.
 
 **[METRIC LITERACY — field 5, where the metric gets named]**
 > **The coach teaches two different things and must not conflate them:** the **metric** (the Belt's own measure — what it counts, why it matters in Define, how to tell a usable estimate from a vague one) and the **statistic** (what an expected-savings calculation *is*, taught at step 1 of the seven-step pattern below).
@@ -311,8 +312,8 @@ and only it carries the baseline and the target.
 > **Read back:** what they will watch, in their own words — *"Is this right?"*
 
 **[12 · process_map_sipoc · required · as-is, from a shown demo]**
-> **What it is:** A SIPOC — a one-page, high-level map of the process as it runs today: Suppliers give Inputs; the Process, in four to eight main steps from start to end, turns them into Outputs, which go to Customers; and what is measured on those outputs.
-> **Why it matters:** It puts the whole process on one page, so the team agrees where it starts and ends and who it serves. It maps the process as it IS, not as it should be — an ideal map hides the problem.
+> **What it is:** A SIPOC — a one-page, high-level map of the process as it runs today: Suppliers give Inputs; the Process, in four to eight main steps from start to end, turns them into Outputs, which go to Customers; and what is measured on those outputs. With it, how the process performs today: for each step, how long it takes (average, shortest and longest, with the unit), how often it runs, and the problems the team sees there and who said so; for the whole process, the end-to-end lead time and how often it runs. Estimates are fine here — Measure replaces them with measured data.
+> **Why it matters:** It puts the whole process on one page, so the team agrees where it starts and ends and who it serves. It maps the process as it IS, not as it should be — an ideal map hides the problem. The step times and problems show where the problem statement's pain sits, and give Measure its first figures to check.
 > **Show (the completed SIPOC, as a table — illustration, not your data):**
 >
 > | Suppliers | Inputs | Process | Outputs | Customers |
@@ -324,14 +325,25 @@ and only it carries the baseline and the target.
 > | | | 5. Send to client | | |
 >
 > How each part is formulated: suppliers are who provides; inputs and outputs are things (nouns); each process step starts with a verb; customers are who receives the outputs. Measured on the outputs: invoice error rate, cycle time.
-> **Ask:** Let's build yours as it runs today: the main steps from start to end, then who supplies what goes in, what comes out, and who receives it. What do you measure on those outputs? You can also upload a map if you have one.
+>
+> **Show (how it performs today — illustration, not your data):**
+>
+> | Step | Time: average (shortest–longest) | How often | Problems the team sees (who said it) |
+> |---|---|---|---|
+> | 1. Receive order | 10 min (5–30 min) | about 120 a day | orders arrive without a PO number (Anna) |
+> | 3. Generate invoice | 2 h (1–6 h) | about 120 a day | prices taken from an old list (Marco) |
+> | 4. Review and approve | 1 day (2 h–3 days) | about 120 a day | approver away, nobody covers (Anna) |
+>
+> Whole process: lead time about 3 days from order to invoice sent; about 600 invoices a week.
+> **Ask:** Let's build yours as it runs today: the main steps from start to end, then who supplies what goes in, what comes out, and who receives it. What do you measure on those outputs? Then, for each step: roughly how long it takes — average, shortest and longest — how often it runs, and what problems the team sees there, and who said so. Last, the whole process: how long from start to end, and how often it runs. You can also upload a map if you have one.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `as-is` — maps the process as it runs today, not the ideal (p. 80)
 > - `start-to-end` — four to eight high-level steps from a start point to an end point (p. 26, p. 112)
 > - `all-six` — suppliers, inputs, steps, outputs, customers and the measures are all filled (p. 112)
 > - `customers-match` — the customers agree with the Voice of the Customer (p. 112)
-> **Read back:** the assembled SIPOC as a table, all six keys, flagging any thin column — *"Is this right?"*
-> **Capture as:** `{suppliers, inputs, process_steps, outputs, customers, process_metrics}` — ALL SIX keys.
+> - `performance` — each step has a time (average, shortest, longest, with a unit) and how often it runs, and the problems the team sees with who said them; the whole process has its lead time and how often it runs; estimates are fine (R17)
+> **Read back:** the assembled SIPOC as a table, all six keys, then each step's time, frequency and problems, then the whole process, flagging any thin column — *"Is this right?"*
+> **Capture as:** `{suppliers, inputs, process_steps, outputs, customers, process_metrics, process_performance}` — ALL SIX columns filled; `process_steps` a list, one entry per step `{name, duration {avg, min, max}, runs_per_period, problems [{note, said_by}]}`; `process_performance` `{lead_time, runs_per_period}`; each figure in the Belt's words with its unit.
 
 **[13 · issues_and_barriers · required]**
 > **What it is:** The issues and barriers: what could get in the way of the project — data, people, systems, time.
@@ -383,11 +395,11 @@ structured fields), `source` (`belt_stated` / `coach_extracted`).
 |---|---|
 | `team` | `list[dict]` — `{name, role, function}` per person |
 | `critical_to_quality` | `list[dict]` — `{customer, need, requirement}` per CTQ |
-| `problem_5w2h` | `dict` — `what, where, when, who, why, how, how_much` |
+| `problem_5w2h` | `dict` — `what, where, when, who, why, how, how_much`, and `steps` (list) |
 | `metric_definitions` | `list[dict]` — `{name, unit, meaning}` per metric, the primary first |
 | `project_scope` | `dict` — `in_scope`, `out_scope` |
 | `benefits_analysis` | `dict` — `cost_of_gap`, `impact_type`, `realisation_schedule`, `finance_contact` |
-| `process_map_sipoc` | `dict` — `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_metrics` |
+| `process_map_sipoc` | `dict` — `suppliers`, `inputs`, `process_steps` (list of step entries), `outputs`, `customers`, `process_metrics`, `process_performance` |
 
 **A structured field is read back whole, never key by key** — show the Belt
 which keys are still thin.

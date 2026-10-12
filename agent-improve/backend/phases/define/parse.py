@@ -108,7 +108,9 @@ def missing_columns(value: Any) -> list[str]:
     """The SIPOC columns `value` lacks (all six when it is not a mapping)."""
     if not isinstance(value, dict):
         return list(SIPOC_KEYS)
-    return [k for k in SIPOC_KEYS if not str(value.get(k) or "").strip()]
+    # ADR-0078: `process_steps` is a list of step entries; an empty list is not a column.
+    return [k for k in SIPOC_KEYS if not (value.get(k) if isinstance(value.get(k), (list, dict))
+                                          else str(value.get(k) or "").strip())]
 
 
 # ══ ADR-0071 (DEF-076): baseline and target as a MetricValue ═════════════════════════════
@@ -196,5 +198,183 @@ def primary_unit(artifacts: Any) -> str:
     return normal_unit(str(reg[0].get("unit") or "")) if reg and isinstance(reg[0], dict) else ""
 
 
+# ══ ADR-0078 (DEF-084, DEF-085): the as-is process with its performance, per step ═══════════
+#
+# Each step of `process_map_sipoc["process_steps"]` is an entry {id, name, duration {avg, min, max},
+# runs_per_period, problems [{note, said_by}]}; the whole process is `process_performance`
+# {lead_time, runs_per_period}. Every figure is a MetricValue read here, by `metric_value` — the
+# coach proposes the Belt's words, code reads the number (ADR-0071 point 2).
+
+#: The step-entry keys and the whole-process keys (ADR-0078 points 1 and 2).
+STEP_KEYS: tuple[str, ...] = ("id", "name", "duration", "runs_per_period", "problems")
+DURATION_KEYS: tuple[str, ...] = ("avg", "min", "max")
+PROCESS_PERFORMANCE_KEYS: tuple[str, ...] = ("lead_time", "runs_per_period")
+#: A period a frequency is counted in, English and German.
+_PERIODS: dict[str, tuple[str, ...]] = {
+    "per hour": ("hour", "hourly", "stunde", "stündlich"),
+    "per day": ("day", "daily", "tag", "täglich"),
+    "per week": ("week", "weekly", "woche", "wöchentlich"),
+    "per month": ("month", "monthly", "monat", "monatlich"),
+    "per year": ("year", "yearly", "annually", "jahr", "jährlich"),
+}
+_STEP_SPLIT = re.compile(r"\s*(?:→|->|=>|;|,|\n)\s*")
+_WORD = re.compile(r"[a-zäöüß0-9]+")
+
+
+def period_value(text: Any) -> dict[str, Any]:
+    """A frequency as a MetricValue whose unit is its period ("per week"): "about 40 a week",
+    "200 invoices per day", "3x monthly". No period named: the unit is what the parser read."""
+    if isinstance(text, dict) and "raw" in text and "value" in text:
+        return dict(text)
+    mv = metric_value(text)
+    low = str(text or "").lower()
+    for unit, words in _PERIODS.items():
+        if any(re.search(r"(?<![a-zäöüß])" + re.escape(w) + r"(?![a-zäöüß])", low) for w in words):
+            return {**mv, "unit": unit}
+    return mv
+
+
+def duration_value(text: Any) -> dict[str, Any]:
+    """A duration as a MetricValue (minutes, hours, days, weeks — the parser's units)."""
+    if isinstance(text, dict) and "raw" in text and "value" in text:
+        return dict(text)
+    return metric_value(text)
+
+
+def _step_name(entry: Any) -> str:
+    if isinstance(entry, dict):
+        return str(entry.get("name") or entry.get("step") or "").strip()
+    return str(entry or "").strip()
+
+
+def _key(name: str) -> str:
+    return " ".join(_WORD.findall(name.lower()))
+
+
+def _problems(value: Any) -> list[dict[str, str]]:
+    """`[{note, said_by}]` from what the coach proposed: a list of entries or of notes, or one note."""
+    items = value if isinstance(value, list) else ([value] if value else [])
+    out = []
+    for p in items:
+        note = str((p.get("note") or p.get("problem") or "") if isinstance(p, dict) else p).strip()
+        if note:
+            said = str((p.get("said_by") or p.get("who") or "") if isinstance(p, dict) else "").strip()
+            out.append({"note": note, "said_by": said})
+    return out
+
+
+def process_steps(value: Any, prior: Any = None) -> list[dict[str, Any]]:
+    """The SIPOC's steps as entries (ADR-0078 point 1) — from entries, from a list of names, or from
+    the Belt's text ("Receive → Approve → Pay"). Ids are stable: a step whose name matches a step of
+    `prior` keeps its id; a new step takes the next free number."""
+    if isinstance(value, str):
+        raw: list[Any] = [p for p in _STEP_SPLIT.split(value) if p.strip()]
+    elif isinstance(value, list):
+        raw = list(value)
+    else:
+        raw = []
+    before = {_key(_step_name(e)): str(e.get("id")) for e in (prior if isinstance(prior, list) else [])
+              if isinstance(e, dict) and e.get("id")}
+    taken = {i for i in before.values()}
+    used: set[str] = set()
+
+    def next_id() -> str:
+        n = 1
+        while f"S{n}" in taken or f"S{n}" in used:
+            n += 1
+        return f"S{n}"
+    out = []
+    for e in raw:
+        name = _step_name(e)
+        if not name:
+            continue
+        sid = str(e.get("id") or "") if isinstance(e, dict) else ""
+        sid = before.get(_key(name)) or (sid if sid and sid not in used else "") or next_id()
+        used.add(sid)
+        d = e if isinstance(e, dict) else {}
+        dur: dict[str, Any] = d["duration"] if isinstance(d.get("duration"), dict) else {}
+        out.append({"id": sid, "name": name,
+                    "duration": {k: duration_value(dur[k]) for k in DURATION_KEYS if dur.get(k) not in (None, "")},
+                    **({"runs_per_period": period_value(d["runs_per_period"])}
+                       if d.get("runs_per_period") not in (None, "") else {}),
+                    "problems": _problems(d.get("problems"))})
+    return out
+
+
+def process_performance(value: Any) -> dict[str, Any]:
+    """`{lead_time, runs_per_period}` as MetricValues (ADR-0078 point 2); a key not given is left out."""
+    v = value if isinstance(value, dict) else {}
+    out: dict[str, Any] = {}
+    if v.get("lead_time") not in (None, ""):
+        out["lead_time"] = duration_value(v["lead_time"])
+    if v.get("runs_per_period") not in (None, ""):
+        out["runs_per_period"] = period_value(v["runs_per_period"])
+    return out
+
+
+def sipoc_with_performance(value: Any, prior: Any = None) -> Any:
+    """The SIPOC a Confirm stores: its steps as entries with stable ids against `prior` (the SIPOC
+    confirmed before), its whole-process figures read in code. Anything that is not a SIPOC
+    mapping is returned as it is."""
+    if not isinstance(value, dict):
+        return value
+    out = dict(value)
+    before = prior.get("process_steps") if isinstance(prior, dict) else None
+    if not isinstance(before, list) and isinstance(prior, dict):
+        before = process_steps(before)
+    out["process_steps"] = process_steps(value.get("process_steps"), before)
+    perf = process_performance(value.get("process_performance"))
+    if perf:
+        out["process_performance"] = perf
+    else:
+        out.pop("process_performance", None)
+    return out
+
+
+def step_names(sipoc: Any) -> list[str]:
+    """The step names of a stored SIPOC — entries or the old text form (ADR-0078 point 6)."""
+    steps = sipoc.get("process_steps") if isinstance(sipoc, dict) else None
+    return [s["name"] for s in process_steps(steps)]
+
+
+def _matches(named: str, step: str) -> bool:
+    """ADR-0078 point 5: case and punctuation ignored; one contains the other, or they share a word
+    of five or more letters."""
+    a, b = _key(named), _key(step)
+    if not a or not b:
+        return False
+    if a in b or b in a:
+        return True
+    return bool({w for w in a.split() if len(w) >= 5} & {w for w in b.split() if len(w) >= 5})
+
+
+def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, list[str]]:
+    """R18, both directions (ADR-0078 point 5): `unmatched` — a step the problem names that matches
+    no step; `quiet` — a matching step with no problem notes; `ignored` — a step with problem notes
+    the problem does not name. Empty lists when the two agree."""
+    named = [str(n).strip() for n in (problem_steps if isinstance(problem_steps, list)
+                                      else _STEP_SPLIT.split(str(problem_steps or ""))) if str(n).strip()]
+    steps = process_steps(sipoc.get("process_steps") if isinstance(sipoc, dict) else None)
+    unmatched: list[str] = []
+    quiet: list[str] = []
+    hit: set[str] = set()
+    for n in named:
+        # The rules in order: a step the name contains or that contains it; only when none does, a step
+        # that shares a word of five or more letters — "Approve invoice" is not also "Receive invoice".
+        a = _key(n)
+        found = [s for s in steps if a and (a in _key(s["name"]) or _key(s["name"]) in a)] \
+            or [s for s in steps if _matches(n, s["name"])]
+        if not found:
+            unmatched.append(n)
+            continue
+        hit.update(s["id"] for s in found)
+        if not any(s["problems"] for s in found):
+            quiet.extend(s["name"] for s in found)
+    ignored = [s["name"] for s in steps if s["problems"] and s["id"] not in hit]
+    return {"unmatched": unmatched, "quiet": quiet, "ignored": ignored}
+
+
 __all__ = ["unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
-           "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit"]
+           "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit",
+           "STEP_KEYS", "DURATION_KEYS", "PROCESS_PERFORMANCE_KEYS", "period_value", "duration_value",
+           "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch"]

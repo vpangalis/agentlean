@@ -158,7 +158,9 @@ sequenceDiagram
 3. The planner's model returns one `SufficiencyJudgment` against the element's acceptance
    criteria, read from its SKILL.md block. The baseline and the target are MetricValues read by one
    parser, `define/parse.py::metric_value` (ADR-0071): no number, or a target in another unit than
-   the baseline's, is asked again, decided in code. The SIPOC is stored only with its six columns.
+   the baseline's, is asked again, decided in code. The SIPOC is stored only with its six columns;
+  its steps are entries with a stable id and their times and frequency as MetricValues, and the
+  problem's steps are checked against them in code at read-back (ADR-0078).
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked
    and answers in code without a model call; `revise` + `element` reopens a confirmed or parked one (W9). A later read-back of the element keeps the parts it
    carried before; any the new one lacks are shown under it, in code, and stored only on confirm.
@@ -547,7 +549,7 @@ JSON.
 | `team` | `name`, `role`, `function` |
 | `project_scope` | `in_scope`, `out_scope` |
 | `benefits_analysis` | `cost_of_gap`, `impact_type`, `realisation_schedule`, `finance_contact` |
-| `process_map_sipoc` | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_metrics` |
+| `process_map_sipoc` | `suppliers`, `inputs`, `process_steps` (`{id, name, duration, runs_per_period, problems}`, ADR-0078), `outputs`, `customers`, `process_metrics`, `process_performance` |
 | `critical_to_quality` | list of `customer`, `need`, `requirement` |
 | `problem_5w2h` | `what`, `where`, `when`, `who`, `why`, `how`, `how_much` |
 | `metric_definitions` | list of `name`, `unit`, `meaning`; the first entry is the primary metric |

@@ -1717,6 +1717,30 @@ def _limit_diagnosis(turn: list, coach_limit: int) -> dict[str, Any]:
     return {"coach_limit": coach_limit, "responses": responses, "tool_results": tool_results, "why": why}
 
 
+def _r18_link(phase: str, field: Optional[str], store: dict[str, Any],
+              prior: dict[str, Any]) -> Optional[str]:
+    """ADR-0078 point 5 (R18, DEF-085): the read-back of the SIPOC against the confirmed problem
+    statement, or of the problem statement against the confirmed SIPOC — both directions, in code.
+    The mismatch in words, or None when they agree or the other element is not confirmed yet."""
+    if phase != "define":
+        return None
+    from backend.core.prompts import LINK_IGNORED, LINK_QUIET, LINK_UNMATCHED
+    from backend.phases.define import parse
+    if field == "process_map_sipoc" and isinstance(store.get("process_map_sipoc"), dict) \
+            and isinstance(prior.get("problem_5w2h"), dict):
+        sipoc, fivew = store["process_map_sipoc"], prior["problem_5w2h"]
+    elif field == "problem_statement" and isinstance(store.get("problem_5w2h"), dict) \
+            and isinstance(prior.get("process_map_sipoc"), dict):
+        sipoc, fivew = prior["process_map_sipoc"], store["problem_5w2h"]
+    else:
+        return None
+    gap = parse.link_mismatch(fivew.get("steps"), sipoc)
+    parts = [t.format(names=", ".join(f"“{n}”" for n in gap[k]))
+             for k, t in (("unmatched", LINK_UNMATCHED), ("quiet", LINK_QUIET), ("ignored", LINK_IGNORED))
+             if gap[k]]
+    return " ".join(parts) or None
+
+
 def _with_text(messages: list, text: str) -> list:
     """The messages with the last AI message's text replaced — a NEW message (§4.5), its extras
     kept."""
@@ -2422,6 +2446,7 @@ async def executor(
     # 6.61 — a read-back's value is PENDING: it goes on the move record with
     # what a confirmation will store, and nothing reaches `artifacts` now.
     carried: dict[str, Any] = {}
+    link: Optional[str] = None
     if move == moves.READ_BACK and pending is not None:
         # G-118 (DEF-157) — a part of the element this read-back lacks but an earlier read-back of
         # it carried (the CTQs, after a Change) is carried into it, shown to the Belt below, and
@@ -2451,6 +2476,7 @@ async def executor(
                                for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
                    "sources": {str(e.get("field_name")): str(e.get("source") or "")
                                for e in captures if e.get("field_name")}}
+        link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
         kept = {}
     artifacts = {**prior_artifacts, **kept}
 
@@ -2471,7 +2497,22 @@ async def executor(
         logger.warning("%s.executor: G-140 — the code-written read-back of `%s` carries nothing a "
                        "Confirm could store; the Belt is asked to send the answer again",
                        phase, plan.focus_field)
-    elif move == moves.READ_BACK and pending is not None and plan and plan.focus_field:
+    # ADR-0078 point 5 (R18, DEF-085) — a SIPOC and a problem statement that point at different steps
+    # turn the read-back into a challenge naming the mismatch, once; the element stays asked, the
+    # Belt's words kept. Answered again with the same mismatch, the read-back goes ahead and says so.
+    focus_before = dict((state.get("field_status") or {}).get(plan.focus_field) or {}) \
+        if plan is not None and plan.focus_field else {}
+    link_challenge = bool(link and not resend and not focus_before.get("link_raised")
+                          and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
+    if link_challenge and plan is not None and plan.focus_field and pending is not None:
+        field_status[plan.focus_field] = {
+            "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
+            "messages": int(pending.get("messages") or 1), "link_raised": True,
+            **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
+            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
+        logger.info("%s.executor: R18 — the read-back of `%s` is raised as a challenge: %s",
+                    phase, plan.focus_field, link)
+    elif not resend and move == moves.READ_BACK and pending is not None and plan and plan.focus_field:
         field_status[plan.focus_field] = {**field_status.get(plan.focus_field, {}),
                                           "status": moves.ANSWERED, "pending": pending}
 
@@ -2555,6 +2596,17 @@ async def executor(
         if reply is not None:
             reply = reply.model_copy(update={"message": FALLBACK_RESEND, "explanation": "",
                                              "example": "", "prompt": ""})
+    elif link_challenge and link:
+        # ADR-0078 point 5 — the challenge, written in code; no read-back is offered this turn.
+        from backend.core.prompts import LINK_CHALLENGE
+        challenge = LINK_CHALLENGE.format(details=link)
+        new_messages = _with_text(new_messages, challenge)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": challenge, "explanation": "", "example": "",
+                                             "prompt": ""})
+    elif link and move == moves.READ_BACK:
+        from backend.core.prompts import LINK_KEPT
+        new_messages = _with_code_line(new_messages, reply, LINK_KEPT.format(details=link))
     reply = _with_sample_mark(reply)            # C3 (DEF-083)
     _attach_blocks(new_messages, reply, MAX_ITERATIONS_WARNING if failed else None)
 
@@ -2563,11 +2615,15 @@ async def executor(
     # next turn's coach reads the feedback as section 5 of its input — never as
     # a message from the Belt. Attached even when the turn degraded, so a
     # confirmed value the plan stored is not taught again.
-    record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND) and not resend else None, kept)
+    record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND)
+                          and not resend and not link_challenge else None, kept)
     if resend and record is not None:
         # G-140 — no read-back is offered, so the screen draws no Confirm (it draws one only under
         # a `read_back` move); `resend` says why.
         record.update({"move": moves.RESPOND, "pending": None, "resend": True})
+    if link_challenge and record is not None:
+        # ADR-0078 point 5 — a challenge, not a read-back: no Confirm is drawn; `link` says why.
+        record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "link": link})
     if fell_back:
         logger.error(
             "%s.executor: DEFECT — the coach did not finish its %s move (%s); the "

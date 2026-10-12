@@ -4592,7 +4592,21 @@ function defineReportHtml(rep, isPassed) {
       ((s5.other_registered || []).length
         ? line('Also registered', s5.other_registered.map(m => m.name).join(', ')) : '')),
     card(s6, why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +
-      line('Measured on the outputs', sipoc.process_metrics, 'process_metrics')),
+      line('Measured on the outputs', sipoc.process_metrics, 'process_metrics') +
+      // ADR-0078 (DEF-084, R5 section 6): how each step performs today, the problem steps marked, and the
+      // whole process.
+      ((s6.steps || []).length
+        ? `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin-top:6px">How the process performs today</div>` +
+          table(s6.steps.map(st => ({
+            step: `${(st.problems || []).length ? '⚠ ' : ''}${st.id} · ${st.name}`,
+            time: st.duration && st.duration.avg
+              ? `${st.duration.avg}${st.duration.min || st.duration.max ? ` (${st.duration.min || '?'} to ${st.duration.max || '?'})` : ''}` : null,
+            runs: st.runs_per_period,
+            problems: (st.problems || []).map(p => p.said_by ? `${p.note} (${p.said_by})` : p.note).join('; ') || null})),
+            [['step', 'Step'], ['time', 'Time (range)'], ['runs', 'How often'], ['problems', 'Problems seen']]) +
+          line('End-to-end lead time', (s6.process_performance || {}).lead_time) +
+          line('Runs', (s6.process_performance || {}).runs_per_period)
+        : '')),
     card(s7, ((s7.issues || []).length
         ? `<ul style="font-size:11px;line-height:1.6;margin:0 0 0 16px;padding:0">${s7.issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
         : `<div style="font-size:11px;line-height:1.6">${t(s7.issues_and_barriers)}</div>`) + why('issues')),

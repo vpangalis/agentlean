@@ -11,6 +11,7 @@ Feature tests record the measurement, never block a commit: non-strict xfail.
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import pytest
 
@@ -896,14 +897,6 @@ process.stdout.write(JSON.stringify({{html}}));
 
 
 
-def test_the_as_is_process_captures_step_performance_structured() -> None:
-    """DEF-084 — The high-level process element captures per-step duration (avg/min/max with unit), frequency and problem notes with who said them, and end-to-end lead"""
-    _not_written('DEF-084')
-
-
-def test_the_problem_statement_and_the_process_steps_are_linked_both_ways() -> None:
-    """DEF-085 — The problem statement names the step(s) where the problem shows; the coach checks the link both ways before either element is confirmed."""
-    _not_written('DEF-085')
 
 
 
@@ -3106,6 +3099,38 @@ process.stdout.write(JSON.stringify({{width:els['prog-fill'].style.width,label:e
     assert current["name"] in second["page"]["step"]["html"]
 
 
+#: ADR-0078 — the as-is process as the coach proposes it in a read-back: each figure the Belt's words.
+SIPOC_078: dict[str, Any] = {
+    "suppliers": "Suppliers, the ERP", "inputs": "Supplier invoices, purchase orders",
+    "outputs": "Payments, remittance advice", "customers": "Suppliers, ward managers",
+    "process_metrics": "late payment rate, days to pay",
+    "process_steps": [
+        {"name": "Receive invoice", "duration": {"avg": "about 1 day", "min": "2 hours", "max": "3 days"},
+         "runs_per_period": "about 600 a week", "problems": []},
+        {"name": "Approve invoice", "duration": {"avg": "roughly 6 days", "min": "1 day", "max": "20 days"},
+         "runs_per_period": "about 600 a week",
+         "problems": [{"note": "approvers on leave, nobody covers", "said_by": "Lena"}]},
+        {"name": "Pay supplier", "duration": {"avg": "2 days", "min": "1 day", "max": "5 days"},
+         "runs_per_period": "2 payment runs a week", "problems": []}],
+    "process_performance": {"lead_time": "about 12 days", "runs_per_period": "about 600 invoices a week"},
+}
+
+
+def _at_the_sipoc(env, problem_steps: list[str]) -> None:
+    """Every element before the high-level process confirmed; the problem names `problem_steps`."""
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    order = [f for f, _ in moves.positions("define")]
+    at = order.index("process_map_sipoc")
+    before = {f for _, fs in moves.positions("define")[:at] for f in fs}
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items() if k in before}
+    record.structured["problem_5w2h"] = {**COMPLETE["problem_5w2h"], "steps": problem_steps}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:at]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+
+
 # ══ Founder ruling 2026-10-12 (speed-up, item 3): the built features proven end to end ═════════
 #
 # Each feature below had a passing test that drove neither the compiled graph nor the API (the
@@ -3622,6 +3647,18 @@ def test_coherence_judges_the_belts_words(env, monkeypatch, stub_planner) -> Non
     assert _askd(env, message="We will watch things.")["move"] == "challenge"
     verdict = [s for s in steps if s.get("layer") == "coherence"][-1]
     assert verdict["degraded"] is True, verdict
+    # A store turn is judged against the NEXT element's teaching step, never the stored field's confirm.
+    from backend.middleware.skills import CONFIRM
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names a side effect")
+    _coach_saying(monkeypatch, 'Your secondary metrics: "supplier queries". Is this right?',
+                  captured=[{"field_name": "secondary_metrics", "value": "supplier queries", "source": "belt"}])
+    assert _askd(env, message="supplier queries")["move"] == "read_back"
+    _coach_saying(monkeypatch, "Stored. Next: the process.",
+                  captured=[{"field_name": "secondary_metrics", "value": "supplier queries", "source": "belt"}])
+    assert _askd(env, action="confirm", message="Confirm")["move"] == "store_and_advance"
+    verdict = [s for s in steps if s.get("layer") == "coherence"][-1]
+    assert verdict["script_step"]["step"] != CONFIRM and verdict["script_step"]["field"] == "process_map_sipoc", \
+        verdict["script_step"]
 
 
 def test_every_turn_is_graded_on_all_four_blocks(env, monkeypatch) -> None:
@@ -3891,3 +3928,111 @@ process.stdout.write(JSON.stringify({restored,other,afterSend}));""")
     users = [t.get("text") or t.get("content") for t in hist if t.get("role") == "user"]
     assert "supplier queries" in users and "Confirm" in users, users
     assert sum(1 for t in hist if t.get("role") == "ai") >= 3
+def _stored(env) -> dict:
+    return env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+
+
+def test_the_as_is_process_captures_step_performance_structured(env, monkeypatch, stub_planner) -> None:
+    """DEF-084 — R17, ADR-0078: through the real routes and graph, the high-level process is read
+    back and confirmed with each step as an entry — a stable id, its duration (average, shortest,
+    longest) and how often it runs as MetricValues read in code from the Belt's words (estimates
+    marked), its problems with who said them — and the whole process's lead time and runs per period.
+    A changed SIPOC keeps each step's id and gives a new step the next free one. A version-7 SIPOC,
+    its steps as text, loads as step entries (ADR-0065 migration)."""
+    import copy
+
+    from backend.core import migrations
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_the_sipoc(env, ["Approve invoice"])
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="steps, figures and problems given")
+    _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": SIPOC_078, "source": "belt"}])
+    read = _askd(env, message="Receive, approve, pay — with the times, volumes and problems as I said.")
+    assert read["move"] == moves.READ_BACK, read
+    _coach_saying(monkeypatch, "Next: issues and barriers.")
+    _askd(env, action="confirm", message="Confirm")
+    sipoc = _stored(env)["structured"]["process_map_sipoc"]
+    steps = sipoc["process_steps"]
+    assert [(s["id"], s["name"]) for s in steps] == [("S1", "Receive invoice"), ("S2", "Approve invoice"),
+                                                     ("S3", "Pay supplier")], steps
+    approve = steps[1]
+    assert approve["duration"]["avg"]["value"] == 6.0 and approve["duration"]["avg"]["unit"] == "days"
+    assert approve["duration"]["avg"]["is_estimate"] is True, "'roughly' marks an estimate (ADR-0071)"
+    assert approve["duration"]["max"]["value"] == 20.0 and steps[0]["duration"]["min"]["unit"] == "hours"
+    assert approve["runs_per_period"]["value"] == 600.0 and approve["runs_per_period"]["unit"] == "per week"
+    assert approve["problems"] == [{"note": "approvers on leave, nobody covers", "said_by": "Lena"}]
+    perf = sipoc["process_performance"]
+    assert perf["lead_time"]["value"] == 12.0 and perf["runs_per_period"]["unit"] == "per week", perf
+
+    # A change keeps the ids: a new first step takes the next free id, the others keep theirs.
+    changed = copy.deepcopy(SIPOC_078)
+    changed["process_steps"].insert(0, {"name": "Scan invoice", "duration": {"avg": "10 minutes"},
+                                        "runs_per_period": "600 a week", "problems": []})
+    _coach_saying(monkeypatch, "What would you like to change in the process?")
+    _askd(env, action="revise", element="process_map_sipoc", message="Change: process")
+    _coach_saying(monkeypatch, "Your process, read back again. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": changed, "source": "belt"}])
+    _askd(env, message="We scan every invoice first, about 10 minutes each.")
+    _coach_saying(monkeypatch, "Next: issues and barriers.")
+    _askd(env, action="confirm", message="Confirm")
+    again = _stored(env)["structured"]["process_map_sipoc"]["process_steps"]
+    assert [(s["id"], s["name"]) for s in again] == [("S4", "Scan invoice"), ("S1", "Receive invoice"),
+                                                     ("S2", "Approve invoice"), ("S3", "Pay supplier")], again
+
+    # ADR-0065: a version-7 SIPOC with its steps as text loads as entries.
+    v7 = {"artifacts": {"process_map_sipoc": {"suppliers": "s", "inputs": "i", "outputs": "o",
+                                              "customers": "c", "process_metrics": "m",
+                                              "process_steps": "Receive -> Approve -> Pay"}}}
+    moved = migrations.migrate(v7, 7)
+    assert [(s["id"], s["name"]) for s in moved["artifacts"]["process_map_sipoc"]["process_steps"]] == [
+        ("S1", "Receive"), ("S2", "Approve"), ("S3", "Pay")]
+    assert migrations.current() >= 8 and 7 in migrations.MIGRATIONS
+
+
+def test_the_problem_statement_and_the_process_steps_are_linked_both_ways(env, monkeypatch, stub_planner) -> None:
+    """DEF-085 — R18, ADR-0078 point 5: checked in code at read-back, both ways. The problem names
+    'Approve invoice', which carries no problem, while 'Receive invoice' carries one the problem
+    ignores: the read-back becomes a challenge naming both, no Confirm offered, the element still
+    asked. Answered again with the same mismatch, the read-back goes ahead and says what was kept,
+    and Confirm stores it. Then a changed problem statement naming a step the process lacks is
+    challenged the same way."""
+    import copy
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    mismatched = copy.deepcopy(SIPOC_078)
+    mismatched["process_steps"][0]["problems"] = [{"note": "invoices arrive without a PO number", "said_by": "Dev"}]
+    mismatched["process_steps"][1]["problems"] = []
+    _at_the_sipoc(env, ["Approve invoice"])
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="steps, figures and problems given")
+    _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": mismatched, "source": "belt"}])
+    first = _askd(env, message="Receive, approve, pay — the PO numbers are the problem at receipt.")
+    assert first["move"] == moves.CHALLENGE, first["move"]
+    assert "Approve invoice" in first["answer"] and "Receive invoice" in first["answer"], first["answer"]
+    status = _stored(env)["field_status"]["process_map_sipoc"]
+    assert status["status"] == moves.ASKED and status.get("link_raised") is True, status
+    assert "process_map_sipoc" not in _stored(env)["structured"]
+
+    _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": mismatched, "source": "belt"}])
+    second = _askd(env, message="Keep it as it is — the late payments still show at approval.")
+    assert second["move"] == moves.READ_BACK and "Kept as you said:" in second["answer"], second
+    _coach_saying(monkeypatch, "Next: issues and barriers.")
+    _askd(env, action="confirm", message="Confirm")
+    assert _stored(env)["structured"]["process_map_sipoc"]["process_steps"][0]["problems"], "not stored"
+
+    # The other direction: the problem statement changed after the process, naming a step it lacks.
+    fivew = {**COMPLETE["problem_5w2h"], "steps": ["Archive"]}
+    _coach_saying(monkeypatch, "What would you like to change in the problem statement?")
+    _askd(env, action="revise", element="problem_statement", message="Change: problem statement")
+    _coach_saying(monkeypatch, "Your problem statement, read back. Is this right?",
+                  captured=[{"field_name": "problem_statement", "value": COMPLETE["problem_statement"],
+                             "source": "belt"},
+                            {"field_name": "problem_5w2h", "value": fivew, "source": "belt"}])
+    third = _askd(env, message="It shows when invoices are archived.")
+    assert third["move"] == moves.CHALLENGE and "Archive" in third["answer"], third

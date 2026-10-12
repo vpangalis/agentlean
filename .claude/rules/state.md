@@ -141,6 +141,12 @@ deterministically against the store. Values inside are still strings
 `phases/define/parse.py::metric_value`, the one parser. Measure and Control
 compute with the number; the report shows it with the Belt's words kept.
 
+**ADR-0078 (founder 2026-10-12):** `process_map_sipoc["process_steps"]` is a list of
+step entries `{id, name, duration {avg, min, max}, runs_per_period, problems [{note,
+said_by}]}` and `process_map_sipoc["process_performance"]` is `{lead_time,
+runs_per_period}`; every duration and frequency is a `MetricValue` read by the same
+parser (`parse.process_steps`, `parse.sipoc_with_performance`). Step ids are stable.
+
 **Computation tool output goes in `artifacts["computation_results"]`** — a
 list of dicts, all values strings; no new `PhaseState` field, no per-phase
 typed destinations (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §7).
