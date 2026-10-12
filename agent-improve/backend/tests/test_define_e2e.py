@@ -918,7 +918,8 @@ def test_the_welcome_summary_is_built_in_code_from_confirmed_values() -> None:
 
 
 def test_the_screen_says_what_is_happening_while_a_turn_runs() -> None:
-    """DEF-092 — While a turn runs the screen says what is happening in plain words, never a generic 'thinking'."""
+    """DEF-092 — While a turn runs the Belt sees its progress steps in plain words (node-level updates on
+    /ask/stream, step 10.1), never a generic 'thinking'; no reply text before coherence and grading ran."""
     _not_written('DEF-092')
 
 

@@ -3787,13 +3787,15 @@
   },
   {
    "id": "DEF-092",
-   "description": "While a turn runs the screen says what is happening in plain words, never a generic 'thinking'.",
+   "description": "While a turn runs the Belt sees its progress steps in plain words — node-level updates through LangGraph streaming on the planned /ask/stream route (step 10.1) — never a generic 'thinking'; no reply text is shown before coherence and grading have run (founder ruling 2026-10-12).",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_the_screen_says_what_is_happening_while_a_turn_runs",
    "sources": {
     "architecture": [],
-    "procedure": [],
+    "procedure": [
+     "Step 10.1"
+    ],
     "code": [],
     "guidance": []
    },
@@ -3810,7 +3812,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "pilot": false
   },
   {
    "id": "DEF-093",

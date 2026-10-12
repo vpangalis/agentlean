@@ -43,6 +43,29 @@ def test_g153_a_run_with_more_than_one_cut_off_fails() -> None:
     assert define_runthrough.exit_code(ok, []) == 0
 
 
+def test_every_run_reports_its_turn_times_per_turn_type() -> None:
+    """Founder ruling 2026-10-12 (turn time): the run's summary carries, per turn type, the count,
+    median, 90th percentile and max, and names the types whose 90th percentile reaches the 30 s watch
+    figure (watched, not a stop condition)."""
+    teach: list[dict] = [{"kind": "turn", "move": "store_and_advance", "seconds": float(s)} for s in range(20, 30)]
+    entries: list[dict] = [{"kind": "turn", "move": "teach", "seconds": 31.0}, *teach,
+               {"kind": "turn", "move": "read_back", "seconds": 18.0},
+               {"kind": "turn", "move": "challenge", "seconds": 15.0},
+               {"kind": "upload", "seconds": 7.8}, {"kind": "turn", "move": "store_and_advance", "seconds": 25.7},
+               {"kind": "gate_review", "seconds": None}, {"kind": "gate_decision", "seconds": 4.9},
+               {"kind": "summary"}]
+    t = define_runthrough.turn_times(entries)
+    by = t["by_type"]
+    assert set(by) == {"teaching", "read-back", "answer", "upload", "gate"}, by
+    assert by["teaching"] == {"n": 11, "median": 25.0, "p90": 29.0, "max": 31.0}, by["teaching"]
+    assert by["upload"]["n"] == 1 and by["gate"] == {"n": 1, "median": 4.9, "p90": 4.9, "max": 4.9}
+    assert t["p90_watch_s"] == 30.0 and t["p90_over_watch"] == []
+    entries[0]["seconds"], entries[10]["seconds"] = 44.0, 40.0
+    assert define_runthrough.turn_times(entries)["p90_over_watch"] == ["teaching"]
+    src = define_runthrough.Path(define_runthrough.__file__).read_text(encoding="utf-8")
+    assert 'summary["turn_times"] = turn_times(' in src, "the run's summary does not carry the turn times"
+
+
 def test_a_failed_run_is_kept_marked_and_never_read_as_the_latest(tmp_path) -> None:
     good, bad = "20261011T155414", "20261011T152731"
     for stamp in (good, bad):

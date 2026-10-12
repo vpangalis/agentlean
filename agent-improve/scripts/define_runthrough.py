@@ -402,6 +402,9 @@ def main() -> int:
                # G-153 (founder 2026-10-11): the calls cut off at their token limit, counted per run.
                "cut_offs": cut_offs(CALLS), **out}
     summary["cost"] = _cost(summary["tokens"])
+    # Founder ruling 2026-10-12 (turn time): median and 90th percentile per turn type, p90 watched.
+    summary["turn_times"] = turn_times([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines()
+                                        if l.strip()])
     _write(rec, summary)
     print(json.dumps(summary, indent=1, default=str))
     _time_it(started, len(CALLS))
@@ -427,6 +430,47 @@ def cut_offs(calls: list[dict[str, Any]]) -> dict[str, Any]:
     cut = [{"kind": c.get("kind"), "at": c.get("at"), "output_tokens": c.get("output_tokens")}
            for c in calls if c.get("finish_reason") == "length"]
     return {"count": len(cut), "calls": cut}
+
+
+#: Founder ruling 2026-10-12 (turn time): each type's 90th percentile is WATCHED against this; it is
+#: not a stop condition (45 s per turn stays the ceiling, DEF-093).
+P90_WATCH_S = 30.0
+
+
+def turn_times(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Founder ruling 2026-10-12: the run's turn times per turn type — count, median, 90th
+    percentile, max — and the types whose 90th percentile reaches P90_WATCH_S. The types are
+    ADR-0069's, from the record: the turn after an upload is the upload turn; teach and store-and-
+    advance are teaching; every other turn the Belt answered is an answer turn, its read-backs
+    split out; the gate's timed steps, and the first Measure turn, are their own rows."""
+    import statistics
+    groups: dict[str, list[float]] = {}
+    upload = False
+    for e in entries:
+        kind = e.get("kind")
+        if kind == "upload":
+            upload = True
+            continue
+        if kind == "turn":
+            move = e.get("move")
+            name = ("upload" if upload else "teaching" if move in ("teach", "store_and_advance")
+                    else "read-back" if move == "read_back" else "answer")
+            upload = False
+        elif kind in ("gate_review", "gate_submit", "gate_decision"):
+            name = "gate"
+        elif kind == "measure_turn":
+            name = "first Measure turn"
+        else:
+            continue
+        if e.get("seconds") is not None:
+            groups.setdefault(name, []).append(float(e["seconds"]))
+    out: dict[str, Any] = {}
+    for name, secs in sorted(groups.items()):
+        s = sorted(secs)
+        out[name] = {"n": len(s), "median": round(statistics.median(s), 1),
+                     "p90": s[min(len(s) - 1, max(0, -(-9 * len(s) // 10) - 1))], "max": s[-1]}
+    return {"by_type": out, "p90_watch_s": P90_WATCH_S,
+            "p90_over_watch": [n for n, v in out.items() if v["p90"] >= P90_WATCH_S]}
 
 
 #: G-153 (founder ruling 2026-10-12): a cut-off coach reply is answered in code, permanently; a run
