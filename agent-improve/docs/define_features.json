@@ -3920,7 +3920,7 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "platform",
-   "pilot": true
+   "pilot": false
   },
   {
    "id": "DEF-097",
@@ -5267,7 +5267,7 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "pilot": true
+   "pilot": false
   },
   {
    "id": "DEF-143",
