@@ -124,8 +124,20 @@ def status(features: list[dict], res: dict) -> dict[str, str]:
         for t in WALLCLOCK_TESTS:
             if t not in outcomes and fresh and t in wall:
                 outcomes[t] = wall[t]
-    return {f["id"]: "passing" if outcomes.get(node_id(f["test"])) == "passed" else "failing"
+    # Desktop review of DEF-014, 2026-10-12: a feature whose requirement sets a run-level criterion
+    # (a floor, rate or limit its own test does not check) names that check in `run_criteria`; it
+    # passes only when its test AND every run criterion pass.
+    return {f["id"]: "passing" if all(outcomes.get(node_id(t)) == "passed"
+                                      for t in [f["test"], *(f.get("run_criteria") or [])]) else "failing"
             for f in features}
+
+
+def awaiting_run_criterion(features: list[dict], res: dict) -> set[str]:
+    """Features whose own test passes but a run criterion does not — shown "awaiting run criterion"."""
+    outcomes = dict(res.get("outcomes") or {})
+    return {f["id"] for f in features if f.get("run_criteria")
+            and outcomes.get(node_id(f["test"])) == "passed"
+            and not all(outcomes.get(node_id(t)) == "passed" for t in f["run_criteria"])}
 
 
 def in_core(feature: dict) -> bool:
@@ -418,6 +430,10 @@ def ratchet_refusal(required: list[str], features: list[dict], res: dict,
         if wallclock and (not wallclock_outcomes()[1] or fid in defects):
             exempt.append(fid)
         elif (stale or fid in defects) and by_id[fid]["test"].startswith(RUNTHROUGH_TESTS):
+            exempt.append(fid)
+        elif (stale or fid in defects) and fid in awaiting_run_criterion([by_id[fid]], res):
+            # Founder ruling 2026-10-12 (board counts run-level criteria): a run criterion is a
+            # live-run check, held to the same rule — stale record, or a registered defect names it.
             exempt.append(fid)
         else:
             refused.append(f"{fid} passed before and its test no longer passes: {by_id[fid]['test']}")

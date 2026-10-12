@@ -346,6 +346,8 @@ def _blocker(f: dict, open_ids: set[str]) -> str:
         return ""
     if f["awaiting"]:
         return "a fresh run-through on the current code (it passed on the latest run, which ran on earlier code)"
+    if f.get("run_criterion"):
+        return "awaiting run criterion — its test passes, but its requirement's run-level check fails on the latest run"
     if f["held"]:
         return f"the design decision {f['held']} is not accepted yet"
     deps = [d for d in f["depends_on"] if d in open_ids]
@@ -404,6 +406,7 @@ def data() -> dict:
         wires = []
     structural = {w["name"] for w in wires if w.get("check") == 3 and "drives neither" in w.get("finding", "")}
     waits = features.awaiting(feats, st)
+    run_wait = features.awaiting_run_criterion(feats, features.results())
     rows = []
     for f in feats:
         file, _, func = f["test"].partition("::")
@@ -422,7 +425,7 @@ def data() -> dict:
         r = by_rank.get(f["id"]) or {}
         rows.append({"id": f["id"], "description": f["description"], "lane": f["lane"],
                      "stage": f.get("stage"), "layer": f.get("layer"), "phase": f.get("phase", "define"),
-                     "status": status, "awaiting": f["id"] in waits, "tier": tiers.get(f["id"]), "rank": r.get("rank"),
+                     "status": status, "awaiting": f["id"] in waits, "run_criterion": f["id"] in run_wait, "tier": tiers.get(f["id"]), "rank": r.get("rank"),
                      "held": hold.get(f["id"]), "not_e2e": not_e2e, "stub": stub, "requirement": f["requirement"],
                      "moscow": req.get("moscow"), "hidden": req.get("moscow") == "Won't-now", "pilot": f.get("pilot"),
                      "test": f["test"], "depends_on": f["depends_on"], "unblocks": sorted(dependents.get(f["id"], ())),

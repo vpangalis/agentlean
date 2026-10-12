@@ -594,7 +594,8 @@
     "gaps": [
      "G-102",
      "G-99",
-     "G-155"
+     "G-155",
+     "G-161"
     ]
    },
    "requirement": "R1",
@@ -688,7 +689,8 @@
      "13"
     ],
     "gaps": [
-     "G-102"
+     "G-102",
+     "G-162"
     ]
    },
    "requirement": "R1",
@@ -699,7 +701,10 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "run_criteria": [
+    "backend/tests/test_define_runthrough.py::test_run_most_coaching_turns_are_graded"
+   ]
   },
   {
    "id": "DEF-016",
@@ -3034,7 +3039,10 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "run_criteria": [
+    "backend/tests/test_define_runthrough.py::test_run_an_answer_is_judged_at_most_once"
+   ]
   },
   {
    "id": "DEF-067",

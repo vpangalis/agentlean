@@ -1671,6 +1671,32 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-161",
+   "symptom": "THE COHERENCE JUDGE'S REJECTIONS ARE MOSTLY FALSE: 12 OR 13 OF 14 IN RUNS 140839, 134606 AND 124425. Audited from each run's coach inputs (Desktop review of the DEF-014 package, item 2). On challenge turns (8) the judge called a reply that quotes the Belt's answer and then names what is missing 'parroting' or 'names nothing missing' — every one named the missing parts; on respond turns ('Where do we stand?', 3) it called an answer that says where the Belt stands and then asks the element's question 'parroting the question'; on the last element's store (2) it asked for a next question although G-158's text says none is correct (G-158's last-element half did not take: run 140839 turn 34 was rejected and re-asked). Valid: one read-back that left out part of the Belt's words (124425 turn 5); partly valid: one challenge naming one of three missing parts (124425 turn 26). G-155's override covers the restating moves only. A false rejection skips the grader today and, under DEF-015 option A, would be graded as a rejected reply; under DEF-014 a false rejection on a teaching turn changes the reply.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-013"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-162",
+   "symptom": "FEWER THAN 90% OF COACHING TURNS ARE GRADED ON A LIVE RUN: 28 of 33 on runs 124425 and 140839, 29 of 33 on 134606, 26 of 34 on 132229. A turn coherence rejects skips the grader (S-C13 B3), so every rejection — false ones included (G-161) — is an ungraded turn the Belt still receives. Made visible 2026-10-12 when the board began counting run-level criteria (DEF-015's run criterion, test_run_most_coaching_turns_are_graded). Ruled fix: DEF-015 option A, grading every reply sent, with DEF-093's turn deadline.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-015"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

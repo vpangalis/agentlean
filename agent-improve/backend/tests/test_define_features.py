@@ -33,7 +33,7 @@ FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane"
           "requirement", "belt_impact", "rework_risk", "effort", "priority_override",
           "phase", "stage", "layer"}
 #: Carried by M2 features only: the founder's pilot cut (2026-09-30), true | false (rank.py --check).
-OPTIONAL = {"pilot"}
+OPTIONAL = {"pilot", "run_criteria"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -380,3 +380,25 @@ def test_a_wallclock_test_is_read_from_the_run_through_stage(monkeypatch) -> Non
     assert F.status(feats, {"outcomes": {}}) == {"W-1": "failing"}
     assert F.ratchet_refusal(["W-1"], feats, {"outcomes": {}}, defects=set()) == ([], ["W-1"])
 
+
+def test_a_run_criterion_is_a_live_run_check_and_holds_back_its_feature(feats, monkeypatch) -> None:
+    """Desktop review of DEF-014, 2026-10-12: a feature whose requirement sets a run-level criterion
+    its own test does not check names that check in `run_criteria` — tests on the live run's record —
+    and passes only when its test and every run criterion pass."""
+    for f in feats:
+        for t in f.get("run_criteria") or []:
+            assert t.startswith("backend/tests/test_define_runthrough.py::test_run_"), (f["id"], t)
+            assert t != f["test"], f["id"]
+    feature = {"id": "DEF-X", "test": "backend/tests/test_a.py::test_own",
+               "run_criteria": ["backend/tests/test_define_runthrough.py::test_run_floor"]}
+    passed = {"backend/tests/test_a.py::test_own": "passed"}
+    assert F.status([feature], {"outcomes": passed}) == {"DEF-X": "failing"}
+    assert F.awaiting_run_criterion([feature], {"outcomes": passed}) == {"DEF-X"}
+    both = {**passed, "backend/tests/test_define_runthrough.py::test_run_floor": "passed"}
+    assert F.status([feature], {"outcomes": both}) == {"DEF-X": "passing"}
+    assert F.awaiting_run_criterion([feature], {"outcomes": both}) == set()
+    # Rule 11b holds it like a run-through feature: refused, unless a registered defect names it.
+    monkeypatch.setattr(F, "runthrough_fresh", lambda: True)
+    refused, _ = F.ratchet_refusal(["DEF-X"], [feature], {"outcomes": passed}, defects=set())
+    assert refused and "DEF-X" in refused[0]
+    assert F.ratchet_refusal(["DEF-X"], [feature], {"outcomes": passed}, defects={"DEF-X"})[1] == ["DEF-X"]

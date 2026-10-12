@@ -334,6 +334,16 @@ def test_run_the_judge_does_not_take_a_restating_move_for_parroting(run) -> None
     assert len(degraded) <= 2, degraded
 
 
+def test_run_an_answer_is_judged_at_most_once(run) -> None:
+    """DEF-066's run criterion — R3 amendment, on the live run: at most one judgment call per
+    substantive answer, and none for any other turn (a Confirm or Change click, the opening)."""
+    def judged(t: dict) -> int:
+        return list(t.get("model_calls") or []).count("planner-judgment")
+    over = [(t["n"], judged(t)) for t in run["turns"] if judged(t) > 1]
+    clicks = [t["n"] for t in run["turns"] if (t.get("action") or t.get("why") == "opening") and judged(t)]
+    assert not over and not clicks, (over, clicks)
+
+
 def test_run_most_coaching_turns_are_graded(run) -> None:
     """DEF-015 on the live run: the grader runs on the coaching turns — a turn goes ungraded only
     when coherence rejected it (S-C13 B3) — at least 90% of them."""
