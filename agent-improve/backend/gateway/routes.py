@@ -11,7 +11,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
 
-from backend.core import conversation
+from backend.core import conversation, pii
+from backend.core.prompts import PII_HIDDEN_UPLOAD
 from backend.core.request_context import set_case_id, set_phase
 from backend.core.errors import CaseBusyError, StateSchemaVersionError
 from backend.core.graph import RECURSION_LIMIT
@@ -1288,7 +1289,10 @@ async def upload_file(
         "column_ranges": upload_record.get("column_ranges") or {},
         "interpretation": upload_record.get("interpretation"),
         "used_by_coach": used_by_coach,
-        "message": upload_record.get("not_used_reason") or notice,
+        # The PII line (founder ruling 2026-10-12): what was hidden from the coach, said at upload.
+        "message": upload_record.get("not_used_reason") or " ".join(x for x in (notice, (
+            PII_HIDDEN_UPLOAD.format(what=pii.described(upload_record["pii_masked"]))
+            if upload_record.get("pii_masked") else None)) if x) or None,
     }
 
 

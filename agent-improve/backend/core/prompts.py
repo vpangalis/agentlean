@@ -1739,6 +1739,12 @@ SAMPLE_COPIED = ("Not stored: your answer for {element} matches the sample I sho
                  "of a good answer. Please give your own answer, for your own process.")
 #: G-163 — written in code when a read-back could not be stored by a Confirm (a part missing or not in
 #: its shape): no Confirm is offered; the Belt is told what is missing.
+#: The PII line (founder ruling 2026-10-12; T87, ADR-0062): personal details masked in an upload are
+#: hidden from the coach — the Belt is told, in code, at upload and when the coach's lookups read them.
+PII_HIDDEN_UPLOAD = ("Hidden from the coach before it read this file: {what}. Your file itself is unchanged; "
+                     "the coach works without those details.")
+PII_HIDDEN_TURN = ("Some personal details in your files were hidden from me before I read them ({what}), "
+                   "so I could not use them.")
 STORE_SHORT = ("Not stored yet: your answer for {element} still needs {missing}. Please add it in your own "
                "words, and I will read the whole answer back to you.")
 

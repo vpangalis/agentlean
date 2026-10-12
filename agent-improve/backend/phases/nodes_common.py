@@ -2666,6 +2666,12 @@ async def executor(
     elif link and move == moves.READ_BACK:
         from backend.core.prompts import LINK_KEPT
         new_messages = _with_code_line(new_messages, reply, LINK_KEPT.format(details=link))
+    # The PII line (founder ruling 2026-10-12; T87, ADR-0062): when this turn's lookups read values masked
+    # from an upload, the reply says so, in code — the Belt knows what the coach could not see.
+    masked = pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)])
+    if masked and not resend:
+        from backend.core.prompts import PII_HIDDEN_TURN
+        new_messages = _with_code_line(new_messages, reply, PII_HIDDEN_TURN.format(what=pii.described(masked)))
     reply = _with_sample_mark(reply)            # C3 (DEF-083)
     _attach_blocks(new_messages, reply, MAX_ITERATIONS_WARNING if failed else None)
 
@@ -2758,7 +2764,7 @@ async def executor(
                                         for c in (routed.get("element_check") or {}).get("criteria") or []]}
                           if routed is not None else None),
             # T87 — personal data redacted in this turn's tool results, by type and count.
-            pii_masked=pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)]),
+            pii_masked=masked,
             call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,
                          "coach_limit": coach_limit, "after": len(coherence_log) + min(len(grader_log), 1),
                          "turn": calls_before + coach_calls + len(coherence_log) + min(len(grader_log), 1),

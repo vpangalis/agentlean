@@ -63,6 +63,19 @@ def executor_middleware() -> list[Any]:
                           apply_to_input=False, apply_to_tool_results=True)]
 
 
+#: The founder ruling of 2026-10-12 (the PII line): each type in the Belt's words, singular and plural.
+WORDS: dict[str, tuple[str, str]] = {"email": ("e-mail address", "e-mail addresses"),
+                                     "credit_card": ("card number", "card numbers"),
+                                     "phone": ("phone number", "phone numbers"),
+                                     "iban": ("bank account number", "bank account numbers")}
+
+
+def described(counts: dict[str, int]) -> str:
+    """`counts` in the Belt's words — "2 e-mail addresses and 1 phone number" — never a value."""
+    parts = [f"{n} {WORDS[t][0] if n == 1 else WORDS[t][1]}" for t, n in counts.items() if n and t in WORDS]
+    return " and ".join([", ".join(parts[:-1]), parts[-1]] if len(parts) > 1 else parts)
+
+
 def counted(texts: list[str]) -> dict[str, int]:
     """How many values of each type were redacted in `texts` (the markers `redact` leaves)."""
     counts: dict[str, int] = {}
@@ -73,4 +86,5 @@ def counted(texts: list[str]) -> dict[str, int]:
     return counts
 
 
-__all__ = ["TYPES", "PHONE", "IBAN", "STRATEGY", "detect", "mask", "executor_middleware", "counted"]
+__all__ = ["TYPES", "PHONE", "IBAN", "STRATEGY", "WORDS", "detect", "mask", "executor_middleware", "counted",
+           "described"]

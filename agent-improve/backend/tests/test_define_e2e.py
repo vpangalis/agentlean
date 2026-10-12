@@ -1472,6 +1472,12 @@ def test_t87_personal_data_is_masked_before_a_model_sees_it(env, monkeypatch) ->
                         files={"file": ("contacts.csv", csv.encode(), "text/csv")})
     assert r.status_code == 200, r.text
     assert seen, "the upload was not interpreted"
+    # The PII line (founder ruling 2026-10-12): the Belt is told, at upload, what was hidden from the coach.
+    said = r.json()["message"] or ""
+    assert said.startswith("Hidden from the coach before it read this file:"), said
+    for words in ("1 e-mail address", "1 phone number", "1 bank account number", "1 card number"):
+        assert words in said, said
+    assert "dev.patel" not in said
     for value in ("dev.patel@example.com", "7946 0958", "GB82 WEST", "4111 1111"):
         assert value not in seen[0], f"{value!r} reached the interpreting model"
     assert "Dev Patel" in seen[0], "a person name was masked"
@@ -1486,6 +1492,49 @@ def test_t87_personal_data_is_masked_before_a_model_sees_it(env, monkeypatch) ->
     assert all(m.apply_to_tool_results and not m.apply_to_input for m in mws)
     masked, _ = pii.mask("dev.patel@example.com, +44 20 7946 0958")
     assert masked == "[REDACTED_EMAIL], [REDACTED_PHONE]", masked
+
+
+def test_the_coach_says_when_values_it_read_were_masked(env, monkeypatch) -> None:
+    """The PII line (founder ruling 2026-10-12; T87, ADR-0062): when the coach's lookup this turn reads
+    an upload's text in which personal details were masked, the reply says so, in code, in the Belt's
+    words and by count — never the values; step_log carries the same count."""
+    from langchain_core.messages import AIMessage
+
+    from backend.knowledge import fusion
+    from backend.knowledge import tools as ktools
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    lookup = AIMessage(content="", tool_calls=[{"name": "rag_lookup_evidence", "id": "e1",
+                                                "args": {"query": "who handles supplier queries", "case_id": CASE_ID}}])
+    reply = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": REPLY, "id": "r1"}])
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([lookup, reply]))
+                        if role == "coach" else planner(role, **kw))
+
+    class Variants:
+        def with_structured_output(self, schema, **_):
+            return self
+
+        async def ainvoke(self, *_a, **_k):
+            return fusion.QueryVariants(variants=["supplier queries", "AP contacts", "who answers suppliers"])
+    real_llm = __import__("backend.core.llm", fromlist=["get_llm"]).get_llm
+    monkeypatch.setattr("backend.core.llm.get_llm",
+                        lambda role, **kw: Variants() if role == "extraction" else real_llm(role, **kw))
+
+    def search(q: str, **_kw: object) -> list[dict]:
+        return [{"id": "c1", "content": "AP contact Dev Patel, [REDACTED_EMAIL], [REDACTED_PHONE]",
+                 "source_file": "contacts.csv", "page_number": None}]
+    monkeypatch.setattr(ktools, "search_evidence", search)
+    steps: list = []
+    monkeypatch.setattr(nodes_common, "_step", _recording(nodes_common._step, steps))
+
+    _at_element(env, "secondary_metrics")                     # a teaching turn: lookups are offered (ADR-0069)
+    answer = _askd(env, message="Next, please.")["answer"]
+    assert answer.rstrip().endswith("Some personal details in your files were hidden from me before I read "
+                                    "them (1 e-mail address and 1 phone number), so I could not use them."), answer
+    executor = [s for s in steps if s.get("node") == "executor" and "pii_masked" in s]
+    assert executor and executor[-1]["pii_masked"] == {"email": 1, "phone": 1}, executor
 
 
 def test_every_tool_the_define_skill_offers_is_bound() -> None:
