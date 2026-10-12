@@ -256,3 +256,12 @@ patterns:
       # Governance documentation — see header.
       - 'agent-improve/*.md'
       - 'agent-improve/**/*.md'
+
+  - id: pattern-13-hand-counted-model-calls
+    # G-164 (founder ruling 2026-10-12): DEF-014's re-ask counted AI messages to know the coach's calls.
+    regex: '\+=\s*\w+\s*==\s*["'']ai["'']'
+    message: "A hand-written count of model calls (AI messages counted). The call limit keeps it: read ModelCallLimitMiddleware's run_model_call_count from the agent state (ADR-0059 rejects hand-written counters; G-164)."
+    severity: block
+    path_exclusions:
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'

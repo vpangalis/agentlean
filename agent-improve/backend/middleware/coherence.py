@@ -294,15 +294,10 @@ class CoherenceMiddleware(AgentMiddleware):
 
     @staticmethod
     def _coach_calls(state: Any) -> int:
-        """The coach's model calls this turn: its AI messages after the Belt's last message."""
-        messages = (state or {}).get("messages") if isinstance(state, dict) else []
-        n = 0
-        for message in reversed(list(messages or [])):
-            kind = str(getattr(message, "type", ""))
-            if kind == "human":
-                break
-            n += kind == "ai"
-        return n
+        """The coach's model calls this run — G-164 (ADR-0059: no hand-written counter): the call limit's
+        own count, `ModelCallLimitMiddleware`'s `run_model_call_count` in the agent state, the same one
+        turn_tools reads (G-131)."""
+        return int(((state or {}) if isinstance(state, dict) else {}).get("run_model_call_count") or 0)
 
     def after_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
         """Sync entry point. The check is a model call, so there is no

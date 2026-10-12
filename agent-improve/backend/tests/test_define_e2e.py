@@ -4118,6 +4118,10 @@ def test_a_coherence_rejection_asks_the_coach_again(env, monkeypatch, stub_plann
     env.restart()
     # DEF-014's re-ask, as built — it returns when the containment is removed ("enforce").
     monkeypatch.setattr(coherence_module, "COHERENCE_MODE", "enforce")
+    # G-164: its call budget is the call limit's own count, never a count of AI messages.
+    ai = [AIMessage(content="x"), AIMessage(content="y")]
+    assert CoherenceMiddleware._coach_calls({"run_model_call_count": 3, "messages": ai}) == 3
+    assert CoherenceMiddleware._coach_calls({"messages": ai}) == 0
 
     # 1. A teaching turn: rejected, asked again, the second reply reaches the Belt.
     _at_element(env, "secondary_metrics")
