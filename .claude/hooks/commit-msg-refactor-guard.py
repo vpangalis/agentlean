@@ -33,6 +33,9 @@ it. Numbers are never reused, so every older reference still points at the right
   21. ADR IMMUTABILITY — an ACCEPTED ADR changes only by its status line becoming
      `SUPERSEDED by NNNN`; a link-target-only change is allowed on any record; none
      is deleted. Rules 17-21 run ahead of the prefix gate, on every commit.
+  22. DEPRECATED PATTERNS — `.claude/config/deprecated_patterns.yaml`, the editor hook's
+     registry with its exclusions, applied to the lines a commit ADDS in every staged code
+     file, so an edit made through the shell or a script meets it too (G-165, 2026-10-12).
 
   3. TYPE-CHECK — mypy over the changed Python, against the PINNED venv, so an
      invented LangGraph/LangChain/LangSmith method or a wrong signature fails
@@ -183,6 +186,7 @@ import json
 import subprocess
 import sys
 import tempfile
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -1690,6 +1694,69 @@ def check_docs(root: str, staged: list[str]) -> None:
          + (", citations resolve" if rules_touched else ""))
 
 
+#: Rule 22 — the deprecated patterns, applied to what a commit ADDS (G-165, founder ruling 2026-10-12).
+PATTERN_SUFFIXES = (".py", ".js", ".html", ".ps1", ".sh")
+NL = chr(10)
+
+
+def _drift_hook(root: str) -> Any:
+    """The PreToolUse hook's own module, so rule 22 loads and excludes patterns exactly as it does."""
+    path = os.path.join(root, ".claude", "hooks", "pre-tool-use-drift-check.py")
+    spec = importlib.util.spec_from_file_location("pre_tool_use_drift_check", path)
+    mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+
+def _added_lines(root: str, rel: str) -> set[int]:
+    """The line numbers this commit adds or changes in `rel`, in the staged file."""
+    out = subprocess.run(["git", "diff", "--cached", "-U0", "--", rel], capture_output=True,
+                         encoding="utf-8", errors="replace", cwd=root, timeout=20)
+    lines: set[int] = set()
+    for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", out.stdout, re.M):
+        start, count = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
+        lines.update(range(start, start + count))
+    return lines
+
+
+def pattern_hits(rel: str, content: str, added: set[int], patterns: list[dict],
+                 excluded: Any) -> list[str]:
+    """Every deprecated-pattern match in `content` that touches a line in `added` (a match that spans
+    lines counts when any of them is added); a pattern whose exclusions cover `rel` is skipped."""
+    hits = []
+    for pat in patterns:
+        if not pat.get("regex") or excluded(rel, pat.get("path_exclusions")):
+            continue
+        for m in re.finditer(pat["regex"], content):
+            first = content.count(NL, 0, m.start()) + 1
+            last = first + content.count(NL, m.start(), max(m.start(), m.end() - 1))
+            if added & set(range(first, last + 1)):
+                hits.append(f"  {rel}:{first}  {pat.get('id')} — {str(pat.get('message', ''))[:160]}")
+                break
+    return hits
+
+
+def check_deprecated_patterns(root: str, staged: list[str]) -> None:
+    """Rule 22 — G-165 (founder ruling 2026-10-12). The PreToolUse hook applies
+    `.claude/config/deprecated_patterns.yaml` to editor writes only; an edit made through the shell or
+    a script never met it, and a hand-written LLM retry loop reached the tree that way. Here the same
+    patterns, with the same exclusions, run on every staged code file — on the lines this commit adds,
+    so grandfathered code is not re-litigated. The registry itself is exempt, as in the hook."""
+    hook = _drift_hook(root)
+    patterns = hook.load_patterns(root)
+    hits: list[str] = []
+    for rel in staged:
+        if not rel.endswith(PATTERN_SUFFIXES) or rel == ".claude/config/deprecated_patterns.yaml":
+            continue
+        added = _added_lines(root, rel)
+        if added:
+            hits += pattern_hits(rel, _staged_text(root, rel), added, patterns, hook.is_excluded)
+    if hits:
+        fail("an added line matches a deprecated pattern (rule 22, G-165)", *hits, "",
+             "The same registry the editor hook enforces: use the framework feature the message names.")
+    note(f"rule 22 deprecated patterns: PASS — {len(staged)} staged path(s) checked on their added lines")
+
+
 def check_normative(root: str, staged: list[str]) -> None:
     """Rule 14 — no MUST / NEVER / ALWAYS sentence weakens (founder ruling
     2026-09-26 on the 6.67 report). When CLAUDE.md, a rule file or a skill is
@@ -1787,6 +1854,10 @@ def main(argv: list[str]) -> int:
     # Rule 13 — the docs checks (links, citations), on every commit (6.67).
     with _timer("rule 13 docs"):
         check_docs(root, all_staged)
+
+    # Rule 22 — the deprecated patterns on what this commit adds, Bash and script edits included (G-165).
+    with _timer("rule 22 deprecated patterns"):
+        check_deprecated_patterns(root, all_staged)
 
     # Rule 14 — no must / never / always sentence weakens (6.68).
     with _timer("rule 14 normative"):

@@ -216,10 +216,8 @@ import json
 import logging
 import math
 import os
-import random
 import re
 import sys
-import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
@@ -308,12 +306,9 @@ CLASSIFIER_TEMPERATURE = 0.0
 # the failure count, and a failed classification is a fabricated `general`.
 CLASSIFIER_WORKERS = 4
 
-# Attempts per chunk before it is given up on, and the base for exponential
-# backoff between them. Azure returns 429 in bursts as the per-minute quota
-# refills, so the retry that matters is the one that waits seconds, not
-# milliseconds.
+# Attempts per chunk before it is given up on (Runnable.with_retry's stop_after_attempt; its jittered
+# exponential backoff waits seconds, which is what Azure's 429 bursts need as the quota refills).
 CLASSIFIER_MAX_ATTEMPTS = 6
-CLASSIFIER_BACKOFF_BASE = 2.0
 
 # **The output contract is a single bare label, checked against PHASE_LABELS.**
 #
@@ -493,42 +488,34 @@ def classify_phase(text: str) -> str | None:
     of cross-phase content — the same shape of mistake as returning `[]` for a
     failed search (reference §27), and just as invisible.
     """
-    for attempt in range(CLASSIFIER_MAX_ATTEMPTS):
-        try:
-            reply = _classifier().invoke(
-                [("system", CLASSIFIER_PROMPT), ("human", text)])
-        except BadRequestError as e:
-            # **A 4xx is permanent — do not retry it.** Reference §27 and
-            # CLAUDE.md §7.2 state this rule for retrieval and it holds
-            # identically here: a rejected request fails the same way every
-            # time, so retrying spends six calls to learn what the first one
-            # said. Azure's content filter is the case that actually occurs —
-            # it refuses on false positives over ordinary statistics prose.
-            logger.warning("Classification permanently rejected (%s): %s",
-                           getattr(e, "code", "400"), str(e)[:160])
-            return None
-        except Exception as e:
-            if attempt == CLASSIFIER_MAX_ATTEMPTS - 1:
-                logger.warning("Classification failed after %d attempts: %s",
-                               CLASSIFIER_MAX_ATTEMPTS, e)
-                return None
-            # Jittered exponential backoff. The jitter matters as much as the
-            # backoff: every worker hits the quota wall at the same instant,
-            # so a fixed sleep marches them back into the wall together.
-            delay = CLASSIFIER_BACKOFF_BASE ** attempt * (0.5 + random.random())
-            time.sleep(delay)
-            continue
+    # G-165 (founder ruling 2026-10-12): the retry is LangChain's own `Runnable.with_retry` — jittered
+    # exponential backoff (every worker hits the quota wall at once, so the jitter matters), on the
+    # TRANSIENT errors only. **A 4xx is permanent — it is not in the list, so it is never retried**
+    # (reference §27, CLAUDE.md §7.2): Azure's content filter refuses on false positives over ordinary
+    # statistics prose, and a retry would spend calls to learn what the first one said.
+    import openai
+    classifier = _classifier().with_retry(
+        retry_if_exception_type=(openai.APIConnectionError, openai.RateLimitError, openai.InternalServerError),
+        stop_after_attempt=CLASSIFIER_MAX_ATTEMPTS)
+    try:
+        reply = classifier.invoke([("system", CLASSIFIER_PROMPT), ("human", text)])
+    except BadRequestError as e:
+        logger.warning("Classification permanently rejected (%s): %s",
+                       getattr(e, "code", "400"), str(e)[:160])
+        return None
+    except Exception as e:  # noqa: BLE001 — the retries are spent; None says "did not answer"
+        logger.warning("Classification failed after %d attempts: %s", CLASSIFIER_MAX_ATTEMPTS, e)
+        return None
 
-        # `content` is read, not string-indexed or substring-searched (CLAUDE.md
-        # §4.5). The whole reply must BE a label; a sentence containing one is a
-        # failure, because it means the instruction was not followed and the
-        # rest of the answer is unknown.
-        label = str(getattr(reply, "content", "")).strip().strip(".").lower()
-        if label not in PHASE_LABELS:
-            logger.warning("Classifier returned %r, not a phase label", label[:80])
-            return None
-        return label
-    return None
+    # `content` is read, not string-indexed or substring-searched (CLAUDE.md
+    # §4.5). The whole reply must BE a label; a sentence containing one is a
+    # failure, because it means the instruction was not followed and the
+    # rest of the answer is unknown.
+    label = str(getattr(reply, "content", "")).strip().strip(".").lower()
+    if label not in PHASE_LABELS:
+        logger.warning("Classifier returned %r, not a phase label", label[:80])
+        return None
+    return label
 
 
 def classify_corpus(docs: list[dict], workers: int = CLASSIFIER_WORKERS,

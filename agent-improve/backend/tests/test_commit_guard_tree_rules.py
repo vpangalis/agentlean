@@ -629,3 +629,33 @@ def test_the_suite_runs_serial_tests_alone_after_the_parallel_pass() -> None:
     assert "@pytest.mark.serial" + NEWLINE + "def test_no_knowledge_tool_blocks_the_loop" in budget
     assert "@pytest.mark.wallclock" + NEWLINE + "def test_a_slow_turn_answers_before_the_wall" in budget
 
+
+
+def test_rule_22_applies_the_deprecated_patterns_to_the_lines_a_commit_adds() -> None:
+    """G-165 (founder ruling 2026-10-12): the editor hook checks Write/Edit only, so an edit made through
+    the shell or a script never met the patterns. Rule 22 runs the SAME registry, with the same
+    exclusions, on every staged code file — on the lines the commit adds (a multi-line match counts when
+    any of its lines is added), so grandfathered code is not re-litigated."""
+    guard = _guard()
+    hook = guard._drift_hook(_ROOT)
+    patterns = hook.load_patterns(_ROOT)
+    assert {p["id"] for p in patterns} >= {"pattern-9-hand-rolled-llm-retry", "pattern-13-hand-counted-model-calls"}
+    retry = NEWLINE.join([
+        "def classify(text):",
+        "    for att" + "empt in range(6):",   # built in pieces: this file is checked by rule 22 too
+        "        try:",
+        "            return llm.invoke(text)",
+        "        except Exception:",
+        "            time.sleep(2 ** attempt)",
+    ])
+    rel = "agent-improve/scripts/x.py"
+    assert guard.pattern_hits(rel, retry, {2}, patterns, hook.is_excluded), "an added retry loop passed"
+    assert guard.pattern_hits(rel, retry, {4}, patterns, hook.is_excluded), "a line inside the match passed"
+    assert not guard.pattern_hits(rel, retry, {9}, patterns, hook.is_excluded), "an untouched match was flagged"
+    counted = "        n += kind " + "== 'ai'"   # in pieces, for the same reason
+    hits = guard.pattern_hits("agent-improve/backend/middleware/x.py", counted, {1}, patterns, hook.is_excluded)
+    assert hits and "pattern-13" in hits[0], hits
+    assert not guard.pattern_hits("agent-improve/docs/x.md", counted, {1}, patterns, hook.is_excluded)
+    # Wired into the guard on every commit, ahead of the tests.
+    src = _HOOK.read_text(encoding="utf-8")
+    assert "check_deprecated_patterns(root, all_staged)" in src
