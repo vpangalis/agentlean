@@ -201,7 +201,7 @@ criterion. *Amendment:* at most one judgment call per substantive answer, none f
 
 **d The phase report**
 
-**R5 The Define report** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0008
+**R5 The Define report** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27, 2026-10-12 · MoSCoW: Must · Design: ADR-0008
 The gate is a readable DEFINE REPORT, not a field checklist, built as C1–C2 require:
 
 | Section | Visual (C2) | The summary explains |
@@ -212,7 +212,7 @@ The gate is a readable DEFINE REPORT, not a field checklist, built as C1–C2 re
 | 4 VOC and CTQs | Table from customer need to CTQ | What the customer requires, in measurable terms |
 | 5 Metrics | Baseline → target chart for the primary metric; secondaries listed | How success is measured and how far there is to go |
 | 6 High-level process | SIPOC table and process diagram, with step times and frequency (R17) and the problem steps highlighted (R18) | How the process runs today and where it hurts |
-| 7 Issues and barriers | List with owner | What could stop the project |
+| 7 Issues and barriers | List (no owner in Define: owners are assigned with the action plan in Improve — amendment 2026-10-12) | What could stop the project |
 
 **e The gate**
 

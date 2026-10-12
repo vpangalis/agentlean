@@ -3673,7 +3673,7 @@
   },
   {
    "id": "DEF-088",
-   "description": "R5 amendment: the Define report's seven sections carry the visuals of R5's table (team table, cost and benefit timeline, 5W2H and scope, VOC→CTQ, baseline→target chart, SIPOC with step times and problem steps, issues with owner).",
+   "description": "R5 amendment: the Define report's seven sections carry the visuals of R5's table (team table, cost and benefit timeline, 5W2H and scope, VOC→CTQ, baseline→target chart, SIPOC with step times and problem steps, issues as a list — no owner in Define; owners belong to the Improve action plan, R5 amended 2026-10-12).",
    "clause": "a complete case ASSEMBLES a gate document",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_the_define_report_has_the_visual_of_every_section",
@@ -3826,7 +3826,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-157"
+    ]
    },
    "requirement": "R12",
    "belt_impact": "degraded",

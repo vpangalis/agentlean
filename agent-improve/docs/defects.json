@@ -1619,6 +1619,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-157",
+   "symptom": "A TURN'S TIME LIMITS ADD UP TO MORE THAN 45 s, AND A STALLED CHECK THROWS AWAY A FINISHED REPLY. Run 121314, turn 14 (the baseline read-back): the guard and the judgment took 4 s, the coach answered in about 5 s and coherence in 2 s, then the GRADER's call never answered; the executor's 40 s wall (T70) ended the node at 14:18:20, discarded the coach's finished reply, sent the move's reply written in code (G-140: 'send the answer again'), and closing took 2.7 s more — 50.4 s, over R13's 45 s (stop condition 4). The input had not grown (12,150 tokens, against 12,361 and 12,762 in 114301 and 112657). The limits: the guard up to about 10.5 s (Content Safety 5 s x 2, G-154); the planner's judgment call has NO timeout (the model client sets none — the SDK default of 600 s); the executor 40 s, with the coach, coherence and the grader under one wall and none of them timed; closing 1-3 s. Nothing bounds the turn as a whole. Found 2026-10-12 on the founder's B analysis.",
+   "requirement": [
+    "R12"
+   ],
+   "feature": [
+    "DEF-093"
+   ],
+   "lane": [
+    "integrator"
+   ]
   }
  ]
 }
