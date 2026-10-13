@@ -16,15 +16,11 @@ sys.path.insert(0, str(TOOLS))
 import generate_layout  # noqa: E402
 import generate_routes  # noqa: E402
 import generate_value_keys  # noqa: E402
-import generate_index_fields  # noqa: E402
 import generate_middleware_order  # noqa: E402
-import generate_state_fields  # noqa: E402
 
 
-@pytest.mark.parametrize("gen", [generate_layout, generate_routes, generate_value_keys, generate_index_fields,
-                                 generate_middleware_order, generate_state_fields],
-                         ids=["code layout", "api routes", "value keys", "index fields", "middleware order",
-                              "state fields"])
+@pytest.mark.parametrize("gen", [generate_layout, generate_routes, generate_value_keys, generate_middleware_order],
+                         ids=["code layout", "api routes", "value keys", "middleware order"])
 def test_the_generated_document_is_current(gen) -> None:
     doc = gen.DOC
     text = (PROJECT.parent / doc.doc_rel).read_text(encoding="utf-8")
@@ -84,12 +80,15 @@ def test_the_middleware_table_is_in_the_declared_order() -> None:
 
 
 def test_the_state_writers_table_names_every_field_once() -> None:
-    """Founder ruling 2026-10-13: `SupervisorState`'s fields are generated in §4.1; the hand-written
-    writers table below names each of them exactly once, and nothing else."""
+    """Founder ruling 2026-10-13: `SupervisorState`'s fields are generated into docs/data-models.md; §4.1's
+    hand-written writers table names each of them exactly once, and nothing else."""
+    import ast
     import re
     arch = (PROJECT / "ARCHITECTURE.md").read_text(encoding="utf-8")
     start = arch.index("| Field | Writer | Readers |")
     cells = [r.split("|")[1] for r in arch[start:arch.index("\n\n", start)].splitlines()[2:]]
     named = [n for cell in cells for n in re.findall(r"`(\w+)`", cell)]
-    declared = [name for name, _ in generate_state_fields.fields(PROJECT)]
+    tree = ast.parse((PROJECT / "backend" / "core" / "state.py").read_text(encoding="utf-8"))
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SupervisorState")
+    declared = [n.target.id for n in cls.body if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)]
     assert sorted(named) == sorted(declared), f"table names {sorted(named)}; SupervisorState has {sorted(declared)}"

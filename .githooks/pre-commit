@@ -114,7 +114,7 @@ t_log data-models "$T0"
 # both are current). Fail-soft, like this hook.
 T0=$(date +%s)
 if [ -n "$SYSPY" ]; then
-    for GEN in generate_layout generate_routes generate_value_keys generate_index_fields generate_middleware_order generate_state_fields; do
+    for GEN in generate_layout generate_routes generate_value_keys generate_middleware_order; do
         if [ -f "agent-improve/tools/architecture/$GEN.py" ]; then
             "$SYSPY" "agent-improve/tools/architecture/$GEN.py" --stage </dev/null || echo "  [$GEN] WARNING: not regenerated" >&2
         fi
