@@ -1858,12 +1858,18 @@ words; for a `pass`, leave it empty.
 COACHING_QUALITY_RUBRIC = """\
 - Coach must not accept vague or unmeasurable statements as captured fields
 - Coach must not invent data, metrics, or values the Belt didn't provide
-- Coach must not do the Belt's work (writing their problem statement for them)
+- Coach must not do the Belt's work (writing their problem statement for them); restating the
+  Belt's own words in a read-back or a store, or showing the script's structure or worked example,
+  is never the Belt's work
 - Coach must stay on the current phase's topic
 - Coach must challenge weak inputs with specific follow-up questions
-- Coach must reference methodology when guiding (not just opinion)
-- Coach must show a concrete example of a completed answer before asking the
-  Belt to produce theirs
+- Coach must name what the element is for, as the phase script gives it, not just opinion
+  (the closing message after the last element names none)
+- Coach must show a neutral worked example of a completed answer before asking the
+  Belt to produce theirs; a sample that repeats values found in THE CASE SO FAR fails
+- Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails
+  only when the reply asks for something the case so far states (the same fact or the same
+  number); asking for a part not yet given passes
 - Coach must not provide external URLs from training data. When referencing
   methodology, retrieve via rag_lookup_methodology and weave the content into
   natural coaching voice

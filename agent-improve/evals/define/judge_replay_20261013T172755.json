@@ -1,0 +1,603 @@
+{
+ "summary": {
+  "turns": 40,
+  "replayed": 40,
+  "coherence": {
+   "recorded": {
+    "labelled": 40,
+    "false_reject_rate": 0.44,
+    "false_rejects": [
+     "20261012T124425#5",
+     "20261012T124425#11",
+     "20261012T132229#9",
+     "20261012T132229#12",
+     "20261012T132229#17",
+     "20261012T134606#10",
+     "20261012T140839#11",
+     "20261012T132229#29",
+     "20261012T132229#35",
+     "20261012T134606#34",
+     "20261012T140839#34"
+    ],
+    "false_accept_rate": 0.27,
+    "false_accepts": [
+     "20261012T134606#14",
+     "20261012T132229#10",
+     "20261012T134606#17",
+     "20261012T134606#20"
+    ]
+   },
+   "retired": "ADR-0083"
+  },
+  "grader": {
+   "recorded": {
+    "labelled": 18,
+    "false_reject_rate": 0.57,
+    "false_rejects": [
+     "20261012T132229#18",
+     "20261012T134606#12",
+     "20261012T132229#13",
+     "20261012T132229#20",
+     "20261012T134606#9",
+     "20261012T132229#21",
+     "20261012T134606#3",
+     "20261012T132229#3"
+    ],
+    "false_accept_rate": 0.0,
+    "false_accepts": []
+   },
+   "replayed": {
+    "labelled": 40,
+    "false_reject_rate": 0.6,
+    "false_rejects": [
+     "20261012T124425#11",
+     "20261012T132229#12",
+     "20261012T134606#10",
+     "20261012T140839#11",
+     "20261012T134606#12",
+     "20261012T132229#13",
+     "20261012T134606#9",
+     "20261012T134606#3",
+     "20261012T124425#30",
+     "20261012T124425#28",
+     "20261012T132229#1",
+     "20261012T132229#29",
+     "20261012T132229#35",
+     "20261012T134606#34",
+     "20261012T140839#34"
+    ],
+    "false_accept_rate": 0.27,
+    "false_accepts": [
+     "20261012T124425#16",
+     "20261012T124425#26",
+     "20261012T134606#15",
+     "20261012T140839#16"
+    ]
+   },
+   "replay_agrees_with_recorded": 11
+  },
+  "rejections_labelled_wrong": {
+   "of": 17,
+   "wrong": [
+    "20261012T124425#5",
+    "20261012T124425#11",
+    "20261012T132229#9",
+    "20261012T132229#12",
+    "20261012T132229#17",
+    "20261012T134606#10",
+    "20261012T140839#11"
+   ],
+   "share": 0.41
+  },
+  "right_outcome_wrong_reason": [
+   "20261012T124425#2",
+   "20261012T124425#16",
+   "20261012T124425#26",
+   "20261012T132229#2",
+   "20261012T132229#27",
+   "20261012T134606#15",
+   "20261012T134606#26",
+   "20261012T140839#2",
+   "20261012T140839#16",
+   "20261012T140839#26",
+   "20261012T134606#14",
+   "20261012T132229#10",
+   "20261012T134606#17"
+  ],
+  "cost": {
+   "usd": 0.0224,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.0077,
+    "gpt-4o-mini-2024-07-18": 0.0147
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  },
+  "seconds": 107.4,
+  "per_turn_seconds": 2.7,
+  "stop": {
+   "limit": 0.2,
+   "judges_over": [
+    "grader"
+   ]
+  },
+  "planner_judgment": {
+   "cases": 2,
+   "agree_with_expected": 2,
+   "disagree": []
+  }
+ },
+ "replays": [
+  {
+   "id": "20261012T124425#2",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must challenge weak inputs with specific follow-up questions",
+      "reason": "The follow-up question is too vague: \"What is the measurable baseline value for your business case?\" Instead, specify what you need, such as asking for the exact number of late invoices or the percentage of late payments."
+     }
+    ],
+    "seconds": 6.9
+   }
+  },
+  {
+   "id": "20261012T124425#5",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T124425#11",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "\"Please answer the seven 5W2H questions: What is going wrong? Where — and at which step(s) of the process does it show? When, or since when? Who is affected? Why does it matter to them? How does it show up? How much — a rough number?\" You are asking for information that has already been provided in the case. Instead, focus on guiding the Belt to refine their existing inputs."
+     }
+    ],
+    "seconds": 3.1
+   }
+  },
+  {
+   "id": "20261012T124425#16",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.8
+   }
+  },
+  {
+   "id": "20261012T124425#26",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.0
+   }
+  },
+  {
+   "id": "20261012T132229#2",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must challenge weak inputs with specific follow-up questions",
+      "reason": "\"Can you provide the baseline value for the defect?\" This question is too vague and does not challenge the Belt's input effectively. Instead, specify what you need by asking for the exact percentage of late invoices or the total number of late invoices."
+     }
+    ],
+    "seconds": 2.5
+   }
+  },
+  {
+   "id": "20261012T132229#9",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.0
+   }
+  },
+  {
+   "id": "20261012T132229#12",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "\"Can you provide specific answers to each of the 5W2H questions for your project?\" This asks for details that have already been provided in the case, specifically the 5W2H elements. Instead, focus on guiding the Belt to refine or clarify their existing inputs rather than asking for them again."
+     }
+    ],
+    "seconds": 2.8
+   }
+  },
+  {
+   "id": "20261012T132229#17",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T132229#27",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "\"Could you address these missing elements?\" This is too vague and does not specify the exact missing elements that need to be clarified. Instead, ask specific follow-up questions about the sustainability of the savings, the realization schedule, and the finance contact, as these are the elements that need to be clarified."
+     }
+    ],
+    "seconds": 2.9
+   }
+  },
+  {
+   "id": "20261012T132229#29",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "The coach asks, \"What will you watch to be sure you haven't traded one problem for another?\" This question is asking for a specific metric or value that the Belt has not yet provided, which is not a failure according to the criteria. However, it could be improved by rephrasing to guide the Belt to think about potential impacts without directly asking for a specific metric that may already be implied in the case."
+     }
+    ],
+    "seconds": 3.2
+   }
+  },
+  {
+   "id": "20261012T132229#33",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "The coach provided an example SIPOC map that includes invented data and metrics not provided by the Belt, such as 'Sales team, Pricing database, Client' and 'Invoice error rate, cycle time'. The coach should only use the data provided by the Belt."
+     }
+    ],
+    "seconds": 3.1
+   }
+  },
+  {
+   "id": "20261012T132229#35",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must stay on the current phase's topic",
+      "reason": "The coach mentions 'gate document' and 'Define report' without explaining their relevance to the current phase. Instead, the coach should focus on the late payment rate and the barriers identified."
+     }
+    ],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T134606#10",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "\"Please provide specific details for each of these questions so we can move forward.\" This sentence asks the Belt to provide details that have already been stated in the case, such as the problem being late payments. Instead, focus on guiding the Belt to clarify or expand on the existing information without repeating what has already been provided."
+     }
+    ],
+    "seconds": 2.8
+   }
+  },
+  {
+   "id": "20261012T134606#15",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T134606#26",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must challenge weak inputs with specific follow-up questions",
+      "reason": "The follow-up questions are too general and do not challenge the weak inputs specifically. Instead of asking for 'the missing details', specify what aspect of the benefits analysis is weak and needs clarification."
+     }
+    ],
+    "seconds": 2.2
+   }
+  },
+  {
+   "id": "20261012T134606#34",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must stay on the current phase's topic",
+      "reason": "The reply discusses the Define phase's completion but does not address any specific metrics or data related to the late payment rate, which is the focus of the project. Instead, it should have referenced the late payment rate and its implications for the project."
+     }
+    ],
+    "seconds": 2.5
+   }
+  },
+  {
+   "id": "20261012T140839#2",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "You provided an example with '12% of invoices produced by UK billing were returned for correction,' which is not from the Belt's data. Instead, ask the Belt to clarify their own data."
+     }
+    ],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T140839#11",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must challenge weak inputs with specific follow-up questions",
+      "reason": "The coach did not challenge the weak input effectively. Instead of asking specific follow-up questions to clarify the problem statement, the coach provided a generic prompt for the Belt to fill in. For example, instead of saying, 'What is going wrong?', the coach could have asked, 'Can you specify the exact issues with the payment process that are causing delays?'."
+     }
+    ],
+    "seconds": 3.9
+   }
+  },
+  {
+   "id": "20261012T140839#16",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T140839#26",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "You provided an example calculation with specific figures (£68,040 annually, £17,010 per quarter) that were not in the case so far. Instead, focus on asking the Belt for their own figures without providing your own calculations."
+     }
+    ],
+    "seconds": 2.3
+   }
+  },
+  {
+   "id": "20261012T140839#34",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must stay on the current phase's topic",
+      "reason": "The reply does not address the current phase's topic, which is about the late payment rate and its reduction. Instead, it focuses on the gate document, which is not relevant to the current phase."
+     }
+    ],
+    "seconds": 2.9
+   }
+  },
+  {
+   "id": "20261012T132229#18",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.2
+   }
+  },
+  {
+   "id": "20261012T134606#12",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "You asked, \"What is the one measure of the defect that will say whether the project succeeded?\" This is a repeat of the information already provided in the case, specifically the primary metric of 23% of invoices paid late. Instead, you should have built on the existing data and guided the Belt to define the primary metric without asking for it again."
+     }
+    ],
+    "seconds": 3.7
+   }
+  },
+  {
+   "id": "20261012T132229#13",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "The coach included 'causing interest costs, lost discounts, and supplier stops' in the Problem Statement, which are not part of the data provided by the Belt."
+     }
+    ],
+    "seconds": 1.6
+   }
+  },
+  {
+   "id": "20261012T134606#14",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "\"Where does your process start and end? What is deliberately out of scope?\" — You are asking the Belt for information that has already been provided in the case. Instead, guide them to articulate their own scope based on the information they have already shared."
+     }
+    ],
+    "seconds": 2.9
+   }
+  },
+  {
+   "id": "20261012T132229#20",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T134606#9",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "The coach provided an example with specific metrics ('12% of invoices produced by UK billing were returned by clients for correction — four times the 3% seen elsewhere'), which is not data provided by the Belt."
+     }
+    ],
+    "seconds": 3.2
+   }
+  },
+  {
+   "id": "20261012T132229#10",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "The coach included '[specific time frame]' for the invoice status visibility, which is not a value provided by the Belt."
+     }
+    ],
+    "seconds": 1.8
+   }
+  },
+  {
+   "id": "20261012T134606#17",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "You asked, 'Taking your primary metric — from where to where, and by when?' This is a request for information that is already provided in the case, specifically the primary metric of 23% late payment rate. Instead, you should guide the Belt to formulate their goal statement based on the existing data without asking for it again."
+     }
+    ],
+    "seconds": 3.0
+   }
+  },
+  {
+   "id": "20261012T132229#21",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.2
+   }
+  },
+  {
+   "id": "20261012T134606#3",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "The coach asked, \"Who leads the project? Who is the champion who can approve and clear obstacles? Who owns the process? Who else is on the team — and does anyone need training to take part fully?\" This fails because the coach is asking for roles and responsibilities that should have been defined based on the project context already provided. Instead, the coach should guide the Belt to reflect on the case data and suggest potential candidates for these roles."
+     }
+    ],
+    "seconds": 3.1
+   }
+  },
+  {
+   "id": "20261012T132229#3",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T134606#20",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "You asked, \"What is the target figure for your primary metric, in the same unit as the baseline?\" This is a repeat of the target already provided in the case, which states the target is to reduce the late payment rate from 23% to under 5%."
+     }
+    ],
+    "seconds": 3.0
+   }
+  },
+  {
+   "id": "20261012T134606#16",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.7
+   }
+  },
+  {
+   "id": "20261012T124425#30",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "The coach asks, \"What do you measure on those outputs?\" This is a value already provided in the case, specifically the late payment rate of 23%. Instead, the coach should reference this existing metric and ask for additional details or clarifications that have not yet been provided."
+     }
+    ],
+    "seconds": 3.3
+   }
+  },
+  {
+   "id": "20261012T134606#1",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 3.2
+   }
+  },
+  {
+   "id": "20261012T134606#13",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.6
+   }
+  },
+  {
+   "id": "20261012T124425#28",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails only when the reply asks for something the case so far states (the same fact or the same number); asking for a part not yet given passes",
+      "reason": "You asked, \"If your fix works, what else might it affect?\" This question is redundant as the Belt has already provided information about the late payment rate and its implications. Instead, guide the Belt to identify potential secondary metrics based on the context already established."
+     }
+    ],
+    "seconds": 3.2
+   }
+  },
+  {
+   "id": "20261012T132229#1",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must name what the element is for, as the phase script gives it, not just opinion (the closing message after the last element names none)",
+      "reason": "The coach did not clearly state what the business case is for in the closing message. Instead of summarizing the purpose of the business case, the coach ended with a question that does not reinforce the importance of the business case."
+     }
+    ],
+    "seconds": 3.7
+   }
+  }
+ ],
+ "judgments": [
+  {
+   "id": "20261012T124425#2",
+   "verdict": "sufficient",
+   "failed_criterion": null,
+   "reason": "The Belt's message provides a clear description of the issue, its location and timeframe, the baseline data, and the associated costs, without suggesting causes or solutions.",
+   "expected": "sufficient",
+   "agrees": true,
+   "seconds": 3.4
+  },
+  {
+   "id": "20261012T132229#2",
+   "verdict": "sufficient",
+   "failed_criterion": null,
+   "reason": "The response provides all required elements: what is wrong, where and when it occurs, its baseline, and its cost, without suggesting causes or solutions.",
+   "expected": "sufficient",
+   "agrees": true,
+   "seconds": 1.7
+  }
+ ]
+}

@@ -26,9 +26,12 @@ CONCURRENCY = 1          # 8 in parallel hit the deployment's rate limit (429) o
 CUT = 4000
 
 
-async def _grade(turn: dict[str, Any]) -> dict[str, Any]:
+async def _grade(turn: dict[str, Any], turns: list[dict[str, Any]]) -> dict[str, Any]:
     from backend.middleware.grader import DMAICGraderMiddleware
-    g = await DMAICGraderMiddleware("define", move=turn["move"])._grade(turn["belt"], turn["reply_judged"])
+    from scripts.judge_replay import earlier, grader_for
+    grader = grader_for(turn)
+    grader._earlier = earlier(turn, turns)
+    g = await grader._grade(turn["belt"], turn["reply_judged"])
     return {"passed": g.passed, "criteria": {c.criterion: c.status for c in g.criteria},
             "failed": [c.criterion for c in g.failed]}
 
@@ -41,7 +44,7 @@ async def run(turns: list[dict[str, Any]]) -> dict[str, Any]:
             return await coro
     jobs: list[tuple[str, str, Any]] = []
     for t in turns:
-        jobs += [(t["id"], "grader", _grade(t)) for _ in range(REPEATS)]
+        jobs += [(t["id"], "grader", _grade(t, turns)) for _ in range(REPEATS)]
     results = await asyncio.gather(*(limited(c) for _, _, c in jobs), return_exceptions=True)
     out: dict[str, dict[str, list[Any]]] = collections.defaultdict(lambda: collections.defaultdict(list))
     for (tid, kind, _), r in zip(jobs, results):

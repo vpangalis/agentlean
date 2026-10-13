@@ -1,0 +1,487 @@
+{
+ "summary": {
+  "turns": 40,
+  "replayed": 40,
+  "coherence": {
+   "recorded": {
+    "labelled": 40,
+    "false_reject_rate": 0.44,
+    "false_rejects": [
+     "20261012T124425#5",
+     "20261012T124425#11",
+     "20261012T132229#9",
+     "20261012T132229#12",
+     "20261012T132229#17",
+     "20261012T134606#10",
+     "20261012T140839#11",
+     "20261012T132229#29",
+     "20261012T132229#35",
+     "20261012T134606#34",
+     "20261012T140839#34"
+    ],
+    "false_accept_rate": 0.27,
+    "false_accepts": [
+     "20261012T134606#14",
+     "20261012T132229#10",
+     "20261012T134606#17",
+     "20261012T134606#20"
+    ]
+   },
+   "retired": "ADR-0083"
+  },
+  "grader": {
+   "recorded": {
+    "labelled": 18,
+    "false_reject_rate": 0.57,
+    "false_rejects": [
+     "20261012T132229#18",
+     "20261012T134606#12",
+     "20261012T132229#13",
+     "20261012T132229#20",
+     "20261012T134606#9",
+     "20261012T132229#21",
+     "20261012T134606#3",
+     "20261012T132229#3"
+    ],
+    "false_accept_rate": 0.0,
+    "false_accepts": []
+   },
+   "replayed": {
+    "labelled": 40,
+    "false_reject_rate": 0.0,
+    "false_rejects": [],
+    "false_accept_rate": 0.67,
+    "false_accepts": [
+     "20261012T124425#16",
+     "20261012T124425#26",
+     "20261012T132229#27",
+     "20261012T134606#15",
+     "20261012T134606#26",
+     "20261012T140839#16",
+     "20261012T140839#26",
+     "20261012T134606#14",
+     "20261012T132229#10",
+     "20261012T134606#17"
+    ]
+   },
+   "replay_agrees_with_recorded": 7
+  },
+  "rejections_labelled_wrong": {
+   "of": 17,
+   "wrong": [
+    "20261012T124425#5",
+    "20261012T124425#11",
+    "20261012T132229#9",
+    "20261012T132229#12",
+    "20261012T132229#17",
+    "20261012T134606#10",
+    "20261012T140839#11"
+   ],
+   "share": 0.41
+  },
+  "right_outcome_wrong_reason": [
+   "20261012T124425#2",
+   "20261012T124425#16",
+   "20261012T124425#26",
+   "20261012T132229#2",
+   "20261012T132229#27",
+   "20261012T134606#15",
+   "20261012T134606#26",
+   "20261012T140839#2",
+   "20261012T140839#16",
+   "20261012T140839#26",
+   "20261012T134606#14",
+   "20261012T132229#10",
+   "20261012T134606#17"
+  ],
+  "cost": {
+   "usd": 0.2217,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.2217
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  },
+  "seconds": 77.0,
+  "per_turn_seconds": 1.9,
+  "stop": {
+   "limit": 0.2,
+   "judges_over": [
+    "grader"
+   ]
+  },
+  "planner_judgment": {
+   "cases": 2,
+   "agree_with_expected": 2,
+   "disagree": []
+  }
+ },
+ "replays": [
+  {
+   "id": "20261012T124425#2",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR",
+      "reason": "The reply asks for a measurable baseline value, such as the proportion of invoices paid late, which the Belt already provided as '23% of supplier invoices were paid after their 30-day terms from January to June 2026.' The coach should acknowledge this data and guide the Belt on how to use it effectively instead of requesting it again."
+     }
+    ],
+    "seconds": 5.6
+   }
+  },
+  {
+   "id": "20261012T124425#5",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.3
+   }
+  },
+  {
+   "id": "20261012T124425#11",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T124425#16",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.2
+   }
+  },
+  {
+   "id": "20261012T124425#26",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 6.6
+   }
+  },
+  {
+   "id": "20261012T132229#2",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR",
+      "reason": "The coach asked for the baseline value for the defect, specifically the percentage of invoices paid late, which was already provided in the Belt's message as 23%."
+     }
+    ],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T132229#9",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T132229#12",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.8
+   }
+  },
+  {
+   "id": "20261012T132229#17",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.2
+   }
+  },
+  {
+   "id": "20261012T132229#27",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T132229#29",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T132229#33",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must stay on the current phase's topic",
+      "reason": "The reply introduces a SIPOC process map, which is not directly related to identifying issues and barriers as specified for this phase. Focus on discussing potential roadblocks such as data availability, time constraints, or system limitations."
+     }
+    ],
+    "seconds": 4.6
+   }
+  },
+  {
+   "id": "20261012T132229#35",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.0
+   }
+  },
+  {
+   "id": "20261012T134606#10",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T134606#15",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T134606#26",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.2
+   }
+  },
+  {
+   "id": "20261012T134606#34",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T140839#2",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR",
+      "reason": "The coach asked, 'What is the numerical baseline for the defect in your case?' However, the Belt already provided this information: '23% of supplier invoices were paid after their 30-day terms from January to June 2026.' The coach should acknowledge and utilize this data instead of requesting it again."
+     }
+    ],
+    "seconds": 1.7
+   }
+  },
+  {
+   "id": "20261012T140839#11",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.2
+   }
+  },
+  {
+   "id": "20261012T140839#16",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T140839#26",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.6
+   }
+  },
+  {
+   "id": "20261012T140839#34",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T132229#18",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.7
+   }
+  },
+  {
+   "id": "20261012T134606#12",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.2
+   }
+  },
+  {
+   "id": "20261012T132229#13",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.6
+   }
+  },
+  {
+   "id": "20261012T134606#14",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T132229#20",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.2
+   }
+  },
+  {
+   "id": "20261012T134606#9",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T132229#10",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T134606#17",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T132229#21",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.7
+   }
+  },
+  {
+   "id": "20261012T134606#3",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T132229#3",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T134606#20",
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR",
+      "reason": "The reply asks for the target figure for the primary metric, but this information ('reduce the late payment rate from 23% to under 5% by 31 March 2027') is already provided in the case so far. Avoid requesting information already stated."
+     }
+    ],
+    "seconds": 1.8
+   }
+  },
+  {
+   "id": "20261012T134606#16",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T124425#30",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.4
+   }
+  },
+  {
+   "id": "20261012T134606#1",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T134606#13",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.3
+   }
+  },
+  {
+   "id": "20261012T124425#28",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.6
+   }
+  },
+  {
+   "id": "20261012T132229#1",
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  }
+ ],
+ "judgments": [
+  {
+   "id": "20261012T124425#2",
+   "verdict": "sufficient",
+   "failed_criterion": null,
+   "reason": "The answer provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+   "expected": "sufficient",
+   "agrees": true,
+   "seconds": 3.5
+  },
+  {
+   "id": "20261012T132229#2",
+   "verdict": "sufficient",
+   "failed_criterion": null,
+   "reason": "The Belt's message addresses all the acceptance criteria for the business case field, providing clear and relevant information.",
+   "expected": "sufficient",
+   "agrees": true,
+   "seconds": 1.2
+  }
+ ]
+}

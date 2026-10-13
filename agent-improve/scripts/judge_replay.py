@@ -74,12 +74,40 @@ async def replay_judgment(case: dict[str, Any]) -> dict[str, Any]:
 FALSE_REJECT_STOP = 0.20
 
 
-async def replay(turn: dict[str, Any]) -> dict[str, Any]:
+def grader_for(turn: dict[str, Any]) -> Any:
+    """The grader as the executor builds it for the turn: its move and its element's purpose (B2)."""
+    from backend.middleware.grader import DMAICGraderMiddleware
+    from backend.phases.nodes_common import _element_purpose
+    field = (turn.get("script_step") or {}).get("field")
+    return DMAICGraderMiddleware("define", move=turn["move"], purpose=_element_purpose("define", field))
+
+
+def earlier(turn: dict[str, Any], turns: list[dict[str, Any]]) -> str:
+    """B2: the Belt's messages before `turn` in its run, as the grader is given them live — read from the
+    run's record (every turn), else from the set's own turns of that run. The set carries no confirmed
+    values, so the case so far is the Belt's earlier messages."""
+    runs = Path(__file__).resolve().parents[1] / "docs" / "runthrough"
+    record = next((p for p in (runs / f"define_runthrough_{turn['run']}.json",
+                               runs / f"failed_define_runthrough_{turn['run']}.json") if p.exists()), None)
+    if record is not None:
+        rows = [r for r in json.loads(record.read_text(encoding="utf-8")) if isinstance(r, dict)
+                and r.get("kind") == "turn" and int(r.get("n") or 0) < int(turn["turn"])]
+        said = [str(r.get("belt") or "") for r in sorted(rows, key=lambda r: int(r["n"]))]
+    else:
+        said = [t["belt"] for t in sorted(turns, key=lambda t: t["turn"]) if t["run"] == turn["run"]
+                and t["turn"] < turn["turn"]]
+    said = [s for s in said if s.strip() and s.strip().lower() not in ("confirm", "next, please.")]
+    return "\n".join(f"- {s[:400]}" for s in said[-12:])
+
+
+async def replay(turn: dict[str, Any], turns: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """The grader, rebuilt for the turn's move, on the reply it judged (the coherence judge is retired,
     ADR-0083: its recorded verdicts are reported as history, never replayed)."""
     from backend.middleware.grader import DMAICGraderMiddleware
     t0 = time.time()
-    g = await DMAICGraderMiddleware("define", move=turn["move"])._grade(turn["belt"], turn["reply_judged"])
+    grader = grader_for(turn)
+    grader._earlier = earlier(turn, turns or [])
+    g = await grader._grade(turn["belt"], turn["reply_judged"])
     return {"id": turn["id"],
             "grader": {"passed": g.passed, "failed": [{"criterion": f.criterion, "reason": f.feedback} for f in g.failed],
                        "seconds": round(time.time() - t0, 1)}}
@@ -152,6 +180,7 @@ def main() -> int:
                          indent=1, ensure_ascii=False))
         return 0
     turns = json.loads(TURNS.read_text(encoding="utf-8"))["turns"]
+    every = list(turns)
     if args.only:
         turns = [t for t in turns if t["id"] in set(args.only)]
     sheet = labels_from_sheet(SHEET) if SHEET.exists() else {}
@@ -163,7 +192,7 @@ def main() -> int:
     started = time.time()
 
     async def all_turns() -> list[dict[str, Any]]:
-        return [await replay(t) for t in turns]
+        return [await replay(t, every) for t in turns]
     replays = asyncio.run(all_turns())
 
     async def judged_all() -> list[dict[str, Any]]:

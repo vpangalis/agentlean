@@ -341,7 +341,7 @@ def test_each_move_is_graded_only_on_what_it_does() -> None:
     into the next challenge, sent the coach on lookups the move never asked
     for (4 of 5 live runs, one to the backstop)."""
     from backend.middleware.grader import applies, rubric_for_move
-    methodology = "Coach must reference methodology when guiding (not just opinion)"
+    methodology = "Coach must name what the element is for, as the phase script gives it, not just opinion"   # B2: was "reference methodology"
     challenge = "Coach must challenge weak inputs with specific follow-up questions"
     assert not applies(methodology, "challenge") and applies(challenge, "challenge")
     assert not applies(challenge, "read_back") and not applies(challenge, "store_and_advance")
@@ -349,14 +349,14 @@ def test_each_move_is_graded_only_on_what_it_does() -> None:
     computation = "Coach must not dump raw statistical output without explanation."
     assert [m for m in ("teach", "challenge", "read_back", "store_and_advance", "respond")
             if applies(computation, m)] == ["teach", "store_and_advance"]
-    assert "reference methodology" not in rubric_for_move("challenge")
+    assert "what the element is for" not in rubric_for_move("challenge")   # B2: was "reference methodology"
     assert "challenge weak inputs" in rubric_for_move("challenge")
 
 
 def test_section_5_leaves_out_what_this_turns_move_does_not_do() -> None:
     from backend.core.substate import CoachingPlan
     from backend.middleware.state_injection import BeforeModelStateInjection
-    methodology = "Coach must reference methodology when guiding (not just opinion)"
+    methodology = "Coach must name what the element is for, as the phase script gives it, not just opinion"   # B2: was "reference methodology"
     fb: dict[str, Any] = {"grader": {"status": "fail", "criteria_failed": [methodology],
                      "failed": [{"criterion": methodology, "feedback": "cite the book"}]},
           "coherence": {"coherent": True, "reason": ""}}

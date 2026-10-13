@@ -987,8 +987,9 @@ def test_coherence_is_not_a_rubric_criterion() -> None:
 
     assert "coheren" not in COACHING_QUALITY_RUBRIC.lower()
     assert "gibberish" not in COACHING_QUALITY_RUBRIC.lower()
-    assert COACHING_QUALITY_RUBRIC.count("- Coach") == 9, (
-        "§36's rubric is nine criteria; a tenth needs checking against §36"
+    assert COACHING_QUALITY_RUBRIC.count("- Coach") == 10, (
+        "§36's nine criteria and B2's tenth (founder ruling 2026-10-13: never ask for what was already "
+        "given); an eleventh needs checking against §36"
     )
 
 

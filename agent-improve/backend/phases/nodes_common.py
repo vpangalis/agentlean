@@ -1196,6 +1196,9 @@ def _build_executor(
                 phase, on_evaluation=grader_log.append,
                 # 6.61 (item 3) — graded as the move it was asked to make.
                 move=plan.move if plan else None,
+                # B2 (founder ruling 2026-10-13) — the case's confirmed values, for "already given".
+                context=_grader_context(state),
+                purpose=_element_purpose(phase, plan.focus_field if plan else None),
             ),
             ContradictionDetectionMiddleware(),
         ],
@@ -1466,6 +1469,21 @@ def _move_record(plan: CoachingPlan | None, pending: dict | None,
         "stored_field": plan.stored_field,
         "judgment": plan.judgment.model_dump() if plan.judgment else None,
     }
+
+
+def _element_purpose(phase: str, field: Optional[str]) -> str:
+    """B2: the element's purpose as the script gives it (its explanation block), for the grader."""
+    if not field:
+        return ""
+    from backend.middleware.skills import teaching_blocks
+    return teaching_blocks(phase, field).get("explanation", "")
+
+
+def _grader_context(state: PhaseState) -> str:
+    """B2: the case's confirmed values, one line each, for the grader's "already given" criterion."""
+    artifacts = {k: v for k, v in dict(state.get("artifacts") or {}).items() if k != "computation_results"}
+    return "\n".join(f"- {k}: {json.dumps(v, ensure_ascii=False, default=str)[:300] if not isinstance(v, str) else v[:300]}"
+                     for k, v in artifacts.items() if v not in (None, "", [], {}))
 
 
 def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None:
