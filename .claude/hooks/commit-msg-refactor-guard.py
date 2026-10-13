@@ -33,6 +33,9 @@ it. Numbers are never reused, so every older reference still points at the right
   21. ADR IMMUTABILITY — an ACCEPTED ADR changes only by its status line becoming
      `SUPERSEDED by NNNN`; a link-target-only change is allowed on any record; none
      is deleted. Rules 17-21 run ahead of the prefix gate, on every commit.
+  24. DOCUMENT NAMES — every class and function the governing documents (the rules,
+     CLAUDE.md, ARCHITECTURE.md) name exists in the repository or the installed packages
+     (`tools/architecture/doc_names.py`, a ratchet over today's stale names; founder, 2026-10-13).
   23. VERIFIED — a commit that changes a mechanism file (backend/middleware/, core/llm.py,
      core/graph.py, a phase graph, subgraph_common.py, gateway/routes.py) carries
      `Verified: <docs.langchain.com or reference.langchain.com URL> … installed/pin`, or
@@ -1799,6 +1802,29 @@ def check_verified(message: str, staged: list[str]) -> None:
     note("rule 23 verified: PASS")
 
 
+#: Rule 24: the documents whose names are checked, and what can make a name stale.
+DOC_NAME_TRIGGERS = (".claude/rules/", "agent-improve/CLAUDE.md", "agent-improve/ARCHITECTURE.md")
+
+
+def check_doc_names(root: str, staged: list[str]) -> None:
+    """Rule 24 (founder ruling 2026-10-13): a name a governing document gives a class or function exists
+    in the repository or the installed packages. Run when a governing document or any Python file is
+    staged (a rename in code can stale a document); the check is `tools/architecture/doc_names.py`."""
+    if not any(p.startswith(DOC_NAME_TRIGGERS) or p.endswith(".py") for p in staged):
+        note("rule 24 document names: no governing document or Python staged; skipped")
+        return
+    r = subprocess.run([venv_python(root), os.path.join(root, "agent-improve", "tools", "architecture",
+                                                         "doc_names.py")],
+                       cwd=os.path.join(root, "agent-improve"), capture_output=True, encoding="utf-8",
+                       errors="replace", timeout=600)
+    lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    if r.returncode != 0:
+        fail("a governing document names a class or function that exists nowhere (rule 24)",
+             *[ln for ln in lines if "NEW" in ln or "FIXED" in ln][-20:], lines[-1] if lines else r.stderr[-400:],
+             "", "Correct the document, or the code; a name fixed from the baseline leaves BASELINE.")
+    note(f"rule 24 document names: PASS — {lines[-1] if lines else 'no output'}")
+
+
 def check_normative(root: str, staged: list[str]) -> None:
     """Rule 14 — no MUST / NEVER / ALWAYS sentence weakens (founder ruling
     2026-09-26 on the 6.67 report). When CLAUDE.md, a rule file or a skill is
@@ -1896,6 +1922,10 @@ def main(argv: list[str]) -> int:
     # Rule 13 — the docs checks (links, citations), on every commit (6.67).
     with _timer("rule 13 docs"):
         check_docs(root, all_staged)
+
+    # Rule 24 — the names the governing documents give exist (founder, 2026-10-13).
+    with _timer("rule 24 document names"):
+        check_doc_names(root, all_staged)
 
     # Rule 23 — a mechanism change says what framework docs and version it was checked against.
     with _timer("rule 23 verified"):

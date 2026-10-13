@@ -680,3 +680,36 @@ def test_rule_23_a_mechanism_change_says_what_it_was_verified_against() -> None:
                  "agent-improve/backend/phases/define/graph.py"):
         assert guard.verified_problem("fix: x", [path]), path
     assert "check_verified(message, all_staged)" in _HOOK.read_text(encoding="utf-8")
+
+
+def test_rule_24_every_name_the_governing_documents_give_exists() -> None:
+    """Founder ruling 2026-10-13 (document names checked against code): every class or function named in
+    a code block or an inline code span of .claude/rules/*.md, CLAUDE.md and ARCHITECTURE.md exists in
+    the repository or the installed packages — or is listed as absent by design with its reason. Today's
+    stale names are a ratchet: no new one, and a fixed one leaves the baseline."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(_ROOT) / "agent-improve" / "tools" / "architecture"))
+    import doc_names
+
+    found = doc_names.hits()
+    assert doc_names.new_hits(found) == [], doc_names.new_hits(found)
+    assert doc_names.fixed(found) == [], f"fixed — remove from BASELINE: {doc_names.fixed(found)}"
+    assert "check_doc_names(root, all_staged)" in _HOOK.read_text(encoding="utf-8")
+
+
+def test_rule_24_reads_inline_spans_and_python_blocks(tmp_path) -> None:
+    import sys as _sys
+    _sys.path.insert(0, str(Path(_ROOT) / "agent-improve" / "tools" / "architecture"))
+    import doc_names
+
+    doc = tmp_path / "x.md"
+    fence = "`" * 3
+    doc.write_text(NEWLINE.join(["Use `NoSuchThingAnywhereXyz` and `get_llm()`; the field `belt_impact` is a key.",
+                                 fence + "python", "from backend.core.llm import get_llm", "no_such_call_xyz(1)",
+                                 fence, ""]), encoding="utf-8")
+    inline = [n for _, _, n in doc_names.inline_names(doc)]
+    assert inline == ["NoSuchThingAnywhereXyz", "get_llm"], inline
+    used, imports = doc_names.used_names(doc_names.blocks(doc)[0][1])
+    assert used == {"no_such_call_xyz"} and ("backend.core.llm", "get_llm") in imports
+    known = doc_names.known_names()
+    assert "get_llm" in known and "NoSuchThingAnywhereXyz" not in known and "no_such_call_xyz" not in known
