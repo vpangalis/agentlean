@@ -111,3 +111,31 @@ def test_the_judge_evaluation_scores_false_rejects_and_false_accepts_against_the
     assert r["labelled"] == 4 and r["false_rejects"] == ["a"] and r["false_reject_rate"] == 0.5
     assert r["false_accepts"] == ["c"] and r["false_accept_rate"] == 0.5
     assert judge_replay.FALSE_REJECT_STOP == 0.20
+
+
+def test_the_founders_sheet_is_read_and_right_for_the_wrong_reason_is_counted_apart(tmp_path) -> None:
+    """Founder 2026-10-13: the labels come from the Excel sheet (reply_good yes/no, judge_right right/wrong,
+    an optional note); a rejection labelled right WITH a note is "right outcome, wrong reason", counted
+    apart; an empty row is not a label."""
+    from openpyxl import Workbook
+
+    from scripts import judge_replay
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Turns"
+    ws.append(["id", "turn type", "Belt message", "coach reply (the one judged)", "coherence verdict",
+               "coherence reason", "grader verdict", "grader reason", "rejected_by", "reply_good (yes/no)",
+               "judge_right (right/wrong)", "note (optional)"])
+    ws.append(["r#1", "", "", "", "rejected", "", "", "", "coherence", "no", "right", "it missed the real gap"])
+    ws.append(["r#2", "", "", "", "rejected", "", "", "", "coherence", "yes", "wrong", None])
+    ws.append(["r#3", "", "", "", "accepted", "", "pass", "", "none", None, None, None])
+    sheet = tmp_path / "s.xlsx"
+    wb.save(sheet)
+    labels = judge_replay.labels_from_sheet(sheet)
+    assert labels == {"r#1": {"reply_good": False, "rejection_right": True, "note": "it missed the real gap"},
+                      "r#2": {"reply_good": True, "rejection_right": False, "note": ""}}
+    turns = [{"id": i, "move": "challenge", "coherence": {"coherent": False}, "grader": None} for i in ("r#1", "r#2")]
+    out = judge_replay.report(turns, [], labels, {}, 1.0)
+    assert out["right_outcome_wrong_reason"] == ["r#1"]
+    assert out["rejections_labelled_wrong"]["wrong"] == ["r#2"]

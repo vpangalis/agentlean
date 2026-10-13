@@ -7,7 +7,7 @@ turn's first reply) — the same calls the executor makes, nothing else: no grap
 is replayed on EVERY turn, coherence-rejected ones included, which is what DEF-015's option A will do.
 
 Scored against `evals/define/judge_labels.json` ({turn id: {"reply_good": true|false, "rejection_right":
-true|false|null}}), per judge, for the verdicts the runs RECORDED and the verdicts REPLAYED now:
+true|false|null, "note": "..."}}), per judge, for the verdicts the runs RECORDED and the verdicts REPLAYED now:
   false-reject rate = rejected replies labelled good / replies labelled good
   false-accept rate = accepted replies labelled not good / replies labelled not good
 A turn with no label is replayed and reported, not scored. Calls, tokens, cost and time are reported.
@@ -27,6 +27,28 @@ from typing import Any
 EVALS = Path(__file__).resolve().parents[1] / "evals" / "define"
 TURNS = EVALS / "judge_turns.json"
 LABELS = EVALS / "judge_labels.json"
+#: The founder's Excel sheet (2026-10-13): read when it carries labels; its labels are written to LABELS.
+SHEET = EVALS / "judge_labelling_sheet.xlsx"
+
+
+def labels_from_sheet(path: Path) -> dict[str, dict[str, Any]]:
+    """The Turns sheet's labels: reply_good yes/no -> True/False, judge_right right/wrong -> True/False,
+    the optional note; a row with nothing filled is left out."""
+    from openpyxl import load_workbook
+    ws = load_workbook(path, read_only=True)["Turns"]
+    rows = list(ws.iter_rows(values_only=True))
+    col = {str(h or "").split(" ")[0]: i for i, h in enumerate(rows[0])}
+    out: dict[str, dict[str, Any]] = {}
+    for r in rows[1:]:
+        good = str(r[col["reply_good"]] or "").strip().lower()
+        right = str(r[col["judge_right"]] or "").strip().lower()
+        note = str(r[col["note"]] or "").strip() if "note" in col else ""
+        if not (good or right or note):
+            continue
+        out[str(r[col["id"]])] = {"reply_good": {"yes": True, "no": False}.get(good),
+                                  "rejection_right": {"right": True, "wrong": False}.get(right),
+                                  "note": note}
+    return out
 #: Above this false-reject rate the founder's ruling stops the work for options (fix, merge, remove).
 FALSE_REJECT_STOP = 0.20
 
@@ -88,6 +110,11 @@ def report(turns: list[dict[str, Any]], replays: list[dict[str, Any]], labels: d
     rejections = [t["id"] for t in turns if not t["coherence"]["coherent"]]
     judged = [i for i in rejections if (labels.get(i) or {}).get("rejection_right") is not None]
     wrong = [i for i in judged if labels[i]["rejection_right"] is False]
+    # Founder 2026-10-13: right to reject, for the wrong reason — a note on a rejection labelled right.
+    rejected_any = [t["id"] for t in turns if not t["coherence"]["coherent"]
+                    or (t.get("grader") or {}).get("status") == "failed"]
+    wrong_reason = [i for i in rejected_any if (labels.get(i) or {}).get("rejection_right") is True
+                    and str((labels.get(i) or {}).get("note") or "").strip()]
     out: dict[str, Any] = {
         "turns": len(turns), "replayed": len(replays),
         "coherence": {"recorded": rates(recorded_coh, labels), "replayed": rates(replay_coh, labels),
@@ -97,6 +124,7 @@ def report(turns: list[dict[str, Any]], replays: list[dict[str, Any]], labels: d
                                                       for i in replay_grd if i in recorded_grd)},
         "rejections_labelled_wrong": {"of": len(judged), "wrong": wrong,
                                       "share": round(len(wrong) / len(judged), 2) if judged else None},
+        "right_outcome_wrong_reason": wrong_reason,
         "cost": cost, "seconds": round(seconds, 1),
         "per_turn_seconds": round(seconds / max(1, len(replays)), 1),
     }
@@ -120,6 +148,9 @@ def main() -> int:
     turns = json.loads(TURNS.read_text(encoding="utf-8"))["turns"]
     if args.only:
         turns = [t for t in turns if t["id"] in set(args.only)]
+    if SHEET.exists() and labels_from_sheet(SHEET):
+        LABELS.write_text(json.dumps(labels_from_sheet(SHEET), indent=1, ensure_ascii=False) + chr(10),
+                          encoding="utf-8")
     labels = json.loads(LABELS.read_text(encoding="utf-8")) if LABELS.exists() else {}
     started = time.time()
 
