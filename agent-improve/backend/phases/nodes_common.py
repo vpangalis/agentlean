@@ -2565,10 +2565,13 @@ async def executor(
     # Belt, the case, a computation result or the script; a reply with any other number is rejected and
     # the move's reply is written in code.
     unsourced: list[str] = []
+    rejected: Optional[dict[str, str]] = None     # G-173: the rejected reply's own words, for step_log
     if written is None and not fell_back and isinstance(result.get("structured_response"), CoachingResponse):
         unsourced = _unsourced_numbers(result["structured_response"],
                                        _number_sources(phase, state, produced[len(history):]))
     if unsourced:
+        sent = result["structured_response"]
+        rejected = {k: str(getattr(sent, k, "") or "")[:1500] for k in ("message", "explanation", "example", "prompt")}
         fallback = _fallback_reply(phase, plan)
         fell_back = True
         logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s); the move's "
@@ -3057,6 +3060,7 @@ async def executor(
             status=_executor_status(hit_cap, off_ramp, timed_out, filtered, level_4),
             model_attempts=attempts or None,                     # T34 / ADR-0082 (§4.8)
             unsourced_numbers=unsourced or None,                 # G-173 (ADR-0077)
+            rejected_reply=rejected,                             # G-173: what the coach wrote
             fallback_used=fell_back,
             limit=limit_diagnosis,                                 # G-139
             resend=resend,                                         # G-140

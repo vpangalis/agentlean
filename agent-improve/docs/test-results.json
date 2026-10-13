@@ -1,9 +1,9 @@
 {
- "source_hash": "06cffd1a23c8d17c",
- "commit": "8a9bea3",
+ "source_hash": "8b403bbefdfa4fa0",
+ "commit": "85b2d24",
  "commit_matches_source": false,
  "full_run_hash": "06cffd1a23c8d17c",
- "recorded_at": "2026-10-13T15:13:42+00:00",
+ "recorded_at": "2026-10-13T15:19:05+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

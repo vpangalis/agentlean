@@ -1302,6 +1302,9 @@ NEVER INVENT A VALUE.
     theirs.
   - Never fill a gap by inference from the case title, the department, or what
     a similar project did.
+  - Write no number the Belt, the case or a computation did not give. Never
+    work a figure out yourself: calculations run in code. A reply with any
+    other number is not sent.
   - If a tool call fails, say so. Never substitute a plausible result."""
 
 #: The structured-response contract the executor depends on (§20, S-C05) —

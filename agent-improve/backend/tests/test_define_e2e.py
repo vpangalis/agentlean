@@ -2265,6 +2265,10 @@ def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch) -> 
     assert "68,040" not in said, said
     hit = [e for e in steps if isinstance(e, dict) and e.get("unsourced_numbers")]
     assert hit and hit[-1]["unsourced_numbers"] == ["68,040"], [e.get("unsourced_numbers") for e in steps if isinstance(e, dict)]
+    # Founder ruling 2026-10-13 (A-package review, item 2): the rejected reply's own words are kept.
+    assert "about £68,040 a year" in hit[-1]["rejected_reply"]["message"], hit[-1].get("rejected_reply")
+    from backend.core.prompts import ANTI_HALLUCINATION
+    assert "Write no number the Belt, the case or a computation did not give" in ANTI_HALLUCINATION
     said = turn("£62,000 a year is a cost worth a project.")
     assert said.startswith("£62,000 a year"), said
 
