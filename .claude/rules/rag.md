@@ -19,13 +19,14 @@ it is a violation.
 
 ### 7.2 — Three retrieval tools, one index each
 
-| Tool | Index | Filter | Ordering | Vector field |
-|---|---|---|---|---|
-| `rag_lookup_methodology` | `improve_knowledge_index` | `phase_relevance eq '{phase}' or phase_relevance eq 'general'` | — | `content_vector` |
-| `rag_lookup_evidence` | `improve_evidence_index` | `case_id`; `kind` (default `evidence`); optional `phase` (default OFF) | **none — by ruling, not by schema** | `content_vector` |
-| `rag_lookup_case_history` | `improve_case_index` | `status eq 'completed'` | `created_at desc` | `embedding` † |
+`rag_lookup_methodology` searches the knowledge index (`AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`), `rag_lookup_evidence`
+`improve_evidence_index`, `rag_lookup_case_history` `improve_case_index`. Each one's filter, ordering
+and vector field are in the code it calls — `knowledge/retriever.py::search_knowledge`,
+`search_evidence`, `search_cases` — and every index's fields are generated into
+[docs/data-models.md](../../agent-improve/docs/data-models.md) (Search indexes). Evidence results carry
+no ordering: by ruling, not by schema.
 
-† `improve_case_index`'s vector field **is still named `embedding`** — the
+`improve_case_index`'s vector field **is still named `embedding`** — the
 rename is ratified and not yet applied (§7.3). **Write code against the live
 schema, not the target schema.**
 
