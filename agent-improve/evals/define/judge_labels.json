@@ -1,0 +1,202 @@
+{
+ "20261012T124425#2": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "right outcome, wrong reason: reason contradicts the reply text. Real fault: coach asked for a baseline the Belt already gave (23%)."
+ },
+ "20261012T124425#5": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "judge invented a missing item: Belt said nobody else needs training. (optional)"
+ },
+ "20261012T124425#11": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "coherence claims parroting, but the reply adds 5W2H + sample. Grader replay contradicts rubric: penalises show-first sample (required by C3)."
+ },
+ "20261012T124425#16": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "coherence says parroting but the status is in sentence 1. Status incomplete: no done/open list (DEF-020)."
+ },
+ "20261012T124425#26": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "sample gives away the Belt's answer (same domain: late payments); judge's reason wrong; grader passed it.A side observation for the Black Belt in you: 42,000 invoices × 23% late × £9 ≈ £87,000 a year. The Belt earlier said about £62,000. A sharp coach would ask about the gap. The coach mustn’t calculate it itself (calculations run in code), but noticing the inconsistency is good coaching. Not something to label here; just worth remembering for the coaching rubric."
+ },
+ "20261012T132229#2": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "ame fault as 124425#2: coach asks for a baseline the Belt already gave (23%, Jan–Jun 2026). Judge's reason (parroting) wrong."
+ },
+ "20261012T132229#9": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "names missing CTQ for invoice visibility; judge's \"parroting\" wrong"
+ },
+ "20261012T132229#12": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "content right, but sample table duplicated in message + example block, questions ×3; judge's \"parroting\" wrong."
+ },
+ "20261012T132229#17": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "status answered (done list + next); judge's \"parroting\" wrong"
+ },
+ "20261012T132229#27": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "sample uses the Belt's own data (23%, 5%, 42k, £9, Tom Okafor) = gives the answer; coach computed cost of gap (ADR-0077: code computes). Grader passed it."
+ },
+ "20261012T134606#10": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": ""
+ },
+ "20261012T134606#15": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "status gives only step 6/13, no done list (DEF-020); judge's \"parroting\" wrong"
+ },
+ "20261012T134606#26": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "sample uses the Belt's own data (23%, 5%, 42k, £9) + coach computes £68,040; names Lena Hart (AP, not finance). Same fault as 132229#27."
+ },
+ "20261012T140839#2": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "G-168 again: coach asks for baseline already given (23%). Both judges' reasons wrong."
+ },
+ "20261012T140839#11": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "content right; table, example statement duplicated, questions ×3. Judge's \"parroting\" wrong; grader replay claims no follow-up questions — false."
+ },
+ "20261012T140839#16": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "status gives only step 6/13, no done list (DEF-020); judge's \"parroting\" wrong"
+ },
+ "20261012T140839#26": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "sample = Belt's own data + coach computes £68,040/£17,010 + names Tom Okafor. Third occurrence."
+ },
+ "20261012T132229#18": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "read-back is meant to restate; grader penalises the move itself"
+ },
+ "20261012T134606#12": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "references DMAIC (Define/Measure/Control); grader's \"no methodology\" false"
+ },
+ "20261012T132229#13": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "statement composed only from the Belt's own 5W2H answers, then confirmed — by design; grader penalises the design"
+ },
+ "20261012T134606#14": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "EXAMPLE block uses the Belt's own process (AP, invoice received → payment released) = gives the answer; two different samples; question ×2. Grader's \"no methodology\" reason wrong"
+ },
+ "20261012T132229#20": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "verbatim read-back for Confirm; grader calls it 'writing the problem statement' — false"
+ },
+ "20261012T134606#9": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "good teaching, neutral sample; content duplicated (message + blocks): a format defect for code to fix"
+ },
+ "20261012T132229#10": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "read-back offers Confirm on a CTQ with a placeholder \"[specific time frame]\" the coach itself calls incomplete — should challenge again. Grader's reasons wrong."
+ },
+ "20261012T134606#17": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": "EXAMPLE block = the Belt's exact goal (23% → <5% by 31 Mar 2027). Grader right, right reason."
+ },
+ "20261012T132229#21": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "verbatim read-back incl. the Belt's correction; grader's \"writing the problem statement\" false"
+ },
+ "20261012T134606#3": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "neutral sample, good teaching; duplicated (format). Grader's \"no methodology\" false — LSS roles explained."
+ },
+ "20261012T132229#3": {
+  "reply_good": true,
+  "rejection_right": false,
+  "note": "verbatim read-back for Confirm; grader contradicts itself (\"repeating\" = \"doing the Belt's work\")"
+ },
+ "20261012T134606#20": {
+  "reply_good": false,
+  "rejection_right": true,
+  "note": ""
+ },
+ "20261012T134606#16": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": "correct read-back; unnecessary explanation/example blocks on a read-back, question ×2 (format"
+ },
+ "20261012T124425#30": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": ""
+ },
+ "20261012T134606#1": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": "good opening: overview, how it works, neutral sample, one clear question"
+ },
+ "20261012T134606#13": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": "good read-back; number parsed in code; metric explained (DEF-018)"
+ },
+ "20261012T124425#28": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": "good teaching, neutral sample; definition, sample and question duplicated (format)"
+ },
+ "20261012T132229#1": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": "good opening, neutral sample"
+ },
+ "20261012T132229#29": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": ""
+ },
+ "20261012T132229#33": {
+  "reply_good": false,
+  "rejection_right": null,
+  "note": "re-asks to confirm the stored SIPOC instead of moving on (G-158 pattern)"
+ },
+ "20261012T132229#35": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": ""
+ },
+ "20261012T134606#34": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": ""
+ },
+ "20261012T140839#34": {
+  "reply_good": true,
+  "rejection_right": null,
+  "note": "terse; doesn't explain the review step"
+ }
+}

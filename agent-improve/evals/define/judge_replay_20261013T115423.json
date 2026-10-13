@@ -1,0 +1,880 @@
+{
+ "summary": {
+  "turns": 40,
+  "replayed": 40,
+  "coherence": {
+   "recorded": {
+    "labelled": 40,
+    "false_reject_rate": 0.44,
+    "false_rejects": [
+     "20261012T124425#5",
+     "20261012T124425#11",
+     "20261012T132229#9",
+     "20261012T132229#12",
+     "20261012T132229#17",
+     "20261012T134606#10",
+     "20261012T140839#11",
+     "20261012T132229#29",
+     "20261012T132229#35",
+     "20261012T134606#34",
+     "20261012T140839#34"
+    ],
+    "false_accept_rate": 0.27,
+    "false_accepts": [
+     "20261012T134606#14",
+     "20261012T132229#10",
+     "20261012T134606#17",
+     "20261012T134606#20"
+    ]
+   },
+   "replayed": {
+    "labelled": 40,
+    "false_reject_rate": 0.4,
+    "false_rejects": [
+     "20261012T124425#11",
+     "20261012T132229#9",
+     "20261012T132229#12",
+     "20261012T132229#17",
+     "20261012T134606#10",
+     "20261012T140839#11",
+     "20261012T132229#29",
+     "20261012T132229#35",
+     "20261012T134606#34",
+     "20261012T140839#34"
+    ],
+    "false_accept_rate": 0.33,
+    "false_accepts": [
+     "20261012T124425#26",
+     "20261012T134606#14",
+     "20261012T132229#10",
+     "20261012T134606#17",
+     "20261012T134606#20"
+    ]
+   },
+   "replay_agrees_with_recorded": 38
+  },
+  "grader": {
+   "recorded": {
+    "labelled": 18,
+    "false_reject_rate": 0.57,
+    "false_rejects": [
+     "20261012T132229#18",
+     "20261012T134606#12",
+     "20261012T132229#13",
+     "20261012T132229#20",
+     "20261012T134606#9",
+     "20261012T132229#21",
+     "20261012T134606#3",
+     "20261012T132229#3"
+    ],
+    "false_accept_rate": 0.0,
+    "false_accepts": []
+   },
+   "replayed": {
+    "labelled": 40,
+    "false_reject_rate": 0.52,
+    "false_rejects": [
+     "20261012T124425#11",
+     "20261012T132229#12",
+     "20261012T134606#10",
+     "20261012T140839#11",
+     "20261012T132229#13",
+     "20261012T132229#20",
+     "20261012T134606#9",
+     "20261012T132229#21",
+     "20261012T134606#3",
+     "20261012T132229#29",
+     "20261012T132229#35",
+     "20261012T134606#34",
+     "20261012T140839#34"
+    ],
+    "false_accept_rate": 0.47,
+    "false_accepts": [
+     "20261012T124425#2",
+     "20261012T124425#26",
+     "20261012T132229#2",
+     "20261012T132229#27",
+     "20261012T134606#15",
+     "20261012T140839#16",
+     "20261012T140839#26"
+    ]
+   },
+   "replay_agrees_with_recorded": 15
+  },
+  "rejections_labelled_wrong": {
+   "of": 17,
+   "wrong": [
+    "20261012T124425#5",
+    "20261012T124425#11",
+    "20261012T132229#9",
+    "20261012T132229#12",
+    "20261012T132229#17",
+    "20261012T134606#10",
+    "20261012T140839#11"
+   ],
+   "share": 0.41
+  },
+  "right_outcome_wrong_reason": [
+   "20261012T124425#2",
+   "20261012T124425#16",
+   "20261012T124425#26",
+   "20261012T132229#2",
+   "20261012T132229#27",
+   "20261012T134606#15",
+   "20261012T134606#26",
+   "20261012T140839#2",
+   "20261012T140839#16",
+   "20261012T140839#26",
+   "20261012T134606#14",
+   "20261012T132229#10",
+   "20261012T134606#17"
+  ],
+  "cost": {
+   "usd": 0.0286,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.0073,
+    "gpt-4o-mini-2024-07-18": 0.0213
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  },
+  "seconds": 150.8,
+  "per_turn_seconds": 3.8,
+  "stop": {
+   "limit": 0.2,
+   "judges_over": [
+    "coherence",
+    "grader"
+   ]
+  },
+  "planner_judgment": {
+   "cases": 2,
+   "agree_with_expected": 2,
+   "disagree": []
+  }
+ },
+ "replays": [
+  {
+   "id": "20261012T124425#2",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response does not clearly identify what the Belt's answer lacks; it does not specify that the missing baseline value should be a percentage or count of late invoices, which is essential for clarity.",
+    "seconds": 4.2
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.4
+   }
+  },
+  {
+   "id": "20261012T124425#5",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.8
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.8
+   }
+  },
+  {
+   "id": "20261012T124425#11",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's words back without providing additional insights or identifying what is missing from the Belt's answer.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You provided a detailed structure for the problem statement, which could lead the Belt to rely on your formulation instead of developing their own."
+     }
+    ],
+    "seconds": 2.9
+   }
+  },
+  {
+   "id": "20261012T124425#16",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's question back without providing a new answer or additional information.",
+    "seconds": 1.0
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "You provided specific details about the project scope and examples that were not part of the Belt's original message."
+     },
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You outlined the project scope and provided an example, which could lead the Belt to rely on your input instead of developing their own problem statement."
+     }
+    ],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T124425#26",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.3
+   }
+  },
+  {
+   "id": "20261012T132229#2",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The coach's response does not clearly identify what is missing in the Belt's answer, which is a requirement for a challenge. Instead, it vaguely states that the baseline value is missing without explicitly stating that the Belt's answer lacks a specific number for the current state of the problem.",
+    "seconds": 1.4
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T132229#9",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's words back without adding new insights or identifying what is missing in the Belt's response.",
+    "seconds": 1.2
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.1
+   }
+  },
+  {
+   "id": "20261012T132229#12",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response does not challenge the Belt's statement; it merely identifies what is missing without providing a specific critique of the Belt's answer.",
+    "seconds": 1.0
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You provided an example of a completed 5W2H table, which could lead the Belt to rely on your illustration instead of formulating their own answers."
+     }
+    ],
+    "seconds": 2.9
+   }
+  },
+  {
+   "id": "20261012T132229#17",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's question back without providing an answer or additional information.",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.7
+   }
+  },
+  {
+   "id": "20261012T132229#27",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's words back without adding new insights or addressing the missing elements in a way that helps the Belt learn. It repeats the cost per defect and annual volume without providing a new perspective or guidance.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.3
+   }
+  },
+  {
+   "id": "20261012T132229#29",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response does not include a confirmation question or any engagement with the Belt's earlier confirmation, which is required for this step.",
+    "seconds": 1.3
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "The coach did not reference any specific methodology related to defining secondary metrics, which would help the Belt understand the importance of this step."
+     }
+    ],
+    "seconds": 3.8
+   }
+  },
+  {
+   "id": "20261012T132229#33",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response does not directly address the Belt's confirmation of the stored value and instead provides an explanation and example without confirming the stored value or asking a relevant follow-up question.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "The coach did not reference the SIPOC methodology or explain its relevance to the Belt's project."
+     }
+    ],
+    "seconds": 3.4
+   }
+  },
+  {
+   "id": "20261012T132229#35",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response is not on topic because it incorrectly refers to 'issues and barriers' instead of naming the stored value from the Belt's confirmation.",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must stay on the current phase's topic",
+      "reason": "You mentioned the 'Define report' and 'gate document' without ensuring the Belt understands the content and context of these documents. Focus on guiding the Belt through the current phase's tasks."
+     },
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "You did not reference any specific methodology related to the Define phase or the review process. Incorporate relevant methodology to guide the Belt effectively."
+     },
+     {
+      "criterion": "Coach must show a concrete example of a completed answer before asking the Belt to produce theirs",
+      "reason": "You did not provide an example of what a completed Define report looks like. Show a concrete example to help the Belt understand what is expected."
+     }
+    ],
+    "seconds": 4.3
+   }
+  },
+  {
+   "id": "20261012T134606#10",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The coach's response does not provide a clear challenge to the Belt's statement; it merely reiterates what is missing without explicitly stating that the Belt's answer is incomplete or vague.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You are asking the Belt to provide specific details for the 5W2H questions, which is doing their work for them. Instead, challenge them to think through these questions themselves."
+     }
+    ],
+    "seconds": 2.5
+   }
+  },
+  {
+   "id": "20261012T134606#15",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's question back without providing a new answer or insight.",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.2
+   }
+  },
+  {
+   "id": "20261012T134606#26",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The coach's response does not identify specific missing elements from the Belt's answer, which is required for a challenge. Instead, it provides a general request for more information without clearly stating what is lacking.",
+    "seconds": 1.2
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You provided a detailed structure for the benefits analysis, which could lead the Belt to rely on your example rather than developing their own problem statement."
+     }
+    ],
+    "seconds": 2.4
+   }
+  },
+  {
+   "id": "20261012T134606#34",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response does not name the stored value, which is required.",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "You did not reference any specific methodology related to the Define phase or the review process."
+     },
+     {
+      "criterion": "Coach must show a concrete example of a completed answer before asking the Belt to produce theirs",
+      "reason": "You did not provide an example of a completed Define report or how to approach the review process."
+     }
+    ],
+    "seconds": 3.2
+   }
+  },
+  {
+   "id": "20261012T140839#2",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's words back without naming what is missing.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "You provided an example with specific metrics that were not part of the Belt's data, which could lead to confusion about what is required."
+     },
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You suggested a specific numerical baseline example, which could be interpreted as doing the Belt's work instead of guiding them to find their own."
+     }
+    ],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T140839#11",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's statement without adding any new insights or identifying specific missing elements.",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not accept vague or unmeasurable statements as captured fields",
+      "reason": "You accepted the vague statement 'paying suppliers is slow and messy' without prompting for specific details."
+     },
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You provided a detailed structure for the problem statement instead of guiding the Belt to develop it themselves."
+     },
+     {
+      "criterion": "Coach must challenge weak inputs with specific follow-up questions",
+      "reason": "You did not challenge the vague input; instead, you provided a framework without asking for clarification on the specifics of the problem."
+     }
+    ],
+    "seconds": 3.0
+   }
+  },
+  {
+   "id": "20261012T140839#16",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's question back without providing a new answer or additional information.",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.9
+   }
+  },
+  {
+   "id": "20261012T140839#26",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response does not address the specific details provided by the Belt, instead it focuses on what is missing without confirming or building on the Belt's data.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.0
+   }
+  },
+  {
+   "id": "20261012T140839#34",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": false,
+    "reason": "The response does not specify what was stored, which is required after the Belt's confirmation.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must stay on the current phase's topic",
+      "reason": "You mentioned the gate document is ready for review, which shifts focus away from confirming the Define phase details."
+     },
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "You did not reference any methodology related to the Define phase or the confirmation process."
+     },
+     {
+      "criterion": "Coach must show a concrete example of a completed answer before asking the Belt to produce theirs",
+      "reason": "You did not provide an example of what a confirmed Define phase looks like."
+     }
+    ],
+    "seconds": 3.3
+   }
+  },
+  {
+   "id": "20261012T132229#18",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.8
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.7
+   }
+  },
+  {
+   "id": "20261012T134606#12",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's own words back without adding any new information or context.",
+    "seconds": 1.0
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.4
+   }
+  },
+  {
+   "id": "20261012T132229#13",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.8
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You wrote the Problem Statement for the Belt instead of guiding them to create it themselves."
+     }
+    ],
+    "seconds": 1.7
+   }
+  },
+  {
+   "id": "20261012T134606#14",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's own words back without adding new information or a confirmation question.",
+    "seconds": 1.0
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "You did not reference any specific methodology or framework related to defining project scope."
+     }
+    ],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T132229#20",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You wrote the problem statement for the Belt instead of guiding them to articulate it themselves."
+     }
+    ],
+    "seconds": 1.9
+   }
+  },
+  {
+   "id": "20261012T134606#9",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's own words back without adding new information or a confirmation question.",
+    "seconds": 1.0
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You provided a detailed explanation of how to formulate the problem statement, which could lead the Belt to rely on your structure instead of developing their own."
+     }
+    ],
+    "seconds": 3.8
+   }
+  },
+  {
+   "id": "20261012T132229#10",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not invent data, metrics, or values the Belt didn't provide",
+      "reason": "You included a placeholder '[specific time frame]' for the invoice status visibility, which implies inventing a metric that the Belt did not provide."
+     }
+    ],
+    "seconds": 1.9
+   }
+  },
+  {
+   "id": "20261012T134606#17",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's own words back without adding new information or a confirmation question.",
+    "seconds": 1.1
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You provided an illustration of a goal statement, which could lead the Belt to copy it instead of creating their own."
+     }
+    ],
+    "seconds": 3.1
+   }
+  },
+  {
+   "id": "20261012T132229#21",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must not do the Belt's work (writing their problem statement for them)",
+      "reason": "You wrote the problem statement for the Belt instead of guiding them to articulate it themselves."
+     }
+    ],
+    "seconds": 2.4
+   }
+  },
+  {
+   "id": "20261012T134606#3",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's own words back without adding new information or a confirmation question.",
+    "seconds": 1.0
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "The coach did not reference any specific methodology related to defining a project team, which is important for guiding the Belt."
+     }
+    ],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T132229#3",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.6
+   }
+  },
+  {
+   "id": "20261012T134606#20",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's own words back without adding new information or context.",
+    "seconds": 1.3
+   },
+   "grader": {
+    "passed": false,
+    "failed": [
+     {
+      "criterion": "Coach must reference methodology when guiding (not just opinion)",
+      "reason": "You did not reference any specific methodology or framework to guide the Belt in defining the target value."
+     }
+    ],
+    "seconds": 2.8
+   }
+  },
+  {
+   "id": "20261012T134606#16",
+   "coherence": {
+    "coherent": true,
+    "is_parroting": false,
+    "reason": "",
+    "seconds": 0.9
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 1.5
+   }
+  },
+  {
+   "id": "20261012T124425#30",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's own words back without adding new information or confirming understanding.",
+    "seconds": 1.2
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.6
+   }
+  },
+  {
+   "id": "20261012T134606#1",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response includes a direct quote from the script and does not provide any new information or insights, which constitutes parroting.",
+    "seconds": 1.4
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.5
+   }
+  },
+  {
+   "id": "20261012T134606#13",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is a direct restatement of the Belt's words without any additional confirmation or correction request, which qualifies as parroting.",
+    "seconds": 1.2
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.0
+   }
+  },
+  {
+   "id": "20261012T124425#28",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The response is parroting the Belt's own words back without adding new information or confirming understanding.",
+    "seconds": 1.0
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.7
+   }
+  },
+  {
+   "id": "20261012T132229#1",
+   "coherence": {
+    "coherent": false,
+    "is_parroting": true,
+    "reason": "The coach's response is parroting the Belt's words back without adding new information or confirming understanding.",
+    "seconds": 1.2
+   },
+   "grader": {
+    "passed": true,
+    "failed": [],
+    "seconds": 2.6
+   }
+  }
+ ],
+ "judgments": [
+  {
+   "id": "20261012T124425#2",
+   "verdict": "sufficient",
+   "failed_criterion": null,
+   "reason": "The Belt's message addresses all the required criteria for the business case field.",
+   "expected": "sufficient",
+   "agrees": true,
+   "seconds": 3.6
+  },
+  {
+   "id": "20261012T132229#2",
+   "verdict": "sufficient",
+   "failed_criterion": null,
+   "reason": "The Belt's response addresses all the required acceptance criteria for the business case field.",
+   "expected": "sufficient",
+   "agrees": true,
+   "seconds": 1.2
+  }
+ ]
+}
