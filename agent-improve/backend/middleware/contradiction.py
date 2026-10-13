@@ -67,14 +67,13 @@ coach prompt at 6.6 (§32, §37, DECISIONS §R1). Until then this middleware run
 every turn, reads `None`, and does nothing — **by construction, not by
 accident.** Same shape as WATCH 7: silence here is the seam, not a bug.
 
-IT IS NOW INERT FOR A SECOND, DIFFERENT REASON — AND THAT ONE IS TEMPORARY
---------------------------------------------------------------------------
-**Since 2026-09-11 the `interrupt()` call is GUARDED** (founder ruling; see
-`after_agent`). 6.6 landed, so the flag IS set now — but nothing can resume an
-interrupt until step 7.3, and a fired interrupt parks the case permanently
-rather than pausing one turn. **Detection still runs every turn and the flag
-still reaches the response**; only enforcement is suspended. Step 7.3 restores
-one commented line.
+IT DETECTS; IT DOES NOT PAUSE
+-----------------------------
+**Detection runs every turn and the flag reaches the response.** The pause is
+not here: an `interrupt()` inside the agent parked the whole case (measured
+2026-09-11), and a resumed node reruns from its start. It is DEF-040 — a node
+that writes nothing — required before Measure goes live; its live proof is
+scenario (a) (founder rulings 2026-09-11 and 2026-10-13).
 """
 from __future__ import annotations
 
@@ -82,10 +81,6 @@ import logging
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
-from langgraph.types import interrupt  # noqa: F401 — used by the
-# line step 7.3 restores in `after_agent`. Kept imported so that
-# restoring it is one uncommented line and not a re-import a
-# reviewer has to notice is missing.
 
 from backend.core.substate import CONTRADICTION_FLAG_KEYS
 
@@ -93,7 +88,7 @@ logger = logging.getLogger(__name__)
 
 
 class ContradictionDetectionMiddleware(AgentMiddleware):
-    """Position 6, `after_agent`. Flag in, interrupt out.
+    """Position 6, `after_agent`. Flag in, logged; the pause is DEF-040.
 
     **G-24 leaves the constructor unstated**; this one takes nothing, because
     reading a flag off the response needs nothing.
@@ -106,64 +101,15 @@ class ContradictionDetectionMiddleware(AgentMiddleware):
         if not flag:
             return None
         logger.info(
-            "contradiction: %s was approved in %s as %r, Belt now says %r — "
-            "interrupting",
+            "contradiction: %s was approved in %s as %r, Belt now says %r",
             flag.get("prior_field"), flag.get("approved_phase"),
             flag.get("approved_value"), flag.get("proposed_value"),
         )
-        # ⛔ GUARDED UNTIL STEP 7.3. FOUNDER RULING, 2026-09-11.
-        #
-        # §33's ratified mechanism is `interrupt(self._payload(flag))`, and it
-        # is the only one of the three candidates that yields a RESUMABLE
-        # interrupt — see the module docstring and G-15. **The mechanism is
-        # right. What is missing is anything able to resume it**: §49's
-        # `/gate/approve` and `/gate/reject` are step 7.3, and until they exist
-        # nothing in the system can send `Command(resume=...)`.
-        #
-        # **MEASURED 2026-09-11, and the result is why this is guarded rather
-        # than accepted.** Replicating the real runtime shape — a bare
-        # `create_agent` invoked inside a node, under a parent carrying the
-        # checkpointer:
-        #
-        #   turn 1  the graph PAUSES cleanly. No crash, no 500. Returns
-        #           `{__interrupt__, messages}` with NO `structured_response`.
-        #   turn 2  the Belt sends another message. It is NOT processed and
-        #           NOT resumed: `__interrupt__` again, `out: None`, thread
-        #           still parked at `executor`.
-        #   ...     every later turn on that case returns nothing, forever.
-        #
-        # **The blast radius is the CASE, not the turn** — and the checkpoint
-        # is Azure Blob, so it survives restarts. Recovery means clearing the
-        # checkpoint by hand. The trigger is a Belt revising a figure they
-        # previously committed, which is the INTENDED trigger: normal
-        # coaching, not an edge case.
-        #
-        # Detection is unchanged and the flag still rides on the response, so
-        # §37's re-approval cascade (step 7.6) loses nothing by this. What is
-        # suspended is ENFORCEMENT — which is the state the project already
-        # believed it was in: §19.6's marker read "nothing consumes the flag"
-        # until 2026-09-11.
-        #
-        # ⬇ STEP 7.3 RESTORES THE LINE BELOW. Do not delete it, and do not
-        #    re-enable it before a route can resume. **THREE CHECKS PIN THIS
-        #    AND ALL THREE MUST MOVE IN THAT SAME COMMIT:**
-        #      test_ContradictionDetectionMiddleware_does_not_call_interrupt
-        #        — expects 0 live call sites here; becomes 1
-        #      test_position_6_is_GUARDED_and_does_not_park_the_case
-        #        — rewrite to assert RESUMPTION, not suspension
-        #      verify_built.py "interrupt() call sites (§33)"
-        #        — expects 0 across the backend; becomes 2, because 7.3
-        #          restores `gate_review`'s interrupt as well as this one.
-        #    Step 7.3's Done-when clause 1 is the gate condition; none of the
-        #    three may be silenced to land the step.
-        #
-        #     interrupt(self._payload(flag))
-        #
+        # The pause is DEF-040: a node that writes nothing, before Measure goes live (founder, 2026-10-13).
         logger.warning(
-            "%s: contradiction DETECTED and NOT interrupted — position 6 is "
-            "guarded until step 7.3 builds the resume path. The flag rides on "
-            "the response for §37 (step 7.6). Field %r, approved %r in %s, "
-            "Belt now says %r",
+            "%s: contradiction DETECTED — the pause is DEF-040, not built; the "
+            "flag rides on the response for §37 (step 7.6). Field %r, "
+            "approved %r in %s, Belt now says %r",
             self.name, flag.get("prior_field"), flag.get("approved_value"),
             flag.get("approved_phase"), flag.get("proposed_value"),
         )
@@ -171,7 +117,7 @@ class ContradictionDetectionMiddleware(AgentMiddleware):
 
     async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
         """Async twin — §1.4 makes the agent loop async, so this is the one
-        that fires. `interrupt()` is not a coroutine; it raises."""
+        that fires."""
         return self.after_agent(state, runtime)
 
     # ── reading the flag ─────────────────────────────────────────────────

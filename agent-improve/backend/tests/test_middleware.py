@@ -883,7 +883,8 @@ def test_contradiction_middleware_reads_a_flag_and_detects_nothing() -> None:
         ("threshold", "§37 — no tolerance threshold, and none may be added"),
     ):
         assert banned not in body, f"{banned}: {why}"
-    assert "interrupt(" in body, "it must actually raise the interrupt"
+    # Founder ruling 2026-10-13: it detects and never pauses here — the pause is DEF-040, a node.
+    assert "DEF-040" in body, "the middleware no longer points to where the pause lives"
     # The docstring may explain what was removed; the CODE may not do it.
     assert "store.get" not in body.replace(
         inspect.getdoc(ContradictionDetectionMiddleware) or "", "")
@@ -1220,9 +1221,9 @@ def test_position_6_is_GUARDED_and_does_not_park_the_case() -> None:
     Blob so it survives restarts, and the trigger — a Belt revising a figure
     they committed earlier — is the INTENDED one, i.e. ordinary coaching.
 
-    This test is the tripwire on the guard. It fails the day someone
-    un-guards position 6, which is correct: that should be step 7.3 doing it
-    deliberately, and 7.3 updates this test in the same commit.
+    This test is the tripwire: position 6 detects and never pauses. **Founder
+    ruling 2026-10-13:** the guarded `interrupt()` block was deleted; the pause
+    is DEF-040, a node that writes nothing, required before Measure goes live.
     """
     flag = {"prior_field": "baseline_mean", "approved_value": "4.2",
             "approved_phase": "measure", "proposed_value": "3.8",
@@ -1239,14 +1240,10 @@ def test_position_6_is_GUARDED_and_does_not_park_the_case() -> None:
     assert mw.after_agent({"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="hold on", contradiction_flag=flag)}, None) is None
 
-    # The restore line must survive as a comment, or 7.3 has nothing to
-    # uncomment and will rewrite it from the spec instead.
+    # The dead block is gone (founder, 2026-10-13); the module points to DEF-040 and imports no interrupt.
     source = inspect.getsource(contradiction_module)
-    assert "#     interrupt(self._payload(flag))" in source, (
-        "step 7.3's restore line is gone from contradiction.py — it must "
-        "stay as a comment so re-enabling is one line, not a rewrite"
-    )
-    assert "GUARDED UNTIL STEP 7.3" in source
+    assert "interrupt(self._payload(flag))" not in source and "import interrupt" not in source
+    assert "DEF-040" in source
 
 
 def _live_call_sites(module: Any, func: str) -> int:
@@ -1308,25 +1305,6 @@ def test_ContradictionDetectionMiddleware_does_not_call_interrupt() -> None:
         "checkpointed to Azure Blob so it survives a restart. If this is "
         "step 7.3, change the expectation to 1 here and to 2 in "
         "verify_built.py, and rewrite the tripwire above."
-    )
-
-
-def test_the_guarded_import_is_kept_for_7_3() -> None:
-    """`interrupt` stays imported while unused, and that is deliberate.
-
-    Nothing calls it (the test above pins that), so a tidying pass would drop
-    the import and 7.3's "one uncommented line" becomes a line plus an import
-    a reviewer has to notice is missing. The `noqa: F401` and its comment are
-    the record; this is what stops the tidy.
-    """
-    source = inspect.getsource(contradiction_module)
-    assert "from langgraph.types import interrupt" in source, (
-        "the `interrupt` import was removed from contradiction.py — step 7.3 "
-        "needs it in place so restoring the call is one line"
-    )
-    assert "noqa: F401" in source, (
-        "the import is unused by design; keep the noqa and its reason so a "
-        "linter sweep does not delete it"
     )
 
 

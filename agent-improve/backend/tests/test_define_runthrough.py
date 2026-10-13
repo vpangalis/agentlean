@@ -334,6 +334,14 @@ def test_run_the_judge_does_not_take_a_restating_move_for_parroting(run) -> None
     assert len(degraded) <= 2, degraded
 
 
+def test_run_scenario_a_a_contradiction_pauses_and_resumes() -> None:
+    """DEF-040's run criterion — scenario (a), founder rulings 2026-10-13: on the live run, a Belt who
+    contradicts a value an earlier gate approved meets a pause in a node that writes nothing, picks a
+    value, and the turn resumes: nothing stored twice, no model call charged twice, and the record says
+    which steps reran. An OPEN PROOF: DEF-040 is built before Measure goes live (M3 / Stage C)."""
+    _not_written('DEF-040')
+
+
 def test_run_an_answer_is_judged_at_most_once(run) -> None:
     """DEF-066's run criterion — R3 amendment, on the live run: at most one judgment call per
     substantive answer, and none for any other turn (a Confirm or Change click, the opening)."""
