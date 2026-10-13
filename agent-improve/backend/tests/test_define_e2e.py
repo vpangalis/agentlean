@@ -3992,32 +3992,42 @@ def test_every_turn_is_graded_on_all_four_blocks(env, monkeypatch) -> None:
 
 def test_the_belt_can_see_captured_and_missing_fields(env, monkeypatch, stub_planner) -> None:
     """DEF-020 — through the routes and graph: when the Belt asks where they stand (not an answer), the
-    coach is given what is confirmed and what is still missing — the missing list computed by the
-    gate's own layer 2b (`missing_gate_fields`) — to answer from."""
+    answer is written IN CODE from the state (G-172, founder ruling A3, 2026-10-13; rows 124425#16,
+    134606#15, 140839#16): the step, every element done, every element open, and the next one — no coach
+    call. A question that is not about the project's standing is still the coach's."""
+    from backend.core import guard_messages
     from backend.core.substate import SufficiencyJudgment
-    from backend.phases.gate_registry import missing_gate_fields
+    from backend.phases import moves
     from backend.tests.test_wiring import _FakeCoach
 
-    seen: list[str] = []
+    calls: list[int] = []
     generate = _FakeCoach._generate
 
     def spy(self, messages, *a, **k):
-        seen.append(" ".join(m.text if hasattr(m, "text") else str(m.content) for m in messages))
+        calls.append(1)
         return generate(self, messages, *a, **k)
     monkeypatch.setattr(_FakeCoach, "_generate", spy)
     _at_element(env, "secondary_metrics")
     _coach_saying(monkeypatch, "Here is what secondary metrics are.")
     _askd(env, message="Next, please.")
+    before = len(calls)
     stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks where the project stands")
     _coach_saying(monkeypatch, "So far you have confirmed ten elements; three remain.")
-    r = _askd(env, message="What is done and what is still missing?")
+    r = _askd(env, message="Where do we stand?")
     assert r["move"] == "respond", r["move"]
-    given = seen[-1]
-    structured = _define(env)["structured"]
-    missing = missing_gate_fields("define", structured)
-    assert missing and all(m in given for m in missing), (missing, given[given.find("STILL MISSING"):][:400])
-    assert "STILL MISSING" in given
-    assert all(f in given for f in ("business_case", "benefits_analysis")), "the confirmed elements are not given"
+    assert len(calls) == before, "the coach model wrote the status answer"
+    walk = [f for f, _ in moves.positions("define")]
+    at = walk.index("secondary_metrics")
+    name = lambda f: guard_messages.element_name("define", f)          # noqa: E731
+    answer = r["answer"]
+    done, rest = answer.split("Done (", 1)[1].split(chr(10), 1)
+    assert all(name(f) in done for f in walk[:at]), done
+    assert all(name(f) in rest.split("Next:")[0] for f in walk[at:]), rest
+    assert f"Next: {name('secondary_metrics')}." in answer and f"step {at + 1} of {len(walk)}" in answer, answer
+    # Not a status question: the coach answers it.
+    _coach_saying(monkeypatch, "A secondary metric is what else could change.")
+    r = _askd(env, message="What does a secondary metric mean?")
+    assert r["move"] == "respond" and len(calls) > before and r["answer"].startswith("A secondary metric"), r["answer"]
 
 
 def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_planner) -> None:

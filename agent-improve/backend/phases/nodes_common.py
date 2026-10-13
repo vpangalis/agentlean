@@ -1995,6 +1995,44 @@ def _change_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
                             prompt=CHANGE_QUESTION)
 
 
+#: G-172 (founder ruling A3, 2026-10-13; DEF-020) — a question about where the project stands.
+STATUS_QUESTION = re.compile(r"\b(where (do|are) we(\s+(stand|at|now))?|what('s| is| have we)?\s+(done|left|missing|"
+                             r"still open|next)|how far (have we|are we)|(our|my) progress|progress so far|"
+                             r"(project|our|my) status|status update)\b",
+                             re.I)
+
+
+def _status_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
+    """G-172: "where do we stand?" answered IN CODE from the state, as the progress view reads it
+    (`moves.element_rows`): the step, every element done, every element open (and parked), and the next
+    one, then that element's question. Only on a respond move (the Belt asked rather than answered) whose
+    message is a status question; `None` otherwise."""
+    if plan is None or plan.move != moves.RESPOND:
+        return None
+    belt = next((m.text for m in reversed(list(state.get("messages") or [])) if isinstance(m, HumanMessage)), "")
+    if not STATUS_QUESTION.search(belt):
+        return None
+    field_status = dict(plan.field_status or state.get("field_status") or {})
+    rows = moves.element_rows(phase, dict(state.get("artifacts") or {}), field_status,
+                              lambda f: guard_messages.element_name(phase, f))
+    if not rows:
+        return None
+    done = [r["name"] for r in rows if r["status"] == "confirmed"]
+    parked = [r["name"] for r in rows if r["status"] == "parked"]
+    current = next((r for r in rows if r["status"] == "current"), None)
+    still = [r["name"] for r in rows if r["status"] in ("current", "open")]
+    lines = [f"You are in {phase.capitalize()}"
+             + (f", step {current['n']} of {len(rows)}: {current['name']}." if current else ".")]
+    lines.append(f"Done ({len(done)} of {len(rows)}): " + (", ".join(done) + "." if done else "none yet."))
+    lines.append(f"Open ({len(still)}): " + (", ".join(still) + "." if still else "none — every element is confirmed."))
+    if parked:
+        lines.append(f"Parked ({len(parked)}): " + ", ".join(parked) + ".")
+    if current:
+        lines.append(f"Next: {current['name']}.")
+    ask = _script_ask(phase, current["field"]) if current else ""
+    return CoachingResponse(message=chr(10).join(lines) + (chr(10) * 2 + ask if ask else ""), prompt=ask)
+
+
 def _conversation(messages: list) -> list:
     """The conversation as the coach is shown it — step 6.61 (item 4, section
     6): each Belt message, and each coach turn as ONE message carrying its
@@ -2325,7 +2363,7 @@ async def executor(
     fell_back = engine_timeout
     # A Change click is answered in code and the coach is not called
     # (`_change_reply`); every other move is the model's to write.
-    written = written if written is not None else _change_reply(plan)
+    written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan))
     try:
         # No time limit here (T70): the node's limit is the engine's `TimeoutPolicy`, and its
         # handler composes the answer when it fires.
