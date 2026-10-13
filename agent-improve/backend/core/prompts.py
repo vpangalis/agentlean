@@ -1726,13 +1726,9 @@ METRIC_READING = {"%": "as a share of all cases, counted over the same period",
 #: C3 (DEF-083) — the mark every sample carries, written in code at the head of the `example` block.
 SAMPLE_MARK = ("Sample only — to show the form of a good answer. Do not copy it; answer for your own "
                "process.")
-#: C3 — which sample the coach shows: the script's worked example, or one built from the case.
+#: C3 (amended 2026-10-13) — the sample the coach shows: the script's worked example, never the case's values.
 SAMPLE_FROM_SCRIPT = ("SAMPLE: in `example`, show the phase script's worked example for this element. It "
                       "shows the form of a good answer; it is never the Belt's.")
-SAMPLE_FROM_CASE = ("SAMPLE: in `example`, write a short sample answer for this element built from this "
-                    "project's own confirmed facts in section 3 (its business case and problem statement) "
-                    "— the form of a good answer, made relevant to this case. Never present it as the "
-                    "Belt's answer and never capture it; it is marked as a sample in code.")
 #: G-160 (C3, DEF-083) — written in code when an answer reproduces the sample the Belt was shown: it is not
 #: read back for a Confirm (which could not store it); the Belt is told why and asked for their own.
 SAMPLE_COPIED = ("Not stored: your answer for {element} matches the sample I showed, which only shows the form "

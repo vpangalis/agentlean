@@ -158,10 +158,12 @@ def _artifacts(saver: InMemorySaver) -> dict:
 def test_wired_10_0_the_blocks_reach_the_response(grader_enforced, wired) -> None:
     """10.0 — the four blocks and the grader's warning, through the real graph."""
     body, _ = wired
-    for k in ("explanation", "example", "prompt"):
-        from backend.core.prompts import SAMPLE_MARK
-        # C3 (DEF-083): the sample block carries its mark, written in code.
-        assert body[k] == (f"{SAMPLE_MARK}\n{REPLY[k]}" if k == "example" else REPLY[k]), k
+    from backend.core.prompts import SAMPLE_MARK
+    from backend.middleware.skills import teaching_blocks
+    for k in ("explanation", "prompt"):
+        assert body[k] == REPLY[k], k
+    # C3 as amended (G-170): the sample is the script's worked example for the element, marked in code.
+    assert body["example"] == f"{SAMPLE_MARK}\n{teaching_blocks('define', 'business_case')['example']}", body["example"]
     assert body["progress"].startswith("Define · Step"), body["progress"]
     assert body["grader_warning"], "the grader FAILED this turn; its warning must reach the Belt"
 

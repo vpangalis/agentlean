@@ -87,19 +87,6 @@ from backend.phases.mappers_common import PHASE_ORDER
 logger = logging.getLogger(__name__)
 
 
-#: C3 (DEF-083): "once enough of the case is confirmed" — Define's samples come from the case's own
-#: context once its business case and problem statement are confirmed (they carry its process,
-#: place, size and cost); before that, from the script's worked example.
-SAMPLE_CONTEXT_FIELDS: dict[str, tuple[str, ...]] = {"define": ("business_case", "problem_statement")}
-
-
-def sample_from_case(phase: str, state: Any) -> bool:
-    """Is enough of the case confirmed to build a sample from its own context? (C3)"""
-    need = SAMPLE_CONTEXT_FIELDS.get(phase)
-    artifacts = dict((state or {}).get("artifacts") or {}) if isinstance(state, dict) else {}
-    return bool(need) and all(str(artifacts.get(f) or "").strip() for f in need or ())
-
-
 def _render_value(value: Any, limit: int = 300) -> str:
     """One captured value, flattened for the prompt.
 
@@ -442,10 +429,10 @@ class BeforeModelStateInjection(AgentMiddleware):
             from backend.core.prompts import CALCULATION_TEACH
             body = f"{body}\n\n{CALCULATION_TEACH}"
         if plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE, moves.CHALLENGE) and field:
-            # C3 (DEF-083): every request shows a sample — the script's worked example until the
-            # case has enough confirmed to build one from its own context; marked in code either way.
-            from backend.core.prompts import SAMPLE_FROM_CASE, SAMPLE_FROM_SCRIPT
-            body = f"{body}\n\n{SAMPLE_FROM_CASE if sample_from_case(self.phase, self._state) else SAMPLE_FROM_SCRIPT}"
+            # C3 (DEF-083, amended 2026-10-13): every request shows a sample — the script's worked example,
+            # inserted by code (G-170); never built from the case's values.
+            from backend.core.prompts import SAMPLE_FROM_SCRIPT
+            body = f"{body}\n\n{SAMPLE_FROM_SCRIPT}"
         if self._upload:
             # DEF-108 (W5) — ahead of the move, and named as the one exception to its "nothing
             # else": after it, a read-back obeyed the preamble and left the file out (live, 083638).
@@ -549,4 +536,4 @@ class BeforeModelStateInjection(AgentMiddleware):
         return parts
 
 
-__all__ = ["BeforeModelStateInjection", "sample_from_case", "SAMPLE_CONTEXT_FIELDS"]
+__all__ = ["BeforeModelStateInjection"]

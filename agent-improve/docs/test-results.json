@@ -1,9 +1,9 @@
 {
- "source_hash": "3a363bfb238691a0",
- "commit": "c0a90b9",
+ "source_hash": "06cffd1a23c8d17c",
+ "commit": "8a9bea3",
  "commit_matches_source": false,
- "full_run_hash": "c6f2d8d73d9e0700",
- "recorded_at": "2026-10-13T13:48:37+00:00",
+ "full_run_hash": "06cffd1a23c8d17c",
+ "recorded_at": "2026-10-13T15:13:42+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -465,7 +465,7 @@
   "backend/tests/test_define_e2e.py::test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_unit": "passed",
   "backend/tests/test_define_e2e.py::test_g157_a_turn_never_runs_past_its_deadline": "passed",
   "backend/tests/test_define_e2e.py::test_g163_a_read_back_that_cannot_store_never_offers_a_confirm": "passed",
-  "backend/tests/test_define_e2e.py::test_g171_the_message_never_repeats_the_example_or_the_question": "passed",
+  "backend/tests/test_define_e2e.py::test_g171_the_message_never_repeats_the_example_or_the_question": "skipped",
   "backend/tests/test_define_e2e.py::test_g173_a_number_the_coach_calculated_is_never_shown": "passed",
   "backend/tests/test_define_e2e.py::test_g174_a_value_with_a_placeholder_is_challenged_never_offered_for_confirm": "passed",
   "backend/tests/test_define_e2e.py::test_g175_after_a_store_the_reply_teaches_the_next_element": "passed",
@@ -1732,8 +1732,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "fa8c7aa21515c40d",
-  "recorded_at": "2026-10-13T13:26:20+00:00",
+  "source_hash": "3a363bfb238691a0",
+  "recorded_at": "2026-10-13T13:48:37+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2355,6 +2355,7 @@
    "backend/tests/test_define_e2e.py::test_g171_the_message_never_repeats_the_example_or_the_question": "passed",
    "backend/tests/test_define_e2e.py::test_g173_a_number_the_coach_calculated_is_never_shown": "passed",
    "backend/tests/test_define_e2e.py::test_g174_a_value_with_a_placeholder_is_challenged_never_offered_for_confirm": "passed",
+   "backend/tests/test_define_e2e.py::test_g175_after_a_store_the_reply_teaches_the_next_element": "passed",
    "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record": "passed",
    "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told": "skipped",
    "backend/tests/test_define_e2e.py::test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_coachs": "passed",

@@ -4145,38 +4145,46 @@ def test_the_belt_can_see_captured_and_missing_fields(env, monkeypatch, stub_pla
 
 
 def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_planner) -> None:
-    """DEF-083 — C3, through the routes and graph: every request's sample reaches the Belt marked
-    'Sample only — …'; before the business case and the problem statement are confirmed the coach is
-    told to show the script's worked example, after them a sample built from the case; and a Belt
-    answer that copies the sample is never stored as theirs."""
-    from backend.core.prompts import SAMPLE_FROM_CASE, SAMPLE_FROM_SCRIPT, SAMPLE_MARK
+    """DEF-083 — C3 as amended 2026-10-13 (G-170, founder ruling A1), through the routes and graph: every
+    request's sample reaches the Belt marked 'Sample only — …' and is the phase script's worked example,
+    inserted by code — never the coach's, so never the Belt's messages or the case's values (rows 134606#14,
+    #17, #20; 132229#27, 134606#26, 140839#26); and a Belt answer that copies the sample is never stored as
+    theirs."""
+    from backend.core.prompts import SAMPLE_FROM_SCRIPT, SAMPLE_MARK
     from backend.core.substate import SufficiencyJudgment
     from backend.middleware import state_injection
+    from backend.middleware.skills import teaching_blocks
     from backend.phases import moves
 
     composed: list[str] = []
     compose = state_injection.BeforeModelStateInjection._compose_move
     monkeypatch.setattr(state_injection.BeforeModelStateInjection, "_compose_move", _recording(compose, composed))
-    # Early: the team is taught before the problem statement exists — the script's example.
+    # Early: the team — the script's example, whatever the coach wrote.
     _at_element(env, "team")
-    _coach_with(monkeypatch, "Next: the team.", example="Leader: Anna. Sponsor: Marco.")
+    _coach_with(monkeypatch, "Next: the team.", example="Leader: Priya Shah. Sponsor: Tomasz Wolny.")
     early = _askd(env, message="Next, please.")
-    assert SAMPLE_FROM_SCRIPT in composed[-1] and SAMPLE_FROM_CASE not in composed[-1]
-    assert early["example"].startswith(SAMPLE_MARK), early["example"][:80]
-    # Later: built from the case.
+    assert SAMPLE_FROM_SCRIPT in composed[-1]
+    assert early["example"].startswith(SAMPLE_MARK) and "Priya" not in early["example"], early["example"][:200]
+    assert teaching_blocks("define", "team")["example"] in early["example"], early["example"][:200]
+    # Later, with the whole case confirmed before it: the coach writes a sample from the Belt's own figures;
+    # the Belt is shown the script's worked example, holding none of the Belt's or the case's values.
     env.holder["saver"]._container.blobs.clear()
     env.restart()
     _at_element(env, "secondary_metrics")
-    sample = "For your invoices: supplier queries per week, and AP overtime hours each month."
-    _coach_with(monkeypatch, "Next: the secondary metrics.", example=sample)
+    own = "For your invoices: the late payment rate (23%), supplier queries per week, and AP overtime hours."
+    _coach_with(monkeypatch, "Next: the secondary metrics.", example=own)
     later = _askd(env, message="Next, please.")
-    assert SAMPLE_FROM_CASE in composed[-1], composed[-1][-600:]
-    assert later["example"] == f"{SAMPLE_MARK}\n{sample}", later["example"]
+    assert SAMPLE_FROM_SCRIPT in composed[-1], composed[-1][-600:]
+    script = teaching_blocks("define", "secondary_metrics")["example"]
+    assert later["example"] == f"{SAMPLE_MARK}\n{script}", later["example"]
+    case_words = " ".join(str(v) for v in _define(env)["structured"].values())
+    assert "23%" not in later["example"] and "AP overtime" not in later["example"], later["example"]
+    assert not [w for w in ("late payment", "42,000", "£62,000") if w in later["example"] and w in case_words + own]
+    sample = script.split(":", 1)[1].strip().strip('"')
     # The Belt copies the sample: it is never stored, and (G-160) never read back for a Confirm that could
     # not store it — the Belt is told why, in code, and asked for their own answer; the element stays asked.
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names side effects")
-    copied = "supplier queries per week, and AP overtime hours each month"
-    _coach_with(monkeypatch, f'Your secondary metrics: "{copied}". Is this right?',
+    _coach_with(monkeypatch, f'Your secondary metrics: "{sample}". Is this right?',
                 captured=[{"field_name": "secondary_metrics", "value": sample, "source": "belt"}])
     told = _askd(env, message=sample)
     assert told["move"] == moves.CHALLENGE, "a read-back with a Confirm was offered for the copied sample"

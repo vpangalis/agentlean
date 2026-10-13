@@ -62,10 +62,10 @@ BLOCKS = ("explanation", "example", "prompt", "progress")
 
 
 def _sent(k: str) -> str:
-    """A block as the Belt receives it: the sample carries the C3 mark (DEF-083)."""
-    from backend.core.prompts import SAMPLE_MARK
-    v = getattr(REPLY, k)
-    return f"{SAMPLE_MARK}\n{v}" if k == "example" and v else v
+    """A block as the Belt receives it. The example is never the coach's (G-170, C3 amended 2026-10-13):
+    it is the script's worked example for the element asked for, and these turns run with no plan — no
+    element — so none is shown."""
+    return "" if k == "example" else str(getattr(REPLY, k))
 
 
 def _failing() -> CoachingGraderVerdict:
@@ -218,7 +218,7 @@ def test_the_reloaded_history_keeps_the_blocks(monkeypatch, stub_planner, grader
     assert body["_saved_history"] == [], "/ask wrote the case blob"
     ai = conversation.message_to_turn([m for m in messages if isinstance(m, AIMessage)][-1], 0)
     for k in BLOCKS:
-        assert ai.get(k) == _sent(k), k
+        assert (ai.get(k) or "") == _sent(k), k
     assert ai.get("grader_warning") == GRADER_WARNING
 
 

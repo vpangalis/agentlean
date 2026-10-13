@@ -1389,13 +1389,15 @@ def _with_progress(messages: list, reply: CoachingResponse, label: str) -> list:
     tool-call pairing the next model call depends on is unchanged. Plain
     string content, which §21 allows for a message this code constructs.
     """
-    before = f"{_STRUCTURED_PREFIX}{reply}"
     reply.progress = label
     after = f"{_STRUCTURED_PREFIX}{reply}"
+    # The last structured-response message, found by its prefix: code may have changed a block since the
+    # model wrote it (G-170's sample, G-175's next element), and the re-render carries those changes too.
+    last = max((i for i, m in enumerate(messages)
+                if isinstance(m, ToolMessage) and str(m.content).startswith(_STRUCTURED_PREFIX)), default=None)
     return [
-        ToolMessage(content=after, tool_call_id=m.tool_call_id, name=m.name, id=m.id)
-        if isinstance(m, ToolMessage) and m.content == before else m
-        for m in messages
+        ToolMessage(content=after, tool_call_id=m.tool_call_id, name=m.name, id=m.id) if i == last else m
+        for i, m in enumerate(messages)
     ]
 
 
@@ -1590,11 +1592,26 @@ def _with_teaching_blocks(phase: str, plan: Optional[CoachingPlan], reply: Coach
     return reply.model_copy(update=filled)
 
 
+#: G-170 (founder ruling A1, C3 amended 2026-10-13) — the moves that ask for new information: their
+#: example block is the element's worked example from the script. A read-back asks for none.
+SAMPLE_MOVES = (moves.TEACH, moves.CHALLENGE, moves.STORE_AND_ADVANCE, moves.RESPOND)
+
+
+def _with_script_sample(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse) -> CoachingResponse:
+    """G-170: the example block is the phase script's worked example for the element being asked for,
+    inserted by code — never the coach's, so never the Belt's or the case's values (C3 as amended). A
+    move that asks for nothing new (a read-back) shows none. Returns a COPY, or `reply`."""
+    example = ""
+    if plan is not None and plan.move in SAMPLE_MOVES and plan.focus_field:
+        from backend.middleware.skills import teaching_blocks
+        example = teaching_blocks(phase, plan.focus_field).get("example", "")
+    return reply if str(reply.example or "") == example else reply.model_copy(update={"example": example})
+
+
 def _teach_next(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse) -> CoachingResponse:
     """G-175 (founder ruling A6, 2026-10-13; row 132229#33): after a store, the reply teaches the NEXT
-    element — its explanation and its question come from that element's script; an example that is
-    missing or repeats the stored element's sample becomes the next element's script sample; and the
-    message's own questions go, so the one ask is the next element's. Returns a COPY, or `reply`."""
+    element — its explanation and its question come from that element's script (its sample is G-170's);
+    and the message's own questions go, so the one ask is the next element's. Returns a COPY, or `reply`."""
     if plan is None or plan.move != moves.STORE_AND_ADVANCE or not plan.focus_field:
         return reply
     from backend.middleware.skills import teaching_blocks
@@ -1602,11 +1619,6 @@ def _teach_next(phase: str, plan: Optional[CoachingPlan], reply: CoachingRespons
     if not nxt:
         return reply
     update: dict[str, Any] = {k: nxt[k] for k in ("explanation", "prompt") if nxt.get(k)}
-    stored = teaching_blocks(phase, plan.stored_field) if plan.stored_field else {}
-    example = str(reply.example or "")
-    if nxt.get("example") and (not example.strip() or (stored.get("example")
-                                                      and _repeats(example, _block_words(stored["example"])))):
-        update["example"] = nxt["example"]
     lines = [" ".join(s for s in _SENTENCE_END.split(line) if not s.rstrip().endswith("?"))
              for line in str(reply.message or "").split(chr(10))]
     message = chr(10).join(lines).strip()
@@ -2619,6 +2631,9 @@ async def executor(
             if taught.message != reply.message:
                 new_messages = _with_text(new_messages, str(taught.message))
             reply = taught
+        if not (filtered or level_4):
+            # G-170 (founder ruling A1) — the example is the script's worked example, inserted by code.
+            reply = _with_script_sample(phase, plan, reply)
 
     # R4 — `consumed_at` is written HERE, not inside the tool. A `@tool`
     # receives only its arguments and cannot reach `PhaseState`; the node
