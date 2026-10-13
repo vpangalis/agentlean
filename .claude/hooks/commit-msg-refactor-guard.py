@@ -33,6 +33,10 @@ it. Numbers are never reused, so every older reference still points at the right
   21. ADR IMMUTABILITY — an ACCEPTED ADR changes only by its status line becoming
      `SUPERSEDED by NNNN`; a link-target-only change is allowed on any record; none
      is deleted. Rules 17-21 run ahead of the prefix gate, on every commit.
+  23. VERIFIED — a commit that changes a mechanism file (backend/middleware/, core/llm.py,
+     core/graph.py, a phase graph, subgraph_common.py, gateway/routes.py) carries
+     `Verified: <docs.langchain.com or reference.langchain.com URL> … installed/pin`, or
+     `Verified: n/a — <reason>` when no framework mechanism changes (founder, 2026-10-13).
   22. DEPRECATED PATTERNS — `.claude/config/deprecated_patterns.yaml`, the editor hook's
      registry with its exclusions, applied to the lines a commit ADDS in every staged code
      file, so an edit made through the shell or a script meets it too (G-165, 2026-10-12).
@@ -1757,6 +1761,44 @@ def check_deprecated_patterns(root: str, staged: list[str]) -> None:
     note(f"rule 22 deprecated patterns: PASS — {len(staged)} staged path(s) checked on their added lines")
 
 
+#: Rule 23 (founder ruling 2026-10-13): the files where a framework mechanism lives.
+MECHANISM_FILES = ("agent-improve/backend/middleware/*.py", "agent-improve/backend/core/llm.py",
+                   "agent-improve/backend/core/graph.py", "agent-improve/backend/phases/*/graph.py",
+                   "agent-improve/backend/phases/subgraph_common.py", "agent-improve/backend/gateway/routes.py")
+VERIFIED_HOSTS = ("https://docs.langchain.com/", "https://reference.langchain.com/")
+VERIFIED_NA_MIN = 20
+
+
+def verified_problem(message: str, staged: list[str]) -> str | None:
+    """Rule 23: None when the commit touches no mechanism file or its `Verified:` trailer is well formed;
+    otherwise what is wrong. Well formed: a docs URL and the installed version (or its pin) named, or
+    `n/a — <reason>` of at least VERIFIED_NA_MIN characters."""
+    touched = [p for p in staged if any(fnmatch.fnmatch(p, g) for g in MECHANISM_FILES)]
+    if not touched:
+        return None
+    lines = [ln.split(":", 1)[1].strip() for ln in message.splitlines() if ln.startswith("Verified:")]
+    if not lines:
+        return "no `Verified:` trailer, and the commit changes " + ", ".join(touched)
+    v = lines[-1]
+    if v.lower().startswith("n/a"):
+        reason = v[3:].lstrip(" —-:").strip()
+        return None if len(reason) >= VERIFIED_NA_MIN else f"`Verified: n/a` needs its reason ({VERIFIED_NA_MIN}+ chars)"
+    if any(h in v for h in VERIFIED_HOSTS) and re.search(r"\b(installed|pin)", v):
+        return None
+    return "`Verified:` names no docs.langchain.com / reference.langchain.com URL with the installed version"
+
+
+def check_verified(message: str, staged: list[str]) -> None:
+    """Rule 23 — founder ruling 2026-10-13 (rules hygiene): a mechanism change is checked against the
+    framework's current documentation and the installed version, and the commit says so."""
+    problem = verified_problem(message, staged)
+    if problem:
+        fail("a mechanism file changed without a well-formed `Verified:` trailer (rule 23)", problem, "",
+             "  Verified: https://docs.langchain.com/... checked <date> against the installed <package> (pin in requirements.txt)",
+             "  Verified: n/a — <why no framework mechanism changes>")
+    note("rule 23 verified: PASS")
+
+
 def check_normative(root: str, staged: list[str]) -> None:
     """Rule 14 — no MUST / NEVER / ALWAYS sentence weakens (founder ruling
     2026-09-26 on the 6.67 report). When CLAUDE.md, a rule file or a skill is
@@ -1854,6 +1896,10 @@ def main(argv: list[str]) -> int:
     # Rule 13 — the docs checks (links, citations), on every commit (6.67).
     with _timer("rule 13 docs"):
         check_docs(root, all_staged)
+
+    # Rule 23 — a mechanism change says what framework docs and version it was checked against.
+    with _timer("rule 23 verified"):
+        check_verified(message, all_staged)
 
     # Rule 22 — the deprecated patterns on what this commit adds, Bash and script edits included (G-165).
     with _timer("rule 22 deprecated patterns"):

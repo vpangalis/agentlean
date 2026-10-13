@@ -659,3 +659,24 @@ def test_rule_22_applies_the_deprecated_patterns_to_the_lines_a_commit_adds() ->
     # Wired into the guard on every commit, ahead of the tests.
     src = _HOOK.read_text(encoding="utf-8")
     assert "check_deprecated_patterns(root, all_staged)" in src
+
+
+def test_rule_23_a_mechanism_change_says_what_it_was_verified_against() -> None:
+    """Founder ruling 2026-10-13 (rules hygiene): a commit that changes a mechanism file carries a
+    `Verified:` trailer naming a docs.langchain.com / reference.langchain.com URL and the installed
+    version, or `Verified: n/a — <reason>`; a commit that touches no mechanism file needs none."""
+    guard = _guard()
+    mech = ["agent-improve/backend/middleware/coherence.py"]
+    good = ("fix: x" + NEWLINE + NEWLINE + "Verified: https://docs.langchain.com/oss/python/langgraph/fault-tolerance "
+            "checked 2026-10-13 against the installed langgraph (pin in requirements.txt)")
+    assert guard.verified_problem(good, mech) is None
+    assert guard.verified_problem("fix: x" + NEWLINE + NEWLINE + "Verified: n/a — only the prompt's wording changes",
+                                  mech) is None
+    assert "no `Verified:`" in guard.verified_problem("fix: x", mech)
+    assert "reason" in guard.verified_problem("fix: x" + NEWLINE + NEWLINE + "Verified: n/a", mech)
+    assert guard.verified_problem("fix: x" + NEWLINE + NEWLINE + "Verified: I checked it", mech)
+    assert guard.verified_problem("docs: y", ["agent-improve/docs/x.md"]) is None
+    for path in ("agent-improve/backend/core/llm.py", "agent-improve/backend/gateway/routes.py",
+                 "agent-improve/backend/phases/define/graph.py"):
+        assert guard.verified_problem("fix: x", [path]), path
+    assert "check_verified(message, all_staged)" in _HOOK.read_text(encoding="utf-8")

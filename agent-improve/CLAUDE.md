@@ -61,6 +61,10 @@ Before hand-rolling retry, tracing, state persistence, checkpointing or the agen
 LangChain / LangGraph / LangSmith does not provide it (`ModelRetryMiddleware`, LangSmith +
 `@traceable`, the checkpointer and store, `create_agent`); verify against the **installed**
 version with `/verify-current-version`. Reinventing a framework primitive is a violation.
+Three hard bans, everywhere, scripts included: no retry loop around a model call
+(`ModelRetryMiddleware` in an agent; `Runnable.with_retry` or the client's `max_retries`
+outside one); no hand-written agent loop (`create_agent`); no model built outside `get_llm`.
+Guard rule 22 applies `deprecated_patterns.yaml` to every added line.
 
 ### 0.32 — The tree at HEAD is the only source of truth
 A claim about a file is made against that file at its repo path, read now — never a copy.

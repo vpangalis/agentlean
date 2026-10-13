@@ -81,7 +81,9 @@ request.override(system_message=SystemMessage(
 **The choice is determined by what is being called:**
 - **An agent built with `create_agent`** → `response_format=Schema`. The phase
   executor is the only one, and its schema is **`CoachingResponse`, never a
-  phase Output schema** (§10.7). Prefer `ProviderStrategy` over `ToolStrategy`.
+  phase Output schema** (§10.7). On the Azure deployment it goes through
+  `ToolStrategy`: strict `ProviderStrategy` was probed and refused (G-153);
+  one tool call per response (ADR-0073).
 - **A plain model call inside a tool, middleware or validator** (planner,
   validation layers, policy advisory, `DMAICGraderMiddleware`, `rag_lookup_*`
   query variants) → `with_structured_output`.

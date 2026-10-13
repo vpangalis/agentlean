@@ -23,8 +23,9 @@ first declared outermost. Re-derive from the installed
 
 - **`BeforeModelStateInjection` MUST be first, on `before_agent`** (once per
   turn), never `before_model`.
-- **If `CoherenceMiddleware` exhausts its retries, `DMAICGraderMiddleware` is
-  skipped** — this works only because coherence sits **inside** the grader.
+- **When `CoherenceMiddleware` rejects a reply, `DMAICGraderMiddleware` is
+  skipped** (S-C13 B3; DEF-015 option A, paused) — this works only because
+  coherence sits **inside** the grader.
 - **`ModelCallLimitMiddleware` (ADR-0059, T69) sits just outside `ModelRetryMiddleware`**, so a
   retried call counts once; **one `PIIMiddleware` (ADR-0062, T87)** acts on tool results only.
 - **Position 1's `wrap_model_call` encloses `ModelRetryMiddleware`** — a retry
@@ -35,8 +36,9 @@ first declared outermost. Re-derive from the installed
   `wrap_tool_call`, plus `a`-prefixed async twins. `dynamic_prompt()`,
   `hook_config()`, `configure_trace_policy()` are module-level names, not
   hooks (ARCHITECTURE.md §3.3).
-- **Three independent retry caps, never merged:** `ModelRetryMiddleware` 2,
-  `CoherenceMiddleware` 2, the validation stack's shared gate cap 3 (§9.2).
+- **Three independent caps, never merged:** `ModelRetryMiddleware` 2,
+  `CoherenceMiddleware` one re-ask in `enforce` mode and none while `log_only`
+  (ADR-0079, G-161), the validation stack's shared gate cap 3 (§9.2).
 - **Prefer built-in middleware**; custom only for domain-specific logic.
 
 ### 8.2 — `DMAICGraderMiddleware` — coaching-quality grading
@@ -70,8 +72,9 @@ the sequence for each tool in its `allowed-tools` (§8.3; §43.1).
 per field, carried in each SKILL.md.
 
 **Mechanism, both graders:** `grader` role, temperature 0.1 (§4.7);
-`max_iterations=3`, then pass through **with a warning flag visible to the
-Belt**; verdict per criterion (`GraderVerdict` → `list[CriterionVerdict]`,
+**one grade per reply** (step 6.52 B2), its one call counted inside T69's four;
+on FAIL the reply passes through **with a warning flag visible to the Belt**; a
+grade whose request times out is recorded "not checked (time)" (ADR-0080); verdict per criterion (`GraderVerdict` → `list[CriterionVerdict]`,
 §9.7); feedback **per criterion and specific**, never "try again"; Layer 2d is
 **belt-level aware** (§9.7).
 
@@ -158,10 +161,13 @@ failure result the coach can work around instead of killing the graph.
 
 ```python
 def after_agent(self, state, runtime):
-    flag = state["structured_response"].contradiction_flag
+    flag = self._flag(state)           # CoachingResponse.contradiction_flag
     if flag:
-        raise HITLInterrupt(**flag)
+        interrupt(self._payload(flag))  # GUARDED: commented out since 2026-09-11
 ```
+
+**`interrupt()`, never `HITLInterrupt`** (no such class). Guarded: a resumed
+node reruns from its start; DEF-040 moves the stop into its own node.
 
 **No store read, no LLM call, no field-name matching, no tolerance
 threshold** (§9.4, §10.7). **Never reintroduce the mechanical dict
@@ -173,8 +179,9 @@ comparison** (`docs/_archive/DECISIONS.md` §R1).
 one `coherence` call, temperature 0.1. **Fires every coaching turn**, which
 is why it is middleware, not the `validation_stack` node.
 
-**On failure: silent retry, max 2** (§9.3); on the third the turn degrades
-and `DMAICGraderMiddleware` is skipped.
+**One check per reply.** A rejection degrades the turn and skips the grader;
+in `enforce` mode it asks the coach once more (ADR-0079). **`log_only` until
+false rejects are under 20% (G-161)**: verdicts recorded, no re-ask.
 
 **Coherence is NOT a `COACHING_QUALITY_RUBRIC` criterion** — any rubric entry
 for it is stale.
@@ -196,8 +203,8 @@ for it is stale.
   (§0.24, §4.4, §8.1)
 - Never set `BeforeModelStateInjection` to the `before_model` hook — it is
   `before_agent`, once per turn, not once per model call (§8.1, §8.5)
-- Never merge the three retry caps — `ModelRetryMiddleware` (2),
-  `CoherenceMiddleware` (2) and the validation stack's shared gate cap (3)
-  count different failure modes (§8.1, §9.2)
+- Never merge the three caps — `ModelRetryMiddleware` (2),
+  `CoherenceMiddleware` (one re-ask, `enforce` mode only) and the validation
+  stack's shared gate cap (3) count different failure modes (§8.1, §9.2)
 - Never treat Layer 2a as part of the `validation_stack` node — it fires
   every turn and lives in `CoherenceMiddleware` (§8.9, §9.2)
