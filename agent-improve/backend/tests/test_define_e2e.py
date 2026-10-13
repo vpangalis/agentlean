@@ -982,9 +982,18 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([slow]))
                         if role == "coach" else real(role, **kw))
     before = env.client.get(f"/cases/{CASE_ID}").json()
+    # G-166 (founder ruling 2026-10-13): the deadline covers the whole request from its arrival — a slow
+    # case load counts against it, so the request ends within the limit as the Belt experiences it.
+    load = routes.blob.load_case
+
+    async def slow_load(*a, **k):
+        await asyncio.sleep(1.2)
+        return await load(*a, **k)
+    monkeypatch.setattr(routes.blob, "load_case", slow_load)
     t0 = _time.time()
     r = _askd(env, message="Next, please.")
-    assert _time.time() - t0 < 3.5, "the deadline did not end the turn"
+    assert _time.time() - t0 < 2.6, f"the request took {_time.time() - t0:.1f} s against a 2 s limit"
+    monkeypatch.setattr(routes.blob, "load_case", load)
     assert r["answer"] == routes.TURN_DEADLINE_REPLY and r["move"] is None, r
     after = env.client.get(f"/cases/{CASE_ID}").json()
     # The checkpoint is what an abandoned turn leaves (§47): the Belt's message, no reply, nothing stored

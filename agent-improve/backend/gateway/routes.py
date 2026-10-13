@@ -596,7 +596,8 @@ def _requested_phase(case: CaseDocument, requested: str) -> str:
     return requested
 
 
-def _graph_config(case: CaseDocument, phase: str, user: str, entry: str) -> dict:
+def _graph_config(case: CaseDocument, phase: str, user: str, entry: str,
+                  started: float | None = None) -> dict:
     """The per-run config: `thread_id`, and the framing the v1 seam needs.
 
     **`thread_id` IS `case_id`** (§16) — never per phase, never concatenated.
@@ -626,8 +627,10 @@ def _graph_config(case: CaseDocument, phase: str, user: str, entry: str) -> dict
             "thread_id": case.case_id,
             "entry": entry,
             "current_user": user,
-            # DEF-014 (founder 2026-10-12): when the turn started — a re-ask must fit inside R13's 45 s.
-            "turn_started": time.time(),
+            # DEF-014 / ADR-0080: when the turn started — G-166 (founder ruling 2026-10-13): for a coaching
+            # turn, the request's ARRIVAL (`started`), so the deadline covers the whole request as the Belt
+            # experiences it, the case load and the unfinished-work read included.
+            "turn_started": started if started is not None else time.time(),
             "case_metadata": {
                 "title": case.title,
                 "belt_level": case.belt_level,
@@ -752,6 +755,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     the Belt never saw is unacceptable in a system whose premise is that the
     Belt approves what gets committed.
     """
+    arrived = time.time()                   # G-166: the turn's clock starts when the request arrives
     _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
@@ -789,7 +793,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
 
     phase = _requested_phase(case, request.phase)
     graph = get_graph()
-    config = _graph_config(case, phase, request.user, entry="ask")
+    config = _graph_config(case, phase, request.user, entry="ask", started=arrived)
     # Step 6.61 (R4) — a Confirm / Change click rides beside the entry mode.
     config["configurable"]["belt_action"] = request.action
     config["configurable"]["belt_element"] = request.element      # W9 (DEF-079)

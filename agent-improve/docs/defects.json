@@ -1733,6 +1733,19 @@
     "tooling"
    ],
    "control": "Proposed: the commit guard applies .claude/config/deprecated_patterns.yaml to every staged file, so a Bash or script edit is checked like an editor write."
+  },
+  {
+   "id": "G-166",
+   "symptom": "THE TURN DEADLINE'S CLOCK STARTED AFTER THE REQUEST ARRIVED. Run 174715: the first Measure turn took 42.5 s as the run measures it (the client's request to response), while the deadline stops a turn at 42 s (45 s less the 3 s closing reserve) — the deadline counted from `turn_started`, stamped in `_graph_config` after the case load from Blob, the case-record check, the unfinished-work read from the checkpoint and the rate check (routes.py, /ask). Founder ruling 2026-10-13: the deadline covers the whole request as the Belt experiences it, from arrival to response sent.",
+   "requirement": [
+    "R12"
+   ],
+   "feature": [
+    "DEF-093"
+   ],
+   "lane": [
+    "integrator"
+   ]
   }
  ]
 }

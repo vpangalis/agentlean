@@ -3844,7 +3844,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-157"
+     "G-157",
+     "G-166"
     ]
    },
    "requirement": "R12",
