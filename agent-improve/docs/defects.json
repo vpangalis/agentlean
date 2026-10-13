@@ -1785,6 +1785,84 @@
    "lane": [
     "C"
    ]
+  },
+  {
+   "id": "G-170",
+   "symptom": "THE EXAMPLE BLOCK SHOWS THE BELT'S OWN DATA, SO THE SAMPLE GIVES THE ANSWER. Rows 134606#14, #17, #20; benefits 132229#27, 134606#26, 140839#26 (founder labels 2026-10-13, ruling A1): the project scope sample is the Belt's own process, the goal sample the Belt's exact goal (23% → under 5% by 31 March 2027), the benefits sample the Belt's figures, a cost computed from them and a named person. D4 OCCURRENCE: built as requirement C3 says — once the business case and problem statement are confirmed, state_injection.sample_from_case switches the coach's instruction to prompts.SAMPLE_FROM_CASE ('a sample answer … built from this project's own confirmed facts'); and _with_teaching_blocks keeps any example the coach wrote (G-138 fills only an empty block). D4 ESCAPE: no test compares the example with the Belt's values; the grader passed 132229#27. The ruled fix (the script's fixed sample, inserted by code) conflicts with C3's 'built from the case's own context': held for the founder's word on amending C3.",
+   "requirement": [
+    "C3"
+   ],
+   "feature": [
+    "DEF-083"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-171",
+   "symptom": "THE REPLY SHOWS ITS EXAMPLE AND ITS QUESTION TWICE. Rows 132229#12, 140839#11, 134606#9, 124425#28, 124425#30 (founder labels 2026-10-13, ruling A2): the 5W2H table in the message and again in the example block, the question three times. D4 OCCURRENCE: the coach writes its explanation, illustration and question into `message` as well as into the blocks, and _attach_blocks appends the blocks under the message, so the screen shows both. D4 ESCAPE: test_the_four_blocks_reach_the_screen checks the blocks arrive, never that the message does not repeat them; the labels found it as a format fault on otherwise good replies.",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-005"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-172",
+   "symptom": "'WHERE DO WE STAND?' IS ANSWERED WITH THE STEP ONLY, NO DONE AND OPEN ELEMENTS. Rows 124425#16, 134606#15, 140839#16 (founder labels 2026-10-13, ruling A3) (132229#17 was good only because that coach happened to list them). D4 OCCURRENCE: a status question is a respond move written by the coach model from the injected state, which carries the step label and the confirmed values but no done and open lists; nothing composes the answer in code (DEF-020 names check_gate_status, which is planned). D4 ESCAPE: DEF-020's test checks the captured and missing fields the API returns, not the reply to a status question.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-020"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-173",
+   "symptom": "THE COACH CALCULATES NUMBERS ITSELF. Rows 132229#27, 134606#26, 140839#26 (founder labels 2026-10-13, ruling A4): '£68k a year (23% − 5% × 42,000 × £9)', £68,040, £17,010 — written by the coach, not computed in code. D4 OCCURRENCE: nothing checks a number in the coach's words against a source; ADR-0077 runs calculations in code, but the coach may still write arithmetic into its prose and its sample (SAMPLE_FROM_CASE invites the case's figures). D4 ESCAPE: the calculation tests (DEF-016, DEF-017) check the computation path, not the coach's text.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-017"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-174",
+   "symptom": "AN INCOMPLETE VALUE IS READ BACK FOR CONFIRM. Row 132229#10 (founder labels 2026-10-13, ruling A5): the CTQ 'Invoice status visible within [specific time frame] after submission (needs measurable requirement)' was offered for Confirm. D4 OCCURRENCE: the planner's judgment called the Voice of the Customer sufficient; the coach's structured read-back carried a placeholder and its own 'needs measurable requirement' note; moves.store_missing checks that every part is present, not what a part says. D4 ESCAPE: G-163's checks cover a missing part and a copied sample, never a placeholder inside a part.",
+   "requirement": [
+    "R3"
+   ],
+   "feature": [
+    "DEF-007"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-175",
+   "symptom": "AFTER A STORE THE COACH ASKS TO CONFIRM THE STORED ELEMENT AGAIN. Row 132229#33 (corrections sheet) (founder labels 2026-10-13, ruling A6): after 'Confirm' stored the SIPOC, the reply's blocks taught the SIPOC again and asked 'Does it accurately reflect what you intended?' instead of teaching issues and barriers (the G-158 pattern). D4 OCCURRENCE: on store_and_advance the coach writes the blocks, and _with_teaching_blocks keeps a block the coach wrote even when it is about the stored element rather than the next one. D4 ESCAPE: the run tests check that the value is stored and the step advances, not that the reply teaches the next element.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-008"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

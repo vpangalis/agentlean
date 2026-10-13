@@ -243,7 +243,8 @@
      "27"
     ],
     "gaps": [
-     "G-138"
+     "G-138",
+     "G-171"
     ]
    },
    "requirement": "R2",
@@ -334,7 +335,9 @@
      "6.61"
     ],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-174"
+    ]
    },
    "requirement": "R3",
    "belt_impact": "dead_end",
@@ -378,7 +381,8 @@
      "G-122",
      "G-137",
      "G-140",
-     "G-163"
+     "G-163",
+     "G-175"
     ],
     "notes_6_66": [
      "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
@@ -802,7 +806,8 @@
     ],
     "gaps": [
      "G-05",
-     "G-35"
+     "G-35",
+     "G-173"
     ]
    },
    "requirement": "R4",
@@ -940,7 +945,8 @@
     "gaps": [
      "G-31",
      "G-108",
-     "G-23"
+     "G-23",
+     "G-172"
     ]
    },
    "requirement": "R1",
@@ -3567,7 +3573,8 @@
     "capability_rows": [],
     "gaps": [
      "G-159",
-     "G-160"
+     "G-160",
+     "G-170"
     ]
    },
    "requirement": "C3",
