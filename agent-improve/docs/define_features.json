@@ -6052,7 +6052,7 @@
     "gaps": []
    },
    "requirement": "T95",
-   "belt_impact": "wrong_data",
+   "belt_impact": "none",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,

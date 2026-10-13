@@ -7,8 +7,8 @@
 
 | | |
 |---|---|
-| **Headline** | 111 of 163 Define features pass (core 103 of 154) — A 55/69 · B 30/35 · C 17/36 · integrator 9/23 · M1: 46 proven · 0 awaiting fresh run · 1 open |
-| **Next — lane A** | DEF-165 — T95: past-case search returns completed cases only — rag_lookup_case_history filters the case index to completed cases, so an unfinished cas |
+| **Headline** | 111 of 163 Define features pass (core 103 of 154) — A 55/69 · B 30/35 · C 17/36 · integrator 9/23 · M1: 46 proven · 0 awaiting fresh run · 0 open |
+| **Next — lane A** | DEF-119 — A replayed step leaves one `step_log` entry (today the channel appends — see the drift list) |
 | **Next — lane B** | DEF-045 — Define's gate has no Tier 2: it never issues a 'warning' verdict and acknowledged_gaps is always empty. |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
 | **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
