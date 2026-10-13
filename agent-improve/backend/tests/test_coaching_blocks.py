@@ -43,7 +43,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from backend.core import conversation
 from backend.core.substate import CoachingResponse, PhaseState
 from backend.gateway.schemas import AskResponse
-from backend.middleware.grader import DMAICGraderMiddleware, MAX_ITERATIONS_WARNING
+from backend.middleware.grader import DMAICGraderMiddleware, GRADER_WARNING
 from backend.phases import nodes_common as _nc
 from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
 
@@ -136,10 +136,10 @@ def test_the_reply_message_carries_the_four_blocks(monkeypatch, stub_planner) ->
     assert reply.content == REPLY.message, "message stays the transcript entry (§50.1)"
 
 
-def test_a_failed_grade_puts_the_warning_on_the_reply(monkeypatch, stub_planner) -> None:
+def test_a_failed_grade_puts_the_warning_on_the_reply(monkeypatch, stub_planner, grader_enforced) -> None:
     reply = [m for m in _executor_messages(monkeypatch, _failing())
              if isinstance(m, AIMessage)][-1]
-    assert reply.additional_kwargs.get("grader_warning") == MAX_ITERATIONS_WARNING
+    assert reply.additional_kwargs.get("grader_warning") == GRADER_WARNING
 
 
 def test_a_passed_grade_carries_no_warning(monkeypatch, stub_planner) -> None:
@@ -188,7 +188,7 @@ def _ask(monkeypatch, messages: list) -> dict:
     return body
 
 
-def test_the_response_carries_four_blocks_and_the_warning(monkeypatch, stub_planner) -> None:
+def test_the_response_carries_four_blocks_and_the_warning(monkeypatch, stub_planner, grader_enforced) -> None:
     """**The card's Done-when, on the route.** Turn 1's business-case question
     is in the RESPONSE, not only in the checkpoint."""
     body = _ask(monkeypatch, _executor_messages(monkeypatch, _failing()))
@@ -196,7 +196,7 @@ def test_the_response_carries_four_blocks_and_the_warning(monkeypatch, stub_plan
     for k in BLOCKS:
         assert body.get(k) == _sent(k), (k, body.get(k))
     assert "business case" in body["prompt"]
-    assert body.get("grader_warning") == MAX_ITERATIONS_WARNING
+    assert body.get("grader_warning") == GRADER_WARNING
 
 
 def test_the_schema_declares_them_defaulted() -> None:
@@ -210,7 +210,7 @@ def test_the_schema_declares_them_defaulted() -> None:
 # ── the history keeps them (G-79) ───────────────────────────────────────────
 
 
-def test_the_reloaded_history_keeps_the_blocks(monkeypatch, stub_planner) -> None:
+def test_the_reloaded_history_keeps_the_blocks(monkeypatch, stub_planner, grader_enforced) -> None:
     """ADR-0066: /ask writes no case blob; the reply — in the checkpoint — is what a reload
     turns back into a history turn, blocks and warning included."""
     messages = _executor_messages(monkeypatch, _failing())
@@ -219,7 +219,7 @@ def test_the_reloaded_history_keeps_the_blocks(monkeypatch, stub_planner) -> Non
     ai = conversation.message_to_turn([m for m in messages if isinstance(m, AIMessage)][-1], 0)
     for k in BLOCKS:
         assert ai.get(k) == _sent(k), k
-    assert ai.get("grader_warning") == MAX_ITERATIONS_WARNING
+    assert ai.get("grader_warning") == GRADER_WARNING
 
 
 def test_a_history_turn_round_trips_the_blocks() -> None:
@@ -257,12 +257,12 @@ def _esc(v: str) -> str:
 
 def test_the_ui_renders_one_block_per_field() -> None:
     turn = {"role": "ai", "text": REPLY.message, "citations": [],
-            **{k: getattr(REPLY, k) for k in BLOCKS}, "grader_warning": MAX_ITERATIONS_WARNING}
+            **{k: getattr(REPLY, k) for k in BLOCKS}, "grader_warning": GRADER_WARNING}
     html = _render_turn(turn)
     for k in BLOCKS:
         assert _esc(getattr(REPLY, k)) in html, f"{k} is not on the screen"
     assert 'class="blk blk-example"' in html, "the example is not visually distinct (B6)"
-    assert MAX_ITERATIONS_WARNING.split(" — ")[0][:40] in html
+    assert GRADER_WARNING.split(" — ")[0][:40] in html
     order = [html.index(_esc(getattr(REPLY, k))) for k in ("explanation", "example", "prompt")]
     assert order == sorted(order), "§50.1 order: explanation, example, prompt"
 
@@ -326,7 +326,7 @@ def test_a_returning_case_draws_its_history() -> None:
 
 def test_the_warning_is_the_founders_text() -> None:
     """Founder, 2026-09-25, verbatim."""
-    assert MAX_ITERATIONS_WARNING == (
+    assert GRADER_WARNING == (
         "My quality check flagged this reply as weaker than it should be. "
         "If it doesn't help, tell me and I'll try again.")
 

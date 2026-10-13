@@ -81,7 +81,7 @@ Generated from each file's status line; never typed.
 | [0038](0038-checkpoint-commits-after-approval.md) | Nothing is committed to the case before approval | PROPOSED | refined by 0066 |
 | [0039](0039-four-layer-validation.md) | A four-layer validation stack with one shared cap of three | PROPOSED | — |
 | [0040](0040-two-tiers-and-warning.md) | Two tiers of field, and a warning verdict | PROPOSED | — |
-| [0041](0041-two-graders.md) | Two graders: coherence and coaching quality | PROPOSED | — |
+| [0041](0041-two-graders.md) | Two graders: coherence and coaching quality | SUPERSEDED by 0081 | — |
 | [0042](0042-contradiction-and-reapproval.md) | A contradiction of an approved value triggers re-approval | PROPOSED | — |
 | [0043](0043-native-reliability-primitives.md) | Reliability uses LangGraph's primitives, not a hand-written saga | PROPOSED | — |
 | [0044](0044-fallback-chain-and-breakers.md) | A four-level fallback chain and three-state circuit breakers | PROPOSED | — |
@@ -117,4 +117,5 @@ Generated from each file's status line; never typed.
 | [0078](0078-process-step-performance-stored-per-step.md) | The as-is process stores its performance per step, and the problem is located in it | ACCEPTED | — |
 | [0079](0079-coherence-reask-through-the-after-agent-hook.md) | A coherence rejection asks the coach again through layer 2a's after_agent hook | ACCEPTED | — |
 | [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | — |
+| [0081](0081-two-independent-judges-log-only-until-proven.md) | Two independent judges on every reply, each log-only until proven | ACCEPTED | — |
 <!-- END ADR INDEX -->

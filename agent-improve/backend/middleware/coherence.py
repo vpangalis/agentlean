@@ -14,22 +14,21 @@ words back? Is it on-topic for this phase?
 there; 2a lives here. One conceptual stack, two mechanisms (§34), and moving
 either half into the other is a violation.
 
-SILENT RETRY IS THE ONE SANCTIONED OPACITY
--------------------------------------------
-**B2: retry silently, at most twice — the Belt never sees a failed coherence
-response.** §34.2 calls this the narrowly-scoped exception to the transparency
-principle, *"justified because showing a Belt that the AI produced gibberish
-adds no value and erodes trust."* Everything else in the system is visible and
-collaborative.
+ONE CHECK PER REPLY, AND WHAT A REJECTION DOES
+------------------------------------------------
+**One check per reply** (6.52 B2). In `enforce` mode a rejected teaching, read-back
+or store reply is asked again once, through this hook's jump to the model
+(ADR-0079); the second reply is not re-checked. **The judge runs `log_only` until
+its false-reject rate is under 20% on the evaluation set (G-161)**: every verdict
+is recorded in `step_log` and nothing else changes — no re-ask, no reply change,
+nothing in the coach's next-turn feedback.
 
-**B3: on exhaustion the turn degrades and `DMAICGraderMiddleware` is SKIPPED** —
-grading a response already known to be incoherent spends a model call for a
-meaningless score. The skip is signalled on state, because position 8 runs after
-this one and has to be able to read it.
+**S-C13 B3 is superseded (ADR-0081, founder 2026-10-13): a rejection never switches
+off `DMAICGraderMiddleware`.** Coherence is a sanity check and the grader a quality
+check; both run on every reply with text and record their verdicts independently.
 
-**B4: this cap is its own.** Two here, two on `ModelRetryMiddleware` (§19.4),
-three on the validation stack (§34). Three failure modes, three counters, and
-merging any two would let a coherence failure consume a gate attempt.
+**B4: this cap is its own.** One re-ask here (enforce mode), two on
+`ModelRetryMiddleware` (§19.4), three on the validation stack (§34).
 
 **B5: coherence is NOT a `COACHING_QUALITY_RUBRIC` criterion.** It moved out of
 the rubric when this middleware was added; any rubric entry for it is stale.
@@ -57,21 +56,8 @@ from backend.validation.schemas import CoherenceResult
 
 logger = logging.getLogger(__name__)
 
-#: B2 — two silent retries, and this cap is not shared with any other (B4).
-COHERENCE_MAX_RETRIES = 2
-
-#: **How position 8 learns to stand down (B3), and why it is not state.**
-#: Measured against the installed LangChain: a dict returned from one
-#: `after_agent` is NOT visible to the next hook in the same pass — the grader
-#: read `None` for a key coherence had just written. So the signal is the
-#: `degraded` attribute on this instance, which the grader is handed at
-#: construction. Both are built per turn in `_build_executor`, so the reference
-#: cannot outlive the turn, and nothing reaches `PhaseState` (B7).
-#:
-#: Kept as a named constant because `test_middleware.py` asserts the state
-#: route is NOT used — a future edit that "simplifies" it back to a state write
-#: would restore a skip that silently never fires.
-SKIP_GRADER_KEY = "coherence_degraded"
+#: B4 — one re-ask in `enforce` mode (ADR-0079), none while `log_only`; not shared with any other cap.
+COHERENCE_MAX_RETRIES = 1
 
 _PROMPT = """\
 You are checking one coaching turn for basic coherence. This is not a quality
@@ -338,8 +324,6 @@ class CoherenceMiddleware(AgentMiddleware):
             "layer": "coherence",
             **result.model_dump(),
             "degraded": self.degraded,
-            # B3 — the grader stands down on exactly this flag.
-            "grader_skipped": self.degraded,
             "mode": COHERENCE_MODE,                # G-161 containment
             "attempts": self.attempts,
             "script_step": {k: step.get(k) for k in ("position", "field", "step")},
@@ -398,4 +382,4 @@ class CoherenceMiddleware(AgentMiddleware):
         return ""
 
 
-__all__ = ["CoherenceMiddleware", "COHERENCE_MAX_RETRIES", "SKIP_GRADER_KEY"]
+__all__ = ["CoherenceMiddleware", "COHERENCE_MAX_RETRIES"]

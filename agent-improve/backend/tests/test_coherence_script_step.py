@@ -240,7 +240,8 @@ def test_every_rejection_records_its_reason_in_step_log(monkeypatch, stub_planne
     e = entries[0]
     assert e["coherent"] is False and e["is_parroting"] is True
     assert e["reason"] == PARROT.reason
-    assert e["degraded"] is True and e["grader_skipped"] is True
+    # ADR-0081 (founder 2026-10-13): a rejection degrades the turn and never switches off the grader.
+    assert e["degraded"] is True and "grader_skipped" not in e
     assert e["script_step"] == {"position": 1, "field": "business_case", "step": "confirm"}
     assert e["key"] == "define:0:coherence"
 

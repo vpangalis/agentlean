@@ -1,6 +1,6 @@
 # 0041. Two graders: coherence and coaching quality
 
-**Status:** PROPOSED (architecture sort, 2026-09-26)
+**Status:** SUPERSEDED by 0081 (architecture sort, 2026-09-26)
 
 **Source:** [ARCHITECTURE.md](../../ARCHITECTURE.md) §36
 

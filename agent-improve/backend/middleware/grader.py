@@ -27,12 +27,14 @@ PRIVATE to this middleware and never reach `PhaseState` or `SupervisorState`.**
 They are instance attributes here for exactly that reason; what leaves is the
 `step_log` entry B6 requires and nothing else.
 
-**B5: on `max_iterations_reached` the output passes through with a warning flag
-the Belt sees.** The turn is not blocked — §34.2's hierarchy puts blocking at
-the gate, not mid-conversation.
-
-**B8: the Belt does not see the grader loop.** It runs at step 2 of the
-nine-step gate, before the interrupt (§33).
+**One grade per reply** (6.52 B2), its one call counted inside T69's four. On a
+FAIL in `enforce` mode the reply passes through with `GRADER_WARNING`, which the
+Belt sees; the turn is never blocked. **The grader runs `log_only` until it is
+proven against the founder's labels (founder 2026-10-13)**: every verdict is
+recorded in `step_log`, the warning is not shown and the verdict does not reach
+the coach's next-turn feedback. It grades every reply with text, whatever
+coherence decided (ADR-0081 supersedes S-C13 B3); a reply written in code is
+not graded.
 
 > **SPEC-GAP (G-12) is OPEN.** `CoachingGraderVerdict`'s shape — whether it
 > reuses `CriterionVerdict`, and whether `tier` means anything for coaching
@@ -51,18 +53,20 @@ from langchain.agents.middleware import AgentMiddleware
 
 from backend.core.llm import REQUEST_TIMEOUTS, get_llm
 from backend.core.prompts import COACHING_QUALITY_RUBRIC
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.validation.schemas import CoachingGraderVerdict
 
 logger = logging.getLogger(__name__)
 
-#: §19.8 / S-C14 B5.
+#: Held for a rewrite on FAIL (step 6.53, not built): today one grade per reply (6.52 B2).
 GRADER_MAX_ITERATIONS = 3
 
-#: What the Belt is shown when grading could not settle (B5). Plain language
-#: (§13) — it names no rubric, no iteration count and no internal machinery.
-#: Founder's wording, 2026-09-25 (step 10.0).
-MAX_ITERATIONS_WARNING = (
+#: Founder ruling 2026-10-13 (D3): LOG-ONLY until the grader is proven against the founder's labels —
+#: verdict agreement on replay >= 90% and false fails < 20% (`scripts/judge_replay.py`); then "enforce".
+GRADER_MODE = "log_only"
+
+#: What the Belt is shown on a FAIL in `enforce` mode. Plain language (§13) — it names no rubric and no
+#: internal machinery. Founder's wording, 2026-09-25 (step 10.0).
+GRADER_WARNING = (
     "My quality check flagged this reply as weaker than it should be. "
     "If it doesn't help, tell me and I'll try again."
 )
@@ -147,20 +151,12 @@ class DMAICGraderMiddleware(AgentMiddleware):
         phase: str,
         max_iterations: int = GRADER_MAX_ITERATIONS,
         on_evaluation: Optional[Callable[[dict[str, Any]], None]] = None,
-        coherence: Optional["CoherenceMiddleware"] = None,
         move: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.phase = phase
         #: 6.61 (item 3) — the move this reply was asked to make.
         self.move = move
-        #: **S-C13 B3's channel, and it is a reference rather than state.**
-        #: A dict returned from one `after_agent` is not visible to the next
-        #: hook in the same pass — measured, not assumed — so the skip signal
-        #: cannot travel through state. Both middlewares are constructed per
-        #: turn in `_build_executor`, so this reference cannot outlive the
-        #: turn and nothing reaches `PhaseState` (B7).
-        self._coherence = coherence
         self.max_iterations = max_iterations
         #: B6 — each iteration goes to `step_log` through this callback. The
         #: middleware does not write state itself; the node owns that.
@@ -170,14 +166,7 @@ class DMAICGraderMiddleware(AgentMiddleware):
         self._evaluations: list[CoachingGraderVerdict] = []
 
     async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """B1-B6. Skipped entirely when position 7 degraded the turn."""
-        if self._skipped(state):
-            logger.info(
-                "%s.grader: SKIPPED — coherence degraded this turn (S-C13 B3)",
-                self.phase,
-            )
-            return None
-
+        """B1-B6, on every reply with text — whatever coherence decided (ADR-0081)."""
         coach_text = self._coach_text(state)
         if not coach_text:
             return None
@@ -206,6 +195,9 @@ class DMAICGraderMiddleware(AgentMiddleware):
         if verdict.passed:
             return None
 
+        if GRADER_MODE == "log_only":
+            # Founder 2026-10-13: recorded above (B6); nothing is shown and the turn is unchanged.
+            return None
         # B5's end state — the turn passes through, with a warning the Belt sees.
         logger.info(
             "%s.grader: %d criterion/criteria failed: %s — passing the turn "
@@ -213,7 +205,7 @@ class DMAICGraderMiddleware(AgentMiddleware):
             "6.53 regenerates)",
             self.phase, len(verdict.failed), [c.criterion for c in verdict.failed],
         )
-        return {"grader_warning": MAX_ITERATIONS_WARNING}
+        return {"grader_warning": GRADER_WARNING}
 
     def after_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
         """Sync entry point — grading is a model call; §1.4 puts it on async."""
@@ -258,10 +250,6 @@ class DMAICGraderMiddleware(AgentMiddleware):
 
     # ── reading the turn ─────────────────────────────────────────────────
 
-    def _skipped(self, state: Any) -> bool:
-        """S-C13 B3 — position 7 degraded this turn, so grading is pointless."""
-        return bool(self._coherence is not None and self._coherence.degraded)
-
     @staticmethod
     def _coach_text(state: Any) -> str:
         """DEF-015 — the whole reply the Belt sees: `message` and the explanation, example and question
@@ -282,5 +270,6 @@ class DMAICGraderMiddleware(AgentMiddleware):
 __all__ = [
     "DMAICGraderMiddleware",
     "GRADER_MAX_ITERATIONS",
-    "MAX_ITERATIONS_WARNING",
+    "GRADER_WARNING",
+    "GRADER_MODE",
 ]

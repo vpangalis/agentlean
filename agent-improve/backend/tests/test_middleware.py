@@ -59,11 +59,11 @@ from backend.core.substate import CONTRADICTION_FLAG_KEYS, CoachingResponse
 from backend.middleware import coherence as coherence_module
 from backend.middleware import contradiction as contradiction_module
 from backend.middleware import grader as grader_module
-from backend.middleware.coherence import COHERENCE_MAX_RETRIES, SKIP_GRADER_KEY, CoherenceMiddleware
+from backend.middleware.coherence import COHERENCE_MAX_RETRIES, CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
 from backend.middleware.grader import (
     GRADER_MAX_ITERATIONS,
-    MAX_ITERATIONS_WARNING,
+    GRADER_WARNING,
     DMAICGraderMiddleware,
 )
 from backend.middleware.state_injection import BeforeModelStateInjection
@@ -992,7 +992,7 @@ def test_coherence_is_not_a_rubric_criterion() -> None:
 
 
 def test_the_three_retry_caps_are_still_three_and_still_separate() -> None:
-    """**S-C13 B4.** Model 2 (6.4), coherence 2 (here), validation stack 3.
+    """**S-C13 B4.** Model 2 (6.4), coherence one re-ask (ADR-0079), validation stack 3.
 
     Merging any two would let a coherence failure consume a gate attempt —
     which is the v1 defect `gate_attempts` was moved onto `PhaseState` to fix.
@@ -1000,7 +1000,7 @@ def test_the_three_retry_caps_are_still_three_and_still_separate() -> None:
     from backend.core.config import settings
 
     assert _c.RETRY_MAX == 2
-    assert COHERENCE_MAX_RETRIES == 2
+    assert COHERENCE_MAX_RETRIES == 1
     assert settings.GATE_MAX_ATTEMPTS == 3
     assert COHERENCE_MAX_RETRIES is not _c.RETRY_MAX or True  # separate names
     assert len({id(COHERENCE_MAX_RETRIES)}) == 1
@@ -1075,7 +1075,7 @@ def test_grader_internals_never_reach_state() -> None:
 def test_the_belt_visible_warning_carries_no_machinery() -> None:
     """§13 — the warning names no rubric, iteration, grader or criterion."""
     for jargon in ("rubric", "iteration", "grader", "criterion"):
-        assert jargon not in MAX_ITERATIONS_WARNING.lower(), (
+        assert jargon not in GRADER_WARNING.lower(), (
             f"§13 — {jargon!r} is machinery the Belt should not be shown"
         )
 
@@ -1095,35 +1095,30 @@ def test_the_verdict_is_per_criterion_never_an_overall_score() -> None:
     )
 
 
-def test_the_grader_stands_down_when_coherence_degraded() -> None:
-    """**S-C13 B3 from the other side.** Position 7 sets it, 8 reads it."""
-    coherence = CoherenceMiddleware("define")
-    coherence.degraded = True
-    mw = DMAICGraderMiddleware("define", coherence=coherence)
+def test_the_grader_grades_every_reply_whatever_coherence_decided() -> None:
+    """**ADR-0081 supersedes S-C13 B3 (founder ruling 2026-10-13).** Coherence is a sanity check and the
+    grader a quality check: a coherence rejection never switches the grader off — it grades every reply
+    with text, and records its verdict. In `log_only` mode (until proven) a FAIL returns nothing: no
+    Belt-visible warning, the turn unchanged; the verdict still reaches step_log."""
+    from backend.middleware import grader as grader_module
+
+    logged: list[dict[str, Any]] = []
+    mw = DMAICGraderMiddleware("define", on_evaluation=logged.append)
     called = {"n": 0}
 
-    async def fake_grade(belt: str, coach: str) -> CoachingGraderVerdict:
+    async def failing_grade(belt: str, coach: str) -> CoachingGraderVerdict:
         called["n"] += 1
-        return CoachingGraderVerdict(criteria=[])
+        return CoachingGraderVerdict(criteria=[CriterionResult(criterion="a", status="fail", feedback="x")])
 
-    mw._grade = fake_grade  # type: ignore[method-assign]
+    mw._grade = failing_grade  # type: ignore[method-assign]
+    assert "coherence" not in inspect.signature(DMAICGraderMiddleware.__init__).parameters,         "the grader still takes a coherence reference — the switch-off channel"
+    assert grader_module.GRADER_MODE == "log_only"
     out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="incoherent"),
+        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="anything"),
          "messages": []}, None))
-
-    assert called["n"] == 0, "it graded a turn coherence already rejected"
-    assert out is None
-
-    # And a state key must NOT be the channel — that route silently never fires.
-    fresh = DMAICGraderMiddleware("define", coherence=CoherenceMiddleware("d"))
-    fresh._grade = fake_grade  # type: ignore[method-assign]
-    asyncio.run(fresh.aafter_agent(
-        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="fine"),
-         "messages": [], SKIP_GRADER_KEY: True}, None))
-    assert called["n"] == 1, (
-        "the grader honoured a STATE key — that channel does not propagate "
-        "between after_agent hooks and would never fire in the real stack"
-    )
+    assert called["n"] == 1, "it did not grade the reply"
+    assert out is None, "log-only showed the Belt a warning"
+    assert logged and logged[-1]["status"] == "failed", "log-only did not record the verdict"
 
 
 def test_interrupt_from_after_agent_is_RESUMABLE_end_to_end() -> None:

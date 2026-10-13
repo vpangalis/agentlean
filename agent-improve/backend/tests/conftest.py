@@ -720,3 +720,11 @@ def _guard_in_explicit_development_mode(monkeypatch):
     from backend.gateway import routes
     monkeypatch.setattr(settings, "GUARD_MODE", "development")
     routes._TURNS.clear()
+
+
+@pytest.fixture
+def grader_enforced(monkeypatch):
+    """The grader in `enforce` mode — its Belt-visible warning and next-turn feedback on — for tests of
+    that behaviour; it runs `log_only` until proven (founder ruling 2026-10-13)."""
+    from backend.middleware import grader
+    monkeypatch.setattr(grader, "GRADER_MODE", "enforce")

@@ -38,7 +38,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core.substate import CoachingResponse, PhaseState
 from backend.middleware.coherence import CoherenceMiddleware
-from backend.middleware.grader import DMAICGraderMiddleware, MAX_ITERATIONS_WARNING
+from backend.middleware.grader import DMAICGraderMiddleware, GRADER_WARNING
 from backend.phases import nodes_common as _nc
 from backend.validation.schemas import (
     CoachingGraderVerdict,
@@ -75,7 +75,7 @@ def _recording(verdict: Any) -> tuple[list[tuple[str, str]], Any]:
     return seen, judge
 
 
-def test_the_grader_judges_a_reply_once() -> None:
+def test_the_grader_judges_a_reply_once(grader_enforced) -> None:
     """A FAIL is graded once and passes through with the Belt-visible warning."""
     mw = DMAICGraderMiddleware("define")
     logged: list[dict[str, Any]] = []
@@ -86,7 +86,7 @@ def test_the_grader_judges_a_reply_once() -> None:
 
     assert len(seen) == 1, f"the grader judged one reply {len(seen)} times"
     assert len(logged) == 1 and logged[0]["status"] == "failed"
-    assert out == {"grader_warning": MAX_ITERATIONS_WARNING}
+    assert out == {"grader_warning": GRADER_WARNING}
 
 
 def test_coherence_checks_a_reply_once() -> None:

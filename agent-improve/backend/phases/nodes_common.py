@@ -108,7 +108,8 @@ from backend.knowledge.tools import (
 )
 from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
-from backend.middleware.grader import DMAICGraderMiddleware, MAX_ITERATIONS_WARNING
+from backend.middleware import coherence as coherence_mode, grader as grader_mode
+from backend.middleware.grader import DMAICGraderMiddleware, GRADER_WARNING
 from backend.middleware.skills import (
     DMAICSkillsMiddleware,
     example_match,
@@ -1186,7 +1187,7 @@ def _build_executor(
             #   sequence. List position is the only lever there is.
             # ══════════════════════════════════════════════════════════════
             DMAICGraderMiddleware(
-                phase, on_evaluation=grader_log.append, coherence=coherence,
+                phase, on_evaluation=grader_log.append,
                 # 6.61 (item 3) — graded as the move it was asked to make.
                 move=plan.move if plan else None,
             ),
@@ -1465,8 +1466,10 @@ def _quality_feedback(grader_log: list[dict[str, Any]],
     """This turn's quality verdicts, for the NEXT turn's section 5 (§19.1
     v1.75): the grader's failed criteria with their feedback, and coherence's
     verdict. `None` when neither judge ran."""
-    g = grader_log[-1] if grader_log else None
-    c = coherence_log[-1] if coherence_log else None
+    # Founder ruling 2026-10-13: a judge in `log_only` mode changes nothing — its verdict is recorded in
+    # step_log and does not reach the coach's next turn.
+    g = grader_log[-1] if grader_log and grader_mode.GRADER_MODE == "enforce" else None
+    c = coherence_log[-1] if coherence_log and coherence_mode.COHERENCE_MODE == "enforce" else None
     if g is None and c is None:
         return None
     return {
@@ -2673,7 +2676,9 @@ async def executor(
         from backend.core.prompts import PII_HIDDEN_TURN
         new_messages = _with_code_line(new_messages, reply, PII_HIDDEN_TURN.format(what=pii.described(masked)))
     reply = _with_sample_mark(reply)            # C3 (DEF-083)
-    _attach_blocks(new_messages, reply, MAX_ITERATIONS_WARNING if failed else None)
+    # Founder ruling 2026-10-13: the grader's warning reaches the Belt only in `enforce` mode.
+    _attach_blocks(new_messages, reply,
+                   GRADER_WARNING if failed and grader_mode.GRADER_MODE == "enforce" else None)
 
     # ── 6.61 — the move record and the quality feedback ride on the reply ──
     # The next turn's planner reads the record (status, answer, PENDING); the

@@ -155,7 +155,7 @@ def _artifacts(saver: InMemorySaver) -> dict:
     return latest
 
 
-def test_wired_10_0_the_blocks_reach_the_response(wired) -> None:
+def test_wired_10_0_the_blocks_reach_the_response(grader_enforced, wired) -> None:
     """10.0 — the four blocks and the grader's warning, through the real graph."""
     body, _ = wired
     for k in ("explanation", "example", "prompt"):
