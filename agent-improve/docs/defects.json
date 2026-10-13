@@ -1759,6 +1759,32 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-168",
+   "symptom": "THE PLANNER'S JUDGMENT CALLS A COMPLETE BUSINESS CASE INCOMPLETE FOR A MISSING BASELINE THE ANSWER GIVES. Runs 124425 turn 2 (IMPR-2026-556) and 132229 turn 2 (IMPR-2026-E6B): the Belt gave what (supplier invoices paid after their 30-day terms), where (three hospital sites), when (January to June 2026), the baseline (23% of supplier invoices), the cost (about £62,000 last year) and the impact (three key suppliers put the trust on stop twice). 8D D2/D4 — where the verdict comes from: the PLANNER'S JUDGMENT (one `planner`-role model call, nodes_common._judge; not the criteria check in code — `_judged_in_code` and `_number_required` act on the target and baseline fields only — and not the coach). step_log, planner entry, both turns: verdict 'insufficient', failed_criterion 'baseline'; reason 124425: \"The answer does not specify the baseline value as a number, which is required for the 'baseline' criterion.\"; reason 132229: \"The answer does not specify the baseline value for the defect, which is required.\" The criterion it was given (skills/dmaic-define-phase/SKILL.md:161): \"`baseline` — gives how big it is today, as a number (p. 49)\". The move became a challenge and the coach asked for the baseline already given. Expected: read-back, optionally asking to align the cost's period ('last year') with the rate's (January to June 2026). Both turns are in the evaluation set as 'complete answer → read-back' cases. No fix until the founder rules. D4 OCCURRENCE (replayed 2026-10-13 with the live input rebuilt from IMPR-2026-556's checkpoint — the same phase_context, no earlier answer, no calculation inputs): the judgment on this exact answer is UNSTABLE — 3 of 5 'sufficient', 2 of 5 'insufficient' / baseline, the two reading 'baseline' as a count ('such as the total number of invoices or the total volume') rather than the rate given; with an empty context 6 of 6 'sufficient'. The criterion's wording ('how big it is today, as a number') admits both readings, and temperature 0.1 still varies. D4 ESCAPE: the run tests count challenges, not whether a challenge was due; the evaluation set had no planner-judgment cases.",
+   "requirement": [
+    "R3"
+   ],
+   "feature": [
+    "DEF-066"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-169",
+   "symptom": "A BELT CANNOT ADOPT AN UPLOAD'S CONTENT WITHOUT RETYPING IT. Scenario (e), live, 2026-10-13: the team list uploaded as a CSV; the upload turn named the file and said it covers every criterion of the team element (ADR-0074 point 2); the Belt answered \"Please use the team exactly as listed in project_team_ap_late_payments.csv.\" — the planner's judgment read only that sentence (the file is not in its input) and challenged; the Confirm after it had nothing pending. ADR-0074 point 3 says the file's values go through the normal read-back and Confirm, but nothing carries them there: the judgment sees the Belt's words alone, and a plain-text element stores the Belt's words verbatim (moves.pending_store), so a file can only ever reach a structured element, and not even that through this path. Design question for the founder (stop condition 2): should a Belt's reference to an upload let the judgment and the read-back use the file's interpretation?",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-056"
+   ],
+   "lane": [
+    "C"
+   ]
   }
  ]
 }

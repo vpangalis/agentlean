@@ -49,6 +49,24 @@ def labels_from_sheet(path: Path) -> dict[str, dict[str, Any]]:
                                   "rejection_right": {"right": True, "wrong": False}.get(right),
                                   "note": note}
     return out
+#: G-168 (founder ruling 2026-10-13): the planner's judgment, a third judge, on answers with a known verdict.
+JUDGMENTS = EVALS / "judgment_cases.json"
+
+
+async def replay_judgment(case: dict[str, Any]) -> dict[str, Any]:
+    """The planner's one judgment on `case` — `nodes_common._judge`, as the planner calls it on a first
+    answer (no earlier answer, not a read-back), the case's confirmed values empty."""
+    from backend.phases import nodes_common
+    t0 = time.time()
+    from typing import cast
+
+    from backend.core.substate import PhaseState
+    state = cast(PhaseState, {"artifacts": {}, "phase_context": case.get("phase_context") or ""})
+    j = await nodes_common._judge("define", state, case["field"], "", case["belt"], "no")
+    return {"id": case["id"], "verdict": j.verdict, "failed_criterion": j.failed_criterion, "reason": j.reason,
+            "expected": case["expected"], "agrees": j.verdict == case["expected"], "seconds": round(time.time() - t0, 1)}
+
+
 #: Above this false-reject rate the founder's ruling stops the work for options (fix, merge, remove).
 FALSE_REJECT_STOP = 0.20
 
@@ -139,12 +157,24 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--judgments-only", action="store_true", help="replay only the planner-judgment cases")
     args = ap.parse_args()
     from scripts.define_runthrough import _cost
     from scripts.move_proof_661 import CALLS, _count_model_calls, token_totals
     from scripts.coaching_proof_656 import _tracing_off
     _tracing_off()
     _count_model_calls(200)
+    judgment_cases = json.loads(JUDGMENTS.read_text(encoding="utf-8"))["cases"] if JUDGMENTS.exists() else []
+    if args.judgments_only:
+        started = time.time()
+
+        async def judged() -> list[dict[str, Any]]:
+            return [await replay_judgment(c) for c in judgment_cases]
+        results = asyncio.run(judged())
+        print(json.dumps({"judgments": results, "agree": sum(r["agrees"] for r in results), "of": len(results),
+                          "cost": _cost(token_totals(CALLS)), "seconds": round(time.time() - started, 1)},
+                         indent=1, ensure_ascii=False))
+        return 0
     turns = json.loads(TURNS.read_text(encoding="utf-8"))["turns"]
     if args.only:
         turns = [t for t in turns if t["id"] in set(args.only)]
@@ -157,11 +187,18 @@ def main() -> int:
     async def all_turns() -> list[dict[str, Any]]:
         return [await replay(t) for t in turns]
     replays = asyncio.run(all_turns())
+
+    async def judged_all() -> list[dict[str, Any]]:
+        return [await replay_judgment(c) for c in judgment_cases]
+    judgments = asyncio.run(judged_all()) if not args.only else []
     seconds = time.time() - started
     out = report(turns, replays, labels, _cost(token_totals(CALLS)), seconds)
+    out["planner_judgment"] = {"cases": len(judgments), "agree_with_expected": sum(j["agrees"] for j in judgments),
+                               "disagree": [j["id"] for j in judgments if not j["agrees"]]}
     stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
     path = EVALS / f"judge_replay_{stamp}.json"
-    path.write_text(json.dumps({"summary": out, "replays": replays}, indent=1, ensure_ascii=False) + "\n",
+    path.write_text(json.dumps({"summary": out, "replays": replays, "judgments": judgments}, indent=1,
+                               ensure_ascii=False) + "\n",
                     encoding="utf-8")
     print(json.dumps(out, indent=1, ensure_ascii=False))
     print(f"record: {path}")

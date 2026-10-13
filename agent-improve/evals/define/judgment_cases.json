@@ -1,0 +1,35 @@
+{
+ "about": "Planner-judgment cases (founder ruling 2026-10-13, G-168): an answer and the verdict it should get.",
+ "cases": [
+  {
+   "id": "20261012T124425#2",
+   "case_id": "IMPR-2026-556",
+   "field": "business_case",
+   "belt": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+   "expected": "sufficient",
+   "expected_move": "read_back",
+   "kind": "complete answer -> read-back",
+   "recorded": {
+    "verdict": "insufficient",
+    "failed_criterion": "baseline",
+    "reason": "The answer does not specify the baseline value as a number, which is required for the 'baseline' criterion."
+   },
+   "phase_context": "DEFINE RUN-THROUGH — step 6.66, do not use for other proofs — Finance — Accounts Payable. green belt, led by Priya Shah, target 2027-03-31."
+  },
+  {
+   "id": "20261012T132229#2",
+   "case_id": "IMPR-2026-E6B",
+   "field": "business_case",
+   "belt": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+   "expected": "sufficient",
+   "expected_move": "read_back",
+   "kind": "complete answer -> read-back",
+   "recorded": {
+    "verdict": "insufficient",
+    "failed_criterion": "baseline",
+    "reason": "The answer does not specify the baseline value for the defect, which is required."
+   },
+   "phase_context": "DEFINE RUN-THROUGH — step 6.66, do not use for other proofs — Finance — Accounts Payable. green belt, led by Priya Shah, target 2027-03-31."
+  }
+ ]
+}

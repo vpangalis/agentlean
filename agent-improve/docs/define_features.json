@@ -2550,7 +2550,8 @@
     "gaps": [
      "G-73",
      "G-97",
-     "G-98"
+     "G-98",
+     "G-169"
     ]
    },
    "requirement": "R1",
@@ -3034,7 +3035,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-168"
+    ]
    },
    "requirement": "R3",
    "belt_impact": "degraded",
