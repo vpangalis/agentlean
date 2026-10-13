@@ -1,0 +1,1368 @@
+{
+ "analysis": {
+  "cases": {
+   "20261012T124425#2": {
+    "agree": 5,
+    "of": 5,
+    "baseline_fails": 0,
+    "verdicts": [
+     "sufficient",
+     "sufficient",
+     "sufficient",
+     "sufficient",
+     "sufficient"
+    ]
+   },
+   "20261012T132229#2": {
+    "agree": 5,
+    "of": 5,
+    "baseline_fails": 0,
+    "verdicts": [
+     "sufficient",
+     "sufficient",
+     "sufficient",
+     "sufficient",
+     "sufficient"
+    ]
+   }
+  },
+  "turns": {
+   "judged": 25,
+   "flipped": 0,
+   "flip_share": 0.0,
+   "flipped_ids": [],
+   "per_move": {
+    "challenge": {
+     "turns": 12,
+     "flipped": 0,
+     "share": 0.0
+    },
+    "read_back": {
+     "turns": 9,
+     "flipped": 0,
+     "share": 0.0
+    },
+    "respond": {
+     "turns": 4,
+     "flipped": 0,
+     "share": 0.0
+    }
+   },
+   "baseline_criterion_flips": []
+  },
+  "errors": 0
+ },
+ "seconds": 184.9,
+ "calls": 135,
+ "cost": {
+  "usd": 0.4919,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.4919
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "raw": {
+  "cases": {
+   "20261012T124425#2": [
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The response addresses all the required acceptance criteria for the business case field.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 4.5
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required elements: it identifies the issue, specifies the location and timeframe, quantifies the baseline and cost, and avoids suggesting causes or solutions.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides all required elements: what is wrong, where and when it occurs, its baseline, and its cost, without suggesting causes or solutions.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required elements: it identifies the issue, specifies the timeframe and location, quantifies the impact, and avoids suggesting causes or solutions.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's latest message provides all required elements of the business case, including the issue, its scope, baseline data, and associated costs.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.5
+    }
+   ],
+   "20261012T132229#2": [
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's latest message addresses all the acceptance criteria for the business case field, providing clear and relevant information.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": "sufficient",
+     "agrees": true,
+     "seconds": 1.8
+    }
+   ]
+  },
+  "turns": {
+   "20261012T124425#2": [
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message addresses all the acceptance criteria for the business case field, providing clear and relevant information.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.7
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message addresses all the acceptance criteria for the business case field.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response addresses all the acceptance criteria for the business case field, providing details on the issue, its location and timeframe, its magnitude, and its cost.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    }
+   ],
+   "20261012T124425#5": [
+    {
+     "id": "20261012T124425#5",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's latest message provides all required information for the team field, including names, roles, functions, and training needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#5",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required details for the team field, including names, roles, functions, and training needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#5",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required details: names, roles, functions, and training needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#5",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's latest message provides all required information for the team field, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T124425#5",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required information: names, roles, functions, and training needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    }
+   ],
+   "20261012T124425#11": [
+    {
+     "id": "20261012T124425#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T124425#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T124425#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the specific 5W2H questions or provide a magnitude.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T124425#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T124425#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T124425#16": [
+    {
+     "id": "20261012T124425#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks about the current status and does not address the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T124425#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks a question about the current status rather than addressing the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T124425#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T124425#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T124425#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    }
+   ],
+   "20261012T124425#26": [
+    {
+     "id": "20261012T124425#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The response provides the cost of one defect and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of one defect and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T124425#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of one defect and the annual volume but does not address the impact type, realization schedule, or finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T124425#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of the gap and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T124425#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The response provides the cost of one defect and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    }
+   ],
+   "20261012T132229#2": [
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response addresses all the acceptance criteria for the business case field, including the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message addresses all the acceptance criteria for the business case field.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides a clear description of the issue, its location and timeframe, the baseline data, and the associated costs, without suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The response addresses all required criteria: it identifies the issue (late payments to suppliers), specifies where and when it occurs (across three hospital sites, January to June 2026), provides a baseline (23% of invoices paid late), and quantifies the cost (£62,000 in late-payment interest and lost discounts, and operational impacts).",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.8
+    },
+    {
+     "id": "20261012T132229#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides a clear description of the issue, its location and timeframe, the baseline metric, and the associated costs, without suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 2.2
+    }
+   ],
+   "20261012T132229#9": [
+    {
+     "id": "20261012T132229#9",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any of the needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T132229#9",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any of the needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T132229#9",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any need.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T132229#9",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any of the stated needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#9",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any of the stated needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T132229#12": [
+    {
+     "id": "20261012T132229#12",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but lacks specific details required by the 5W2H framework.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#12",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#12",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#12",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general issue but does not address the specific 5W2H questions or provide a magnitude.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.7
+    },
+    {
+     "id": "20261012T132229#12",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T132229#17": [
+    {
+     "id": "20261012T132229#17",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#17",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T132229#17",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks a question about the current status rather than addressing the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T132229#17",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks a question about the current status rather than addressing the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T132229#17",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks about the current status and does not address the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    }
+   ],
+   "20261012T132229#27": [
+    {
+     "id": "20261012T132229#27",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides some data but does not address all required aspects of the benefits analysis.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T132229#27",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The response provides the cost of one defect and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.7
+    },
+    {
+     "id": "20261012T132229#27",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The response provides the cost of the gap and the annual volume but lacks details on the impact type, realization schedule, and finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.7
+    },
+    {
+     "id": "20261012T132229#27",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of one defect and the annual volume but does not address the sustainability, realization schedule, or finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T132229#27",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of a single defect and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    }
+   ],
+   "20261012T134606#10": [
+    {
+     "id": "20261012T134606#10",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the specific 5W2H questions or provide a magnitude.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T134606#10",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T134606#10",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but lacks details required by the 5W2H framework.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T134606#10",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T134606#10",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    }
+   ],
+   "20261012T134606#15": [
+    {
+     "id": "20261012T134606#15",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T134606#15",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks about the current status and does not address the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    },
+    {
+     "id": "20261012T134606#15",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks about the current status and does not address the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T134606#15",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks about the current status and does not address the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T134606#15",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T134606#26": [
+    {
+     "id": "20261012T134606#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost per late invoice and the annual volume but does not address the sustainability of the savings, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T134606#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost per late invoice and the annual volume but does not address the sustainability, realization schedule, or finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T134606#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost per late invoice and the annual volume but does not address the sustainability of the savings, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T134606#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The response provides data for 'cost-of-gap' but lacks information on 'impact-type', 'realisation', and 'finance-contact'.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T134606#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The response provides the cost of one defect and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    }
+   ],
+   "20261012T140839#2": [
+    {
+     "id": "20261012T140839#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message addresses all acceptance criteria for the business case field, providing clear and relevant information.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T140839#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer provides all required elements: it identifies the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T140839#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message addresses all the acceptance criteria for the business case field, providing clear information on what is wrong, where and when it occurs, its current magnitude, and its cost.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T140839#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The response addresses all required criteria: it identifies the issue, provides location and timeframe, quantifies the problem, and states the associated costs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T140839#2",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response addresses all the acceptance criteria for the business case field, including the issue, its location and timeframe, its magnitude, and its cost, without suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    }
+   ],
+   "20261012T140839#11": [
+    {
+     "id": "20261012T140839#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the specific 5W2H questions or provide a magnitude.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T140839#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the 5W2H questions or provide specific details.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T140839#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The response identifies a general problem but does not address the specific 5W2H questions or provide a magnitude.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T140839#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the specific 5W2H questions or provide a magnitude.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T140839#11",
+     "verdict": "insufficient",
+     "failed_criterion": "5w2h",
+     "reason": "The answer identifies a general problem but does not address the specific 5W2H questions or provide a magnitude.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    }
+   ],
+   "20261012T140839#16": [
+    {
+     "id": "20261012T140839#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T140839#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T140839#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message does not address the project scope but instead inquires about the current status.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T140839#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks about the current status and does not address the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T140839#16",
+     "verdict": "not_an_answer",
+     "failed_criterion": null,
+     "reason": "The latest message asks about the current status rather than addressing the project scope.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T140839#26": [
+    {
+     "id": "20261012T140839#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides some data but does not address all required aspects of the benefits analysis.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T140839#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of the gap and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T140839#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of the gap and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.7
+    },
+    {
+     "id": "20261012T140839#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The response provides the cost of a single defect and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T140839#26",
+     "verdict": "insufficient",
+     "failed_criterion": "impact-type",
+     "reason": "The answer provides the cost of the gap and the annual volume but does not address the sustainability of the impact, the realization schedule, or the finance contact.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    }
+   ],
+   "20261012T132229#18": [
+    {
+     "id": "20261012T132229#18",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer clearly defines the project's scope, including what is in and out, and specifies the process's start and end points.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#18",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer clearly defines the project's scope, including what is in and out, with a start and end point, and is appropriately focused.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#18",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer clearly defines the project's scope, including what is in and out, with a specific start and end point.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#18",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response clearly defines the project's scope by specifying what is included and excluded, and it adheres to the acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T132229#18",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer clearly defines the project's scope, including what is in and out, with a defined start and end point, and focuses on a specific process.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    }
+   ],
+   "20261012T132229#13": [
+    {
+     "id": "20261012T132229#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response addresses all seven questions of the 5W2H framework and meets the acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response addresses all seven 5W2H questions comprehensively and meets the acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T132229#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response addresses all aspects of the 5W2H framework and meets the acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer addresses all seven 5W2H questions clearly and provides a numerical magnitude, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T132229#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer addresses all aspects of the 5W2H framework and meets the acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T132229#20": [
+    {
+     "id": "20261012T132229#20",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer specifies the primary metric, the improvement target, and the timeline, meeting all criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#20",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The statement specifies the primary metric, the improvement goal, and the timeline, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#20",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer specifies the primary metric, the improvement target, and the timeline, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    },
+    {
+     "id": "20261012T132229#20",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The response specifies the primary metric, the improvement target, and the timeline, meeting all criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T132229#20",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer specifies the primary metric, the improvement goal, and the timeline, meeting all criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    }
+   ],
+   "20261012T132229#10": [
+    {
+     "id": "20261012T132229#10",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any need.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#10",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any need.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.5
+    },
+    {
+     "id": "20261012T132229#10",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any need.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.7
+    },
+    {
+     "id": "20261012T132229#10",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any need.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#10",
+     "verdict": "insufficient",
+     "failed_criterion": "ctq",
+     "reason": "The answer identifies customers and their needs but does not provide a measurable CTQ for any of the stated needs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T132229#21": [
+    {
+     "id": "20261012T132229#21",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer specifies the primary metric, the improvement goal, and the timeline, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    },
+    {
+     "id": "20261012T132229#21",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's statement specifies the primary metric, the improvement goal, and the timeline, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#21",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer specifies the primary metric, the improvement goal, and the timeline, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#21",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer specifies the primary metric, the improvement goal, and the timeline, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T132229#21",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's statement specifies the primary metric, the improvement target, and the timeline, meeting all criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    }
+   ],
+   "20261012T132229#3": [
+    {
+     "id": "20261012T132229#3",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The response addresses all the required acceptance criteria for the business case field.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#3",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's response addresses all the acceptance criteria for the business case field, providing clear details on the issue, its location and timeframe, the baseline, and the associated costs.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#3",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The response addresses all the acceptance criteria for the business case field, providing clear and relevant information.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T132229#3",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message provides all required elements: it identifies the issue, specifies the timeframe and location, quantifies the current impact, and avoids suggesting causes or solutions.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T132229#3",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's message addresses all the acceptance criteria for the business case field, providing clear and relevant information.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    }
+   ],
+   "20261012T134606#16": [
+    {
+     "id": "20261012T134606#16",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer clearly defines the project's scope, including what is in and out, and specifies the start and end points of the process.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T134606#16",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer specifies the process's start and end points, what is included, and what is excluded, meeting all criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.2
+    },
+    {
+     "id": "20261012T134606#16",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer specifies the process boundaries, what is included, and what is excluded, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.1
+    },
+    {
+     "id": "20261012T134606#16",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer clearly defines the project's scope, including what is in and out, with a defined start and end point, and focuses on a specific process.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    },
+    {
+     "id": "20261012T134606#16",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The answer clearly defines the project's scope, including what is in and out, and specifies the process's start and end points.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.3
+    }
+   ],
+   "20261012T134606#13": [
+    {
+     "id": "20261012T134606#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer provides a clear primary metric, its baseline value, its operational definition, its data source, and its link to a business KPI, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.6
+    },
+    {
+     "id": "20261012T134606#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer provides a clear primary metric, its definition, its current value with data source, and its link to a business KPI, meeting all criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T134606#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer provides a clear primary metric, its baseline value, its data source, and its link to a business KPI, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T134606#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer provides a clear primary metric, its baseline value with data source and period, its operational definition, and its link to a business KPI.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    },
+    {
+     "id": "20261012T134606#13",
+     "verdict": "sufficient",
+     "failed_criterion": null,
+     "reason": "The Belt's answer provides a clear primary metric, its definition, current value, data source, and linkage to a business KPI, meeting all acceptance criteria.",
+     "expected": null,
+     "agrees": false,
+     "seconds": 1.4
+    }
+   ]
+  },
+  "moves": {
+   "20261012T124425#2": "challenge",
+   "20261012T124425#5": "read_back",
+   "20261012T124425#11": "challenge",
+   "20261012T124425#16": "respond",
+   "20261012T124425#26": "challenge",
+   "20261012T132229#2": "challenge",
+   "20261012T132229#9": "challenge",
+   "20261012T132229#12": "challenge",
+   "20261012T132229#17": "respond",
+   "20261012T132229#27": "challenge",
+   "20261012T134606#10": "challenge",
+   "20261012T134606#15": "respond",
+   "20261012T134606#26": "challenge",
+   "20261012T140839#2": "challenge",
+   "20261012T140839#11": "challenge",
+   "20261012T140839#16": "respond",
+   "20261012T140839#26": "challenge",
+   "20261012T132229#18": "read_back",
+   "20261012T132229#13": "read_back",
+   "20261012T132229#20": "read_back",
+   "20261012T132229#10": "read_back",
+   "20261012T132229#21": "read_back",
+   "20261012T132229#3": "read_back",
+   "20261012T134606#16": "read_back",
+   "20261012T134606#13": "read_back"
+  }
+ }
+}

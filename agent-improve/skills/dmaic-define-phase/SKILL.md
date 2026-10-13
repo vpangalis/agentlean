@@ -158,7 +158,7 @@ and only it carries the baseline and the target.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `what` — names what is wrong: the product or service and the defect (p. 49)
 > - `where-when` — says where it happens and over which period (p. 49)
-> - `baseline` — gives how big it is today, as a number (p. 49)
+> - `baseline` — gives how big it is today: a rate, a count or a cost — any one, as a number (p. 49)
 > - `cost` — says what it costs: money, time or volume (p. 49)
 > - `no-cause-no-fix` — carries no guess at the cause and no proposed solution; the method finds those (p. 49)
 > **Read back:** their business case, in their own words — *"Is this right?"*
