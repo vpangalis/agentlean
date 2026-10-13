@@ -17,10 +17,12 @@ import generate_layout  # noqa: E402
 import generate_routes  # noqa: E402
 import generate_value_keys  # noqa: E402
 import generate_index_fields  # noqa: E402
+import generate_middleware_order  # noqa: E402
 
 
-@pytest.mark.parametrize("gen", [generate_layout, generate_routes, generate_value_keys, generate_index_fields],
-                         ids=["code layout", "api routes", "value keys", "index fields"])
+@pytest.mark.parametrize("gen", [generate_layout, generate_routes, generate_value_keys, generate_index_fields,
+                                 generate_middleware_order],
+                         ids=["code layout", "api routes", "value keys", "index fields", "middleware order"])
 def test_the_generated_document_is_current(gen) -> None:
     doc = gen.DOC
     text = (PROJECT.parent / doc.doc_rel).read_text(encoding="utf-8")
@@ -65,3 +67,15 @@ def test_the_graph_route_table_names_real_routes() -> None:
     assert named, "§2.4's route table not found"
     assert named <= routes, f"§2.4 names routes that do not exist: {sorted(named - routes)}"
     assert runs_graph <= named, f"routes that run the graph, missing from §2.4: {sorted(runs_graph - named)}"
+
+
+def test_the_middleware_table_is_in_the_declared_order() -> None:
+    """Founder ruling 2026-10-13: §3.3's order is generated from `_build_executor`; the hand-written
+    table of what each middleware does keeps one row per entry, in that order."""
+    arch = (PROJECT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    start = arch.index("| Middleware | Where, and what it does |")
+    rows = [r.split("|")[1] for r in arch[start:arch.index("\n\n", start)].splitlines()[2:]]
+    declared = [row for _, row in generate_middleware_order.entries(PROJECT)]
+    assert len(rows) == len(declared), f"{len(rows)} table rows, {len(declared)} declared middleware"
+    for n, (cell, name) in enumerate(zip(rows, declared), 1):
+        assert name in cell, f"row {n} is {cell.strip()!r}; the declared list has {name} there"

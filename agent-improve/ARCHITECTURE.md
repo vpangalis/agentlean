@@ -408,16 +408,37 @@ flowchart TB
   a6 --> out(["reply"])
 ```
 
+**Declared order**, outermost first — generated from `_build_executor`; the numbers in the table
+below are §19's names for the original eight, not positions:
+
+<!-- BEGIN GENERATED: middleware order — tools/architecture/generate_middleware_order.py, never edit by hand -->
+
+| Declared | Middleware |
+|---|---|
+| 1 | `BeforeModelStateInjection` |
+| 2 | `DMAICSkillsMiddleware` |
+| 3 | `SummarizationMiddleware` |
+| 4 | `turn_tools.turn_tools_middleware()` |
+| 5 | `ModelCallLimitMiddleware` |
+| 6 | `ModelRetryMiddleware` |
+| 7 | `ToolRetryMiddleware` |
+| 8 | `*pii.executor_middleware()` |
+| 9 | `DMAICGraderMiddleware` |
+| 10 | `CoherenceMiddleware`, bound to `coherence` |
+| 11 | `ContradictionDetectionMiddleware` |
+
+<!-- END GENERATED: middleware order -->
+
 | Middleware | Where, and what it does |
 |---|---|
 | **1 · `BeforeModelStateInjection`** | `middleware/state_injection.py`, custom.<br>`before_agent`: composes the coach input **once per turn** in six labelled sections, in this order: coaching rules · phase script · project state · this turn's move (authoritative) · last turn's quality feedback · conversation (ADR-0003).<br>The project-state section holds this phase's confirmed `artifacts`, earlier phases' approved records read from the Store, the phase's required fields, and what is still missing (computed at injection by `phases/gate_registry.py::missing_gate_fields`). For Define it opens with "WHERE THE BELT IS — Define · Step n of N — field", from `define_progress`.<br>`wrap_model_call`: prepends the composed block to every model request without recomputing it. Declared first, so its wrap encloses the model retry and a retry re-sends the same request.<br>Quality feedback is never presented as a Belt message; nothing is appended to `messages`. |
 | **2 · `DMAICSkillsMiddleware`** | `middleware/skills.py`, custom.<br>Every model call: the current phase's full SKILL.md in the system message; its version and hash are recorded in `step_log` each turn. The phase script is never left for the model to fetch.<br>Registers the tool `load_skill(name)` for other phases' scripts and level-3 reference files. |
 | **3 · `SummarizationMiddleware`** | LangChain, as shipped.<br>`before_model`: when the conversation passes the token trigger, older messages are replaced by a summary made with the operational model; the most recent messages are kept. Trigger and keep values are set in `_build_executor`. |
-| **4 · `ModelRetryMiddleware`** | LangChain, as shipped.<br>`wrap_model_call`: retries transient model failures with exponential backoff and jitter; `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried (`content_safety.retry_on`); the executor answers with guidance instead (T92). |
 | **Turn tools · `@wrap_model_call`** | (ADR-0069) — LangChain's dynamic tool selection: offers the model only the turn type's tools (`request.override(tools=…)`, §3.6); every tool stays registered. |
 | **Call limit · `ModelCallLimitMiddleware`** | LangChain, as shipped (ADR-0059, T69), declared just outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's judgment and the two after-agent checks; a run it ends gets the move's reply from code. The turn's count is `step_log`'s `call_budget`; calls inside tools, `tool_model_calls`. |
-| **Personal data · `PIIMiddleware`** | LangChain, as shipped (ADR-0062, T87): one instance, a combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only — never the Belt's own messages; the turn's counts are `step_log`'s `pii_masked`. |
+| **4 · `ModelRetryMiddleware`** | LangChain, as shipped.<br>`wrap_model_call`: retries transient model failures with exponential backoff and jitter; `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried (`content_safety.retry_on`); the executor answers with guidance instead (T92). |
 | **5 · `ToolRetryMiddleware`** | LangChain, as shipped.<br>`wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is returned to the coach as the tool result (`on_failure="continue"`), not raised. |
+| **Personal data · `PIIMiddleware`** | LangChain, as shipped (ADR-0062, T87): one instance, a combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only — never the Belt's own messages; the turn's counts are `step_log`'s `pii_masked`. |
 | **6 · `DMAICGraderMiddleware`** | `middleware/grader.py`, custom. Executes last.<br>`after_agent`, every turn: one `grader`-role call grades the coach's reply against `COACHING_QUALITY_RUBRIC` (`core/prompts.py`, which owns the criteria), per criterion.<br>Rubric lines that do not apply to this turn's move are excluded (`MOVE_EXCLUDES`).<br>The verdict goes to `step_log` with `layer: "coaching_grader"`. **Log-only until proven (ADR-0081)**; in `enforce` mode a FAIL adds a warning the Belt sees (`GRADER_WARNING`) and becomes next turn's quality feedback.<br>Grades every reply with text, whatever coherence decided (ADR-0081). A grade whose request times out is recorded "not checked (time)" and the reply goes out (ADR-0080). |
 | **7 · `CoherenceMiddleware`** | `middleware/coherence.py`, custom. Validation layer 2a.<br>`after_agent`, every turn: one `coherence`-role call checks the whole reply, including its `prompt`: is it real and conclusive, is it on topic, is it parroting.<br>Parroting is judged against the script step the move called for: a read-back for a captured field, explain-show-ask otherwise, using that field's SKILL.md block.<br>On rejection the turn is degraded; the verdict goes to `step_log` under node `coherence`. In `enforce` mode a rejected teaching, read-back or store turn asks the coach once more through this hook's jump to the model (ADR-0079); **the judge runs `log_only` until its false-reject rate is under 20% (G-161)** — every verdict recorded, no re-ask; a rejection never switches the grader off (ADR-0081). A check whose request times out keeps the reply, "not checked (time)" (ADR-0080). |
 | **8 · `ContradictionDetectionMiddleware`** | `middleware/contradiction.py`, custom. Executes first of the `after_agent` group.<br>Reads `CoachingResponse.contradiction_flag` (`prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input`), which the coach sets only when the Belt materially contradicts a gate-approved value shown to it in the project-state section.<br>A flag is detected and logged; it does not stop the turn. No flag, no action.<br>No Store read, no model call, no tolerance threshold. When to flag is instructed in each SKILL.md. |
