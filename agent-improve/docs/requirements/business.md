@@ -72,12 +72,12 @@ a breakdown of costs or causes, a timeline — the report shows it as a labelled
 a sentence explaining how to read it, next to the table or text that carries the same values. A
 diagram never carries a value the text does not.
 
-**C3 Every request is explained, with a sample** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0001
+**C3 Every request is explained, with a sample** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-13 · MoSCoW: Must · Design: ADR-0001
 Every time the coach asks the Belt or team for new information it explains, in plain words, what is
-being asked and why it matters, and shows a sample answer. Once enough of the case is confirmed, the
-sample is built from the case's own context so it is relevant; before that it comes from the phase's
-worked example. Every sample is clearly marked: *"Sample only — to show the form of a good answer.
-Do not copy it; answer for your own process."* A sample is never stored as the Belt's answer.
+being asked and why it matters, and shows a sample answer. The sample is the phase's worked example,
+inserted by code; it is never built from the case's values. Every sample is clearly marked:
+*"Sample only — to show the form of a good answer. Do not copy it; answer for your own process."*
+A sample is never stored as the Belt's answer.
 
 **C4 Suggested next steps** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
 Under each coach reply the screen offers two or three suggested next steps, computed from what is
