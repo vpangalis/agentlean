@@ -2041,6 +2041,24 @@ def _unsourced_numbers(reply: CoachingResponse, sources: set[float]) -> list[str
     return [spelled for spelled, vals in _number_values(text) if not vals & sources]
 
 
+#: G-174 (founder ruling A5, 2026-10-13) — a part of a value that is not filled in: a bracketed
+#: placeholder, "TBD", "to be confirmed", or the coach's own note that a part still needs something.
+_PLACEHOLDER = re.compile(r"\[[^\]\n]{3,80}\]|\b(TBD|TBC|to be (confirmed|defined|determined|decided|agreed))\b|"
+                          r"\(\s*needs?\b[^)]{0,80}\)|\?\?+|\bX{2,}\b", re.I)
+
+
+def placeholders(store: dict[str, Any]) -> list[str]:
+    """G-174: the placeholders in what a Confirm would store — an incomplete value is challenged, never
+    read back for a Confirm."""
+    def leaves(value: Any) -> list[str]:
+        if isinstance(value, dict):
+            return [s for v in value.values() for s in leaves(v)]
+        if isinstance(value, (list, tuple)):
+            return [s for v in value for s in leaves(v)]
+        return [value] if isinstance(value, str) else []
+    return [m.group(0) for text in leaves(list(store.values())) for m in _PLACEHOLDER.finditer(text)]
+
+
 #: G-172 (founder ruling A3, 2026-10-13; DEF-020) — a question about where the project stands.
 STATUS_QUESTION = re.compile(r"\b(where (do|are) we(\s+(stand|at|now))?|what('s| is| have we)?\s+(done|left|missing|"
                              r"still open|next)|how far (have we|are we)|(our|my) progress|progress so far|"
@@ -2699,6 +2717,7 @@ async def executor(
     link: Optional[str] = None
     copied: list[str] = []
     short: list[str] = []           # G-163: the position's fields a Confirm of this read-back could not store
+    unfilled: list[str] = []        # G-174: placeholders in what a Confirm would store
     if move == moves.READ_BACK and pending is not None:
         # G-118 (DEF-157) — a part of the element this read-back lacks but an earlier read-back of
         # it carried (the CTQs, after a Change) is carried into it, shown to the Belt below, and
@@ -2730,6 +2749,10 @@ async def executor(
                                for e in captures if e.get("field_name")}}
         link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
         short = moves.store_missing(pending.get("fields") or [pending.get("field")], prior_artifacts, store)
+        unfilled = placeholders(store)
+        if unfilled:
+            logger.warning("%s.executor: G-174 — the read-back of `%s` holds a placeholder (%s); it is challenged, "
+                           "not offered for a Confirm", phase, pending.get("field"), "; ".join(unfilled[:3]))
         kept = {}
     artifacts = {**prior_artifacts, **kept}
 
@@ -2765,7 +2788,7 @@ async def executor(
     # G-163 (one rule; G-160 is its copied-sample case): a read-back a Confirm could not store is never
     # offered for a Confirm — the element stays asked, the Belt's words kept, and the reply, written in
     # code, says why (below). A code-written read-back keeps G-140's own wording (`resend`).
-    sample_challenge = bool(short and not resend and not refused and move == moves.READ_BACK and pending is not None
+    sample_challenge = bool((short or unfilled) and not resend and not refused and move == moves.READ_BACK and pending is not None
                             and plan and plan.focus_field)
     if sample_challenge and plan is not None and plan.focus_field and pending is not None:
         field_status[plan.focus_field] = {
@@ -2870,10 +2893,11 @@ async def executor(
                                              "example": "", "prompt": ""})
     elif sample_challenge and plan is not None:
         # G-163 / G-160 — the reason, written in code; no read-back is offered this turn.
-        from backend.core.prompts import SAMPLE_COPIED, STORE_SHORT
+        from backend.core.prompts import SAMPLE_COPIED, STORE_PLACEHOLDER, STORE_SHORT
         element = guard_messages.element_name(phase, plan.focus_field or "")
         said = (SAMPLE_COPIED.format(element=element) if set(copied) & set(short) else
-                STORE_SHORT.format(element=element, missing=_missing_words(phase, short, prior_artifacts, pending or {})))
+                STORE_SHORT.format(element=element, missing=_missing_words(phase, short, prior_artifacts, pending or {}))
+                if short else STORE_PLACEHOLDER.format(element=element, gap="; ".join(f"“{g}”" for g in unfilled[:3])))
         new_messages = _with_text(new_messages, said)
         if reply is not None:
             reply = reply.model_copy(update={"message": said, "explanation": "", "example": "", "prompt": ""})
@@ -2925,6 +2949,7 @@ async def executor(
     if sample_challenge and record is not None:
         # G-163 / G-160 — a challenge, not a read-back: no Confirm is drawn; `store_missing` says why.
         record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "store_missing": short,
+                       **({"placeholders": unfilled} if unfilled else {}),
                        **({"sample_copied": copied} if copied else {})})
     if link_challenge and record is not None:
         # ADR-0078 point 5 — a challenge, not a read-back: no Confirm is drawn; `link` says why.

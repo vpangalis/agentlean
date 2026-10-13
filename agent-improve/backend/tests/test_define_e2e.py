@@ -3879,6 +3879,39 @@ def test_g163_a_read_back_that_cannot_store_never_offers_a_confirm(env, monkeypa
     assert _askd(env, message=words)["move"] == moves.READ_BACK
 
 
+def test_g174_a_value_with_a_placeholder_is_challenged_never_offered_for_confirm(env, monkeypatch,
+                                                                                 stub_planner) -> None:
+    """G-174 (founder ruling A5, 2026-10-13; row 132229#10), through the routes and graph: a read-back
+    whose value still holds a placeholder — the CTQ "visible within [specific time frame] (needs measurable
+    requirement)" — is not offered for a Confirm: the reply, written in code, names the part not filled
+    in, the element stays asked, nothing is stored. Filled in, it is read back for a Confirm as usual."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "voc_summary")
+    _coach_with(monkeypatch, "Next: the voice of the customer.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names customers, needs and CTQs")
+    voc = "Suppliers need paying on the agreed terms and want to see an invoice's status."
+    gap = "Invoice status visible within [specific time frame] after submission (needs measurable requirement)"
+    ctq = [{"customer": "suppliers", "need": "on time", "requirement": "paid within 30 days"},
+           {"customer": "suppliers", "need": "visibility", "requirement": gap}]
+    _coach_with(monkeypatch, "Here is what I captured. Is this right?",
+                captured=[{"field_name": "voc_summary", "value": voc, "source": "belt"},
+                          {"field_name": "critical_to_quality", "value": ctq, "source": "belt"}])
+    told = _askd(env, message=voc)
+    assert told["move"] == moves.CHALLENGE, "a Confirm was offered for a value with a placeholder"
+    assert told["answer"].startswith("Not ready to confirm yet") and "[specific time frame]" in told["answer"], told["answer"]
+    status = _define(env)["field_status"]["voc_summary"]
+    assert status["status"] == moves.ASKED and not status.get("pending"), status
+    assert "critical_to_quality" not in _define(env)["structured"]
+    ctq[1]["requirement"] = "Invoice status visible within 1 working day of submission"
+    _coach_with(monkeypatch, "Here is what I captured. Is this right?",
+                captured=[{"field_name": "voc_summary", "value": voc, "source": "belt"},
+                          {"field_name": "critical_to_quality", "value": ctq, "source": "belt"}])
+    assert _askd(env, message=voc + " Status within 1 working day.")["move"] == moves.READ_BACK
+
+
 def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(env) -> None:
     """DEF-139 — T67, §11.4: started without a required credential, the app exits with status 1 and
     names it, before it serves anything; with its credentials it starts and answers."""

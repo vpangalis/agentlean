@@ -1751,6 +1751,11 @@ PII_HIDDEN_TURN = ("Some personal details in your files were hidden from me befo
                    "so I could not use them.")
 STORE_SHORT = ("Not stored yet: your answer for {element} still needs {missing}. Please add it in your own "
                "words, and I will read the whole answer back to you.")
+#: G-174 (founder ruling A5, 2026-10-13) — written in code when what a Confirm would store still holds a
+#: placeholder: no Confirm is offered; the Belt is told which part is not filled in.
+STORE_PLACEHOLDER = ("Not ready to confirm yet: your answer for {element} still has a part that is not filled "
+                     "in — {gap}. Please give that part in your own words, and I will read the whole answer "
+                     "back to you.")
 
 #: DEF-014 (founder ruling 2026-10-12) — the coach asked once more after a coherence rejection. Quality
 #: feedback to the coach, never presented as the Belt's message (§21).
