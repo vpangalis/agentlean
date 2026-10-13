@@ -1590,6 +1590,31 @@ def _with_teaching_blocks(phase: str, plan: Optional[CoachingPlan], reply: Coach
     return reply.model_copy(update=filled)
 
 
+def _teach_next(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse) -> CoachingResponse:
+    """G-175 (founder ruling A6, 2026-10-13; row 132229#33): after a store, the reply teaches the NEXT
+    element — its explanation and its question come from that element's script; an example that is
+    missing or repeats the stored element's sample becomes the next element's script sample; and the
+    message's own questions go, so the one ask is the next element's. Returns a COPY, or `reply`."""
+    if plan is None or plan.move != moves.STORE_AND_ADVANCE or not plan.focus_field:
+        return reply
+    from backend.middleware.skills import teaching_blocks
+    nxt = teaching_blocks(phase, plan.focus_field)
+    if not nxt:
+        return reply
+    update: dict[str, Any] = {k: nxt[k] for k in ("explanation", "prompt") if nxt.get(k)}
+    stored = teaching_blocks(phase, plan.stored_field) if plan.stored_field else {}
+    example = str(reply.example or "")
+    if nxt.get("example") and (not example.strip() or (stored.get("example")
+                                                      and _repeats(example, _block_words(stored["example"])))):
+        update["example"] = nxt["example"]
+    lines = [" ".join(s for s in _SENTENCE_END.split(line) if not s.rstrip().endswith("?"))
+             for line in str(reply.message or "").split(chr(10))]
+    message = chr(10).join(lines).strip()
+    if message and message != reply.message:
+        update["message"] = message
+    return reply.model_copy(update=update)
+
+
 #: ADR-0074 — a criterion's page reference in the method book ("(p. 49)") is the coach's, not the Belt's.
 _BOOK_PAGE = re.compile(r"\s*\(p\.[^)]*\)")
 
@@ -2588,6 +2613,12 @@ async def executor(
                 phase, ", ".join(gaps),
             )
             reply = _with_teaching_blocks(phase, plan, reply, gaps)
+        if written is None and not fell_back:
+            # G-175 (founder ruling A6) — after a store, the reply teaches the next element.
+            taught = _teach_next(phase, plan, reply)
+            if taught.message != reply.message:
+                new_messages = _with_text(new_messages, str(taught.message))
+            reply = taught
 
     # R4 — `consumed_at` is written HERE, not inside the tool. A `@tool`
     # receives only its arguments and cannot reach `PhaseState`; the node

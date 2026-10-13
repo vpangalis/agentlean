@@ -3912,6 +3912,44 @@ def test_g174_a_value_with_a_placeholder_is_challenged_never_offered_for_confirm
     assert _askd(env, message=voc + " Status within 1 working day.")["move"] == moves.READ_BACK
 
 
+def test_g175_after_a_store_the_reply_teaches_the_next_element(env, monkeypatch, stub_planner) -> None:
+    """G-175 (founder ruling A6, 2026-10-13; row 132229#33), through the routes and graph: after a Confirm
+    stores an element, the reply teaches the next one — even when the coach writes its blocks about the
+    element just stored and asks to confirm it again: the explanation and the question are the next
+    element's script, the stored element's sample is replaced by the next one's, and the message asks
+    nothing of its own."""
+    from langchain_core.messages import AIMessage
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.middleware.skills import teaching_blocks
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    _at_element(env, "business_case")
+    _coach_with(monkeypatch, "Let's start with the business case.")
+    _askd(env, message="Where do we start?")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="cost and impact given")
+    words = "Late supplier payments cost us about £62,000 a year in interest and lost discounts."
+    _coach_with(monkeypatch, f'Your business case: "{words}" Is this right?',
+                captured=[{"field_name": "business_case", "value": words, "source": "belt"}])
+    assert _askd(env, message=words)["move"] == moves.READ_BACK
+    stored, nxt = teaching_blocks("define", "business_case"), teaching_blocks("define", "team")
+    again = {**REPLY, "message": "Stored: Business case. Does it accurately reflect what you intended?",
+             "explanation": stored["explanation"], "example": stored["example"],
+             "prompt": "The business case has been stored. Does it accurately reflect what you intended?",
+             "fields_captured": []}
+    real = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": again, "id": "g175"}])]))
+        if role == "coach" else real(role, **kw))
+    told = _askd(env, message="Confirm", action="confirm")
+    assert told["move"] == moves.STORE_AND_ADVANCE, told["move"]
+    assert told["prompt"] == nxt["prompt"], told["prompt"]
+    assert told["explanation"] == nxt["explanation"], told["explanation"]
+    assert nxt["example"].split(":", 1)[1].strip()[:40] in told["example"], told["example"]
+    assert "?" not in told["answer"].split("[")[0] and "accurately reflect" not in told["answer"], told["answer"]
+
+
 def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(env) -> None:
     """DEF-139 — T67, §11.4: started without a required credential, the app exits with status 1 and
     names it, before it serves anything; with its credentials it starts and answers."""
