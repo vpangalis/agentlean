@@ -95,7 +95,7 @@ Skills: `agent-improve/skills/dmaic-{phase}-phase/SKILL.md`.
 **Three levels:** (1) at startup, descriptions only — **under 2K tokens for
 all five combined**; (2) full phase instructions on demand via a registered
 `load_skill(name)` tool; (3) reference files when explicitly needed.
-Backend: `FilesystemBackend` (`ContextHubBackend` deferred).
+Backend: the skill files beside the code, read by `middleware/skills.py` itself (`ContextHubBackend` deferred).
 
 **Never confuse** development-workflow skills (`.claude/skills/`, Claude Code)
 with runtime coaching skills (`agent-improve/skills/`, the coach).
@@ -122,7 +122,7 @@ fields (§10.1).
 **Custom · `before_agent` + `wrap_model_call` · position 1.** Prepends
 project state at the **top** of the prompt: this phase's `artifacts`, prior
 phases' gate documents from the store, phase requirements, and the missing
-fields from `check_gate_status()`.
+fields from `check_gate_status()` (planned, step 7.1; until then the gate's own field check).
 
 **`before_agent` composes once per turn; `wrap_model_call` only prepends —
 a pure read, recomputing nothing.** Missing fields are computed at injection

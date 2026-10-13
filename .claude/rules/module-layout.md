@@ -43,8 +43,8 @@ Classes are permitted ONLY in these files.
 
 ### Tool and validation schemas
 - `knowledge/tool_args.py` — Pydantic schemas for `@tool` `args_schema=`
-- `validation/schemas.py` — `CriterionVerdict`, `GraderVerdict`,
-  `ConstraintVerdict`, `ConstraintCheckResult`
+- `validation/schemas.py` — `CoherenceResult`, `CriterionResult`, `CoachingGraderVerdict`,
+  `CriterionVerdict`, `GraderVerdict`
 - `core/errors.py` — `AgentImproveError` (§12.3)
 
 ### Persistence
@@ -59,7 +59,7 @@ Classes are permitted ONLY in these files.
 - `middleware/coherence.py` — `CoherenceMiddleware(AgentMiddleware)` (§8.9)
 
 ### Reliability
-- `core/reliability.py` — `CircuitBreaker`
+- `core/reliability.py` — `CircuitBreaker` (not built — required before customers, DEF-124; §4.8)
 
 All other files contain module-level functions ONLY. Especially:
 - Graph builder files (`core/graph.py`, `phases/{phase}/graph.py`)

@@ -66,7 +66,7 @@ previous passes.**
 
 | Level | Trigger | Belt sees | Retry |
 |---|---|---|---|
-| 1 — Silent | Coherence failure mid-turn | **Invisible** | Max 2, then degraded mode |
+| 1 — Silent | Coherence failure mid-turn | **Invisible** | One re-ask in `enforce` mode (ADR-0079); `log_only` until false rejects < 20% (G-161) |
 | 2 — Coached | Constraint failure on a Belt proposal — coach teaches | Transparent | **No cap** — dialogue, not a loop |
 | 3 — Validated | Full four-layer check at the gate | Pass/fail, Belt corrects and approves | Max 3, accumulated feedback |
 | 4 — Escalated | Attempts exhausted — defers with unresolved constraints named | Transparent, Belt is arbiter | None |

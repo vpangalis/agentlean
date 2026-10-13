@@ -109,7 +109,7 @@ Tuples are BANNED. The validation layers (§9.2), each grader iteration
 | Concern | Path | Written | Owner |
 |---|---|---|---|
 | Checkpoints | `checkpoints/{case_id}/latest.json` + `history/{id}.json` | After every graph node, by `AzureBlobCheckpointSaver` | `core/checkpointer.py` |
-| Case records (system of record) | `cases/case_{id}.json`, `registry.json`, `uploads/{case_id}/{file}` | Case create, gate pass, file upload — **never mid-conversation** | `storage/blob.py` (`ImproveBlobClient`) |
+| Case records (system of record) | `cases/case_{id}.json`, `registry.json`, `uploads/{case_id}/{file}` | Case create, gate pass, file upload — **never mid-conversation** | `storage/blob.py` (module functions) |
 
 The gate-pass case write and registry update are two writes, both covered by
 the node's `error_handler` (§3.6).
@@ -247,7 +247,7 @@ performs one, it lives in `uploads`; no gate blocks on it
   — they are derived values kept for readability, and one write site is
   what keeps them honest (§10.1)
 - Never store a derived list of missing fields or blockers — derive them
-  from `check_gate_status()` and the validation stack at the moment they
+  from `check_gate_status()` (planned, step 7.1) and the validation stack at the moment they
   are needed (§9.2, §10.1)
 - Never carry phase context on parent state — every input mapper
   composes `phase_context` from the store (§10.2)

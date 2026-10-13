@@ -46,18 +46,12 @@ ABSENT_BY_DESIGN: dict[str, str] = {
     "PostgresStore": "a later stage's store, not installed",
     "ContextHubBackend": "deferred (8.3)",
     "PhaseInput": "the family name; the classes are {Phase}PhaseInput",
+    "check_gate_status": "planned, step 7.1 (founder ruling 2026-10-13: marked planned)",
+    "CircuitBreaker": "not built, required before customers: DEF-124, T35 (founder ruling 2026-10-13)",
 }
 #: Stale names found 2026-10-13 (founder ruling: report them), named as if built; each leaves the list
 #: when its document or the code is corrected. Keyed `path  name`, as `hits()` prints them without line.
-BASELINE: frozenset[str] = frozenset({
-    ".claude/rules/middleware.md  FilesystemBackend",
-    ".claude/rules/middleware.md  check_gate_status()",
-    ".claude/rules/module-layout.md  ConstraintVerdict",
-    ".claude/rules/module-layout.md  ConstraintCheckResult",
-    ".claude/rules/module-layout.md  CircuitBreaker",
-    ".claude/rules/state.md  ImproveBlobClient",
-    ".claude/rules/state.md  check_gate_status()",
-})
+BASELINE: frozenset[str] = frozenset()          # all seven fixed or marked, 2026-10-13
 SPAN = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
 INLINE_CLASS = re.compile(r"^(?:[\w.]*\.)?([A-Z][a-z0-9]+(?:[A-Z][A-Za-z0-9]*)+)(?:\(.*\))?$")
 INLINE_CALL = re.compile(r"^(?:[\w.]*\.)?([a-z_]\w*)\((?:[^()]*)\)$")
