@@ -1995,6 +1995,52 @@ def _change_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
                             prompt=CHANGE_QUESTION)
 
 
+#: G-173 (founder ruling A4, 2026-10-13; ADR-0077) — a number as it is written: digits with thousands
+#: commas, a decimal part, and a k or m multiplier; a digit inside a word ("5W2H", "Q2") is not one.
+_NUMBER = re.compile(r"(?<![A-Za-z0-9.,])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?\s?([kKmM])?(?![A-Za-z0-9])")
+
+
+def _number_values(text: str) -> list[tuple[str, set[float]]]:
+    """Each number in `text`: its spelling and the values it may stand for (with its multiplier, without)."""
+    out = []
+    for m in _NUMBER.finditer(text or ""):
+        base = float(m.group(1).replace(",", "") + ("." + m.group(2) if m.group(2) else ""))
+        scale = {"k": 1e3, "m": 1e6}.get((m.group(3) or "").lower(), 1.0)
+        out.append((m.group(0).strip(), {round(base, 6), round(base * scale, 6)}))
+    return out
+
+
+def _number_sources(phase: str, state: PhaseState, produced: list) -> set[float]:
+    """G-173: every value a number in the coach's words may come from — the Belt's messages, the case's
+    confirmed values and computation results, the phase script, this turn's tool results, and the step
+    numbers. A percentage and its fraction are the same value (DEF-016's one convention)."""
+    from backend.middleware.skills import instructions
+    texts: list[str] = [str(m.text) for m in (state.get("messages") or []) if isinstance(m, HumanMessage)]
+    texts.append(json.dumps(state.get("artifacts") or {}, default=str, ensure_ascii=False))
+    texts.append(str(state.get("phase_context") or ""))
+    texts.append(instructions(phase))
+    # A lookup's result is a source; the structured reply's own echo (ToolStrategy's "Returning structured
+    # response: …" tool message) is the coach's words, never their source.
+    texts += [str(m.content) for m in produced if isinstance(m, ToolMessage)
+              and not str(m.content).startswith("Returning structured response")]
+    values: set[float] = {float(n) for n in range(0, len(moves.positions(phase)) + 1)}
+    for text in texts:
+        for _, vals in _number_values(text):
+            for v in vals:
+                values |= {v, round(v * 100, 6), round(v / 100, 6)}
+                # A source rounded for reading ("about £68,000" for a computed 68,040) is still that source.
+                if abs(v) >= 10:
+                    values |= {float(f"{v:.{sig}g}") for sig in (1, 2, 3)}
+    return values
+
+
+def _unsourced_numbers(reply: CoachingResponse, sources: set[float]) -> list[str]:
+    """G-173: the numbers in the coach's words (message and blocks) that no source holds — numbers the
+    coach calculated or invented. ADR-0077: calculations run in code."""
+    text = chr(10).join(str(getattr(reply, k, "") or "") for k in ("message", "explanation", "example", "prompt"))
+    return [spelled for spelled, vals in _number_values(text) if not vals & sources]
+
+
 #: G-172 (founder ruling A3, 2026-10-13; DEF-020) — a question about where the project stands.
 STATUS_QUESTION = re.compile(r"\b(where (do|are) we(\s+(stand|at|now))?|what('s| is| have we)?\s+(done|left|missing|"
                              r"still open|next)|how far (have we|are we)|(our|my) progress|progress so far|"
@@ -2457,6 +2503,21 @@ async def executor(
         fell_back = True
         logger.warning("%s.executor: the coach's turn ended with no structured reply (G-153) — the "
                        "move's reply is written in code. Diagnosis: %s", phase, limit_diagnosis["why"])
+        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
+        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
+        result = {**result, "messages": produced, "structured_response": fallback}
+    # G-173 (founder ruling A4, 2026-10-13; ADR-0077) — every number in the coach's words comes from the
+    # Belt, the case, a computation result or the script; a reply with any other number is rejected and
+    # the move's reply is written in code.
+    unsourced: list[str] = []
+    if written is None and not fell_back and isinstance(result.get("structured_response"), CoachingResponse):
+        unsourced = _unsourced_numbers(result["structured_response"],
+                                       _number_sources(phase, state, produced[len(history):]))
+    if unsourced:
+        fallback = _fallback_reply(phase, plan)
+        fell_back = True
+        logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s); the move's "
+                       "reply is written in code", phase, ", ".join(unsourced[:5]))
         ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
         produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
         result = {**result, "messages": produced, "structured_response": fallback}
@@ -2924,6 +2985,7 @@ async def executor(
             phase, turn_count, "executor",
             status=_executor_status(hit_cap, off_ramp, timed_out, filtered, level_4),
             model_attempts=attempts or None,                     # T34 / ADR-0082 (§4.8)
+            unsourced_numbers=unsourced or None,                 # G-173 (ADR-0077)
             fallback_used=fell_back,
             limit=limit_diagnosis,                                 # G-139
             resend=resend,                                         # G-140

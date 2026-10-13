@@ -2226,6 +2226,49 @@ def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeyp
     assert "UK invoice generation" in body["example"] and "out of scope" in body["prompt"]
 
 
+def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch) -> None:
+    """G-173 (founder ruling A4, 2026-10-13; ADR-0077; rows 132229#27, 134606#26, 140839#26), through
+    POST /ask with the real create_agent: a reply holding a number that neither the Belt, the case, a
+    computation result nor the script gives (a cost the coach worked out) is rejected — the Belt gets the
+    move's reply written in code and step_log names the number; a reply that repeats the Belt's own
+    figure is kept."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import _FakeCoach
+
+    planner = nodes_common.get_llm
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+
+    def turn(message: str) -> str:
+        args = {"message": message, "explanation": "Why the project is worth doing.", "example": "",
+                "prompt": "Why is your project worth doing?", "progress": "", "fields_captured": []}
+        call = {"name": "CoachingResponse", "args": args, "id": "g173"}
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
+            messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else planner(role, **kw))
+        env.case.phases["define"].structured = {}
+        env.case.phases["define"].field_status = {}
+        steps.clear()
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                          "message": "Late payments cost us about £62,000 a year."})
+        assert r.status_code == 200, r.text
+        return r.json()["answer"]
+
+    said = turn("So the cost of the gap is about £68,040 a year — that is worth a project.")
+    assert "68,040" not in said, said
+    hit = [e for e in steps if isinstance(e, dict) and e.get("unsourced_numbers")]
+    assert hit and hit[-1]["unsourced_numbers"] == ["68,040"], [e.get("unsourced_numbers") for e in steps if isinstance(e, dict)]
+    said = turn("£62,000 a year is a cost worth a project.")
+    assert said.startswith("£62,000 a year"), said
+
+
 def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance(env, monkeypatch) -> None:
     """DEF-153 — T92, through POST /ask with the real create_agent and middleware stack: a coach
     call refused with `content_filter` is made ONCE (ModelRetryMiddleware does not retry it), the
