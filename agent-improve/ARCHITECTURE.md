@@ -547,7 +547,23 @@ JSON.
 
 ### 4.1 Shapes and notes
 
-**Who writes `SupervisorState`.**
+**`SupervisorState`'s fields**, generated from `core/state.py`:
+
+<!-- BEGIN GENERATED: state fields — tools/architecture/generate_state_fields.py, never edit by hand -->
+
+| Field | Type |
+|---|---|
+| `messages` | `Annotated[list[BaseMessage], operator.add]` |
+| `history` | `Annotated[list[str], operator.add]` |
+| `case_id` | `str` |
+| `phase_index` | `int` |
+| `current_phase` | `str` |
+| `gate_passed` | `dict[str, bool]` |
+| `final_output` | `Optional[dict]` |
+
+<!-- END GENERATED: state fields -->
+
+**Who writes and reads them** (by hand; every field above appears once):
 
 | Field | Writer | Readers |
 |---|---|---|

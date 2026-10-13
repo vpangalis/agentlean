@@ -1,9 +1,9 @@
 {
- "source_hash": "e714cc7ebac5e291",
- "commit": "1fd2b97",
+ "source_hash": "71dab1149b6e549f",
+ "commit": "f8f45cb",
  "commit_matches_source": false,
- "full_run_hash": "e714cc7ebac5e291",
- "recorded_at": "2026-10-13T09:15:05+00:00",
+ "full_run_hash": "71dab1149b6e549f",
+ "recorded_at": "2026-10-13T09:19:52+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -964,9 +964,11 @@
   "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[code layout]": "passed",
   "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[index fields]": "passed",
   "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[middleware order]": "passed",
+  "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[state fields]": "passed",
   "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[value keys]": "passed",
   "backend/tests/test_generated_docs.py::test_the_graph_route_table_names_real_routes": "passed",
   "backend/tests/test_generated_docs.py::test_the_middleware_table_is_in_the_declared_order": "passed",
+  "backend/tests/test_generated_docs.py::test_the_state_writers_table_names_every_field_once": "passed",
   "backend/tests/test_guard_mode_strict_default.py::test_a_run_record_names_its_guard_mode": "passed",
   "backend/tests/test_guard_mode_strict_default.py::test_nothing_in_the_set_up_sets_development_mode": "passed",
   "backend/tests/test_hop_cap.py::test_one_more_hop_would_not_fit": "passed",
@@ -1727,8 +1729,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "9425164ceef293ac",
-  "recorded_at": "2026-10-13T09:09:16+00:00",
+  "source_hash": "e714cc7ebac5e291",
+  "recorded_at": "2026-10-13T09:15:05+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2864,8 +2866,10 @@
    "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[api routes]": "passed",
    "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[code layout]": "passed",
    "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[index fields]": "passed",
+   "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[middleware order]": "passed",
    "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[value keys]": "passed",
    "backend/tests/test_generated_docs.py::test_the_graph_route_table_names_real_routes": "passed",
+   "backend/tests/test_generated_docs.py::test_the_middleware_table_is_in_the_declared_order": "passed",
    "backend/tests/test_guard_mode_strict_default.py::test_a_run_record_names_its_guard_mode": "passed",
    "backend/tests/test_guard_mode_strict_default.py::test_nothing_in_the_set_up_sets_development_mode": "passed",
    "backend/tests/test_hop_cap.py::test_one_more_hop_would_not_fit": "passed",

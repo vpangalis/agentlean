@@ -18,11 +18,13 @@ import generate_routes  # noqa: E402
 import generate_value_keys  # noqa: E402
 import generate_index_fields  # noqa: E402
 import generate_middleware_order  # noqa: E402
+import generate_state_fields  # noqa: E402
 
 
 @pytest.mark.parametrize("gen", [generate_layout, generate_routes, generate_value_keys, generate_index_fields,
-                                 generate_middleware_order],
-                         ids=["code layout", "api routes", "value keys", "index fields", "middleware order"])
+                                 generate_middleware_order, generate_state_fields],
+                         ids=["code layout", "api routes", "value keys", "index fields", "middleware order",
+                              "state fields"])
 def test_the_generated_document_is_current(gen) -> None:
     doc = gen.DOC
     text = (PROJECT.parent / doc.doc_rel).read_text(encoding="utf-8")
@@ -79,3 +81,15 @@ def test_the_middleware_table_is_in_the_declared_order() -> None:
     assert len(rows) == len(declared), f"{len(rows)} table rows, {len(declared)} declared middleware"
     for n, (cell, name) in enumerate(zip(rows, declared), 1):
         assert name in cell, f"row {n} is {cell.strip()!r}; the declared list has {name} there"
+
+
+def test_the_state_writers_table_names_every_field_once() -> None:
+    """Founder ruling 2026-10-13: `SupervisorState`'s fields are generated in §4.1; the hand-written
+    writers table below names each of them exactly once, and nothing else."""
+    import re
+    arch = (PROJECT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    start = arch.index("| Field | Writer | Readers |")
+    cells = [r.split("|")[1] for r in arch[start:arch.index("\n\n", start)].splitlines()[2:]]
+    named = [n for cell in cells for n in re.findall(r"`(\w+)`", cell)]
+    declared = [name for name, _ in generate_state_fields.fields(PROJECT)]
+    assert sorted(named) == sorted(declared), f"table names {sorted(named)}; SupervisorState has {sorted(declared)}"
