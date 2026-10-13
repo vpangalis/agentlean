@@ -4,11 +4,11 @@ Written by `.claude/hooks/section_index.py` on every commit that touches a
 document below (step 6.66). Find the section here, then read only its lines
 (CLAUDE.md, Three layers). A range runs to the next heading of the same or higher level.
 
-## `agent-improve/ARCHITECTURE.md` — 648 lines
+## `agent-improve/ARCHITECTURE.md` — 683 lines
 
 | Lines | Heading |
 |---|---|
-| 1–648 | Agent Improve — Architecture |
+| 1–683 | Agent Improve — Architecture |
 | 20–41 |  1. Overview |
 | 42–346 |  2. Architecture |
 | 44–62 |   2.1 Context |
@@ -30,9 +30,9 @@ document below (step 6.66). Find the section here, then read only its lines
 | 488–500 |   3.8 Validation |
 | 501–510 |   3.9 API |
 | 511–520 |   3.10 UI |
-| 521–612 |  4. Data models |
-| 525–606 |   4.1 Shapes and notes |
-| 607–612 |   4.2 Declarations |
-| 613–628 |  5. Error handling |
-| 629–640 |  6. Testing strategy |
-| 641–648 |  7. Glossary |
+| 521–647 |  4. Data models |
+| 525–641 |   4.1 Shapes and notes |
+| 642–647 |   4.2 Declarations |
+| 648–663 |  5. Error handling |
+| 664–675 |  6. Testing strategy |
+| 676–683 |  7. Glossary |

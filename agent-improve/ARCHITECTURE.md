@@ -578,21 +578,56 @@ Fields with a default in §4.2 are the recommended (Tier 2) fields.
 
 **Indexes.**
 
-| Index | Field | Use |
-|---|---|---|
-| knowledge | `phase_relevance` | filter: the phase key or `general` |
-| | `source_file`, `page_number` | returned for citations, never filtered |
-| evidence | `case_id` | filter, always applied |
-| | `phase` | filter, off by default |
-| | `kind` | `evidence` or `artefact`, derived from `role`; retrieval filters `evidence` by default |
-| | `role` | fixed vocabulary in `upload/asks.py` |
-| | `content_digest` | SHA-256 of the bytes; version identity |
-| | `shape_match` | `full`, `partial`, `none`, `unsolicited` |
-| | all added fields | set by the server, never by the Belt |
-| case | `status` | filter `completed` |
-| | `created_at` | ordering, descending |
-| | `belt_level` | filter, off by default |
-| | `embedding` | vector profile `improve-vector-profile` (settings owned by the index definition) |
+<!-- BEGIN GENERATED: index fields — tools/architecture/generate_index_fields.py, never edit by hand -->
+
+| Index | Field | Type | Flags | Returned by search |
+|---|---|---|---|---|
+| knowledge | `id` | `Edm.String` | key, filterable | LangChain's choice |
+| knowledge | `content` | `Edm.String` | searchable | LangChain's choice |
+| knowledge | `content_vector` | `Collection(Edm.Single)` | vector 3072, profile `default` | LangChain's choice |
+| knowledge | `metadata` | `Edm.String` | searchable | LangChain's choice |
+| knowledge | `source_file` | `Edm.String` | filterable | LangChain's choice |
+| knowledge | `phase_relevance` | `Edm.String` | filterable | LangChain's choice |
+| knowledge | `page_number` | `Edm.Int32` | filterable | LangChain's choice |
+| evidence | `id` | `Edm.String` | key, filterable | yes |
+| evidence | `content` | `Edm.String` | searchable | yes |
+| evidence | `content_vector` | `Collection(Edm.Single)` | vector 3072, profile `default` | — |
+| evidence | `metadata` | `Edm.String` | searchable | yes |
+| evidence | `case_id` | `Edm.String` | filterable | yes |
+| evidence | `phase` | `Edm.String` | filterable | yes |
+| evidence | `uploaded_at` | `Edm.String` | filterable, sortable | yes |
+| evidence | `role` | `Edm.String` | searchable, filterable | yes |
+| evidence | `kind` | `Edm.String` | filterable | yes |
+| evidence | `description` | `Edm.String` | searchable | yes |
+| evidence | `content_digest` | `Edm.String` | filterable | yes |
+| evidence | `shape_match` | `Edm.String` | filterable | yes |
+| case | `id` | `Edm.String` | key, filterable | yes |
+| case | `case_id` | `Edm.String` | filterable, sortable | yes |
+| case | `title` | `Edm.String` | searchable | yes |
+| case | `belt_level` | `Edm.String` | filterable, facetable | — |
+| case | `leader` | `Edm.String` | filterable | — |
+| case | `department` | `Edm.String` | searchable, filterable | — |
+| case | `current_phase` | `Edm.String` | filterable, facetable | yes |
+| case | `rag_status` | `Edm.String` | filterable, facetable | yes |
+| case | `status` | `Edm.String` | filterable, facetable | — |
+| case | `created_at` | `Edm.String` | filterable, sortable | — |
+| case | `target_date` | `Edm.String` | filterable, sortable | — |
+| case | `days_in_phase` | `Edm.Int32` | filterable, sortable | — |
+| case | `phase_summary_define` | `Edm.String` | searchable | — |
+| case | `phase_summary_measure` | `Edm.String` | searchable | — |
+| case | `phase_summary_analyse` | `Edm.String` | searchable | — |
+| case | `phase_summary_improve` | `Edm.String` | searchable | — |
+| case | `phase_summary_control` | `Edm.String` | searchable | — |
+| case | `content_text` | `Edm.String` | searchable | yes |
+| case | `embedding` | `Collection(Edm.Single)` | vector 3072, profile `improve-vector-profile` | — |
+
+<!-- END GENERATED: index fields -->
+
+Use, written by hand: knowledge search filters `phase_relevance` to the phase key or `general`;
+`source_file` and `page_number` are returned for citations. Evidence search always filters `case_id`,
+and `kind` to `evidence` unless the caller passes `kind=None`; `kind` is derived from `role`, whose
+vocabulary, like `shape_match`'s, is fixed in `upload/asks.py`; `content_digest` (SHA-256 of the bytes) is the version
+identity; every added field is set by the server, never by the Belt. Case search applies no filter.
 
 A new evidence version deletes the previous version's chunks; supersession is keyed on
 `blob_path`. Blob keeps every version. The live knowledge index name is read from
