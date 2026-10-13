@@ -1428,9 +1428,100 @@ def test_t28_turn_latency_p50_and_p99_are_recorded_per_phase() -> None:
 
 
 
-def test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p() -> None:
-    """DEF-123 — A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved"""
-    _not_written('DEF-123')
+def test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p(env, monkeypatch) -> None:
+    """DEF-123 — T34 (ADR-0059 decision 2, ADR-0082), through POST /ask with the real create_agent and
+    middleware stack, the founder's three cases (2026-10-13) and the last level:
+      a content-filter refusal never reaches gpt-4o-mini (T92's guidance reply, one premium call);
+      a token-limit 400 is not retried on another model (one premium call, the level-4 reply);
+      a 5xx falls back to gpt-4o-mini within the turn deadline, which answers the Belt;
+      both models failing ends in the level-4 reply: the phase, the captured count, progress saved.
+    Every attempt, with its model, is in the executor's step_log record (§4.8)."""
+    import re
+    import time
+
+    import httpx
+    import openai
+    from langchain_core.messages import AIMessage
+
+    from backend.core import guard_messages
+    from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    class Refused(Exception):
+        code = "content_filter"
+
+    request = httpx.Request("POST", "https://coach.example.invalid")
+    too_long = openai.BadRequestError("Error code: 400 - context_length_exceeded",
+                                      response=httpx.Response(400, request=request),
+                                      body={"code": "context_length_exceeded"})
+    down = openai.InternalServerError("Error code: 500 - server error",
+                                      response=httpx.Response(500, request=request), body=None)
+    answer = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": REPLY, "id": "t34"}])
+    planner = nodes_common.get_llm
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+
+    def turn(premium_error: BaseException, mini_error: BaseException | None) -> tuple[str, list, list, float]:
+        premium: list = []
+        mini: list = []
+
+        class Premium(_FakeCoach):
+            def _generate(self, *a, **k):
+                premium.append(1)
+                raise premium_error
+
+        class Mini(_FakeCoach):
+            def _generate(self, *a, **k):
+                mini.append(1)
+                if mini_error is not None:
+                    raise mini_error
+                return super()._generate(*a, **k)
+
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: Premium(messages=iter([]))
+                            if role == "coach" else planner(role, **kw))
+        monkeypatch.setattr(nodes_common, "get_fallback_llm", lambda role="coach", **kw: Mini(messages=iter([answer])))
+        env.case.phases["define"].structured = {}
+        env.case.phases["define"].field_status = {}
+        steps.clear()
+        started = time.time()
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                          "message": "Our business case: invoice rework costs about 40k a year."})
+        assert r.status_code == 200, r.text
+        return r.json()["answer"], premium, mini, time.time() - started
+
+    def executor_record() -> dict:
+        hit = [e for e in steps if isinstance(e, dict) and e.get("model_attempts")]
+        assert hit, "step_log records no model attempts"
+        return hit[-1]
+
+    level_4 = re.compile(r"You are in Define: \d+ of \d+ fields are captured, and your progress is saved")
+
+    said, premium, mini, _ = turn(Refused("Error code: 400 - content_filter"), None)
+    assert said.startswith(guard_messages.AZURE), said
+    assert (len(premium), len(mini)) == (1, 0), f"premium {len(premium)}, gpt-4o-mini {len(mini)}"
+
+    said, premium, mini, _ = turn(too_long, None)
+    assert level_4.search(said), said
+    assert (len(premium), len(mini)) == (1, 0), f"premium {len(premium)}, gpt-4o-mini {len(mini)}"
+    assert [a["outcome"] for a in executor_record()["model_attempts"]] == ["token_limit"]
+
+    said, premium, mini, took = turn(down, None)
+    assert said.startswith(str(REPLY["message"])[:30]), said
+    assert (len(premium), len(mini)) == (nodes_common.RETRY_MAX + 1, 1), f"premium {len(premium)}, mini {len(mini)}"
+    assert took < TURN_LIMIT_S - TURN_CLOSE_RESERVE_S, f"the fallback answered after {took:.1f} s"
+    outcomes = [(a["model"], a["outcome"]) for a in executor_record()["model_attempts"]]
+    assert outcomes == [("Premium", "InternalServerError")] * (nodes_common.RETRY_MAX + 1) + [("Mini", "ok")], outcomes
+
+    said, premium, mini, _ = turn(down, down)
+    assert level_4.search(said), said
+    assert (len(premium), len(mini)) == (nodes_common.RETRY_MAX + 1,) * 2
 
 
 def test_t35_two_three_state_circuit_breakers_3_failures_in_30_s_open_60_s_rese() -> None:

@@ -321,7 +321,15 @@ def missing_gate_fields(phase: str, data: dict[str, Any]) -> list[str]:
     return missing
 
 
+def captured_count(phase: str, data: dict[str, Any]) -> tuple[int, int]:
+    """How many of the phase's Tier-1 fields hold a value, and how many there are — the count degraded
+    mode names (§4.8, T34 level 4)."""
+    tier_1 = GATE_SPECS[phase].tier_1
+    return sum(not _is_empty(data.get(f)) for f in tier_1), len(tier_1)
+
+
 __all__ = [
+    "captured_count",
     "declared_type", "split_by_declared_type",
     "GateSpec",
     "GATE_SPECS",

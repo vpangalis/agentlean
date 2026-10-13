@@ -111,8 +111,10 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
         "DMAICSkillsMiddleware",             # 2
         "SummarizationMiddleware",           # 3
         "TurnTools[teaching]",               # ADR-0069: the turn type's tools (no plan: teaching)
-        "ModelCallLimitMiddleware",          # ADR-0059 (T69): encloses the retry
+        "ModelCallLimitMiddleware",          # ADR-0059 (T69): encloses the fallback and the retry
+        "ModelFallbackMiddleware",           # T34 level 2 (ADR-0059 decision 2, ADR-0082)
         "ModelRetryMiddleware",              # 4
+        "KeptFromFallback",                  # ADR-0082: refusals and token limits never reach the fallback
         "ToolRetryMiddleware",               # 5
         "PIIMiddleware",                     # ADR-0062 (T87): tool results only
         # 6-8 fire after_agent, which executes in REVERSE — so they are

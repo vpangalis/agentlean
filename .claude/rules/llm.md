@@ -115,9 +115,13 @@ validators 0.0–0.2.
 Level 0: TimeoutPolicy(run_timeout=40)         — fires first (§3.6)
 Level 1: gpt-4o    (operational-premium)       exponential backoff
 Level 2: gpt-4o-mini (operational-model)       exponential backoff
-Level 3: Azure Cache for Redis, session-scoped jittered backoff
+Level 3: Azure Cache for Redis, session-scoped jittered backoff   — NOT BUILT (ADR-0082)
 Level 4: Degraded mode — never a hard failure to the Belt
 ```
+
+**Built (T34, ADR-0082):** levels 1 and 2 through `ModelRetryMiddleware` and `ModelFallbackMiddleware`,
+level 4 in the executor. A content-filter refusal (T92) and a token-limit 400 are kept from the fallback
+by `middleware/fallback.py::kept_from_fallback_middleware`, inside the retry.
 
 **Backoff rule:** exponential for managed services (Azure OpenAI);
 jittered for shared resources (the cache).

@@ -62,6 +62,11 @@ class _FakeLLM(GenericFakeChatModel):
     def with_structured_output(self, schema: Any, **_: Any) -> Any:
         return _Structured(schema)
 
+    def bind_tools(self, tools: Any, **_: Any) -> Any:
+        # T34 (ADR-0082): without this the coach's call failed on every run, which the retry's old
+        # `on_failure="continue"` hid; now a failed call goes on to the fallback model.
+        return self
+
 
 def _fake_llm(*_a: Any, **_k: Any) -> Any:
     return _FakeLLM(messages=iter([AIMessage(content="A coaching turn.")] * 60))
@@ -92,6 +97,7 @@ def observed(monkeypatch) -> list[tuple[str, str]]:
 
     for module in (_c, coherence_module, grader_module):
         monkeypatch.setattr(module, "get_llm", _fake_llm, raising=False)
+    monkeypatch.setattr(_c, "get_fallback_llm", _fake_llm)
 
     for cls in (BeforeModelStateInjection, DMAICSkillsMiddleware,
                 DMAICGraderMiddleware, CoherenceMiddleware,

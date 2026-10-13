@@ -49,11 +49,14 @@ import json
 import logging
 import re
 import time
+
+import openai
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import (
     ModelCallLimitMiddleware,
+    ModelFallbackMiddleware,
     ModelRetryMiddleware,
     SummarizationMiddleware,
     ToolRetryMiddleware,
@@ -66,10 +69,11 @@ from langgraph.graph import END
 from langgraph.types import Command, interrupt
 
 from backend.core import content_safety, guard, guard_messages, pii
+from backend.middleware import fallback as model_fallback
 from backend.middleware import turn_tools
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S, settings
 from backend.core.conversation import message_to_turn
-from backend.core.llm import get_llm
+from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
 from backend.core.prompts import (
     FALLBACK_RESEND,
@@ -119,7 +123,7 @@ from backend.middleware.skills import (
 )
 from backend.phases import moves
 from backend.middleware.state_injection import BeforeModelStateInjection
-from backend.phases.gate_registry import GATE_SPECS, review_rows, split_by_declared_type
+from backend.phases.gate_registry import GATE_SPECS, captured_count, review_rows, split_by_declared_type
 from backend.validation.rubric import grade_define
 from backend.phases.mappers_common import PHASE_ORDER
 
@@ -936,7 +940,7 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
 
 
 def _executor_status(hit_cap: bool, off_ramp: bool,
-                     timed_out: bool = False, filtered: bool = False) -> str:
+                     timed_out: bool = False, filtered: bool = False, degraded: Optional[str] = None) -> str:
     """The `step_log` status for one coaching turn — §10.3, dicts not tuples.
 
     Four outcomes, deliberately distinguished. **`"coached_no_retrieval"` is
@@ -955,6 +959,8 @@ def _executor_status(hit_cap: bool, off_ramp: bool,
     """
     if filtered:
         return "content_filter"                  # T92: refused by the Azure filter, not retried
+    if degraded:
+        return degraded                          # T34 level 4: "model_unavailable" or "token_limit"
     if timed_out:
         return "partial_timeout"
     if hit_cap:
@@ -1042,6 +1048,7 @@ def _build_executor(
     coach_limit: int = TURN_MODEL_CALLS - AFTER_AGENT_CALLS,
     turn_type: str = turn_tools.TEACHING,
     reask: Optional[dict[str, Any]] = None,
+    attempts: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
@@ -1135,7 +1142,14 @@ def _build_executor(
             # before the retry, so it encloses it: a retried call is one call of the budget.
             # Its state schema (ModelCallLimitState) is its own; the list is typed on AgentState.
             cast(Any, ModelCallLimitMiddleware(run_limit=coach_limit, exit_behavior="end")),
-            ModelRetryMiddleware(max_retries=RETRY_MAX, retry_on=content_safety.retry_on),
+            # T34 (ADR-0059 decision 2, ADR-0082) — level 2: when the premium call has failed through its
+            # retries, the same request on the operational deployment, retried the same way. As shipped.
+            ModelFallbackMiddleware(get_fallback_llm("coach")),
+            # Level 1. `on_failure="error"`, so a call that fails through its retries reaches the fallback.
+            ModelRetryMiddleware(max_retries=RETRY_MAX, retry_on=content_safety.retry_on, on_failure="error"),
+            # ADR-0082 — innermost of the three: a content-filter refusal (T92) or a token-limit 400 (§4.8)
+            # becomes a marked reply, so neither the retry nor the fallback sees it; every attempt is logged.
+            model_fallback.kept_from_fallback_middleware(attempts),
             # **The same nesting rule, one layer out.** Position 1 is declared
             # first, so it is the OUTERMOST layer — and since 6.3 it also wraps
             # the model call. Its wrap therefore encloses this retry, which is
@@ -1533,6 +1547,25 @@ def _fallback_reply(phase: str, plan: Optional[CoachingPlan]) -> CoachingRespons
     return CoachingResponse(message=text + chr(10) * 2 + prompt, prompt=prompt)
 
 
+def _refused_turn(phase: str, state: PhaseState, plan: Optional[CoachingPlan], prior: list[Any],
+                  filtered: bool) -> tuple[CoachingResponse, dict[str, Any]]:
+    """A turn the coach model did not answer, answered in code (ADR-0082): a content-filter refusal gets
+    T92's guidance reply; a model failure through both levels, or a token-limit 400, gets the level-4
+    reply naming the phase and the captured count (§4.8). Either way the exchange is marked as the
+    guard marks a block, so `guard.without_blocked` keeps it from every later model call and the
+    reload: the Belt sends the message again and it is not doubled."""
+    if filtered:
+        text = guard_messages.reply(guard_messages.AZURE, phase, plan.focus_field if plan else None)
+        mark = {"status": "blocked", "threat": "azure", "rule": "content_filter"}
+    else:
+        captured, total = captured_count(phase, dict(state.get("artifacts") or {}))
+        text = guard_messages.LEVEL_4.format(phase=phase.capitalize(), captured=captured, total=total)
+        mark = {"status": "blocked", "threat": "unavailable", "rule": "model_unavailable"}
+    reply = CoachingResponse(message=text, prompt="")
+    refused = AIMessage(content=text, additional_kwargs={guard.NODE: mark})
+    return reply, {"messages": [*prior, refused], "structured_response": reply}
+
+
 #: G-138 — the moves that teach a field: its first reply carries all three teaching blocks.
 TEACHING_MOVES = (moves.TEACH, moves.STORE_AND_ADVANCE)
 
@@ -1688,6 +1721,10 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
         reply.prompt = _without_links(str(reply.prompt or ""))
     for i in range(len(messages) - 1, -1, -1):
         msg = messages[i]
+        if isinstance(msg, AIMessage) and guard.NODE in (msg.additional_kwargs or {}):
+            # Written in code and marked (T92's refusal, T34's level 4 — ADR-0082): its "progress is
+            # saved" is the system's statement, not a model's store claim.
+            return messages
         if isinstance(msg, AIMessage) and msg.text.strip():
             body = _without_links(_without_store_claims(msg.text))
             text = f"{note}{chr(10) * 2}{body}".strip() if note else body
@@ -2188,10 +2225,12 @@ async def executor(
     reask = {"allowed": calls_before == 0, "coach_limit": coach_limit, "started": started,
              "deadline": (float(turn_started) + TURN_LIMIT_S - TURN_CLOSE_RESERVE_S) if turn_started else None,
              "wall": started + EXECUTOR_RUN_TIMEOUT}
+    # T34 / ADR-0082 — every model attempt the retry and the fallback made, for step_log (§4.8).
+    attempts: list[dict[str, Any]] = []
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
         script_log=script_log, coherence_log=coherence_log, coach_limit=coach_limit,
-        turn_type=turn_type, reask=reask,
+        turn_type=turn_type, reask=reask, attempts=attempts,
     )
     # ── the planner's named call, executed before the model runs ──────
     # §17, step 6.21, option C. `prior` is what the agent is invoked with;
@@ -2215,6 +2254,7 @@ async def executor(
     # `partial_timeout`, the fallback marked as the defect it is (6.61).
     timed_out = engine_timeout
     filtered = False
+    level_4: Optional[str] = None            # T34 level 4 (ADR-0082): "model_unavailable" or "token_limit"
     # 6.61 — containment, founder 2026-09-25: every use of the code-written
     # fallback is a DEFECT (the coach did not finish its move) and is logged
     # as one; the target is zero.
@@ -2262,22 +2302,31 @@ async def executor(
         result = {"messages": [*prior, AIMessage(content=fallback.message)],
                   "structured_response": fallback}
     except Exception as exc:
-        # T92 (ADR-0067): the Azure deployment's content filter refused the coach's call. It was
-        # not retried and goes to no fallback model; the Belt gets a guidance reply written in
-        # code — the fixed text, the element and its sample — and step_log says so.
-        if not content_safety.is_content_filter(exc):
+        # T34 level 4 (ADR-0082): the premium model and the fallback both failed through their
+        # retries (a refusal or a token limit never raises here: the marker turned it into a reply).
+        # A content-filter refusal raised outside the marker still answers as T92. Anything that is not
+        # a model service's error is not the model's failure: it goes to the node's degraded handler.
+        if not (isinstance(exc, openai.APIError) or content_safety.is_content_filter(exc)):
             raise
-        filtered = True
-        logger.warning("%s.executor: the model call was refused by the content filter — guidance "
-                       "reply, not retried (T92)", phase)
-        text = guard_messages.reply(guard_messages.AZURE, phase, plan.focus_field if plan else None)
-        fallback = CoachingResponse(message=text, prompt="")
+        if content_safety.is_content_filter(exc):
+            filtered = True
+        else:
+            level_4 = ("token_limit" if model_fallback.reason(exc) == model_fallback.TOKEN_LIMIT
+                       else "model_unavailable")
+        logger.warning("%s.executor: %s — %s, answered in code (ADR-0082)", phase, type(exc).__name__,
+                       "content filter (T92)" if filtered else level_4)
+        _, result = _refused_turn(phase, state, plan, prior, filtered)
         fell_back = True
-        # Marked as the guard marks a block, so `guard.without_blocked` keeps the refused
-        # message from every later model call and from the reload ("Nothing was stored").
-        refused = AIMessage(content=text, additional_kwargs={
-            guard.NODE: {"status": "blocked", "threat": "azure", "rule": "content_filter"}})
-        result = {"messages": [*prior, refused], "structured_response": fallback}
+    else:
+        marked = model_fallback.kept_from_fallback(list(result.get("messages") or [])) if written is None else None
+        if marked is not None:
+            # ADR-0082 — the marker kept a refusal (T92) or a token-limit 400 (§4.8) from the retry and the
+            # fallback; the reply is written in code here.
+            filtered = marked == model_fallback.CONTENT_FILTER
+            level_4 = None if filtered else "token_limit"
+            logger.warning("%s.executor: %s — kept from the fallback, answered in code (ADR-0082)", phase, marked)
+            _, result = _refused_turn(phase, state, plan, prior, filtered)
+            fell_back = True
 
     produced = list(result.get("messages") or [])
     # T69 / G-119 — the call limit ended the agent loop: its notice is never the Belt's reply;
@@ -2530,8 +2579,15 @@ async def executor(
     # field of the position is not offered — a Confirm under it could not store. The turn changes
     # nothing: the element keeps its status from before the turn, the reply asks the Belt to send
     # the answer again, and the move record carries no read-back (so no Confirm is drawn).
-    resend = bool(fell_back and move == moves.READ_BACK and pending is not None and plan and plan.focus_field
-                  and short)
+    # ADR-0082 — a turn the model did not answer (T92's refusal, T34's level 4) changes nothing: the
+    # element keeps its status from before the turn, no read-back is offered, and the reply written in
+    # code is the Belt's whole answer.
+    refused = filtered or level_4 is not None
+    resend = bool(not refused and fell_back and move == moves.READ_BACK and pending is not None and plan
+                  and plan.focus_field and short)
+    if refused and plan is not None and plan.focus_field:
+        field_status[plan.focus_field] = dict((state.get("field_status") or {}).get(plan.focus_field)
+                                              or {"status": moves.ASKED})
     if resend and plan is not None and plan.focus_field:
         before = dict((state.get("field_status") or {}).get(plan.focus_field) or {"status": moves.ASKED})
         field_status[plan.focus_field] = before
@@ -2546,7 +2602,7 @@ async def executor(
     # G-163 (one rule; G-160 is its copied-sample case): a read-back a Confirm could not store is never
     # offered for a Confirm — the element stays asked, the Belt's words kept, and the reply, written in
     # code, says why (below). A code-written read-back keeps G-140's own wording (`resend`).
-    sample_challenge = bool(short and not resend and move == moves.READ_BACK and pending is not None
+    sample_challenge = bool(short and not resend and not refused and move == moves.READ_BACK and pending is not None
                             and plan and plan.focus_field)
     if sample_challenge and plan is not None and plan.focus_field and pending is not None:
         field_status[plan.focus_field] = {
@@ -2554,7 +2610,7 @@ async def executor(
             "messages": int(pending.get("messages") or 1),
             **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
             **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
-    link_challenge = bool(link and not resend and not sample_challenge and not focus_before.get("link_raised")
+    link_challenge = bool(link and not resend and not refused and not sample_challenge and not focus_before.get("link_raised")
                           and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
     if link_challenge and plan is not None and plan.focus_field and pending is not None:
         field_status[plan.focus_field] = {
@@ -2564,8 +2620,8 @@ async def executor(
             **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
         logger.info("%s.executor: R18 — the read-back of `%s` is raised as a challenge: %s",
                     phase, plan.focus_field, link)
-    elif (not resend and not sample_challenge and move == moves.READ_BACK and pending is not None
-          and plan and plan.focus_field):
+    elif (not resend and not refused and not sample_challenge and move == moves.READ_BACK
+          and pending is not None and plan and plan.focus_field):
         field_status[plan.focus_field] = {**field_status.get(plan.focus_field, {}),
                                           "status": moves.ANSWERED, "pending": pending}
 
@@ -2666,13 +2722,13 @@ async def executor(
         if reply is not None:
             reply = reply.model_copy(update={"message": challenge, "explanation": "", "example": "",
                                              "prompt": ""})
-    elif link and move == moves.READ_BACK:
+    elif link and move == moves.READ_BACK and not refused:
         from backend.core.prompts import LINK_KEPT
         new_messages = _with_code_line(new_messages, reply, LINK_KEPT.format(details=link))
     # The PII line (founder ruling 2026-10-12; T87, ADR-0062): when this turn's lookups read values masked
     # from an upload, the reply says so, in code — the Belt knows what the coach could not see.
     masked = pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)])
-    if masked and not resend:
+    if masked and not resend and not refused:
         from backend.core.prompts import PII_HIDDEN_TURN
         new_messages = _with_code_line(new_messages, reply, PII_HIDDEN_TURN.format(what=pii.described(masked)))
     reply = _with_sample_mark(reply)            # C3 (DEF-083)
@@ -2686,7 +2742,10 @@ async def executor(
     # a message from the Belt. Attached even when the turn degraded, so a
     # confirmed value the plan stored is not taught again.
     record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND)
-                          and not resend and not link_challenge and not sample_challenge else None, kept)
+                          and not resend and not refused and not link_challenge and not sample_challenge else None, kept)
+    if refused and record is not None:
+        # ADR-0082 — no read-back is offered, so the screen draws no Confirm; `refused` says why.
+        record.update({"move": moves.RESPOND, "pending": None, "refused": level_4 or "content_filter"})
     if resend and record is not None:
         # G-140 — no read-back is offered, so the screen draws no Confirm (it draws one only under
         # a `read_back` move); `resend` says why.
@@ -2702,7 +2761,7 @@ async def executor(
         logger.error(
             "%s.executor: DEFECT — the coach did not finish its %s move (%s); the "
             "reply was written by code (containment, not a fix).",
-            phase, move, "timeout" if timed_out else "content filter" if filtered else
+            phase, move, "timeout" if timed_out else "content filter" if filtered else level_4 if level_4 else
             "call limit" if limited else "no structured reply" if unfinished else "runaway loop backstop")
         if record is not None:
             record["fallback"] = True
@@ -2752,7 +2811,8 @@ async def executor(
         **({"field_index": next_field} if next_field is not None else {}),
         "step_log": [_step(
             phase, turn_count, "executor",
-            status=_executor_status(hit_cap, off_ramp, timed_out, filtered),
+            status=_executor_status(hit_cap, off_ramp, timed_out, filtered, level_4),
+            model_attempts=attempts or None,                     # T34 / ADR-0082 (§4.8)
             fallback_used=fell_back,
             limit=limit_diagnosis,                                 # G-139
             resend=resend,                                         # G-140

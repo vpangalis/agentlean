@@ -67,7 +67,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T31 | No computation tool raises on unparseable input | §30 | Must | ADR-0035 | `test_computation.py::test_no_tool_raises_on_unparseable_input` |
 | T32 | A timed-out turn tells the Belt what happened | §45 | Must | ADR-0047 | `test_executor_timeout.py::test_the_belt_facing_message_says_what_happened` |
 | T33 | A client disconnect cancels the run and commits nothing from that turn | §47 | Must | ADR-0046 | `test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone` |
-| T34 | A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved; model fallback with `ModelFallbackMiddleware`; the degraded answer after the last model stays in code | §46 | Should | ADR-0059 | none |
+| T34 | A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved; model fallback with `ModelFallbackMiddleware`; the degraded answer after the last model stays in code. Level 3 (the cache) is not built (founder, 2026-10-13; ADR-0082) | §46 | Should | ADR-0059 | `test_define_e2e.py::test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p` |
 | T35 | Two three-state circuit breakers: 3 failures in 30 s open, 60 s reset, one half-open probe | §46 | Should | ADR-0044 | none |
 | T36 | A token-limit 400 is never retried on a smaller model | §46 | Should | ADR-0044 | none |
 | T37 | A deployment rollout ends no coaching session: in-flight turns checkpoint and resume | §45 | Should | ADR-0043 | none |

@@ -420,12 +420,14 @@ below are §19's names for the original eight, not positions:
 | 3 | `SummarizationMiddleware` |
 | 4 | `turn_tools.turn_tools_middleware()` |
 | 5 | `ModelCallLimitMiddleware` |
-| 6 | `ModelRetryMiddleware` |
-| 7 | `ToolRetryMiddleware` |
-| 8 | `*pii.executor_middleware()` |
-| 9 | `DMAICGraderMiddleware` |
-| 10 | `CoherenceMiddleware`, bound to `coherence` |
-| 11 | `ContradictionDetectionMiddleware` |
+| 6 | `ModelFallbackMiddleware` |
+| 7 | `ModelRetryMiddleware` |
+| 8 | `model_fallback.kept_from_fallback_middleware()` |
+| 9 | `ToolRetryMiddleware` |
+| 10 | `*pii.executor_middleware()` |
+| 11 | `DMAICGraderMiddleware` |
+| 12 | `CoherenceMiddleware`, bound to `coherence` |
+| 13 | `ContradictionDetectionMiddleware` |
 
 <!-- END GENERATED: middleware order -->
 
@@ -435,8 +437,10 @@ below are §19's names for the original eight, not positions:
 | **2 · `DMAICSkillsMiddleware`** | `middleware/skills.py`, custom.<br>Every model call: the current phase's full SKILL.md in the system message; its version and hash are recorded in `step_log` each turn. The phase script is never left for the model to fetch.<br>Registers the tool `load_skill(name)` for other phases' scripts and level-3 reference files. |
 | **3 · `SummarizationMiddleware`** | LangChain, as shipped.<br>`before_model`: when the conversation passes the token trigger, older messages are replaced by a summary made with the operational model; the most recent messages are kept. Trigger and keep values are set in `_build_executor`. |
 | **Turn tools · `@wrap_model_call`** | (ADR-0069) — LangChain's dynamic tool selection: offers the model only the turn type's tools (`request.override(tools=…)`, §3.6); every tool stays registered. |
-| **Call limit · `ModelCallLimitMiddleware`** | LangChain, as shipped (ADR-0059, T69), declared just outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's judgment and the two after-agent checks; a run it ends gets the move's reply from code. The turn's count is `step_log`'s `call_budget`; calls inside tools, `tool_model_calls`. |
-| **4 · `ModelRetryMiddleware`** | LangChain, as shipped.<br>`wrap_model_call`: retries transient model failures with exponential backoff and jitter; `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried (`content_safety.retry_on`); the executor answers with guidance instead (T92). |
+| **Call limit · `ModelCallLimitMiddleware`** | LangChain, as shipped (ADR-0059, T69), declared just outside the fallback. `run_limit` is the coach's share of four model calls a turn, after the planner's judgment and the two after-agent checks; a run it ends gets the move's reply from code. The turn's count is `step_log`'s `call_budget`; calls inside tools, `tool_model_calls`. |
+| **Fallback · `ModelFallbackMiddleware`** | LangChain, as shipped (T34, ADR-0082): a call failed through its retries goes to gpt-4o-mini, retried the same way; when both fail the executor answers with level 4 (phase, captured count, progress saved). Level 3 is not built. |
+| **4 · `ModelRetryMiddleware`** | LangChain, as shipped.<br>`wrap_model_call`: retries transient model failures with exponential backoff and jitter; `on_failure="error"`, so the fallback hears the failure. A `content_filter` refusal is not retried (`content_safety.retry_on`). |
+| **Kept from fallback · `kept_from_fallback_middleware`** | ADR-0082, a `@wrap_model_call` function: a `content_filter` refusal or a token-limit 400 becomes a marked reply neither the retry nor the fallback sees; the executor answers in code (T92's guidance; level 4). Logs every attempt and its model. |
 | **5 · `ToolRetryMiddleware`** | LangChain, as shipped.<br>`wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is returned to the coach as the tool result (`on_failure="continue"`), not raised. |
 | **Personal data · `PIIMiddleware`** | LangChain, as shipped (ADR-0062, T87): one instance, a combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only — never the Belt's own messages; the turn's counts are `step_log`'s `pii_masked`. |
 | **6 · `DMAICGraderMiddleware`** | `middleware/grader.py`, custom. Executes last.<br>`after_agent`, every turn: one `grader`-role call grades the coach's reply against `COACHING_QUALITY_RUBRIC` (`core/prompts.py`, which owns the criteria), per criterion.<br>Rubric lines that do not apply to this turn's move are excluded (`MOVE_EXCLUDES`).<br>The verdict goes to `step_log` with `layer: "coaching_grader"`. **Log-only until proven (ADR-0081)**; in `enforce` mode a FAIL adds a warning the Belt sees (`GRADER_WARNING`) and becomes next turn's quality feedback.<br>Grades every reply with text, whatever coherence decided (ADR-0081). A grade whose request times out is recorded "not checked (time)" and the reply goes out (ADR-0080). |

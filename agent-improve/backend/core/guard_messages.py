@@ -35,6 +35,11 @@ D_UPLOAD_MAX = ("This file is larger than {limit_mb} MB and was not uploaded. Th
 #: The Azure deployment's content filter refused a model call (T92).
 AZURE = ("The model service declined to process this message. Nothing was stored. Please describe your "
          "situation in plain project terms.")
+#: T34 level 4 (ADR-0082): both models failed, or the call was too large for any model. Degraded mode
+#: names the phase and the captured count and says progress is saved (§4.8).
+LEVEL_4 = ("This message could not be coached just now — the coaching model is not answering. You are in "
+           "{phase}: {captured} of {total} fields are captured, and your progress is saved. Please send "
+           "your message again in a moment.")
 #: Prompt Shields configured but unreachable (ADR-0057, fail closed).
 UNAVAILABLE = ("The safety check that screens every message is unavailable right now, so this message was "
                "not read and nothing was saved. Please send it again in a minute — your text is still in the box.")

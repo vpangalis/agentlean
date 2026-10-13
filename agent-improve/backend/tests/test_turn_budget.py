@@ -115,6 +115,9 @@ def slow_turn(monkeypatch, stub_planner, blocking_lookups):
     monkeypatch.setattr(_nc, "_dispatch_routed_read", delayed_dispatch)
     monkeypatch.setattr(_nc, "create_agent",
                         lambda **kw: _LookupThenStallAgent(kw["tools"]))
+    # T34 (ADR-0082): the fallback model's first build takes about 2 s; the service builds it at
+    # start-up (`warm_turn_llms`), so a turn never pays it. The agent here is a stub that calls no model.
+    monkeypatch.setattr(_nc, "get_fallback_llm", lambda *a, **k: None)
 
 
 def _graph():

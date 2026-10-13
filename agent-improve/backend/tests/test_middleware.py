@@ -690,9 +690,14 @@ def test_the_declared_middleware_list_is_the_ratified_layering(
     # ADR-0059 (T69, G-119): the model-call limit joins, declared just outside the retry;
     # ADR-0062 (T87, DEF-144): one PIIMiddleware over the four types, on tool results.
     # ADR-0069: the turn-type tool selection (a wrap_model_call), one per executor.
-    assert len(declared) == 11 and declared.count("PIIMiddleware") == 1
+    # T34 (ADR-0082): the fallback sits between the limit and the retry, and the marker inside the retry —
+    # so the limit counts one call per model step, the fallback hears a failure only after the retries,
+    # and a refusal or a token limit is marked before either sees it.
+    assert len(declared) == 13 and declared.count("PIIMiddleware") == 1
     assert [n for n in declared if n.startswith("TurnTools[")] == ["TurnTools[teaching]"]
-    assert declared.index("ModelCallLimitMiddleware") == declared.index("ModelRetryMiddleware") - 1
+    i = declared.index
+    assert i("ModelCallLimitMiddleware") + 1 == i("ModelFallbackMiddleware") == i("ModelRetryMiddleware") - 1
+    assert i("KeptFromFallback") == i("ModelRetryMiddleware") + 1
 
 
 def test_the_injected_block_reflects_this_turns_state(stub_coach) -> None:

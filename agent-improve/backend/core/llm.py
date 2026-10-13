@@ -117,6 +117,19 @@ ROLE_TIMEOUTS: dict[str, float] = {
 REQUEST_TIMEOUTS: tuple[type[BaseException], ...] = (openai.APITimeoutError,)
 
 
+def is_token_limit(exc: BaseException) -> bool:
+    """Was the call refused for its size? (HTTP 400, `context_length_exceeded` — §4.8, T36.) Not a
+    fallback case: a smaller model has no larger window, so the context is fixed instead (ADR-0082)."""
+    if getattr(exc, "code", None) == "context_length_exceeded":
+        return True
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict) and (body.get("code") == "context_length_exceeded"
+                                   or (body.get("error") or {}).get("code") == "context_length_exceeded"):
+        return True
+    text = str(exc)
+    return "400" in text and ("context_length_exceeded" in text or "maximum context length" in text)
+
+
 def role_temperature(role: str) -> float:
     """The ratified default temperature for `role`, or DEFAULT_TEMPERATURE."""
     return ROLE_TEMPERATURES.get(role, DEFAULT_TEMPERATURE)
@@ -214,6 +227,7 @@ def warm_turn_llms() -> None:
     """Build every model a turn uses, so no Belt waits for a build (6.54)."""
     for role, kwargs in TURN_LLM_CALLS:
         get_llm(role, **kwargs)
+    get_fallback_llm("coach")                  # T34's level 2 (ADR-0082)
 
 
 @child_span(run_type="chain", name="llm.get_llm", process_outputs=lambda o: {})
@@ -248,6 +262,17 @@ def get_llm(
 
     with _BUILD_LOCK:
         return _build_llm(deployment, temperature, max_tokens, ROLE_TIMEOUTS[role])
+
+
+def get_fallback_llm(role: str = "coach", max_tokens: int | None = 1500) -> AzureChatOpenAI:
+    """T34's level 2 (ADR-0059 decision 2, ADR-0082): `role` on the operational deployment, with the
+    role's temperature and request timeout — the model `ModelFallbackMiddleware` turns to when the
+    premium deployment's call has failed through its retries. Not a role of its own: the same role,
+    the other tier."""
+    if role not in ROLE_DEPLOYMENTS:
+        raise ValueError(f"Unknown LLM role {role!r}.")
+    with _BUILD_LOCK:
+        return _build_llm(OPERATIONAL_TIER, role_temperature(role), max_tokens, ROLE_TIMEOUTS[role])
 
 
 def block_text(message: BaseMessage) -> str:

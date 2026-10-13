@@ -22,7 +22,8 @@ from generated_doc import GeneratedDoc, GenerationError  # noqa: E402
 SOURCE = "backend/phases/nodes_common.py"
 BUILDER = "_build_executor"
 #: The hand table's row for an entry built by a factory (a class entry's row names the class).
-FACTORY_ROW = {"turn_tools.turn_tools_middleware": "Turn tools", "pii.executor_middleware": "PIIMiddleware"}
+FACTORY_ROW = {"turn_tools.turn_tools_middleware": "Turn tools", "pii.executor_middleware": "PIIMiddleware",
+               "model_fallback.kept_from_fallback_middleware": "kept_from_fallback_middleware"}
 
 
 def _callee(call: ast.Call) -> str:

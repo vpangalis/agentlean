@@ -25,8 +25,8 @@ first declared outermost. Re-derive from the installed
   turn), never `before_model`.
 - **A coherence rejection never switches the grader off** (ADR-0081): both
   judge every reply with text; each runs `log_only` until proven.
-- **`ModelCallLimitMiddleware` (ADR-0059, T69) sits just outside `ModelRetryMiddleware`**, so a
-  retried call counts once; **one `PIIMiddleware` (ADR-0062, T87)** acts on tool results only.
+- **Call limit, fallback, retry, marker — outermost first** (ADR-0082): a call counts once; refusals
+  and token limits skip retry and fallback. **One `PIIMiddleware`** (T87): tool results.
 - **Position 1's `wrap_model_call` encloses `ModelRetryMiddleware`** — a retry
   re-sends the built request, never rebuilds it
   (`test_position_1_wrap_encloses_position_4_retry`).
@@ -140,7 +140,7 @@ append order is a violation.**
 ### 8.7 — `ModelRetryMiddleware` — the invisible-retry tier
 
 **LangChain core, used as shipped:** `max_retries=2`, exponential backoff,
-`wrap_model_call`. **The keyword is `max_retries`; `retries=` raises at
+`wrap_model_call`, `on_failure="error"` (ADR-0082). **The keyword is `max_retries`; `retries=` raises at
 construction** — on `ToolRetryMiddleware` too. **Hand-written retry plumbing
 is BANNED.**
 
