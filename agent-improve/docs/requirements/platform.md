@@ -5,7 +5,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 ## Technical requirements
 
 > **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED (T69 amended, ACCEPTED 2026-09-30); T85–T87 ACCEPTED 2026-09-27;
-> T71–T72 ACCEPTED 2026-09-28 as amended, and T91–T94 ACCEPTED 2026-09-28 (ADR-0067); T88–T90 ACCEPTED 2026-09-28; T73–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint, with `MoSCoW` (`?` until the founder
+> T71–T72 ACCEPTED 2026-09-28 as amended, and T91–T94 ACCEPTED 2026-09-28 (ADR-0067); T88–T90 ACCEPTED 2026-09-28; T95–T95 ACCEPTED 2026-10-13 (before customers); T73–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint, with `MoSCoW` (`?` until the founder
 > ratifies it) and `Design` (its ADR, or `none`). **Proof**
 > names the test in `backend/tests/` that proves it today, or `none`. The decisions behind
 > them are in [docs/adr](../adr/README.md). Counts are owned by the code cited, never copied here.
@@ -152,3 +152,4 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T92 | A model call refused by Azure's content filter (`content_filter`) is never retried and never sent to the fallback model; the Belt gets a guidance reply, not an error; the refusal is recorded in `step_log`. Prompt Shields is enabled in block mode in the Azure OpenAI deployment's filter | Must | ADR-0067 | none |
 | T93 | Limits: a message at most 10,000 characters; an upload above 5 MB is accepted with a notice to remove content the coach doesn't need; an upload above 25 MB is refused with the same advice; at most 10 turns per minute per person. Over a limit the Belt is told the limit and the typed text stays in the box | Should | ADR-0067 | none |
 | T94 | The guard runs strict unless development mode is set explicitly; a production start without Content Safety configured refuses to run; in development a skipped Prompt Shields check is recorded as skipped in `step_log` | Must | ADR-0067 | none |
+| T95 | Past-case search (`rag_lookup_case_history`) returns completed cases only: an unfinished case is never offered as precedent. Before customers (founder, 2026-10-13); a belt-level filter and newest-first ordering are not needed | ? | none | none |

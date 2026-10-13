@@ -4341,3 +4341,8 @@ def test_a_coherence_rejection_asks_the_coach_again(env, monkeypatch, stub_plann
     assert len(seen) == 1 and "SHOULD NOT BE SEEN" not in r["answer"], r["answer"]
     assert [s for s in steps if s.get("layer") == "coherence"][0]["reask"] == \
         "coherence rejected, no re-ask (time)"
+
+
+def test_t95_past_case_search_returns_completed_cases_only() -> None:
+    """DEF-165 — T95: past-case search returns completed cases only (before customers)."""
+    _not_written('DEF-165')

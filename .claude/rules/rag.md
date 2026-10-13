@@ -33,8 +33,8 @@ schema, not the target schema.**
 **Each tool is bound to exactly one index and knows that index's
 vector field name locally.** There is no shared retriever.
 
-**`belt_level` filtering is OFF by default** on case history; available as
-an optional parameter.
+**`belt_level` filtering: not built** — not needed now (founder, 2026-10-13), nor newest-first ordering
+or an evidence `phase` filter. Past-case search returning completed cases only is T95, before customers.
 
 `source_file` and `page_number` are **returned as metadata for
 citation transparency**, never used as filters.

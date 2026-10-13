@@ -6024,6 +6024,34 @@
    "stage": "approve",
    "layer": "api",
    "pilot": true
+  },
+  {
+   "id": "DEF-165",
+   "description": "T95: past-case search returns completed cases only — rag_lookup_case_history filters the case index to completed cases, so an unfinished case is never offered as precedent",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t95_past_case_search_returns_completed_cases_only",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T95",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform",
+   "pilot": false
   }
  ]
 }

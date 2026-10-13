@@ -1,9 +1,9 @@
 {
- "source_hash": "cfc2ba39a892e04a",
- "commit": "7198817",
+ "source_hash": "d83e59b92efe1ab8",
+ "commit": "0122b89",
  "commit_matches_source": false,
- "full_run_hash": "cfc2ba39a892e04a",
- "recorded_at": "2026-10-13T09:27:28+00:00",
+ "full_run_hash": "d83e59b92efe1ab8",
+ "recorded_at": "2026-10-13T10:23:48+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -513,6 +513,7 @@
   "backend/tests/test_define_e2e.py::test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance": "passed",
   "backend/tests/test_define_e2e.py::test_t93_limits_answer_with_the_limit_and_keep_the_text": "passed",
   "backend/tests/test_define_e2e.py::test_t94_strict_by_default_and_production_needs_content_safety": "passed",
+  "backend/tests/test_define_e2e.py::test_t95_past_case_search_returns_completed_cases_only": "skipped",
   "backend/tests/test_define_e2e.py::test_the_as_is_process_captures_step_performance_structured": "passed",
   "backend/tests/test_define_e2e.py::test_the_belt_can_pick_any_available_element_or_take_the_recommended_one": "skipped",
   "backend/tests/test_define_e2e.py::test_the_belt_can_see_captured_and_missing_fields": "passed",
@@ -1727,8 +1728,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "71dab1149b6e549f",
-  "recorded_at": "2026-10-13T09:19:52+00:00",
+  "source_hash": "cfc2ba39a892e04a",
+  "recorded_at": "2026-10-13T09:27:28+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
