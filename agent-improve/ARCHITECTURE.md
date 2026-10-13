@@ -544,22 +544,34 @@ JSON.
 
 **Structured values inside records and replies.**
 
+<!-- BEGIN GENERATED: value keys — tools/architecture/generate_value_keys.py, never edit by hand -->
+
+| Value | Keys | Owned by |
+|---|---|---|
+| `team` | list of `name`, `role`, `function` | `phases/define/schema.py::TEAM_MEMBER_KEYS` |
+| `project_scope` | `in_scope`, `out_scope` | `phases/define/schema.py::PROJECT_SCOPE_KEYS` |
+| `benefits_analysis` | `cost_of_gap`, `impact_type`, `realisation_schedule`, `finance_contact` | `phases/define/schema.py::BENEFITS_ANALYSIS_KEYS` |
+| `process_map_sipoc` | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_metrics`, `process_performance` | `phases/define/schema.py::SIPOC_KEYS` |
+| `process_map_sipoc.process_steps[]` (ADR-0078) | `id`, `name`, `duration`, `runs_per_period`, `problems` | `phases/define/parse.py::STEP_KEYS` |
+| a step's `duration` | `avg`, `min`, `max`, each a MetricValue | `phases/define/parse.py::DURATION_KEYS` |
+| `process_map_sipoc.process_performance` | `lead_time`, `runs_per_period`, each a MetricValue | `phases/define/parse.py::PROCESS_PERFORMANCE_KEYS` |
+| `critical_to_quality` | list of `customer`, `need`, `requirement` | `phases/define/schema.py::CTQ_KEYS` |
+| `problem_5w2h` | `what`, `where`, `when`, `who`, `why`, `how`, `how_much` | `phases/define/schema.py::FIVE_W_TWO_H_KEYS` |
+| `metric_definitions` | list of `name`, `unit`, `meaning`; the first entry is the primary metric | `phases/define/schema.py::METRIC_DEFINITION_KEYS` |
+| `baseline_estimate`, `target_value` (MetricValue, ADR-0071) | `value`, `unit`, `direction`, `is_estimate`, `raw` | `phases/define/schema.py::MetricValue` |
+| `phase_metrics` | list, one entry per registry metric: `name`; other keys per phase | `phases/define/schema.py::PHASE_METRIC_REQUIRED_KEYS` |
+| `detailed_process_map` | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, `baseline_metrics` | `phases/measure/schema.py::DETAILED_PROCESS_MAP_KEYS` |
+| `control_plan` | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` | `phases/control/schema.py::CONTROL_PLAN_KEYS` |
+| `CoachingResponse.contradiction_flag` | `prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input` | `core/substate.py::CONTRADICTION_FLAG_KEYS` |
+
+<!-- END GENERATED: value keys -->
+
+Keys with no owning constant in code, written by hand:
+
 | Value | Keys |
 |---|---|
-| `team` | `name`, `role`, `function` |
-| `project_scope` | `in_scope`, `out_scope` |
-| `benefits_analysis` | `cost_of_gap`, `impact_type`, `realisation_schedule`, `finance_contact` |
-| `process_map_sipoc` | `suppliers`, `inputs`, `process_steps` (`{id, name, duration, runs_per_period, problems}`, ADR-0078), `outputs`, `customers`, `process_metrics`, `process_performance` |
-| `critical_to_quality` | list of `customer`, `need`, `requirement` |
-| `problem_5w2h` | `what`, `where`, `when`, `who`, `why`, `how`, `how_much` |
-| `metric_definitions` | list of `name`, `unit`, `meaning`; the first entry is the primary metric |
-| `baseline_estimate`, `target_value` (MetricValue, ADR-0071) | `value`, `unit`, `direction` (target), `is_estimate`, `raw` (the Belt's words) |
-| `phase_metrics` | list, one entry per registry metric, keyed by `name`; other keys per phase |
-| `detailed_process_map` | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, `baseline_metrics` |
-| `control_plan` | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
 | Reference dicts (`causal_hypothesis`, `solution_linked_to_root_cause`, `post_improvement_metrics`) | Belt content plus `references_phase`, `references_field`, `references_metric_name`, `references_value`; resolved against the referenced phase's `phase_metrics` entry |
 | `CoachingResponse.fields_captured` | list of `field_name`, `value`, `source` |
-| `CoachingResponse.contradiction_flag` | `prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input` |
 
 **Tiers.** Which record fields can fail a gate is owned by `phases/gate_registry.py::GATE_SPECS`.
 Fields with a default in §4.2 are the recommended (Tier 2) fields.

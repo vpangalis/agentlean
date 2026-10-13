@@ -15,9 +15,11 @@ sys.path.insert(0, str(TOOLS))
 
 import generate_layout  # noqa: E402
 import generate_routes  # noqa: E402
+import generate_value_keys  # noqa: E402
 
 
-@pytest.mark.parametrize("gen", [generate_layout, generate_routes], ids=["code layout", "api routes"])
+@pytest.mark.parametrize("gen", [generate_layout, generate_routes, generate_value_keys],
+                         ids=["code layout", "api routes", "value keys"])
 def test_the_generated_document_is_current(gen) -> None:
     doc = gen.DOC
     text = (PROJECT.parent / doc.doc_rel).read_text(encoding="utf-8")

@@ -1,9 +1,9 @@
 {
- "source_hash": "be41ed4116bb6f01",
- "commit": "269f1e1",
+ "source_hash": "34304ddd1c01a369",
+ "commit": "463221a",
  "commit_matches_source": false,
  "full_run_hash": "7b4fd20d9d087c23",
- "recorded_at": "2026-10-13T08:23:52+00:00",
+ "recorded_at": "2026-10-13T08:47:33+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -962,6 +962,7 @@
   "backend/tests/test_generated_docs.py::test_every_route_is_listed": "passed",
   "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[api routes]": "passed",
   "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[code layout]": "passed",
+  "backend/tests/test_generated_docs.py::test_the_generated_document_is_current[value keys]": "passed",
   "backend/tests/test_guard_mode_strict_default.py::test_a_run_record_names_its_guard_mode": "passed",
   "backend/tests/test_guard_mode_strict_default.py::test_nothing_in_the_set_up_sets_development_mode": "passed",
   "backend/tests/test_hop_cap.py::test_one_more_hop_would_not_fit": "passed",
