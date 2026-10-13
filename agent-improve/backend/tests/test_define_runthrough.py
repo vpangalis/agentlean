@@ -342,6 +342,39 @@ def test_run_scenario_a_a_contradiction_pauses_and_resumes() -> None:
     _not_written('DEF-040')
 
 
+def _scenario(run: dict, name: str) -> dict:
+    entry = run.get(f"scenario_{name}")
+    assert entry, f"the record has no scenario ({name}) — the run-through did not run it"
+    failed = [k for k, v in (entry.get("checks") or {}).items() if not v]
+    assert entry.get("passed") and not failed, (failed, entry.get("error"), entry.get("turns"))
+    return entry
+
+
+def test_run_scenario_b_a_crashed_turn_recovers(run) -> None:
+    """Founder ruling 2026-10-13, scenario (b) — DEF-003's run criterion: a turn whose coach call fails
+    after the planner checkpointed ends in an error; the next message is coached from the last
+    checkpoint, nothing is stored, one reply is in the history."""
+    _scenario(run, "b")
+
+
+def test_run_scenario_c_a_turn_at_its_deadline_is_resent(run) -> None:
+    """Scenario (c) — DEF-093's run criterion: a turn stopped at its deadline asks the Belt to send
+    again (no Confirm, nothing stored, no reply left in the history); the resend is coached."""
+    _scenario(run, "c")
+
+
+def test_run_scenario_d_a_parked_element_is_resumed(run) -> None:
+    """Scenario (d) — DEF-075's run criterion: the third failed attempt offers the park; parking moves on;
+    the element is recorded parked; resume returns to it; it is read back, confirmed and stored."""
+    _scenario(run, "d")
+
+
+def test_run_scenario_e_an_upload_is_read_back_and_stored(run) -> None:
+    """Scenario (e) — DEF-056's and DEF-082's run criterion: an upload lands, is read back naming the file,
+    is confirmed and stored, and its source is recorded as the upload."""
+    _scenario(run, "e")
+
+
 def test_run_an_answer_is_judged_at_most_once(run) -> None:
     """DEF-066's run criterion — R3 amendment, on the live run: at most one judgment call per
     substantive answer, and none for any other turn (a Confirm or Change click, the opening)."""

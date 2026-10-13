@@ -148,7 +148,10 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "run_criteria": [
+    "backend/tests/test_define_runthrough.py::test_run_scenario_b_a_crashed_turn_recovers"
+   ]
   },
   {
    "id": "DEF-004",
@@ -2562,7 +2565,10 @@
    "phase": "define",
    "stage": "coached",
    "layer": "api",
-   "pilot": true
+   "pilot": true,
+   "run_criteria": [
+    "backend/tests/test_define_runthrough.py::test_run_scenario_e_an_upload_is_read_back_and_stored"
+   ]
   },
   {
    "id": "DEF-057",
@@ -3322,7 +3328,10 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "run_criteria": [
+    "backend/tests/test_define_runthrough.py::test_run_scenario_d_a_parked_element_is_resumed"
+   ]
   },
   {
    "id": "DEF-076",
@@ -3864,7 +3873,10 @@
    "phase": "define",
    "stage": "approve",
    "layer": "api",
-   "pilot": true
+   "pilot": true,
+   "run_criteria": [
+    "backend/tests/test_define_runthrough.py::test_run_scenario_c_a_turn_at_its_deadline_is_resent"
+   ]
   },
   {
    "id": "DEF-094",

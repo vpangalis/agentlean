@@ -48,6 +48,8 @@ USER = "define-runthrough-6.66"
 OPENING = "Hi — I'm ready to start Define on our project."
 WHERE = "Where do we stand?"
 OUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "runthrough"
+#: The scenarios' own model-call allowance, beside the walk's --max-calls (about 50 used on 2026-10-13).
+SCENARIO_CALLS = 80
 MAX_ATTEMPTS = 3            # answers to one field before it is recorded STUCK
 #: ADR-0070: the elements whose read-back must carry a visual, and where the reply carries it.
 VISUAL_FIELDS = {"baseline_estimate": "visualisation", "goal_statement": "visualisation",
@@ -358,9 +360,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-calls", type=int, default=150)
     ap.add_argument("--scratch", required=True, help="where the coach's full inputs go (outside the tree)")
+    ap.add_argument("--scenarios-only", action="store_true",
+                    help="run only the hard-path scenarios (b)-(e); the record goes to --scratch, never the tree")
     args = ap.parse_args()
     _tracing_off()
-    _count_model_calls(args.max_calls)
+    # The walk stops itself at --max-calls (`run` checks it); the hard cap at the model boundary leaves the
+    # hard-path scenarios their own allowance — they ran into the walk's cap on 2026-10-13 (run 074320).
+    _count_model_calls(args.max_calls + SCENARIO_CALLS)
+    if args.scenarios_only:
+        return _scenarios_only(Path(args.scratch))
     # R3's repeated-run record first (10 calls, inside the same cap), so one
     # re-run by the integrator refreshes both records it binds to the source.
     from scripts.validation_repeat import run as validation_repeat
@@ -383,24 +391,30 @@ def main() -> int:
     from fastapi.testclient import TestClient
     from backend.app import app
     out: dict[str, Any] = {}
+    walk: list[dict[str, Any]] = []
     with TestClient(app) as client:
         try:
             out = run(client, rec, scratch, args.max_calls)
         except CapReached as exc:
             out["stopped"] = f"cap: {exc}"
+        # Founder rulings 2026-10-13: the hard paths, each its own case, pass check and cost line.
+        from scripts.hard_path_scenarios import run_all
+        walk = list(CALLS)          # R12's ceiling is the Define walk's; each scenario has its own cost line
+        out["scenarios"] = run_all(client, lambda e: _write(rec, e), GOOD)
+        out["scenarios_cost"] = _cost(token_totals(CALLS[len(walk):]))
     summary = {"kind": "summary", "source_hash": source, "product_hash": product, "started": stamp,
                "minutes": round((time.time() - started) / 60, 1), "cap": args.max_calls,
-               "model_calls": len(CALLS),
-               "by_kind": {k: sum(c["kind"] == k for c in CALLS) for k in sorted({c["kind"] for c in CALLS})},
+               "model_calls": len(walk),
+               "by_kind": {k: sum(c["kind"] == k for c in walk) for k in sorted({c["kind"] for c in walk})},
                "langsmith_sends": len(SENDS),
                # Founder 2026-09-30 (Part A3): the run says which guard mode it ran under and whether
                # Content Safety was configured — the report reads it here, never from the command line.
                "guard_mode": _guard_mode(),
                # Founder 2026-09-30 (review of 309f9fc), item 4: tokens per role, per model and in
                # total, so the run's cost can be computed from the deployments' prices.
-               "tokens": token_totals(CALLS),
+               "tokens": token_totals(walk),
                # G-153 (founder 2026-10-11): the calls cut off at their token limit, counted per run.
-               "cut_offs": cut_offs(CALLS), **out}
+               "cut_offs": cut_offs(walk), **out}
     summary["cost"] = _cost(summary["tokens"])
     # Founder ruling 2026-10-12 (turn time): median and 90th percentile per turn type, p90 watched.
     summary["turn_times"] = turn_times([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines()
@@ -413,6 +427,21 @@ def main() -> int:
                                indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"record: {tree}")
     return exit_code(summary, SENDS)
+
+
+def _scenarios_only(scratch: Path) -> int:
+    """The scenarios alone, recorded to scratch (iteration; a full run records them in the tree)."""
+    from fastapi.testclient import TestClient
+
+    from backend.app import app
+    from scripts.hard_path_scenarios import run_all
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
+    rec = scratch / f"scenarios_{stamp}.jsonl"
+    scratch.mkdir(parents=True, exist_ok=True)
+    with TestClient(app) as client:
+        result = run_all(client, lambda e: _write(rec, e), GOOD)
+    print(f"scenarios: {result}; record: {rec}; USD {_cost(token_totals(CALLS)).get('usd')}")
+    return 0 if all(result.values()) else 6
 
 
 def _cost(tokens: dict[str, Any]) -> dict[str, Any]:

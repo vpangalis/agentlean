@@ -30,7 +30,7 @@ def test_g153_a_call_cut_off_at_its_token_limit_is_counted_per_run() -> None:
     assert define_runthrough.cut_offs(calls) == {
         "count": 1, "calls": [{"kind": "coach", "at": "t1", "output_tokens": 1500}]}
     src = (define_runthrough.Path(define_runthrough.__file__)).read_text(encoding="utf-8")
-    assert '"cut_offs": cut_offs(CALLS)' in src, "the run's summary does not carry the count"
+    assert '"cut_offs": cut_offs(walk)' in src, "the run's summary does not carry the count (the walk's calls)"
 
 
 def test_g153_a_run_with_more_than_one_cut_off_fails() -> None:
