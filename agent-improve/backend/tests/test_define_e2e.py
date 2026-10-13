@@ -2192,6 +2192,40 @@ def test_t91_fifty_benign_messages_pass_the_guard(monkeypatch) -> None:
     assert blocked == []
 
 
+def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeypatch) -> None:
+    """G-171 (founder ruling A2, 2026-10-13; rows 132229#12, 140839#11, 134606#9, 124425#28, 124425#30),
+    through POST /ask with the real create_agent: a coach that writes its illustration and its question into
+    the message as well as into the blocks is shown each once — the message keeps its own words, the
+    example and the question stay in their blocks."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import _FakeCoach
+
+    example = ("In: UK invoice generation, from order received to invoice sent. Out: payment collection, "
+               "non-UK regions, the pricing database.")
+    question = "Where does your process start and end? What is deliberately out of scope?"
+    message = ("A business case says why the project is worth doing for the organisation.\n\n"
+               "Here's an illustration to show what a good answer looks like:\n\n"
+               f"\"{example}\"\n\nNow, over to you:\n{question}")
+    args = {"message": message, "explanation": "Why the project is worth doing.", "example": example,
+            "prompt": question, "progress": "", "fields_captured": []}
+    call = {"name": "CoachingResponse", "args": args, "id": "g171"}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
+        messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else planner(role, **kw))
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {}
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Where do we start?"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["answer"].startswith("A business case says why"), body["answer"]
+    assert "UK invoice generation" not in body["answer"], body["answer"]
+    assert "deliberately out of scope" not in body["answer"] and "over to you" not in body["answer"], body["answer"]
+    assert "UK invoice generation" in body["example"] and "out of scope" in body["prompt"]
+
+
 def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance(env, monkeypatch) -> None:
     """DEF-153 — T92, through POST /ask with the real create_agent and middleware stack: a coach
     call refused with `content_filter` is made ONCE (ModelRetryMiddleware does not retry it), the

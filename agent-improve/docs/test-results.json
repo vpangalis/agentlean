@@ -1,9 +1,9 @@
 {
- "source_hash": "ab06a66cc8bbf432",
- "commit": "b8a08c1",
- "commit_matches_source": true,
+ "source_hash": "d08410fd6325643c",
+ "commit": "ad1909a",
+ "commit_matches_source": false,
  "full_run_hash": "ab06a66cc8bbf432",
- "recorded_at": "2026-10-13T12:22:16+00:00",
+ "recorded_at": "2026-10-13T12:43:15+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -465,6 +465,7 @@
   "backend/tests/test_define_e2e.py::test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_unit": "passed",
   "backend/tests/test_define_e2e.py::test_g157_a_turn_never_runs_past_its_deadline": "passed",
   "backend/tests/test_define_e2e.py::test_g163_a_read_back_that_cannot_store_never_offers_a_confirm": "passed",
+  "backend/tests/test_define_e2e.py::test_g171_the_message_never_repeats_the_example_or_the_question": "passed",
   "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record": "passed",
   "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told": "skipped",
   "backend/tests/test_define_e2e.py::test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_coachs": "passed",

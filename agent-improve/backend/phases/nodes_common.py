@@ -1663,6 +1663,70 @@ def _without_store_claims(text: str) -> str:
     return chr(10).join(lines).strip()
 
 
+#: G-171 (founder ruling A2, 2026-10-13) — a part of the message that repeats the example or the question
+#: block: this share of its words or more come from the block.
+REPEAT_SHARE = 0.6
+_WORD = re.compile(r"[a-z0-9£€%]+")
+_LIST_ITEM = re.compile(r"\s*(?:[-*•]|\d+[.)])\s")
+
+
+def _block_words(text: str) -> set[str]:
+    return {w for w in _WORD.findall(text.lower()) if len(w) > 2}
+
+
+def _repeats(part: str, block: set[str]) -> bool:
+    words = _block_words(part)
+    return bool(words) and bool(block) and len(words & block) / len(words) >= REPEAT_SHARE
+
+
+def _without_repeated_blocks(text: str, example: str, prompt: str, explanation: str = "",
+                             whole: bool = True) -> str:
+    """G-171: the message with every paragraph that repeats the example or the explanation block, and every
+    question that repeats the question block, removed — the screen shows the blocks under the message. A
+    paragraph that loses half its sentences or more goes whole (it was mostly a repeat), and a lead-in line
+    ending in ':' goes with what it introduced. When that leaves nothing, only the repeated sentences go;
+    `text` comes back unchanged only when even that leaves nothing."""
+    ex, ask, why = _block_words(example), _block_words(prompt), _block_words(explanation)
+    paragraphs = re.split(r"\n\s*\n", text.strip())
+    kept: list[str] = []
+    for para in paragraphs:
+        before = [s for line in para.split(chr(10)) for s in _SENTENCE_END.split(line) if s.strip()]
+        # A list item and the lines under it are one unit: a repeated question takes its item with it.
+        items: list[list[str]] = []
+        for line in para.split(chr(10)):
+            if not items or _LIST_ITEM.match(line) or not _LIST_ITEM.match(items[-1][0]):
+                items.append([line])
+            else:
+                items[-1].append(line)
+        lines = []
+        for item in items:
+            if _LIST_ITEM.match(item[0]) and any(s.rstrip().endswith("?") and _repeats(s, ask)
+                                                 for s in _SENTENCE_END.split(" ".join(item))):
+                continue
+            for line in item:
+                sentences = [s for s in _SENTENCE_END.split(line)
+                             if not (s.rstrip().endswith("?") and _repeats(s, ask))]
+                if sentences or not line.strip():
+                    lines.append(" ".join(sentences))
+                elif lines and lines[-1].rstrip().endswith(":"):
+                    lines.pop()
+        after = [s for line in lines for s in _SENTENCE_END.split(line) if s.strip()]
+        if _repeats(para, ex) or _repeats(para, why) or (whole and before and len(after) * 2 <= len(before)):
+            if kept and kept[-1].rstrip().endswith(":"):
+                kept.pop()
+            continue
+        para = chr(10).join(lines).strip()
+        if para:
+            kept.append(para)
+    if kept and kept[-1].rstrip().endswith(":"):
+        kept.pop()
+    out = (chr(10) * 2).join(kept).strip()
+    if not out and whole:
+        # Everything was a repeat: keep what the sentences alone leave, never an empty message.
+        return _without_repeated_blocks(text, example, prompt, explanation, whole=False)
+    return out or text
+
+
 #: DEF-019 — a link in the coach's words: a markdown link keeps its words, a bare address goes.
 _MD_LINK = re.compile(r"\[([^\]]+)\]\((?:https?://|www\.)[^)]*\)")
 _BARE_LINK = re.compile(r"\(?(?:https?://|www\.)[^\s)>\]]+\)?")
@@ -2731,6 +2795,15 @@ async def executor(
     if masked and not resend and not refused:
         from backend.core.prompts import PII_HIDDEN_TURN
         new_messages = _with_code_line(new_messages, reply, PII_HIDDEN_TURN.format(what=pii.described(masked)))
+    if reply is not None and not refused and not fell_back and written is None:
+        # G-171 (founder ruling A2) — the coach's message never repeats the example or the question block
+        # (a reply written in code is composed once, its ask included).
+        shown = next((m.text for m in reversed(new_messages) if isinstance(m, AIMessage)), "")
+        single = _without_repeated_blocks(shown, str(reply.example or ""), str(reply.prompt or ""),
+                                          str(reply.explanation or ""))
+        if single != shown:
+            new_messages = _with_text(new_messages, single)
+            reply = reply.model_copy(update={"message": single})
     reply = _with_sample_mark(reply)            # C3 (DEF-083)
     # Founder ruling 2026-10-13: the grader's warning reaches the Belt only in `enforce` mode.
     _attach_blocks(new_messages, reply,
