@@ -2273,6 +2273,35 @@ def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch) -> 
     assert said.startswith("£62,000 a year"), said
 
 
+def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, monkeypatch) -> None:
+    """G-176 (live run 152256, turn 31: GET /cases answered 500), through POST /ask and GET /cases with the
+    real create_agent: the coach cites a file as it writes citations — its source and a quote, not a
+    CitationRecord — and the case still reloads, the citation kept as a record; one with no document at
+    all is left out."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    cited = {**REPLY, "fields_captured": [],
+             "citations": [{"source": "ap_late_payments_jan_jun_2026.csv", "quote": "23% paid late, Jan–Jun"},
+                           {"note": "no document named"}]}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": cited, "id": "g176"}])]))
+        if role == "coach" else planner(role, **kw))
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {}
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Where do we start?"})
+    assert r.status_code == 200, r.text
+    reload = env.client.get(f"/cases/{CASE_ID}")
+    assert reload.status_code == 200, reload.text[:500]
+    citations = reload.json()["phases"]["define"]["citations"]
+    assert [c["document_id"] for c in citations] == ["ap_late_payments_jan_jun_2026.csv"], citations
+    assert citations[0]["relevance_summary"] == "23% paid late, Jan–Jun", citations
+
+
 def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance(env, monkeypatch) -> None:
     """DEF-153 — T92, through POST /ask with the real create_agent and middleware stack: a coach
     call refused with `content_filter` is made ONCE (ModelRetryMiddleware does not retry it), the

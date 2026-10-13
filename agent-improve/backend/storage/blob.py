@@ -54,7 +54,7 @@ from azure.storage.blob.aio import (
 )
 
 from backend.core.config import settings
-from backend.core.citations import CitationRecord
+from backend.core.citations import CitationRecord, as_records
 from backend.core.substate import merge_field_log
 from backend.storage import layout
 from backend.storage.models import (
@@ -375,8 +375,7 @@ async def write_phase_gate(
     # next time anything read `.filename` off one. Caught by mypy on this
     # change rather than by a reader.
     if citations is not None:
-        record.citations = [CitationRecord(**c) if isinstance(c, dict) else c
-                            for c in citations]
+        record.citations = as_records(citations)                  # G-176: a coach citation never breaks the write
     if uploads is not None:
         record.uploads = [UploadRecord(**u) if isinstance(u, dict) else u
                           for u in uploads]

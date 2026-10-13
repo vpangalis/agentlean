@@ -522,8 +522,8 @@ async def _with_unfinished_work(case: CaseDocument) -> CaseDocument:
         held.field_log = [dict(e) for e in (rec.get("field_log") or [])]
         # G-148 (DEF-061) — the coach's citations from every turn, as the record keeps them.
         if rec.get("citations"):
-            from backend.core.citations import CitationRecord
-            held.citations = [CitationRecord(**c) for c in rec["citations"]]
+            from backend.core.citations import as_records
+            held.citations = as_records(rec["citations"])                 # G-176
     return out
 
 

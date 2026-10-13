@@ -1863,6 +1863,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-176",
+   "symptom": "A CITATION THE COACH WRITES IN ITS OWN SHAPE BREAKS THE CASE RELOAD (500). Live run 152256 (2026-10-13), turn 31: GET /cases/{id} raised pydantic ValidationError — the record's citation was {'source': 'ap_late_payments_jan_jun_2026.csv', …}, without CitationRecord's agent_origin, index_name, document_id and relevance_summary; the run stopped. D4 OCCURRENCE: CoachingResponse.citations is free dicts ('sources referenced this turn'), kept as written and anchored in code; G-148 (6454468, 2026-10-01) made the reload (routes._with_unfinished_work) and the gate write (blob.write_phase_gate) build CitationRecord(**c) from them — the first coach citation not in that shape fails both. D4 ESCAPE: the G-148 test fed citations already in CitationRecord shape; no run before 152256 had the coach cite in its own shape.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-061"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }
