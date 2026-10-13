@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -48,13 +49,26 @@ def _coach_text(message: str, blocks: dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
+#: "Returning structured response: message='...' explanation='...' ..." — the tool message ToolStrategy
+#: writes for the coach's structured reply; its fields are Python string literals.
+_FIELD = re.compile(r"(\w+)=('(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\")")
+
+
 def _first_reply(inputs: dict[int, Any], n: int) -> str | None:
-    """A re-asked turn's first reply: the AI message the re-ask call carries before the feedback."""
+    """A re-asked turn's first reply — the one the judge rejected. It is the structured reply ToolStrategy
+    returned before the re-ask's feedback: the `tool` message "Returning structured response: …" in the
+    re-ask call's input (the AI message beside it is an empty tool call). Fixed 2026-10-13: the first version
+    took the last AI message WITH text, which is the previous turn's reply."""
+    import ast
     calls = (inputs.get(n) or {}).get("coach_inputs") or []
     for call in calls[1:]:
-        ai = [m for m in call if m.get("type") == "ai" and any(str(b).strip() for b in m.get("blocks") or [])]
-        if ai:
-            return "\n".join(str(b) for b in ai[-1]["blocks"])
+        tools = [m for m in call if m.get("type") == "tool"
+                 and any(str(b).startswith("Returning structured response:") for b in m.get("blocks") or [])]
+        if tools:
+            text = next(str(b) for b in tools[-1]["blocks"] if str(b).startswith("Returning structured response:"))
+            fields = {k: ast.literal_eval(v) for k, v in _FIELD.findall(text)}
+            if fields.get("message"):
+                return _coach_text(str(fields["message"]), fields)
     return None
 
 

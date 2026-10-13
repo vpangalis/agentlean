@@ -29,6 +29,8 @@ TURNS = EVALS / "judge_turns.json"
 LABELS = EVALS / "judge_labels.json"
 #: The founder's Excel sheet (2026-10-13): read when it carries labels; its labels are written to LABELS.
 SHEET = EVALS / "judge_labelling_sheet.xlsx"
+#: 2026-10-13: 5 rows of SHEET showed the wrong reply (the re-asked turns); their labels come from here.
+CORRECTIONS = EVALS / "judge_labelling_corrections.xlsx"
 
 
 def labels_from_sheet(path: Path) -> dict[str, dict[str, Any]]:
@@ -178,9 +180,11 @@ def main() -> int:
     turns = json.loads(TURNS.read_text(encoding="utf-8"))["turns"]
     if args.only:
         turns = [t for t in turns if t["id"] in set(args.only)]
-    if SHEET.exists() and labels_from_sheet(SHEET):
-        LABELS.write_text(json.dumps(labels_from_sheet(SHEET), indent=1, ensure_ascii=False) + chr(10),
-                          encoding="utf-8")
+    sheet = labels_from_sheet(SHEET) if SHEET.exists() else {}
+    if CORRECTIONS.exists():
+        sheet.update(labels_from_sheet(CORRECTIONS))
+    if sheet:
+        LABELS.write_text(json.dumps(sheet, indent=1, ensure_ascii=False) + chr(10), encoding="utf-8")
     labels = json.loads(LABELS.read_text(encoding="utf-8")) if LABELS.exists() else {}
     started = time.time()
 
