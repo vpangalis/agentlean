@@ -278,20 +278,14 @@ async def _one_run(case_id: str, messages: list, config: Any,
 
 
 def _stand_down_judges() -> None:
-    """Coherence and the grader give fixed pass verdicts in part B: neither
-    decides the move or the question, and each would spend a call per run."""
-    from backend.middleware.coherence import CoherenceMiddleware
+    """The grader gives a fixed pass verdict in part B: it decides neither the move nor the question,
+    and would spend a call per run. (The coherence judge is retired, ADR-0083.)"""
     from backend.middleware.grader import DMAICGraderMiddleware
-    from backend.validation.schemas import CoachingGraderVerdict, CoherenceResult
-
-    async def coherent(self: Any, belt: str, coach: str) -> CoherenceResult:
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False,
-                               on_topic=True, reason="")
+    from backend.validation.schemas import CoachingGraderVerdict
 
     async def passing(self: Any, belt: str, coach: str) -> CoachingGraderVerdict:
         return CoachingGraderVerdict(criteria=[])
 
-    CoherenceMiddleware._check = coherent            # type: ignore[method-assign]
     DMAICGraderMiddleware._grade = passing           # type: ignore[method-assign]
 
 

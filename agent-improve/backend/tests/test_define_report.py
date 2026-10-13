@@ -29,12 +29,11 @@ from fastapi.testclient import TestClient
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
 from backend.phases.define.report import REPORT_SECTIONS, define_report, element_of
 from backend.phases.define.schema import DEFINE_REQUIRED_FOR_GATE_FIELDS
 from backend.tests.test_wiring import BELT, CONFIRM, OPENING, _coach
-from backend.validation.schemas import CoachingGraderVerdict, CoherenceResult
+from backend.validation.schemas import CoachingGraderVerdict
 
 UI = Path(__file__).resolve().parents[2] / "ui" / "index.html"
 CASE_ID = "IMPR-TEST-REPORT"
@@ -158,14 +157,9 @@ def reports(monkeypatch, stub_planner) -> list[dict]:
     monkeypatch.setattr(nodes_common, "get_llm",
                         lambda role, **kw: _coach() if role == "coach" else planner_llm(role, **kw))
 
-    async def coherent(self, belt: str, coach: str) -> CoherenceResult:
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False,
-                               on_topic=True, reason="")
-
     async def passing(self, belt: str, coach: str) -> CoachingGraderVerdict:
         return CoachingGraderVerdict(criteria=[])
 
-    monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", passing)
     client = TestClient(app)
     out = []

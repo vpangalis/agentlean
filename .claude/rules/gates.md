@@ -33,7 +33,7 @@ previous passes.**
 
 | Layer | Checks | Mechanism | Fires |
 |---|---|---|---|
-| **2a. Coherence** | Real, conclusive, on-topic, not parroting the Belt | `CoherenceMiddleware` (§8.9), `coherence` role, temp 0.1 | **Every coaching turn** |
+| **2a. Coherence** | **Retired** (ADR-0083): its AI judge is gone; the faults it was meant to catch are checked in code | — | — |
 | **2b. Field presence** | All **Tier 1** fields populated (`DMAICGateValidator`) | **Deterministic**, no LLM | Gate boundary only |
 | **2c. Constraint** | Addresses budget / timeline / risk / measurement | `constraint` role, temp 0.1 | Gate + key decisions mid-conversation |
 | **2d. Quality rubric** | Gate document vs `PHASE_RUBRIC`, per criterion. **Tier 1 fails, Tier 2 warns** | `grader` role, temp 0.1 | Gate boundary only |
@@ -71,8 +71,8 @@ previous passes.**
 | 3 — Validated | Full four-layer check at the gate | Pass/fail, Belt corrects and approves | Max 3, accumulated feedback |
 | 4 — Escalated | Attempts exhausted — defers with unresolved constraints named | Transparent, Belt is arbiter | None |
 
-**Transparency is the default; silent retry is the narrow exception —
-coherence only.**
+**Transparency is the default; there is no silent retry** — the coherence
+re-ask that was the one exception is retired (ADR-0083).
 
 ### 9.4 — Mid-phase conflict detection — auto-flag, no threshold
 
@@ -186,4 +186,4 @@ FMEA is not tracked (§10.8).
 - Never commit a checkpoint before Belt approval
 - Never use `HumanInTheLoopMiddleware` for gates
 - Never run retrieval during gate validation
-- Never downgrade the coherence or constraint checks to format checks
+- Never downgrade the constraint check to a format check (the coherence check is retired, ADR-0083)

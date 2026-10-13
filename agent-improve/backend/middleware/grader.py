@@ -32,9 +32,9 @@ FAIL in `enforce` mode the reply passes through with `GRADER_WARNING`, which the
 Belt sees; the turn is never blocked. **The grader runs `log_only` until it is
 proven against the founder's labels (founder 2026-10-13)**: every verdict is
 recorded in `step_log`, the warning is not shown and the verdict does not reach
-the coach's next-turn feedback. It grades every reply with text, whatever
-coherence decided (ADR-0081 supersedes S-C13 B3); a reply written in code is
-not graded.
+the coach's next-turn feedback. It grades every reply with text (ADR-0081; the
+coherence judge it once stood down for is retired, ADR-0083); a reply written in
+code is not graded.
 
 > **SPEC-GAP (G-12) is OPEN.** `CoachingGraderVerdict`'s shape — whether it
 > reuses `CriterionVerdict`, and whether `tier` means anything for coaching
@@ -54,6 +54,13 @@ from langchain.agents.middleware import AgentMiddleware
 from backend.core.llm import REQUEST_TIMEOUTS, get_llm
 from backend.core.prompts import COACHING_QUALITY_RUBRIC
 from backend.validation.schemas import CoachingGraderVerdict
+
+#: §50.1's blocks as a judge reads them under the reply's `message`, labelled.
+REPLY_BLOCKS = (
+    ("EXPLANATION", "explanation"),
+    ("EXAMPLE - an illustration, not the Belt's data", "example"),
+    ("QUESTION TO THE BELT", "prompt"),
+)
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +173,7 @@ class DMAICGraderMiddleware(AgentMiddleware):
         self._evaluations: list[CoachingGraderVerdict] = []
 
     async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """B1-B6, on every reply with text — whatever coherence decided (ADR-0081)."""
+        """B1-B6, on every reply with text (ADR-0081)."""
         coach_text = self._coach_text(state)
         if not coach_text:
             return None
@@ -253,10 +260,25 @@ class DMAICGraderMiddleware(AgentMiddleware):
     @staticmethod
     def _coach_text(state: Any) -> str:
         """DEF-015 — the whole reply the Belt sees: `message` and the explanation, example and question
-        blocks (§50.1), and only this turn's (G-153) — read exactly as coherence reads it. The rubric's
-        "shows before asking" cannot be graded on `message` alone."""
-        from backend.middleware.coherence import CoherenceMiddleware
-        return CoherenceMiddleware._coach_text(state)
+        blocks (§50.1), and only this turn's (G-153). The rubric's "shows before asking" cannot be graded
+        on `message` alone. (Moved here from the retired coherence judge, ADR-0083.)"""
+        response = (state or {}).get("structured_response") if isinstance(state, dict) \
+            else getattr(state, "structured_response", None)
+        if response is not None and str(getattr(response, "message", None) or ""):
+            parts = [str(response.message)]
+            for label, attr in REPLY_BLOCKS:
+                text = str(getattr(response, attr, None) or "").strip()
+                if text:
+                    parts.append(f"[{label}] {text}")
+            return "\n\n".join(parts)
+        messages = (state or {}).get("messages") if isinstance(state, dict) else []
+        for message in reversed(list(messages or [])):
+            # G-153 — this turn's reply only: an earlier turn's text is not judged as this one's.
+            if str(getattr(message, "type", "")) == "human":
+                break
+            if str(getattr(message, "type", "")) == "ai" and str(message.content).strip():
+                return str(message.content)
+        return ""
 
     @staticmethod
     def _belt_text(state: Any) -> str:

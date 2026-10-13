@@ -10,7 +10,7 @@ The tier tuples are IMPORTED from `schema.py` rather than retyped here —
 two hand-maintained copies of one list is how the three drift apart.
 
 **This is Layer 2b — field presence, DETERMINISTIC, no LLM** (9.2). Layer 2a
-(coherence) fires every turn in middleware; 2c (constraints) and 2d (the
+(coherence) is retired (ADR-0083); 2c (constraints) and 2d (the
 rubric) run in the same `validation_stack` node but are not this function's
 business.
 

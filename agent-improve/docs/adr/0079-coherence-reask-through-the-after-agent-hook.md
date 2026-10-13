@@ -1,6 +1,6 @@
 # ADR-0079: A coherence rejection asks the coach again through layer 2a's after_agent hook
 
-Status: ACCEPTED (founder, 2026-10-12; drafted by Claude Code from the rulings)
+Status: SUPERSEDED by 0083 (founder, 2026-10-13: the coherence judge is retired; accepted 2026-10-12)
 Requirements: R1 (guide the Belt through the method); DEF-014
 Depends on: ADR-0059 (framework call limits), ADR-0069 (answer turns bind no tools), ADR-0041 (two graders)
 

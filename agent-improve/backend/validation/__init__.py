@@ -9,6 +9,6 @@ Step 6.5 creates this package for the two schemas S-C22 and S-C23 assign to it.
 """
 from __future__ import annotations
 
-from backend.validation.schemas import CoachingGraderVerdict, CoherenceResult
+from backend.validation.schemas import CoachingGraderVerdict
 
-__all__ = ["CoachingGraderVerdict", "CoherenceResult"]
+__all__ = ["CoachingGraderVerdict"]

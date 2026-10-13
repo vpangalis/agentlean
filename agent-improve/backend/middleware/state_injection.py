@@ -447,8 +447,8 @@ class BeforeModelStateInjection(AgentMiddleware):
     def _compose_feedback(self) -> str:
         """Section 5 — last turn's quality feedback, for the coach (6.61).
 
-        The grader's and coherence's verdicts on the PREVIOUS reply, read off
-        that reply. **Never presented as a message from the Belt** — it is a
+        The grader's verdict on the PREVIOUS reply, read off that reply (the
+        coherence judge is retired, ADR-0083). **Never presented as a message from the Belt** — it is a
         system section, and it says whose it is.
         """
         fb = moves.last_feedback(list(self._state.get("messages") or []))
@@ -457,7 +457,7 @@ class BeforeModelStateInjection(AgentMiddleware):
             lines.append("  (none — no quality check ran on your previous reply, or "
                          "there is no previous reply)")
             return "\n".join(lines)
-        g, c = fb.get("grader"), fb.get("coherence")
+        g = fb.get("grader")
         # 6.61 (item 3) — only what applies to THIS turn's move: section 5
         # never contradicts section 4. A criterion the move does not answer
         # (a read-back is not a challenge) is left out, and says so.
@@ -480,9 +480,6 @@ class BeforeModelStateInjection(AgentMiddleware):
                           for f in kept]
             else:
                 lines.append("  Coaching quality: nothing that applies to this turn's move.")
-        if c:
-            lines.append("  Coherence: " + ("coherent" if c.get("coherent") else
-                                            f"NOT coherent — {c.get('reason') or ''}"))
         return "\n".join(lines)
 
     def _upload_manifest(self) -> list[str]:

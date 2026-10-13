@@ -37,12 +37,10 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core.substate import CoachingResponse, PhaseState
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware, GRADER_WARNING
 from backend.phases import nodes_common as _nc
 from backend.validation.schemas import (
     CoachingGraderVerdict,
-    CoherenceResult,
     CriterionResult,
 )
 
@@ -59,11 +57,6 @@ def _failing_verdict() -> CoachingGraderVerdict:
     return CoachingGraderVerdict(criteria=[CriterionResult(
         criterion="Coach must challenge weak inputs with specific follow-up questions",
         status="fail", feedback="ask how the error rate was measured")])
-
-
-def _incoherent() -> CoherenceResult:
-    return CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False,
-                           on_topic=True, reason="vague non-answer")
 
 
 def _recording(verdict: Any) -> tuple[list[tuple[str, str]], Any]:
@@ -89,30 +82,8 @@ def test_the_grader_judges_a_reply_once(grader_enforced) -> None:
     assert out == {"grader_warning": GRADER_WARNING}
 
 
-def test_coherence_checks_a_reply_once() -> None:
-    """A reject is checked once; the turn degrades and the grader stands down."""
-    mw = CoherenceMiddleware("define")
-    seen, mw._check = _recording(_incoherent())  # type: ignore[method-assign]
-
-    out = asyncio.run(mw.aafter_agent(_turn(), None))
-
-    assert len(seen) == 1, f"coherence checked one reply {len(seen)} times"
-    assert mw.degraded is True
-    assert out is None, "the skip travels by reference, never through state"
-
-
-def test_a_coherent_reply_is_checked_once_and_left_alone() -> None:
-    mw = CoherenceMiddleware("define")
-    seen, mw._check = _recording(CoherenceResult(  # type: ignore[method-assign]
-        coherent=True, is_conclusive=True, is_parroting=False, on_topic=True, reason=""))
-
-    assert asyncio.run(mw.aafter_agent(_turn(), None)) is None
-    assert len(seen) == 1 and mw.degraded is False
-
-
 @pytest.mark.parametrize("make, attr, verdict", [
     (lambda: DMAICGraderMiddleware("define"), "_grade", _failing_verdict()),
-    (lambda: CoherenceMiddleware("define"), "_check", _incoherent()),
 ])
 def test_any_judge_retry_changes_its_input_or_makes_one_call(make, attr, verdict) -> None:
     """**The rule, stated once for every judge.** A second call is allowed only

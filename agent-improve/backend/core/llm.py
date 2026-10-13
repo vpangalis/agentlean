@@ -217,7 +217,6 @@ TURN_LLM_CALLS: tuple[tuple[str, dict[str, Any]], ...] = (
     ("planner", {}),                        # phases/nodes_common.py — the planner
     ("coach", {"max_tokens": 1500}),        # the executor's agent
     ("summarizer", {}),                     # SummarizationMiddleware
-    ("coherence", {}),                      # layer 2a
     ("grader", {}),                         # the coaching grader
     ("extraction", {"temperature": 0.2}),   # knowledge-lookup query variants
 )

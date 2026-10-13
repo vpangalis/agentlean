@@ -111,7 +111,7 @@ def without_blocked(messages: list) -> list:
 
     `SupervisorState.messages` appends (`operator.add`), so a blocked message stays in the
     checkpoint; this is how no model and no reload ever reads it (ADR-0067 point 2, T71). Read
-    at the phase's input mapper, the one way into the coach, planner, grader and coherence."""
+    at the phase's input mapper, the one way into the coach, planner and grader."""
     out: list = []
     for m in messages or []:
         if isinstance(m, AIMessage) and (m.additional_kwargs or {}).get(NODE, {}).get("status") == "blocked":

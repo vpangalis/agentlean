@@ -102,7 +102,7 @@ in `messages` are unaffected.
 ### 4.7 — Temperature discipline
 
 Per-role defaults are owned by `ROLE_TEMPERATURES` in `core/llm.py`. Coach
-0.5–0.7; grader, coherence and constraint 0.1; extraction and field
+0.5–0.7; grader and constraint 0.1; extraction and field
 validators 0.0–0.2.
 
 **The grader's temperature is a hard requirement, not a tuning knob.**

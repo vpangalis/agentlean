@@ -23,8 +23,8 @@ first declared outermost. Re-derive from the installed
 
 - **`BeforeModelStateInjection` MUST be first, on `before_agent`** (once per
   turn), never `before_model`.
-- **A coherence rejection never switches the grader off** (ADR-0081): both
-  judge every reply with text; each runs `log_only` until proven.
+- **Nothing switches the grader off** (ADR-0081): it grades every reply with text and runs
+  `log_only` until proven; the coherence judge is retired (ADR-0083).
 - **Call limit, fallback, retry, marker — outermost first** (ADR-0082): a call counts once; refusals
   and token limits skip retry and fallback. **One `PIIMiddleware`** (T87): tool results.
 - **Position 1's `wrap_model_call` encloses `ModelRetryMiddleware`** — a retry
@@ -35,9 +35,8 @@ first declared outermost. Re-derive from the installed
   `wrap_tool_call`, plus `a`-prefixed async twins. `dynamic_prompt()`,
   `hook_config()`, `configure_trace_policy()` are module-level names, not
   hooks (ARCHITECTURE.md §3.3).
-- **Three independent caps, never merged:** `ModelRetryMiddleware` 2,
-  `CoherenceMiddleware` one re-ask in `enforce` mode and none while `log_only`
-  (ADR-0079, G-161), the validation stack's shared gate cap 3 (§9.2).
+- **Two independent caps, never merged:** `ModelRetryMiddleware` 2 and the validation
+  stack's shared gate cap 3 (§9.2); the coherence re-ask is retired (ADR-0083).
 - **Prefer built-in middleware**; custom only for domain-specific logic.
 
 ### 8.2 — `DMAICGraderMiddleware` — coaching-quality grading
@@ -172,15 +171,10 @@ node reruns from its start; DEF-040 moves the stop into its own node.
 threshold** (§9.4, §10.7). **Never reintroduce the mechanical dict
 comparison** (`docs/_archive/DECISIONS.md` §R1).
 
-### 8.9 — `CoherenceMiddleware` — validation Layer 2a
+### 8.9 — Validation Layer 2a — retired
 
-**Custom, `after_agent`, immediately inside the grader.** Layer 2a (§9.2):
-one `coherence` call, temperature 0.1. **Fires every coaching turn**, which
-is why it is middleware, not the `validation_stack` node.
-
-**One check per reply.** A rejection degrades the turn (the grader still runs,
-ADR-0081); in `enforce` mode it asks the coach once more (ADR-0079). **`log_only` until
-false rejects are under 20% (G-161)**: verdicts recorded, no re-ask.
+**The AI coherence judge is retired (ADR-0083, founder 2026-10-13):** against the founder's labels it
+rejected four good replies in ten; what it was meant to catch is checked in code (G-170 to G-175).
 
 **Coherence is NOT a `COACHING_QUALITY_RUBRIC` criterion** — any rubric entry
 for it is stale.
@@ -202,8 +196,7 @@ for it is stale.
   (§0.24, §4.4, §8.1)
 - Never set `BeforeModelStateInjection` to the `before_model` hook — it is
   `before_agent`, once per turn, not once per model call (§8.1, §8.5)
-- Never merge the three caps — `ModelRetryMiddleware` (2),
-  `CoherenceMiddleware` (one re-ask, `enforce` mode only) and the validation
+- Never merge the two caps — `ModelRetryMiddleware` (2) and the validation
   stack's shared gate cap (3) count different failure modes (§8.1, §9.2)
-- Never treat Layer 2a as part of the `validation_stack` node — it fires
-  every turn and lives in `CoherenceMiddleware` (§8.9, §9.2)
+- Never bring back an AI coherence judge without a new ADR — it was retired on the founder's
+  labels (ADR-0083, §8.9)

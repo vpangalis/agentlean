@@ -56,10 +56,8 @@ from backend.middleware.skills import (
     instructions,
 )
 from backend.core.substate import CONTRADICTION_FLAG_KEYS, CoachingResponse
-from backend.middleware import coherence as coherence_module
 from backend.middleware import contradiction as contradiction_module
 from backend.middleware import grader as grader_module
-from backend.middleware.coherence import COHERENCE_MAX_RETRIES, CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
 from backend.middleware.grader import (
     GRADER_MAX_ITERATIONS,
@@ -69,7 +67,6 @@ from backend.middleware.grader import (
 from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.validation.schemas import (
     CoachingGraderVerdict,
-    CoherenceResult,
     CriterionResult,
 )
 from backend.phases import nodes_common as _c
@@ -676,24 +673,23 @@ def test_the_declared_middleware_list_is_the_ratified_layering(
     )
 
     after = [n for n in declared if n in (
-        "ContradictionDetectionMiddleware", "CoherenceMiddleware",
-        "DMAICGraderMiddleware")]
+        "ContradictionDetectionMiddleware", "DMAICGraderMiddleware")]
     assert list(reversed(after)) == [
-        "ContradictionDetectionMiddleware",   # innermost -> executes 6th
-        "CoherenceMiddleware",                # 7th
-        "DMAICGraderMiddleware",              # outermost -> executes 8th
+        "ContradictionDetectionMiddleware",   # innermost -> executes first
+        "DMAICGraderMiddleware",              # outermost -> executes last
     ], (
-        "after_* hooks fire innermost-first, so the ratified execution order "
-        "contradiction -> coherence -> grader is produced by layering the "
-        "grader outermost and contradiction innermost"
+        "after_* hooks fire innermost-first, so contradiction -> grader is produced by layering the "
+        "grader outermost and contradiction innermost (the coherence judge between them is retired, "
+        "ADR-0083)"
     )
+    assert "CoherenceMiddleware" not in declared, "the retired coherence judge is back (ADR-0083)"
     # ADR-0059 (T69, G-119): the model-call limit joins, declared just outside the retry;
     # ADR-0062 (T87, DEF-144): one PIIMiddleware over the four types, on tool results.
     # ADR-0069: the turn-type tool selection (a wrap_model_call), one per executor.
     # T34 (ADR-0082): the fallback sits between the limit and the retry, and the marker inside the retry —
     # so the limit counts one call per model step, the fallback hears a failure only after the retries,
     # and a refusal or a token limit is marked before either sees it.
-    assert len(declared) == 13 and declared.count("PIIMiddleware") == 1
+    assert len(declared) == 12 and declared.count("PIIMiddleware") == 1
     assert [n for n in declared if n.startswith("TurnTools[")] == ["TurnTools[teaching]"]
     i = declared.index
     assert i("ModelCallLimitMiddleware") + 1 == i("ModelFallbackMiddleware") == i("ModelRetryMiddleware") - 1
@@ -779,8 +775,8 @@ def test_max_retries_means_attempts_AFTER_the_initial_call() -> None:
 def test_the_three_retry_caps_stay_separate() -> None:
     """§19 — three failure modes, three counters, NO shared state.
 
-    Model 2 (transient API), coherence 2 (response quality, 6.5), validation
-    stack 3 (the gate, §34). Merging any two would have a network flake consume
+    Model 2 (transient API) and validation stack 3 (the gate, §34); the coherence
+    re-ask that made a third is retired (ADR-0083). Merging any two would have a network flake consume
     a gate attempt — which is the v1 defect `gate_attempts` was moved onto
     `PhaseState` to fix.
     """
@@ -977,7 +973,7 @@ def test_HITLInterrupt_is_not_defined_anywhere() -> None:
             inspect.getdoc(module) or "", ""), module.__name__
 
 
-# ── position 7 — coherence ────────────────────────────────────────────────
+# ── the retired coherence judge (ADR-0083) ─────────────────────────────────
 
 
 def test_coherence_is_not_a_rubric_criterion() -> None:
@@ -994,35 +990,6 @@ def test_coherence_is_not_a_rubric_criterion() -> None:
     assert COACHING_QUALITY_RUBRIC.count("- Coach") == 9, (
         "§36's rubric is nine criteria; a tenth needs checking against §36"
     )
-
-
-def test_the_three_retry_caps_are_still_three_and_still_separate() -> None:
-    """**S-C13 B4.** Model 2 (6.4), coherence one re-ask (ADR-0079), validation stack 3.
-
-    Merging any two would let a coherence failure consume a gate attempt —
-    which is the v1 defect `gate_attempts` was moved onto `PhaseState` to fix.
-    """
-    from backend.core.config import settings
-
-    assert _c.RETRY_MAX == 2
-    assert COHERENCE_MAX_RETRIES == 1
-    assert settings.GATE_MAX_ATTEMPTS == 3
-    assert COHERENCE_MAX_RETRIES is not _c.RETRY_MAX or True  # separate names
-    assert len({id(COHERENCE_MAX_RETRIES)}) == 1
-
-
-# RETIRED at step 6.52 B2: `test_coherence_retries_silently_then_degrades_and_
-# skips_the_grader` asserted THREE checks of one reply. The reply cannot change
-# inside the hook, so the retries re-asked a temperature-0.1 judge the same
-# question (10 of 10 rejecting turns on IMPR-2026-0E5 show no model call after
-# the rejection). One check, then degrade and stand the grader down:
-# `test_judges_once.py::test_coherence_checks_a_reply_once`.
-
-
-# RETIRED at step 6.52 B2: `test_coherence_passing_on_a_retry_is_invisible_to_
-# the_belt` relied on a second check of the SAME reply coming back coherent —
-# the same question, answered differently by chance. A reply is checked once:
-# `test_judges_once.py::test_a_coherent_reply_is_checked_once_and_left_alone`.
 
 
 # ── position 8 — the grader ───────────────────────────────────────────────
@@ -1100,10 +1067,9 @@ def test_the_verdict_is_per_criterion_never_an_overall_score() -> None:
     )
 
 
-def test_the_grader_grades_every_reply_whatever_coherence_decided() -> None:
-    """**ADR-0081 supersedes S-C13 B3 (founder ruling 2026-10-13).** Coherence is a sanity check and the
-    grader a quality check: a coherence rejection never switches the grader off — it grades every reply
-    with text, and records its verdict. In `log_only` mode (until proven) a FAIL returns nothing: no
+def test_the_grader_grades_every_reply_with_text() -> None:
+    """**ADR-0081 superseded S-C13 B3 (founder ruling 2026-10-13); ADR-0083 retired the coherence judge.**
+    The grader grades every reply with text, and records its verdict. In `log_only` mode (until proven) a FAIL returns nothing: no
     Belt-visible warning, the turn unchanged; the verdict still reaches step_log."""
     from backend.middleware import grader as grader_module
 

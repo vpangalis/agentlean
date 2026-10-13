@@ -15,7 +15,6 @@ paths:
   - "agent-improve/backend/knowledge/retriever.py"
   - "agent-improve/backend/knowledge/tool_args.py"
   - "agent-improve/backend/knowledge/tools.py"
-  - "agent-improve/backend/middleware/coherence.py"
   - "agent-improve/backend/middleware/contradiction.py"
   - "agent-improve/backend/middleware/grader.py"
   - "agent-improve/backend/middleware/skills.py"
@@ -43,7 +42,7 @@ Classes are permitted ONLY in these files.
 
 ### Tool and validation schemas
 - `knowledge/tool_args.py` — Pydantic schemas for `@tool` `args_schema=`
-- `validation/schemas.py` — `CoherenceResult`, `CriterionResult`, `CoachingGraderVerdict`,
+- `validation/schemas.py` — `CriterionResult`, `CoachingGraderVerdict`,
   `CriterionVerdict`, `GraderVerdict`
 - `core/errors.py` — `AgentImproveError` (§12.3)
 
@@ -56,7 +55,6 @@ Classes are permitted ONLY in these files.
 - `middleware/skills.py` — `DMAICSkillsMiddleware(AgentMiddleware)`
 - `middleware/state_injection.py` — `BeforeModelStateInjection(AgentMiddleware)`, `before_agent` hook
 - `middleware/contradiction.py` — `ContradictionDetectionMiddleware(AgentMiddleware)` (§8.8)
-- `middleware/coherence.py` — `CoherenceMiddleware(AgentMiddleware)` (§8.9)
 
 ### Reliability
 - `core/reliability.py` — `CircuitBreaker` (not built — required before customers, DEF-124; §4.8)

@@ -117,13 +117,12 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
         "KeptFromFallback",                  # ADR-0082: refusals and token limits never reach the fallback
         "ToolRetryMiddleware",               # 5
         "PIIMiddleware",                     # ADR-0062 (T87): tool results only
-        # 6-8 fire after_agent, which executes in REVERSE — so they are
-        # declared backwards to EXECUTE as 6, 7, 8. See
+        # The after-agent pair executes in REVERSE — declared grader, contradiction to
+        # execute contradiction, grader (the coherence judge is retired, ADR-0083). See
         # `test_the_declared_middleware_list_is_the_ratified_layering`.
         "DMAICGraderMiddleware",             # executes 8th (last)
-        "CoherenceMiddleware",               # executes 7th
         "ContradictionDetectionMiddleware",  # executes 6th (first)
-    ], "§19's eight — 1-5 in declaration order, 6-8 reversed for after_agent"
+    ], "1-5 in declaration order, the after-agent pair reversed"
     assert kwargs["model"] is not None
 
 

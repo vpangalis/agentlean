@@ -183,7 +183,7 @@ def last_record(messages: list[BaseMessage]) -> Optional[dict[str, Any]]:
 
 
 def last_feedback(messages: list[BaseMessage]) -> Optional[dict[str, Any]]:
-    """Last turn's quality feedback — the grader's and coherence's verdicts on
+    """Last turn's quality feedback — the grader's verdict on
     the previous reply, which the executor put on that reply."""
     seen_belt = False
     for message in reversed(messages or []):

@@ -28,9 +28,7 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core.substate import PhaseState
-from backend.middleware import coherence as coherence_module
 from backend.middleware import grader as grader_module
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
 from backend.middleware.skills import DMAICSkillsMiddleware
@@ -95,13 +93,12 @@ def observed(monkeypatch) -> list[tuple[str, str]]:
     fired: list[tuple[str, str]] = []
     seen: set[tuple[str, str]] = set()
 
-    for module in (_c, coherence_module, grader_module):
+    for module in (_c, grader_module):
         monkeypatch.setattr(module, "get_llm", _fake_llm, raising=False)
     monkeypatch.setattr(_c, "get_fallback_llm", _fake_llm)
 
     for cls in (BeforeModelStateInjection, DMAICSkillsMiddleware,
-                DMAICGraderMiddleware, CoherenceMiddleware,
-                ContradictionDetectionMiddleware):
+                DMAICGraderMiddleware, ContradictionDetectionMiddleware):
         for hook in ("before_agent", "abefore_agent",
                      "after_agent", "aafter_agent"):
             original = getattr(cls, hook, None)
@@ -143,17 +140,16 @@ def _order(fired: list[tuple[str, str]], hook: str) -> list[str]:
     return [name for name, h in fired if h == hook]
 
 
-def test_after_agent_executes_contradiction_then_coherence_then_grader(observed):
+def test_after_agent_executes_contradiction_then_grader(observed):
     """**The assertion this whole file exists for.**
 
-    Positions 6, 7 and 8 are DECLARED grader, coherence, contradiction and
-    EXECUTE contradiction, coherence, grader — because `after_*` hooks fire
-    innermost-first. Nothing here reads the declared list; this is what the
+    The after-agent pair is DECLARED grader, contradiction and EXECUTES
+    contradiction, grader — because `after_*` hooks fire innermost-first (the
+    coherence judge between them is retired, ADR-0083). Nothing here reads the declared list; this is what the
     compiled graph actually did.
     """
     assert _order(observed, "after_agent") == [
         "ContradictionDetectionMiddleware",
-        "CoherenceMiddleware",
         "DMAICGraderMiddleware",
     ], (
         "after_* hooks fire in the REVERSE of declaration order. If this fails "
@@ -184,6 +180,6 @@ def test_this_observes_a_real_graph_and_not_a_stub(observed):
     inside its own fix.
     """
     assert observed, "no hook fired — the agent was stubbed and nothing ran"
-    assert len({name for name, _ in observed}) == 5, (
-        "all five custom middlewares must have been entered"
+    assert len({name for name, _ in observed}) == 4, (
+        "all four custom middlewares must have been entered (the coherence judge is retired, ADR-0083)"
     )

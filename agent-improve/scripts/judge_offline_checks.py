@@ -1,13 +1,10 @@
-"""Founder ruling 2026-10-13, item 3 — offline checks of the two per-turn judges on the evaluation set.
-Replay only: nothing in the product changes.
+"""Founder ruling 2026-10-13, item 3 — offline checks of the coaching grader on the evaluation set (the
+coherence judge is retired, ADR-0083). Replay only: nothing in the product changes.
 
-  c  repeatability — each judge replayed REPEATS times per turn; the share of turns whose verdict flips;
-     for the grader, per criterion, the flip rate and which criteria cause flips
+  c  repeatability — the grader replayed REPEATS times per turn; the share of turns whose verdict flips;
+     per criterion, the flip rate and which criteria cause flips (B2's line: >= 90% repeat)
   d  grader fail drivers — per criterion, how often it fails, and on which moves
-  e  overlap — coherence verdict against grader verdict, per replay, as a 2x2 count
-  f  coherence ablation — the coherence prompt with the script-step and move text removed, ABLATION times
-     per turn: how rejections change
-  g  truncation — replies over the judges' 4,000-character cut, and whether the [QUESTION TO THE BELT]
+  g  truncation — replies over the grader's 4,000-character cut, and whether the [QUESTION TO THE BELT]
      block is cut off
 
     cd agent-improve; python -m scripts.judge_offline_checks
@@ -29,19 +26,6 @@ CONCURRENCY = 1          # 8 in parallel hit the deployment's rate limit (429) o
 CUT = 4000
 
 
-async def _coherence(turn: dict[str, Any], ablate: bool) -> dict[str, Any]:
-    """The coherence judge on `turn`; `ablate` builds it with no move and no script step, so its prompt
-    carries neither text (`_step_text(None)` and `_move_text(None)` are empty) — the same call otherwise."""
-    from backend.middleware import coherence as C
-    from scripts.judge_replay import _overridden, _step
-    mw = C.CoherenceMiddleware("define", move=None if ablate else turn["move"],
-                               focus_field=(turn.get("script_step") or {}).get("field"))
-    mw.step = None if ablate else _step(turn)
-    r = await mw._check(turn["belt"], turn["reply_judged"])
-    return {"accepted": _overridden(turn, r.coherent, r.is_parroting), "raw_coherent": r.coherent,
-            "is_parroting": r.is_parroting, "reason": r.reason}
-
-
 async def _grade(turn: dict[str, Any]) -> dict[str, Any]:
     from backend.middleware.grader import DMAICGraderMiddleware
     g = await DMAICGraderMiddleware("define", move=turn["move"])._grade(turn["belt"], turn["reply_judged"])
@@ -57,9 +41,7 @@ async def run(turns: list[dict[str, Any]]) -> dict[str, Any]:
             return await coro
     jobs: list[tuple[str, str, Any]] = []
     for t in turns:
-        jobs += [(t["id"], "coherence", _coherence(t, False)) for _ in range(REPEATS)]
         jobs += [(t["id"], "grader", _grade(t)) for _ in range(REPEATS)]
-        jobs += [(t["id"], "ablation", _coherence(t, True)) for _ in range(ABLATION)]
     results = await asyncio.gather(*(limited(c) for _, _, c in jobs), return_exceptions=True)
     out: dict[str, dict[str, list[Any]]] = collections.defaultdict(lambda: collections.defaultdict(list))
     for (tid, kind, _), r in zip(jobs, results):
@@ -74,7 +56,6 @@ def _ok(xs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def analyse(turns: list[dict[str, Any]], out: dict[str, Any]) -> dict[str, Any]:
     by_id = {t["id"]: t for t in turns}
     # c — repeatability
-    coh_flip = [i for i in out if len({x["accepted"] for x in _ok(out[i]["coherence"])}) > 1]
     grd_flip = [i for i in out if len({x["passed"] for x in _ok(out[i]["grader"])}) > 1]
     crit_runs: dict[str, list[int]] = collections.defaultdict(lambda: [0, 0])    # [turns seen, turns flipped]
     for i in out:
@@ -98,19 +79,6 @@ def analyse(turns: list[dict[str, Any]], out: dict[str, Any]) -> dict[str, Any]:
                 fails[c][move] += 1
     drivers = {c: {"fails": sum(m.values()), "by_move": dict(m)} for c, m in
                sorted(fails.items(), key=lambda kv: -sum(kv[1].values()))}
-    # e — overlap (per replay pair)
-    grid: collections.Counter[tuple[str, str]] = collections.Counter()
-    for i in out:
-        for c, g in zip(_ok(out[i]["coherence"]), _ok(out[i]["grader"])):
-            grid[(("coh accept" if c["accepted"] else "coh reject"),
-                  ("grader pass" if g["passed"] else "grader fail"))] += 1
-
-    # f — ablation
-    def reject_share(xs: list[dict[str, Any]]) -> float:
-        xs = _ok(xs)
-        return sum(not x["accepted"] for x in xs) / len(xs) if xs else 0.0
-    ablation = {i: {"with_step_and_move": round(reject_share(out[i]["coherence"]), 2),
-                    "ablated": round(reject_share(out[i]["ablation"]), 2)} for i in out}
     # g — truncation
     long = [{"id": t["id"], "chars": len(t["reply_judged"]),
              "question_cut": "[QUESTION TO THE BELT]" in t["reply_judged"]
@@ -119,16 +87,11 @@ def analyse(turns: list[dict[str, Any]], out: dict[str, Any]) -> dict[str, Any]:
     errors = sum("error" in x for i in out for k in out[i] for x in out[i][k])
     n = len(out) or 1
     return {
-        "c_repeatability": {"turns": len(out), "coherence_flipped": len(coh_flip),
-                            "coherence_flip_share": round(len(coh_flip) / n, 2), "grader_flipped": len(grd_flip),
+        "c_repeatability": {"turns": len(out), "grader_flipped": len(grd_flip),
                             "grader_flip_share": round(len(grd_flip) / n, 2),
-                            "grader_flips_by_criterion": flips_by_criterion,
-                            "coherence_flipped_ids": coh_flip, "grader_flipped_ids": grd_flip},
+                            "grader_repeat_share": round(1 - len(grd_flip) / n, 2),
+                            "grader_flips_by_criterion": flips_by_criterion, "grader_flipped_ids": grd_flip},
         "d_grader_fail_drivers": {"graded_by_move": dict(graded), "by_criterion": drivers},
-        "e_overlap": {f"{a} / {b}": c for (a, b), c in sorted(grid.items())},
-        "f_ablation": {"reject_share_with": round(sum(v["with_step_and_move"] for v in ablation.values()) / n, 2),
-                       "reject_share_ablated": round(sum(v["ablated"] for v in ablation.values()) / n, 2),
-                       "per_turn": ablation},
         "g_truncation": {"over_4000": len(long), "question_block_cut": sum(x["question_cut"] for x in long),
                          "turns": long},
         "errors": errors,

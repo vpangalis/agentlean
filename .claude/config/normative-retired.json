@@ -402,6 +402,18 @@
    "from": "agent-improve/CLAUDE.md",
    "class": "equivalent",
    "reason": "founder ruling 6 on the Parts A–D report (2026-09-27): CLAUDE.md replaces its list of guard rules with one line pointing to the guard and its refusal messages; the rule stands, enforced, in .claude/hooks/fact-ownership-guard.py (the pre-tool-use guard) and .claude/config/fact_owners.yaml"
+  },
+  {
+   "sentence": "- Never treat Layer 2a as part of the validation stack node — it fires every turn and lives in CoherenceMiddleware (§8.9, §9.2)",
+   "from": ".claude/rules/middleware.md",
+   "class": "obsolete",
+   "reason": "founder ruling 2026-10-13 (B1): the AI coherence judge is retired (ADR-0083) — there is no layer 2a to place; the ban that replaces it stands in .claude/rules/middleware.md: never bring back an AI coherence judge without a new ADR"
+  },
+  {
+   "sentence": "- A coherence rejection never switches the grader off (ADR-0081): both judge every reply with text; each runs log only until proven.",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md — Nothing switches the grader off (ADR-0081); the coherence judge it named is retired (ADR-0083, founder ruling 2026-10-13, B1)"
   }
  ]
 }

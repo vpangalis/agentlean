@@ -1,7 +1,8 @@
 """Founder ruling 2026-10-12 (quality stop, item 2): replay the two per-turn judges OFFLINE on the
 evaluation set, and score them against the founder's labels.
 
-For each turn in `evals/define/judge_turns.json` the coherence judge (layer 2a) and the coaching grader
+For each turn in `evals/define/judge_turns.json` the coaching grader (the coherence judge is retired,
+ADR-0083: its recorded verdicts are reported, never replayed)
 are rebuilt for that turn's move and script step and asked about the reply they judged (a re-asked
 turn's first reply) — the same calls the executor makes, nothing else: no graph, no run. The grader
 is replayed on EVERY turn, coherence-rejected ones included, which is what DEF-015's option A will do.
@@ -73,39 +74,15 @@ async def replay_judgment(case: dict[str, Any]) -> dict[str, Any]:
 FALSE_REJECT_STOP = 0.20
 
 
-def _step(turn: dict[str, Any]) -> dict[str, Any] | None:
-    """The script step as the judge derives it (coherence.aafter_agent): a confirm step from the
-    field captured, otherwise explain-show-ask for the field in focus."""
-    from backend.middleware.skills import CONFIRM, script_step
-    rec = turn.get("script_step") or {}
-    field = rec.get("field")
-    if not field:
-        return None
-    return script_step("define", [field] if rec.get("step") == CONFIRM else [], field)
-
-
 async def replay(turn: dict[str, Any]) -> dict[str, Any]:
-    from backend.middleware.coherence import CoherenceMiddleware
+    """The grader, rebuilt for the turn's move, on the reply it judged (the coherence judge is retired,
+    ADR-0083: its recorded verdicts are reported as history, never replayed)."""
     from backend.middleware.grader import DMAICGraderMiddleware
-    coherence = CoherenceMiddleware("define", move=turn["move"], focus_field=(turn.get("script_step") or {}).get("field"))
-    coherence.step = _step(turn)
     t0 = time.time()
-    c = await coherence._check(turn["belt"], turn["reply_judged"])
-    t1 = time.time()
     g = await DMAICGraderMiddleware("define", move=turn["move"])._grade(turn["belt"], turn["reply_judged"])
-    t2 = time.time()
     return {"id": turn["id"],
-            "coherence": {"coherent": c.coherent, "is_parroting": c.is_parroting, "reason": c.reason,
-                          "seconds": round(t1 - t0, 1)},
             "grader": {"passed": g.passed, "failed": [{"criterion": f.criterion, "reason": f.feedback} for f in g.failed],
-                       "seconds": round(t2 - t1, 1)}}
-
-
-def _overridden(turn: dict[str, Any], coherent: bool, is_parroting: bool) -> bool:
-    """G-155's code override, applied to a replayed verdict as the middleware applies it: on a
-    restating move, a rejection for parroting alone is not a rejection."""
-    from backend.middleware.coherence import RESTATING_MOVES
-    return coherent or (turn["move"] in RESTATING_MOVES and is_parroting)
+                       "seconds": round(time.time() - t0, 1)}}
 
 
 def rates(verdicts: dict[str, bool], labels: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -124,8 +101,6 @@ def report(turns: list[dict[str, Any]], replays: list[dict[str, Any]], labels: d
     by = {r["id"]: r for r in replays}
     recorded_coh = {t["id"]: bool(t["coherence"]["coherent"]) for t in turns}
     recorded_grd = {t["id"]: t["grader"]["status"] == "pass" for t in turns if t.get("grader")}
-    replay_coh = {i: _overridden(next(t for t in turns if t["id"] == i), r["coherence"]["coherent"],
-                                 r["coherence"]["is_parroting"]) for i, r in by.items()}
     replay_grd = {i: r["grader"]["passed"] for i, r in by.items()}
     rejections = [t["id"] for t in turns if not t["coherence"]["coherent"]]
     judged = [i for i in rejections if (labels.get(i) or {}).get("rejection_right") is not None]
@@ -137,8 +112,7 @@ def report(turns: list[dict[str, Any]], replays: list[dict[str, Any]], labels: d
                     and str((labels.get(i) or {}).get("note") or "").strip()]
     out: dict[str, Any] = {
         "turns": len(turns), "replayed": len(replays),
-        "coherence": {"recorded": rates(recorded_coh, labels), "replayed": rates(replay_coh, labels),
-                      "replay_agrees_with_recorded": sum(replay_coh[i] == recorded_coh[i] for i in replay_coh)},
+        "coherence": {"recorded": rates(recorded_coh, labels), "retired": "ADR-0083"},
         "grader": {"recorded": rates(recorded_grd, labels), "replayed": rates(replay_grd, labels),
                    "replay_agrees_with_recorded": sum(replay_grd[i] == recorded_grd[i]
                                                       for i in replay_grd if i in recorded_grd)},
@@ -148,7 +122,7 @@ def report(turns: list[dict[str, Any]], replays: list[dict[str, Any]], labels: d
         "cost": cost, "seconds": round(seconds, 1),
         "per_turn_seconds": round(seconds / max(1, len(replays)), 1),
     }
-    stop = [j for j in ("coherence", "grader")
+    stop = [j for j in ("grader",)
             if (out[j]["replayed"]["false_reject_rate"] or 0) > FALSE_REJECT_STOP
             or (out[j]["recorded"]["false_reject_rate"] or 0) > FALSE_REJECT_STOP]
     out["stop"] = {"limit": FALSE_REJECT_STOP, "judges_over": stop}

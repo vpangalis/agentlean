@@ -32,11 +32,9 @@ from langgraph.store.memory import InMemoryStore
 
 
 from backend.core.substate import CoachingResponse
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
 from backend.validation.schemas import (
     CoachingGraderVerdict,
-    CoherenceResult,
     CriterionResult,
 )
 
@@ -108,16 +106,11 @@ def wired(monkeypatch, stub_planner):
     monkeypatch.setattr(nodes_common, "get_llm",
                         lambda role, **kw: _coach() if role == "coach" else planner_llm(role, **kw))
 
-    async def coherent(self, belt: str, coach: str) -> CoherenceResult:
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False,
-                               on_topic=True, reason="")
-
     async def failing(self, belt: str, coach: str) -> CoachingGraderVerdict:
         return CoachingGraderVerdict(criteria=[CriterionResult(
             criterion="Coach must challenge weak inputs with specific follow-up questions",
             status="fail", feedback="ask how the figure was measured")])
 
-    monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", failing)
 
     resp = TestClient(app).post("/ask", json={"case_id": CASE_ID, "user": "wired",
@@ -245,16 +238,11 @@ def three_turns(monkeypatch, stub_planner):
     monkeypatch.setattr(nodes_common, "get_llm",
                         lambda role, **kw: _coach() if role == "coach" else planner_llm(role, **kw))
 
-    async def coherent(self, belt: str, coach: str) -> CoherenceResult:
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False,
-                               on_topic=True, reason="")
-
     async def failing(self, belt: str, coach: str) -> CoachingGraderVerdict:
         return CoachingGraderVerdict(criteria=[CriterionResult(
             criterion="Coach must challenge weak inputs with specific follow-up questions",
             status="fail", feedback="ask how the figure was measured")])
 
-    monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", failing)
 
     client = TestClient(app)

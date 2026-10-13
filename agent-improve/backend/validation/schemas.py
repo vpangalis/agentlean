@@ -1,7 +1,7 @@
-"""Structured outputs for middleware positions 7 and 8 — procedure step 6.5.
+"""Structured outputs for the coaching grader — procedure step 6.5.
 
-Canonical: **§62.3 — S-C22** (`CoachingGraderVerdict`) and **§62.4 — S-C23**
-(`CoherenceResult`), both of which assign this file and this step. Architecture
+Canonical: **§62.3 — S-C22** (`CoachingGraderVerdict`); §62.4's `CoherenceResult` is retired with the
+coherence judge (ADR-0083). Architecture
 §19.7, §19.8, §21, §34, §36.
 
 NEITHER OF THESE CLOSES ITS SPEC-GAP
@@ -35,50 +35,6 @@ from __future__ import annotations
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
-
-
-class CoherenceResult(BaseModel):
-    """Validation Layer 2a's verdict — S-C23, §19.7.
-
-    **The three questions are §19.7's, verbatim**: is this a real, conclusive
-    statement? Is it parroting the Belt's own words back? Is it on-topic for
-    this phase? They are carried as three separate booleans rather than one
-    score because the retry feedback has to say *which* failed — S-C14 B4's
-    "never 'try again'" is the grader's rule, and the same reasoning applies to
-    a retry the Belt never sees.
-
-    `coherent` is what drives S-C13 B2's retry. **That it is a single field is
-    the part G-09 leaves open** — the alternative, retrying on any one of the
-    three, is not obviously wrong and is not chosen here.
-    """
-
-    coherent: bool = Field(
-        description=(
-            "True when the response is a real, conclusive, on-topic coaching "
-            "turn. False triggers a silent retry the Belt never sees."
-        ),
-    )
-    is_conclusive: bool = Field(
-        description=(
-            "Does it actually say something? False for gibberish, and for a "
-            "vague non-answer that fills space without committing to anything."
-        ),
-    )
-    is_parroting: bool = Field(
-        description=(
-            "Is it parroting the Belt, as the prompt defines parroting for the "
-            "script step this reply performs? True is a FAILURE."
-        ),
-    )
-    on_topic: bool = Field(
-        description="Is it about the current DMAIC phase's work?",
-    )
-    reason: str = Field(
-        default="",
-        description=(
-            "Why it failed, specifically, for the retry. Empty when coherent."
-        ),
-    )
 
 
 class CriterionResult(BaseModel):
@@ -168,5 +124,5 @@ class GraderVerdict(BaseModel):
         return not self.failed
 
 
-__all__ = ["CoherenceResult", "CriterionResult", "CoachingGraderVerdict",
+__all__ = ["CriterionResult", "CoachingGraderVerdict",
            "CriterionVerdict", "GraderVerdict"]

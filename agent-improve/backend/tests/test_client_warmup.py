@@ -120,11 +120,11 @@ def test_every_get_llm_call_on_the_turn_path_is_warmed() -> None:
     import ast
     import inspect
     from backend.knowledge import fusion
-    from backend.middleware import coherence, grader
+    from backend.middleware import grader
     from backend.phases import nodes_common
 
     seen = set()
-    for mod in (nodes_common, coherence, grader, fusion):
+    for mod in (nodes_common, grader, fusion):
         for node in ast.walk(ast.parse(inspect.getsource(mod))):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
                     and node.func.id == "get_llm"):

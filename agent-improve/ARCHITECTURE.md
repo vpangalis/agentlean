@@ -403,8 +403,7 @@ flowchart TB
     m --> t5["5 ToolRetry.wrap — each tool call"]
   end
   loop --> a8["8 Contradiction.after_agent"]
-  a8 --> a7["7 Coherence.after_agent"]
-  a7 --> a6["6 Grader.after_agent"]
+  a8 --> a6["6 Grader.after_agent"]
   a6 --> out(["reply"])
 ```
 
@@ -426,8 +425,7 @@ below are §19's names for the original eight, not positions:
 | 9 | `ToolRetryMiddleware` |
 | 10 | `*pii.executor_middleware()` |
 | 11 | `DMAICGraderMiddleware` |
-| 12 | `CoherenceMiddleware`, bound to `coherence` |
-| 13 | `ContradictionDetectionMiddleware` |
+| 12 | `ContradictionDetectionMiddleware` |
 
 <!-- END GENERATED: middleware order -->
 
@@ -443,12 +441,11 @@ below are §19's names for the original eight, not positions:
 | **Kept from fallback · `kept_from_fallback_middleware`** | ADR-0082, a `@wrap_model_call` function: a `content_filter` refusal or a token-limit 400 becomes a marked reply neither the retry nor the fallback sees; the executor answers in code (T92's guidance; level 4). Logs every attempt and its model. |
 | **5 · `ToolRetryMiddleware`** | LangChain, as shipped.<br>`wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is returned to the coach as the tool result (`on_failure="continue"`), not raised. |
 | **Personal data · `PIIMiddleware`** | LangChain, as shipped (ADR-0062, T87): one instance, a combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only — never the Belt's own messages; the turn's counts are `step_log`'s `pii_masked`. |
-| **6 · `DMAICGraderMiddleware`** | `middleware/grader.py`, custom. Executes last.<br>`after_agent`, every turn: one `grader`-role call grades the coach's reply against `COACHING_QUALITY_RUBRIC` (`core/prompts.py`, which owns the criteria), per criterion.<br>Rubric lines that do not apply to this turn's move are excluded (`MOVE_EXCLUDES`).<br>The verdict goes to `step_log` with `layer: "coaching_grader"`. **Log-only until proven (ADR-0081)**; in `enforce` mode a FAIL adds a warning the Belt sees (`GRADER_WARNING`) and becomes next turn's quality feedback.<br>Grades every reply with text, whatever coherence decided (ADR-0081). A grade whose request times out is recorded "not checked (time)" and the reply goes out (ADR-0080). |
-| **7 · `CoherenceMiddleware`** | `middleware/coherence.py`, custom. Validation layer 2a.<br>`after_agent`, every turn: one `coherence`-role call checks the whole reply, including its `prompt`: is it real and conclusive, is it on topic, is it parroting.<br>Parroting is judged against the script step the move called for: a read-back for a captured field, explain-show-ask otherwise, using that field's SKILL.md block.<br>On rejection the turn is degraded; the verdict goes to `step_log` under node `coherence`. In `enforce` mode a rejected teaching, read-back or store turn asks the coach once more through this hook's jump to the model (ADR-0079); **the judge runs `log_only` until its false-reject rate is under 20% (G-161)** — every verdict recorded, no re-ask; a rejection never switches the grader off (ADR-0081). A check whose request times out keeps the reply, "not checked (time)" (ADR-0080). |
+| **6 · `DMAICGraderMiddleware`** | `middleware/grader.py`, custom. Executes last.<br>`after_agent`, every turn: one `grader`-role call grades the coach's reply against `COACHING_QUALITY_RUBRIC` (`core/prompts.py`, which owns the criteria), per criterion.<br>Rubric lines that do not apply to this turn's move are excluded (`MOVE_EXCLUDES`).<br>The verdict goes to `step_log` with `layer: "coaching_grader"`. **Log-only until proven (ADR-0081)**; in `enforce` mode a FAIL adds a warning the Belt sees (`GRADER_WARNING`) and becomes next turn's quality feedback.<br>Grades every reply with text (ADR-0081). A grade whose request times out is recorded "not checked (time)" and the reply goes out (ADR-0080). |
 | **8 · `ContradictionDetectionMiddleware`** | `middleware/contradiction.py`, custom. Executes first of the `after_agent` group.<br>Reads `CoachingResponse.contradiction_flag` (`prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input`), which the coach sets only when the Belt materially contradicts a gate-approved value shown to it in the project-state section.<br>A flag is detected and logged; it does not stop the turn. No flag, no action.<br>No Store read, no model call, no tolerance threshold. When to flag is instructed in each SKILL.md. |
 
-**Four separate caps**, never merged: model calls per turn (T69), model retry (API failures), coherence (reply quality),
-validation (gate attempts, three, in `gate_attempts`).
+**Three separate caps**, never merged: model calls per turn (T69), model retry (API failures), validation (gate
+attempts, three, in `gate_attempts`). The coherence judge (layer 2a) is retired (ADR-0083).
 
 ### 3.4 Models
 
@@ -516,7 +513,7 @@ call, level 3 references on demand. Move sequencing is never in a skill.
 
 | Layer | Checks | How | Where |
 |---|---|---|---|
-| 2a | Real, on topic, not parroting | `coherence` model call | `CoherenceMiddleware`, every turn |
+| 2a | Retired (ADR-0083): the faults it was meant to catch are checked in code (G-170 to G-175) | — | — |
 | 2b | Required fields present | `phases/{phase}/validate.py::validate_{phase}` | `validation_stack` |
 | 2c | Constraints addressed | **Not built** | — |
 | 2d | Rubric, per criterion pass / warning / fail | Deterministic half, then one `grader` call — `validation/rubric.py::grade_define`, **Define only** | `validation_stack` |

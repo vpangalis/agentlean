@@ -31,13 +31,12 @@ from langchain_core.messages import AIMessage
 from langgraph.store.memory import InMemoryStore
 
 from backend.core.checkpointer import AzureBlobCheckpointSaver
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
 from backend.phases import moves
 from backend.phases.define.schema import DEFINE_REQUIRED_FOR_GATE_FIELDS
 from backend.tests.test_define_report import COMPLETE
 from backend.tests.test_wiring import _coach
-from backend.validation.schemas import CoachingGraderVerdict, CoherenceResult
+from backend.validation.schemas import CoachingGraderVerdict
 
 CASE_ID = "IMPR-TEST-R6"
 ACTOR = "Priya Shah"
@@ -155,14 +154,9 @@ def env(monkeypatch, stub_planner):
     monkeypatch.setattr(nodes_common, "get_llm",
                         lambda role, **kw: _coach() if role == "coach" else planner_llm(role, **kw))
 
-    async def coherent(self, belt: str, coach: str) -> CoherenceResult:
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False,
-                               on_topic=True, reason="")
-
     async def passing(self, belt: str, coach: str) -> CoachingGraderVerdict:
         return CoachingGraderVerdict(criteria=[])
 
-    monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", passing)
     # Layer 2d's judgment half (R7), faked to pass: this file is about the
     # pause; the rubric's own proofs are test_define_rubric.py.

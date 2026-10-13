@@ -4,7 +4,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 
 ## Technical requirements
 
-> **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED (T69 amended, ACCEPTED 2026-09-30); T85–T87 ACCEPTED 2026-09-27;
+> **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41 and T64, RETIRED); T69–T70 ACCEPTED (T69 amended, ACCEPTED 2026-09-30); T85–T87 ACCEPTED 2026-09-27;
 > T71–T72 ACCEPTED 2026-09-28 as amended, and T91–T94 ACCEPTED 2026-09-28 (ADR-0067); T88–T90 ACCEPTED 2026-09-28; T95–T95 ACCEPTED 2026-10-13 (before customers); T73–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint, with `MoSCoW` (`?` until the founder
 > ratifies it) and `Design` (its ADR, or `none`). **Proof**
 > names the test in `backend/tests/` that proves it today, or `none`. The decisions behind
@@ -113,7 +113,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 |---|---|---|---|---|---|
 | T62 | Gate assembly raises on a missing Tier 1 field and references every field of the phase schema | §33, §63 | Must | ADR-0040 | `test_gate_documents.py::test_missing_tier_1_field_raises_keyerror`, `::test_assembly_references_every_schema_field`, `::test_field_count_matches_spec` |
 | T63 | A report failing a rubric criterion is not paused, and the criterion is named | §34 | Must | ADR-0010 | `test_define_rubric.py::test_a_report_failing_a_criterion_is_not_paused_and_the_criterion_is_named` |
-| T64 | The grader stands down once coherence has degraded | §36 | Must | ADR-0041 | `test_middleware.py::test_the_grader_stands_down_when_coherence_degraded` |
+| T64 | ~~The grader stands down once coherence has degraded~~ **RETIRED 2026-10-13** — ADR-0081 has the grader grade every reply; ADR-0083 retires the coherence judge | §36 | ? | none | none |
 | T65 | The third failed gate attempt escalates | §38 | Must | ADR-0039 | none |
 | T66 | A Tier 2 criterion can never fail a gate | §35 | Must | ADR-0040 | none |
 ### Configuration and deployment

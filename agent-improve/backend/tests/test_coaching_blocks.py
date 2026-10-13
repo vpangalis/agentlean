@@ -111,14 +111,7 @@ def _state() -> PhaseState:
 
 def _executor_messages(monkeypatch, grade: CoachingGraderVerdict | None) -> list:
     monkeypatch.setattr(_nc, "create_agent", lambda **kw: _Agent(kw["middleware"], grade))
-    # The grader stands down when coherence degrades; keep coherence passing.
-    from backend.middleware import coherence as _coh
 
-    async def coherent(self, belt: str, coach: str):  # noqa: ANN001
-        from backend.validation.schemas import CoherenceResult
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False,
-                               on_topic=True, reason="")
-    monkeypatch.setattr(_coh.CoherenceMiddleware, "_check", coherent)
     out = asyncio.run(_nc.executor("define", _state()))
     return [*_state()["messages"], *out["messages"]]
 

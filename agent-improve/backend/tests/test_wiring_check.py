@@ -17,7 +17,7 @@ import wiring  # noqa: E402
 def test_it_reads_what_section_3_names() -> None:
     n = wiring.named()
     assert {"planner", "executor", "validation_stack", "gate_review", "gate_apply"} <= set(n["node"])
-    assert "ContradictionDetectionMiddleware" in n["middleware"] and len(n["middleware"]) == 8
+    assert "ContradictionDetectionMiddleware" in n["middleware"] and len(n["middleware"]) == 7   # ADR-0083: coherence retired
     assert "define_output_mapper" in n["mapper"] and "POST /gate/decision" in n["route"]
 
 

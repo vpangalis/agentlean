@@ -110,9 +110,8 @@ from backend.knowledge.tools import (
     first_numeric_column,
     load_evidence_series,
 )
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
-from backend.middleware import coherence as coherence_mode, grader as grader_mode
+from backend.middleware import grader as grader_mode
 from backend.middleware.grader import DMAICGraderMiddleware, GRADER_WARNING
 from backend.middleware.skills import (
     DMAICSkillsMiddleware,
@@ -700,12 +699,13 @@ HOP_BUDGET_COMPOSE_RESERVE = 10.0
 #: eleven steps.
 COACH_HOP_BUDGET = 3
 #: T69 / G-119 (ADR-0059) — an ordinary coaching turn makes at most this many model calls,
-#: retries included: the planner's judgment (when the Belt answered), the coach, and the two
-#: after-agent checks (coherence, the grader). The coach's share is what is left, enforced by
+#: retries included: the planner's judgment (when the Belt answered), the coach, and the one
+#: after-agent check (the grader; the coherence judge is retired, ADR-0083). The coach's share is what
+#: is left, enforced by
 #: `ModelCallLimitMiddleware(run_limit=…)`. The tools stay bound as §3.6 designs; a coach that
 #: calls one past its share is stopped and the move's reply is written in code.
 TURN_MODEL_CALLS = 4
-AFTER_AGENT_CALLS = 2
+AFTER_AGENT_CALLS = 1
 
 #: §26 / S-F09 B1 — the graceful off-ramp, and a DIFFERENT guard from the hop
 #: budget above. `remaining_steps` is `recursion_limit` minus graph-node
@@ -781,11 +781,11 @@ _CAP_MESSAGE = (
 #: initial call"**, verified in source (`range(self.max_retries + 1)`), so this
 #: is THREE attempts, not two.
 #:
-#: **This is one of three retry caps and they are not merged** (§19): model 2
-#: here, `CoherenceMiddleware` 2 on response quality at 6.5, and the validation
-#: stack's shared 3 at the gate (§34). Three different failure modes, three
-#: counters, no shared state — merging any two would have a network flake
-#: consume a gate attempt.
+#: **This is one of two retry caps and they are not merged** (§19): model 2
+#: here and the validation stack's shared 3 at the gate (§34) — the coherence
+#: re-ask that made a third is retired (ADR-0083). Different failure modes,
+#: different counters, no shared state — merging them would have a network
+#: flake consume a gate attempt.
 RETRY_MAX = 2
 
 #: §19.5. **`"continue"` is current; `"return_message"` and `"raise"` are
@@ -1044,10 +1044,8 @@ def _build_executor(
     phase: str, state: PhaseState, config: Optional[RunnableConfig] = None,
     *, hop_budget: int = COACH_HOP_BUDGET, hops_spent: Optional[list[int]] = None,
     script_log: Optional[list[dict[str, Any]]] = None,
-    coherence_log: Optional[list[dict[str, Any]]] = None,
     coach_limit: int = TURN_MODEL_CALLS - AFTER_AGENT_CALLS,
     turn_type: str = turn_tools.TEACHING,
-    reask: Optional[dict[str, Any]] = None,
     attempts: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
@@ -1060,7 +1058,7 @@ def _build_executor(
 
     **Tools are passed to `create_agent(tools=...)`, never bound onto the
     model.** Binding onto a bare model bypasses the entire middleware stack
-    (§18) — grading, skills, compression, state injection, retry, coherence and
+    (§18) — grading, skills, compression, state injection, retry and
     contradiction — and does it silently.
     `pattern-8-bind-tools-in-phase-executor` guards this file for that reason.
 
@@ -1095,12 +1093,6 @@ def _build_executor(
     # is judged against the step that teaches it, and handed a sink so every
     # verdict reaches `step_log` the way the grader's does.
     plan = state.get("coaching_plan")
-    coherence = CoherenceMiddleware(
-        phase, focus_field=plan.focus_field if plan else None,
-        on_verdict=coherence_log.append if coherence_log is not None else None,
-        move=plan.move if plan else None,       # G-155 / DEF-013
-        reask=reask,                            # DEF-014
-    )
     agent = create_agent(
         model=get_llm("coach", max_tokens=1500),
         tools=_executor_tools(phase, hop_budget, hops_spent),
@@ -1188,8 +1180,8 @@ def _build_executor(
             #   the last thing to touch the answer on its way out.
             #   **Contradiction innermost**, because it should be first to see
             #   the coach's raw output and able to interrupt before anything
-            #   else spends effort on it. Coherence sits between them so it can
-            #   stand the grader down.
+            #   else spends effort on it. (The coherence judge that sat between
+            #   them is retired, ADR-0083.)
             #
             #   So the layering below IS the intent, not a workaround for it,
             #   and the execution order it produces is §19's 6, 7, 8.
@@ -1205,7 +1197,6 @@ def _build_executor(
                 # 6.61 (item 3) — graded as the move it was asked to make.
                 move=plan.move if plan else None,
             ),
-            coherence,
             ContradictionDetectionMiddleware(),
         ],
         system_prompt=PHASE_COACH_PROMPT[phase],   # NOT `prompt=` (§18)
@@ -1477,23 +1468,19 @@ def _move_record(plan: CoachingPlan | None, pending: dict | None,
     }
 
 
-def _quality_feedback(grader_log: list[dict[str, Any]],
-                      coherence_log: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """This turn's quality verdicts, for the NEXT turn's section 5 (§19.1
-    v1.75): the grader's failed criteria with their feedback, and coherence's
-    verdict. `None` when neither judge ran."""
+def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """This turn's quality verdict, for the NEXT turn's section 5 (§19.1
+    v1.75): the grader's failed criteria with their feedback. `None` when it did
+    not run or runs log-only (the coherence judge is retired, ADR-0083)."""
     # Founder ruling 2026-10-13: a judge in `log_only` mode changes nothing — its verdict is recorded in
     # step_log and does not reach the coach's next turn.
     g = grader_log[-1] if grader_log and grader_mode.GRADER_MODE == "enforce" else None
-    c = coherence_log[-1] if coherence_log and coherence_mode.COHERENCE_MODE == "enforce" else None
-    if g is None and c is None:
+    if g is None:
         return None
     return {
         "grader": ({"status": g.get("status"), "criteria_failed": list(g.get("criteria_failed") or []),
                     "feedback": list(g.get("feedback") or []),
                     "failed": list(g.get("failed") or []), "move": g.get("move")} if g else None),
-        "coherence": ({"coherent": c.get("coherent"), "reason": c.get("reason") or ""}
-                      if c else None),
     }
 
 
@@ -2418,22 +2405,11 @@ async def executor(
     # 6.46 — the skills middleware reports every delivery of the phase script
     # here; the node, which owns step_log, writes the turn's record below.
     script_log: list[dict[str, Any]] = []
-    # G-96 — layer 2a's verdicts, a rejection with its reason, for step_log.
-    coherence_log: list[dict[str, Any]] = []
-    # DEF-014 (founder ruling 2026-10-12): the terms of one re-ask after a coherence rejection — never on
-    # an answer turn (ADR-0069's single call), within the coach's share (T69), inside the turn's 45 s
-    # (R13) and the node's own wall (T70).
-    started = time.time()
-    turn_started = ((config or {}).get("configurable") or {}).get("turn_started")
-    reask = {"allowed": calls_before == 0, "coach_limit": coach_limit, "started": started,
-             "deadline": (float(turn_started) + TURN_LIMIT_S - TURN_CLOSE_RESERVE_S) if turn_started else None,
-             "wall": started + EXECUTOR_RUN_TIMEOUT}
     # T34 / ADR-0082 — every model attempt the retry and the fallback made, for step_log (§4.8).
     attempts: list[dict[str, Any]] = []
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
-        script_log=script_log, coherence_log=coherence_log, coach_limit=coach_limit,
-        turn_type=turn_type, reask=reask, attempts=attempts,
+        script_log=script_log, coach_limit=coach_limit, turn_type=turn_type, attempts=attempts,
     )
     # ── the planner's named call, executed before the model runs ──────
     # §17, step 6.21, option C. `prior` is what the agent is invoked with;
@@ -3013,7 +2989,7 @@ async def executor(
             record["fallback"] = True
             if limit_diagnosis is not None:
                 record["limit"] = limit_diagnosis          # G-139: the run record reads it here
-    feedback = _quality_feedback(grader_log, coherence_log)
+    feedback = _quality_feedback(grader_log)
     _attach_move(new_messages, record, feedback)
 
     # **The count that used to disagree with the write, reconciled.** This
@@ -3065,8 +3041,8 @@ async def executor(
             limit=limit_diagnosis,                                 # G-139
             resend=resend,                                         # G-140
             impl="create_agent",
-            # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one
-            # coherence verdict and one grader pass each).
+            # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one grader
+            # pass; the coherence judge is retired, ADR-0083).
             turn_type=turn_type,                                   # ADR-0068
             # G-139 (ADR-0075) — every normalization: the turn, the element, which shape.
             fields_captured_normalized=[{"turn": turn_ordinal, "element": plan.focus_field if plan else None,
@@ -3079,8 +3055,8 @@ async def executor(
             # T87 — personal data redacted in this turn's tool results, by type and count.
             pii_masked=masked,
             call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,
-                         "coach_limit": coach_limit, "after": len(coherence_log) + min(len(grader_log), 1),
-                         "turn": calls_before + coach_calls + len(coherence_log) + min(len(grader_log), 1),
+                         "coach_limit": coach_limit, "after": min(len(grader_log), 1),
+                         "turn": calls_before + coach_calls + min(len(grader_log), 1),
                          "limited": limited},
             tool_model_calls=dict(sorted(tool_model_calls.items())),   # T69: inside tools, by tool
             focus_field=plan.focus_field if plan else None,
@@ -3140,12 +3116,6 @@ async def executor(
                   "coaching_grader" if int(e.get("iteration") or 1) == 1
                   else f"coaching_grader:{e['iteration']}", **e)
             for e in grader_log
-        ), *(
-            # G-96 — layer 2a's verdict, whichever way it went. A rejection
-            # degrades the turn and stands the grader down (S-C13 B3); until
-            # this entry, the reason reached a log line and nothing else, so a
-            # turn with no grade could not say why it had none (row 13).
-            _step(phase, turn_count, "coherence", **e) for e in coherence_log
         ),
             # 6.46 — did this turn's model calls carry the phase script? One
             # entry per turn, `delivered` false when no call did: a turn
@@ -3210,8 +3180,8 @@ async def validation_stack(
 
     Stage 7 fills it: layer 2b field presence (deterministic), 2c constraints,
     2d `PHASE_RUBRIC` — cheapest first, each firing only if the previous passed.
-    **Layer 2a is NOT here** — it is `CoherenceMiddleware` on `after_agent`,
-    because it fires every coaching turn and this node runs once, at the gate.
+    **Layer 2a is gone** — the coherence judge on `after_agent` is retired
+    (ADR-0083); this node runs once, at the gate.
 
     **It runs the validator only when the planner asked for the gate.** A
     coaching turn walks through here on its way out (`next_action == "close"`)

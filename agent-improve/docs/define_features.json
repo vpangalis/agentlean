@@ -568,12 +568,12 @@
   },
   {
    "id": "DEF-013",
-   "description": "The coherence judge rules on the Belt's words, not the coach's: a reply that quotes the script is not degraded, a real parrot still is.",
+   "description": "ADR-0083 (the AI coherence judge retired): no AI judge rules on a coaching reply — the one after-agent check is the grader, and the turn's call budget counts one after-agent call.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
    ],
-   "test": "backend/tests/test_define_runthrough.py::test_run_the_judge_does_not_take_a_restating_move_for_parroting",
+   "test": "backend/tests/test_define_e2e.py::test_no_ai_judge_rules_on_a_reply_the_grader_is_the_one_check",
    "sources": {
     "architecture": [
      "§19.7 coherence (layer 2a)",
@@ -586,8 +586,8 @@
      "Appendix H row 12"
     ],
     "code": [
-     "agent-improve/backend/middleware/coherence.py::CoherenceMiddleware.aafter_agent",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_12_vague_answers_are_caught_inside_the_turn"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_12_vague_answers_are_caught_inside_the_turn",
+     "agent-improve/backend/phases/nodes_common.py::_build_executor"
     ],
     "guidance": []
    },
@@ -618,12 +618,12 @@
   },
   {
    "id": "DEF-014",
-   "description": "When coherence rejects a reply, the coach is asked again inside the turn (a new model call), within the latency the founder rules.",
+   "description": "ADR-0083 (the re-ask of ADR-0079 retired with the coherence judge): a reply is never asked for again inside its turn — the coach is called once for it, whatever the grader says, and the Belt gets that reply.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-013"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_coherence_rejection_asks_the_coach_again",
+   "test": "backend/tests/test_define_e2e.py::test_a_reply_is_never_asked_again_inside_its_turn",
    "sources": {
     "architecture": [
      "§19.7",
@@ -635,7 +635,7 @@
      "Appendix H row 12"
     ],
     "code": [
-     "agent-improve/backend/middleware/coherence.py::CoherenceMiddleware.__init__"
+     "agent-improve/backend/phases/nodes_common.py::executor"
     ],
     "guidance": []
    },

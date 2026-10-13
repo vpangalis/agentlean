@@ -17,12 +17,11 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
 from backend.core.substate import CoachingPlan, SufficiencyJudgment
-from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
 from backend.phases import moves
 from backend.phases import nodes_common as _c
 from backend.tests.test_executor import _state
-from backend.validation.schemas import CoachingGraderVerdict, CoherenceResult
+from backend.validation.schemas import CoachingGraderVerdict
 
 REPLY = {"message": "Thanks — for your benefits analysis, is the saving sustainable or one-off?",
          "explanation": "", "example": "", "prompt": "Sustainable or one-off?", "progress": "x",
@@ -54,12 +53,8 @@ def test_g139_two_identical_structured_replies_still_end_in_a_coached_reply(monk
     monkeypatch.setattr(_c, "get_llm", lambda role, **kw: _TwiceUnlessSerial(messages=iter([]))
                         if role == "coach" else real_llm(role, **kw))
 
-    async def coherent(self: Any, belt: str, coach: str) -> CoherenceResult:
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False, on_topic=True, reason="")
-
     async def passing(self: Any, belt: str, coach: str) -> CoachingGraderVerdict:
         return CoachingGraderVerdict(criteria=[])
-    monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", passing)
 
     plan = CoachingPlan(focus_field="benefits_analysis", status="asked", move="challenge",
@@ -115,12 +110,8 @@ def test_g139_an_invalid_structured_reply_still_ends_in_a_coached_reply(monkeypa
     monkeypatch.setattr(_c, "get_llm", lambda role, **kw: _FirstShape(messages=iter([]))
                         if role == "coach" else real_llm(role, **kw))
 
-    async def coherent(self: Any, belt: str, coach: str) -> CoherenceResult:
-        return CoherenceResult(coherent=True, is_conclusive=True, is_parroting=False, on_topic=True, reason="")
-
     async def passing(self: Any, belt: str, coach: str) -> CoachingGraderVerdict:
         return CoachingGraderVerdict(criteria=[])
-    monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", passing)
 
     plan = CoachingPlan(focus_field="problem_statement", status="asked", move="challenge",

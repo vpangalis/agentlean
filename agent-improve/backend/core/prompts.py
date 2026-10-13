@@ -1756,38 +1756,6 @@ STORE_PLACEHOLDER = ("Not ready to confirm yet: your answer for {element} still 
                      "in — {gap}. Please give that part in your own words, and I will read the whole answer "
                      "back to you.")
 
-#: DEF-014 (founder ruling 2026-10-12) — the coach asked once more after a coherence rejection. Quality
-#: feedback to the coach, never presented as the Belt's message (§21).
-COHERENCE_REASK = ("QUALITY FEEDBACK — from the system, not from the Belt. Your reply was not accepted: "
-                   "{reason} Write the reply again for the same move, fixing exactly that; keep everything "
-                   "else the move asks for, and return it in the same structured form.")
-
-#: G-155 / DEF-013 — the coherence judge is told the move code decided for the turn, so "parroting" is
-#: judged against what the move requires: a read-back must restate the Belt's value, a store must name
-#: it, a teaching turn quotes the script. Parroting is judged ONLY against the Belt's own latest words.
-COHERENCE_MOVE_COMMON = (
-    "\nTHIS TURN'S MOVE, decided in code before the coach wrote: {move}.\n{what}\n"
-    "Parroting is judged ONLY against THE BELT SAID below — never against the coaching script, its "
-    "worked example, or values the Belt confirmed earlier.\n")
-COHERENCE_MOVES: dict[str, str] = {
-    "teach": ("The coach explains the element from the script, shows the script's worked example and asks "
-              "for the Belt's version. The script and the example are the coach's material, not the Belt's "
-              "words: quoting them is never parroting."),
-    "read_back": ("The coach restates the Belt's value in the Belt's words and asks whether it is right. "
-                  "Restating the Belt's words is REQUIRED by this move and is never parroting; judge question "
-                  "2 only on whether the reply asks the Belt to confirm or correct it."),
-    "store_and_advance": ("The Belt has just confirmed a value (their message is a Confirm click or a plain "
-                          "yes). The coach says what was stored — the Belt's earlier value — and teaches the "
-                          "next element. Naming the stored value is required and is never parroting. G-158: "
-                          "the value is ALREADY confirmed — the reply must NOT ask the Belt to confirm it again; "
-                          "its question is the next element's. Naming the element stored is enough to say what "
-                          "was stored. After the last element there is no next one: saying Define is complete "
-                          "and what happens next, with no question, is correct."),
-    "challenge": ("The coach says what the Belt's answer still lacks. Parroting here is repeating the Belt's "
-                  "answer back without naming what is missing."),
-    "respond": ("The Belt asked something that is not an answer; the coach answers it and asks again. "
-                "Parroting here is repeating the Belt's question back without answering it."),
-}
 #: ADR-0078 point 5 (R18, DEF-085) — written in code when the problem statement and the process steps
 #: do not point at the same place; raised once, then the Belt's answer stands.
 LINK_CHALLENGE = ("Before this is stored: the problem statement and the process steps should point at the "
