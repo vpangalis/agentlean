@@ -185,6 +185,8 @@ case's Blob lease (`blob.case_lease`, 60 s; T11): a second writer is answered 40
 Every parent node with an external write (the phase nodes, the input guard) carries
 `error_handler=graph.degraded_handler` (T29): a failed approval's Store record is removed, the
 Belt gets the degraded reply in code (a gate route answers 503), and a failed guard ends the turn.
+Every route: [docs/api-routes.md](docs/api-routes.md), generated. This table's route column is
+checked against the code (`test_the_graph_route_table_names_real_routes`).
 
 | Route | Graph input | Config (`_graph_config`) | After the run |
 |---|---|---|---|

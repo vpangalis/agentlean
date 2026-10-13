@@ -37,3 +37,31 @@ def test_every_route_is_listed() -> None:
     body = generate_routes.generate(PROJECT)
     for path in ("/ask", "/upload", "/gate", "/gate/decision", "/cases", "/health"):
         assert f"| `{path}` |" in body, path
+
+
+def test_the_graph_route_table_names_real_routes() -> None:
+    """Founder ruling 2026-10-13 (tables that restate the code): §2.4's route → graph table stays
+    hand-written — its cells are prose — but its route column is checked against `gateway/routes.py`:
+    every route it names exists, and every handler that runs the graph (`_run_turn`) is in it."""
+    import ast
+    import re
+    arch = (PROJECT / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    start = arch.index("| Route | Graph input |")
+    table = arch[start:arch.index("\n\n", start)]
+    named = set(re.findall(r"^\| `(GET|POST|PUT|PATCH|DELETE) ([^`]+)` \|", table, re.M))
+    tree = ast.parse((PROJECT / "backend" / "gateway" / "routes.py").read_text(encoding="utf-8"))
+    routes, runs_graph = set(), set()
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for dec in node.decorator_list:
+            if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
+                    and isinstance(dec.func.value, ast.Name) and dec.func.value.id == "router"
+                    and isinstance(dec.args[0], ast.Constant)):
+                route = (dec.func.attr.upper(), str(dec.args[0].value))
+                routes.add(route)
+                if any(isinstance(n, ast.Name) and n.id == "_run_turn" for n in ast.walk(node)):
+                    runs_graph.add(route)
+    assert named, "§2.4's route table not found"
+    assert named <= routes, f"§2.4 names routes that do not exist: {sorted(named - routes)}"
+    assert runs_graph <= named, f"routes that run the graph, missing from §2.4: {sorted(runs_graph - named)}"
