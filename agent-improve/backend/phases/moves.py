@@ -386,8 +386,9 @@ async def decide(phase: str, artifacts: dict[str, Any],
             return done(element, fields, status, CHALLENGE, answer=words, messages=1,
                         reason=REVISE_REASON.format(field=element))
         if status == PARKED:
-            after[element] = {"status": ASKED, "answer": str(entry.get("answer") or ""), "returned": True,
-                              "picked": True}
+            # G-167: a return teaches the element again from the start (ADR-0072 point 4) — the attempts
+            # before the park are not part of the next answer.
+            after[element] = {"status": ASKED, "returned": True, "picked": True}
             return done(element, fields, status, TEACH, reason=RETURN_REASON.format(field=element))
         after[element] = {**entry, "status": entry.get("status") if entry.get("status") in (ASKED, ANSWERED)
                           else ASKED, "picked": True}
@@ -405,8 +406,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
         after[field] = {"status": PARKED, "answer": str(entry.get("answer") or ""), **_attempts(entry)}
         nxt = current(phase, artifacts, after)
         if nxt is None or nxt[0] == field:
-            # Nothing else is open: the parked element is the one left, taught again.
-            after[field] = {"status": ASKED, "answer": str(entry.get("answer") or "")}
+            # Nothing else is open: the parked element is the one left, taught again (G-167: afresh).
+            after[field] = {"status": ASKED}
             return done(field, fields, status, TEACH, reason=RETURN_REASON.format(field=field))
         nxt_status = status_of(phase, nxt[0], artifacts, after)
         if nxt_status in (NOT_TAUGHT, PARKED):
@@ -417,8 +418,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
                         "messages": int(entry.get("messages") or 0), **_earlier_kw(entry, None)}
         return done(field, fields, status, TEACH, reason=TRY_AGAIN_REASON.format(field=field))
     if status == PARKED:
-        # ADR-0072 point 4 — back to a parked element (every other one is confirmed).
-        after[field] = {"status": ASKED, "answer": str(entry.get("answer") or ""), "returned": True}
+        # ADR-0072 point 4 — back to a parked element (every other one is confirmed); G-167: afresh.
+        after[field] = {"status": ASKED, "returned": True}
         return done(field, fields, status, TEACH, reason=RETURN_REASON.format(field=field))
 
     if action == REJECTED:

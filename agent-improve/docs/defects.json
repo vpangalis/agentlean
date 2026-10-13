@@ -1746,6 +1746,19 @@
    "lane": [
     "integrator"
    ]
+  },
+  {
+   "id": "G-167",
+   "symptom": "A PARKED ELEMENT, RESUMED, STORES THE ATTEMPTS FROM BEFORE THE PARK GLUED ONTO THE NEW ANSWER. Scenario (d), live, 2026-10-13 (case 'SCENARIO (d) — park an element and resume it'): three weak answers to the business case ('It's slow.', 'Payments are slow and people complain.', 'It costs us money, I think.'), Park, then Resume, then the good answer — the read-back and the stored business case began 'It's slow. Payments are slow and people complain. It costs us money, I think. Across our three hospital sites, 23% …'. moves.py kept the element's earlier `answer` on every return from a park (a Resume click, the return once everything else is confirmed, and the park with nothing else open), and the next answer was appended to it. ADR-0072 point 4: a return teaches the element again.",
+   "requirement": [
+    "R14"
+   ],
+   "feature": [
+    "DEF-075"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

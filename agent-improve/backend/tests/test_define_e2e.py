@@ -568,6 +568,9 @@ def test_an_element_that_fails_three_times_can_be_parked(env, monkeypatch, stub_
     ask(message=words)
     _coach_saying(monkeypatch, "Every element is confirmed.")
     ask(message="Confirm", action="confirm")
+    # G-167 (scenario (d), 2026-10-13): the return teaches afresh — the words before the park ("Not sure.")
+    # are not glued onto the answer that is read back and stored.
+    assert _define(env)["structured"]["secondary_metrics"] == words, _define(env)["structured"]["secondary_metrics"]
     body = _submit(env)
     assert body["awaiting_acceptance"] is True and body["passed"] is True, body
 
