@@ -8,7 +8,8 @@ The checks (each a pure function of the reply, the Belt's message and the move c
              a store of the LAST element or a reply that ends the phase (it has nothing left to ask)
   parroting  the share of the reply's content words that come from the Belt's message stays under
              PARROT_SHARE — not checked on a read-back or a store (they must restate the Belt's words)
-  on_phase   the reply names the element in focus or the phase (its words, from the element's name)
+  on_phase   the reply names the phase, or a Define element (all the words of its name or its field) — the one in focus
+             or any other: a store names the element it stored, which the step has moved past
 
     cd agent-improve; python -m scripts.coherence_option_b
 """
@@ -40,13 +41,19 @@ def checks(turn: dict[str, Any]) -> dict[str, bool]:
     words = _words(reply)
     from_belt = set(_words(belt))
     share = sum(w in from_belt for w in words) / len(words) if words else 1.0
+    from backend.phases.define.schema import DEFINE_FIELD_ORDER
     last_store = move == "store_and_advance" and ("is now confirmed" in reply or "Define report" in reply)
-    element = guard_messages.element_name("define", field).lower() if field else ""
+    # Any Define element counts, not only the one in focus: a store names the element it stored, which the
+    # script step has already moved past (fixed 2026-10-13 — 132229#33 was rejected for naming the SIPOC).
+    fields = [f for f in (*DEFINE_FIELD_ORDER, field) if f]
+    elements = {guard_messages.element_name("define", f).lower() for f in fields} | {f.replace("_", " ") for f in fields}
+    on_phase = "define" in reply.lower() or any(
+        all(w in reply.lower() for w in _words(e)) for e in elements if _words(e))
     return {
         "real": bool(reply.strip()),
         "asks": "[QUESTION TO THE BELT]" in reply or "?" in reply or last_store,
         "not_parroting": move in RESTATING or share < PARROT_SHARE,
-        "on_phase": bool(element) and any(w in reply.lower() for w in _words(element)) or "define" in reply.lower(),
+        "on_phase": on_phase,
     }
 
 

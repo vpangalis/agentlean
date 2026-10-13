@@ -83,30 +83,24 @@
   "id": "20261012T132229#29",
   "move": "store_and_advance",
   "model_accepts": false,
-  "code_accepts": false,
-  "failed_checks": [
-   "on_phase"
-  ],
+  "code_accepts": true,
+  "failed_checks": [],
   "reply_good": null
  },
  {
   "id": "20261012T132229#33",
   "move": "store_and_advance",
   "model_accepts": false,
-  "code_accepts": false,
-  "failed_checks": [
-   "on_phase"
-  ],
+  "code_accepts": true,
+  "failed_checks": [],
   "reply_good": null
  },
  {
   "id": "20261012T132229#35",
   "move": "store_and_advance",
   "model_accepts": false,
-  "code_accepts": false,
-  "failed_checks": [
-   "on_phase"
-  ],
+  "code_accepts": true,
+  "failed_checks": [],
   "reply_good": null
  },
  {
@@ -137,10 +131,8 @@
   "id": "20261012T134606#34",
   "move": "store_and_advance",
   "model_accepts": false,
-  "code_accepts": false,
-  "failed_checks": [
-   "on_phase"
-  ],
+  "code_accepts": true,
+  "failed_checks": [],
   "reply_good": null
  },
  {
@@ -179,10 +171,8 @@
   "id": "20261012T140839#34",
   "move": "store_and_advance",
   "model_accepts": false,
-  "code_accepts": false,
-  "failed_checks": [
-   "on_phase"
-  ],
+  "code_accepts": true,
+  "failed_checks": [],
   "reply_good": null
  },
  {
