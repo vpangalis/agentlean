@@ -75,11 +75,10 @@ amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), then to this file
 `store/projects/{case_id}/{kind}/{key}.json`. `case_id` equals the graph's
 `thread_id` (§10.5).
 
-| Kind | Keys | Contents |
-|---|---|---|
-| `"case"` | `"record"` | Case framing, written once at session start from `cases/case_{id}.json` — not a second system of record |
-| `"artifacts"` | `"define"`, `"measure"`, … | **Each phase's approved gate document**, written by `gate_apply_node` (§9.6) |
-| `"step_log"` | timestamped | Append-only cross-phase audit trail |
+The kinds, keys and contents are generated from `storage/layout.py::STORE_NAMESPACES` into
+[docs/data-models.md](../../agent-improve/docs/data-models.md) (Store namespaces). The `case` record
+is written once at session start from `cases/case_{id}.json` — not a second system of record; each
+`artifacts` key is a phase's approved gate document, written at gate approval (§9.6).
 
 **The `gate_documents` namespace is retired.**
 
@@ -106,10 +105,11 @@ Tuples are BANNED. The validation layers (§9.2), each grader iteration
 
 ### 10.4 — Azure Blob — two distinct concerns
 
-| Concern | Path | Written | Owner |
-|---|---|---|---|
-| Checkpoints | `checkpoints/{case_id}/latest.json` + `history/{id}.json` | After every graph node, by `AzureBlobCheckpointSaver` | `core/checkpointer.py` |
-| Case records (system of record) | `cases/case_{id}.json`, `registry.json`, `uploads/{case_id}/{file}` | Case create, gate pass, file upload — **never mid-conversation** | `storage/blob.py` (module functions) |
+The paths and their owners are generated from `storage/layout.py::BLOB_PATHS` into
+[docs/data-models.md](../../agent-improve/docs/data-models.md) (Blob layout). Two concerns: checkpoints,
+written after every graph node by `AzureBlobCheckpointSaver`; and case records (the system of record:
+the case, the registry, uploads), written at case create, gate pass and file upload — **never
+mid-conversation**.
 
 The gate-pass case write and registry update are two writes, both covered by
 the node's `error_handler` (§3.6).
