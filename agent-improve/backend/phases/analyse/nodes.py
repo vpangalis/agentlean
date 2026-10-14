@@ -90,7 +90,7 @@ async def validation_stack(
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> Command[Literal["planner", "gate_review"]]:
-    """The four layers, shared cap of 3 (§34) — layer 2b via `validate_analyse`."""
+    """The three layers (2b–2d), shared cap of 3 (§34) — layer 2b via `validate_analyse`."""
     return await _c.validation_stack(PHASE, validate_analyse, state, config)
 
 

@@ -3202,7 +3202,7 @@ async def validation_stack(
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> Command[Literal["planner", "gate_review"]]:
-    """The four layers, shared cap of 3 (§34). **Layer 2b only.**
+    """The three layers (2b–2d), shared cap of 3 (§34). **Layer 2b only.**
 
     Stage 7 fills it: layer 2b field presence (deterministic), 2c constraints,
     2d `PHASE_RUBRIC` — cheapest first, each firing only if the previous passed.

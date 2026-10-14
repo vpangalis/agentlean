@@ -1,6 +1,6 @@
 """Improve phase gate validator — Layer 2b.
 
-Architecture 34 (the four-layer validation stack) - 35 (two tiers) -
+Architecture 34 (the three-layer validation stack) - 35 (two tiers) -
 S-C30 (63.4). Procedure step 3.4.
 
 **One third of an atomic unit** (56.1): `schema.py` owns the field names and

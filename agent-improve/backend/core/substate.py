@@ -747,7 +747,7 @@ class PhaseState(TypedDict):
     turn_count:         int
     final:              dict[str, Any]
 
-    # The shared retry counter for the four-layer validation stack (§34).
+    # The shared retry counter for the three-layer validation stack (§34; 2a retired, ADR-0083).
     # PER PHASE and IN THE CHECKPOINT — never in route scope. v1 held the
     # equivalent counter in route scope, so every request rebuilt it at 0,
     # the cap never fired, and the loop reported attempt 1 indefinitely.

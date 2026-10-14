@@ -39,7 +39,7 @@ from "done" to WIRED-but-INERT.
 version floor and cited source was checked against live documentation. Three
 corrections, two now-stale items and four enhancements were applied to this
 document as a result. Full log:
-[`agent-improve/docs/BIBLE_VERIFICATION_LOG.md`](agent-improve/docs/BIBLE_VERIFICATION_LOG.md)
+[`agent-improve/docs/BIBLE_VERIFICATION_LOG.md`](agent-improve/docs/_archive/BIBLE_VERIFICATION_LOG.md)
 — that file keeps its original name because it is a dated record of a completed
 pass; its subject is this document.
 
@@ -285,7 +285,7 @@ exactly one home. Everything else cross-references it.
 | Azure AI Search index schemas | §23 |
 | The `rag_lookup_*` tools | §24 |
 | Tool inventory and per-phase binding | §30 |
-| The four-layer validation stack | §34 |
+| The three-layer validation stack | §34 |
 | The five `{Phase}Output` schemas | §40 |
 | **Class and function specifications** | **Part XII** |
 | **The SPEC-GAP register** | **§66** |
@@ -563,7 +563,7 @@ trace. Nothing is lost when the next plan overwrites this one.
 
 ### `gate_attempts` — the field whose absence recreated a production bug
 
-It is the shared retry counter for the four-layer validation stack (§34):
+It is the shared retry counter for the three-layer validation stack (§34):
 incremented per failed attempt, reset to `0` when the gate passes, routing to
 escalation at `>= 3`.
 
@@ -1098,7 +1098,7 @@ Each phase subgraph contains **exactly five nodes**.
 |---|---|
 | `planner` | Produces a structured `CoachingPlan` — focus field, next action, retrieval strategy (§17) |
 | `executor` | `create_agent` with this phase's tool subset; runs the coaching turn (§18) |
-| `validation_stack` | The four layers, shared cap of 3 (§34) |
+| `validation_stack` | The three layers (2b–2d), shared cap of 3 (§34) |
 | `gate_review` | `interrupt()` — presents validated fields to the Belt and stops (§33) |
 | `gate_apply` | Applies Belt edits, runs the policy advisory, assembles and writes the gate document, routes on (§33) |
 
@@ -2902,27 +2902,25 @@ rejects loses nothing but the turn.
 
 ---
 
-## 34. The four-layer validation stack
+## 34. The three-layer validation stack
 
 *Supersedes: REFACTORING §48, §68, §69; ARCHITECTURE.md §3.7; CLAUDE.md §9.2, §9.3.*
 **Status: RATIFIED.** **Canonical home.**
 
-All four run inside step 2, before the interrupt.
+All three run inside step 2, before the interrupt. Layer 2a (coherence) is retired (ADR-0083).
 
 | Layer | Checks | Mechanism | Model | Fires | Implemented by |
 |---|---|---|---|---|---|
-| **2a** Coherence | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic, parroting the Belt | Lightweight LLM | `coherence`, 0.1 | **Every turn** | **`CoherenceMiddleware`** (§19.7) |
+| **2a** Coherence | **Retired** (ADR-0083): its purpose is served before the coach by the input guard (T71, T93), the planner's judgment (T47) and the copy check (G-159) | — | — | — | — |
 | **2b** Field presence | All **Tier 1** fields populated? `DMAICGateValidator` static methods | **Deterministic** | None | Gate only | `validation_stack` node |
 | **2c** Constraints | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, 0.1 | Gate + key mid-conversation decisions | `validation_stack` node |
 | **2d** Quality rubric | Does the **gate document** meet DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** Uses `PHASE_RUBRIC` | LLM grader | `grader`, 0.1 | Gate only | `validation_stack` node |
 
-### Layer 2a is middleware; layers 2b–2d are the node
+### Layers 2b–2d are the node
 
-**Not a cosmetic distinction.** Layer 2a fires **every coaching turn**, which a
-gate-boundary node cannot do. Layers 2b–2d fire once, at the gate, and cannot
-sensibly run per turn — field presence is meaningless before the phase is
-finished. **One conceptual stack, two mechanisms.** Do not try to move 2a into
-the node or 2b–2d into middleware.
+Layers 2b–2d fire once, at the gate, and cannot sensibly run per turn — field
+presence is meaningless before the phase is finished. Layer 2a, the per-turn
+coherence middleware, is retired (ADR-0083).
 
 ### Layer 2d is NOT `DMAICGraderMiddleware`
 
@@ -2943,7 +2941,7 @@ field.
 is the accumulated feedback (§6). **Neither may live in route scope, and
 neither may be per layer.**
 
-**The iteration cap is 3, SHARED across all four layers**, with accumulated
+**The iteration cap is 3, SHARED across all three layers**, with accumulated
 feedback. Not three per layer. Feedback is specific — *"your previous answer
 did not address timeline or risk mitigation"* — never *"try again."*
 
@@ -2985,7 +2983,7 @@ low-risk, whereas a high-risk project's decision inherently involves risk.
 |---|---|---|---|---|
 | **1 — Silent** | Coherence failure mid-turn | System retries internally | **Invisible** | Max 2, then degraded |
 | **2 — Coached** | Constraint failure on a Belt proposal | Coach teaches toward a better formulation | Transparent, collaborative | **No cap** |
-| **3 — Validated** | Full four-layer check at the gate | Belt sees pass/fail, corrects, approves | Transparent, Belt approves | Max 3, accumulated |
+| **3 — Validated** | Full three-layer check at the gate | Belt sees pass/fail, corrects, approves | Transparent, Belt approves | Max 3, accumulated |
 | **4 — Escalated** | Attempts exhausted | System defers with unresolved constraints named | Transparent, Belt is arbiter | None |
 
 > **Design principle: coached improvement is key, because silent is not
@@ -4127,7 +4125,7 @@ indication of which layer failed.
 REQUIRED on every function that:
 
 - Extracts fields from LLM responses
-- **Validates gate criteria — all four layers of §34**
+- **Validates gate criteria — all three layers of §34**
 - Scores completeness
 - Makes routing decisions outside LangGraph node routing
 - Calls an external Azure service directly, outside a LangChain runnable
@@ -4925,7 +4923,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `belt_edits` | `dict[str, Any]` | The Belt's corrections made at gate step 5. A different thing from `validator_feedback`, and must stay separate | none | `gate_apply`, from the interrupt resume payload | `gate_apply` |
 | `turn_count` | `int` | How many coaching turns this phase has taken. Load-bearing: it is a component of the deterministic `step_log` key (§11) | none | executor node | planner; `step_log` key construction |
 | `final` | `dict[str, Any]` | The approved gate document. A `dict` and never a `str`, so a resumed graph can read what was approved without re-reading the Store | none | `gate_apply_node` | output mapper; crash recovery |
-| `gate_attempts` | `int` | The shared retry counter for the four-layer validation stack. Per phase, in the checkpoint — never in route scope | none | validation stack increments; `gate_apply` resets to `0` | validation stack; the escalation edge at `>= 3` |
+| `gate_attempts` | `int` | The shared retry counter for the three-layer validation stack. Per phase, in the checkpoint — never in route scope | none | validation stack increments; `gate_apply` resets to `0` | validation stack; the escalation edge at `>= 3` |
 | `validator_feedback` | `list[dict]` | Accumulated per-attempt validation failures, each recording attempt, layer, criteria failed and specific feedback. What makes the shared cap of 3 defensible | none (append by the writer) | validation stack appends; `gate_apply` resets to `[]` | the coach, on retry |
 | `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn` | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
 | `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`. An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
@@ -6800,7 +6798,7 @@ a contradiction flag into a Belt-facing interrupt carrying the five-key payload.
 *Supersedes: none — new. Definitions relocated from §34, §35, §40.1.*
 **Status: RATIFIED as a structure; six of eleven entries are gap stubs.**
 
-**The four-layer table, the tier tables and the nine-step gate stay where they
+**The validation-stack table, the tier tables and the nine-step gate stay where they
 are** — §33, §34 and §35 are their canonical homes and none of them is a class
 or a signature. The entries below specify the schemas and the callables.
 
@@ -8122,7 +8120,7 @@ mechanism, not an aspiration:
 | **12** | Record-keeping and logging | `step_log` with deterministic keys (§11, §47); LangSmith tracing (§51); `citations` and `uploads` in every gate document (§33.2) |
 | **13** | Transparency to users | The UI contract — the Belt is informed they interact with an AI coach; contextual feedback; the LangSmith run id surfaced for escalation (§50) |
 | **14** | Human oversight | The nine-step HITL gate — **no field is committed without Belt approval** (§33); the gate review screen is editable (§50); the checkpoint commits only after approval (§33.3) |
-| **15** | Accuracy and robustness | The four-layer validation stack (§34); the two-tier field rule (§35); anti-hallucination guards (§22); contradiction detection (§37); grader temperature pinned at 0.1 (§21) |
+| **15** | Accuracy and robustness | The three-layer validation stack (§34); the two-tier field rule (§35); anti-hallucination guards (§22); contradiction detection (§37); grader temperature pinned at 0.1 (§21) |
 | **43** | Conformity assessment | Downstream — it needs all of the above demonstrable, which is what the register in §68 is for |
 
 ### 67.4 One compliance finding is already recorded in this document
