@@ -1,9 +1,9 @@
 {
- "source_hash": "861715dfc8646cbc",
- "commit": "a7fe5fd",
+ "source_hash": "bbf043186df149ac",
+ "commit": "7e3f890",
  "commit_matches_source": false,
- "full_run_hash": "861715dfc8646cbc",
- "recorded_at": "2026-10-14T11:11:38+00:00",
+ "full_run_hash": "bbf043186df149ac",
+ "recorded_at": "2026-10-14T11:19:33+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -404,6 +404,7 @@
   "backend/tests/test_defects.py::test_ids_are_unique_and_none_was_lost_in_the_move": "passed",
   "backend/tests/test_defects.py::test_the_feature_links_agree_with_the_feature_list_both_ways": "passed",
   "backend/tests/test_define_e2e.py::test_a8_a_goal_with_no_date_reads_back_the_value_and_teaches_the_date": "passed",
+  "backend/tests/test_define_e2e.py::test_a8_a_relative_target_is_taught_and_dates_are_read_as_noted": "passed",
   "backend/tests/test_define_e2e.py::test_a8_change_of_the_target_read_from_the_goal_teaches_it": "passed",
   "backend/tests/test_define_e2e.py::test_a8_the_target_is_read_from_the_confirmed_goal_and_confirmed_once": "passed",
   "backend/tests/test_define_e2e.py::test_a_calculation_is_recorded_with_its_five_keys": "passed",
@@ -1726,8 +1727,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "b68ef6f08da3e953",
-  "recorded_at": "2026-10-14T11:05:24+00:00",
+  "source_hash": "861715dfc8646cbc",
+  "recorded_at": "2026-10-14T11:11:38+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2552,6 +2553,7 @@
    "backend/tests/test_define_runthrough.py::test_run_a_weak_answer_is_challenged_not_completed": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_an_answer_is_judged_at_most_once": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_an_untaught_field_is_taught_example_before_ask": "skipped",
+   "backend/tests/test_define_runthrough.py::test_run_every_grader_fail_quotes_its_sentence": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_every_turn_answers_inside_its_time_limit": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_every_turn_states_its_step": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_every_turn_states_step_n_of_12": "skipped",
@@ -2579,6 +2581,7 @@
    "backend/tests/test_define_runthrough.py::test_run_scenario_d_a_parked_element_is_resumed": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_scenario_e_an_upload_is_read_back_and_stored": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_sends_no_trace": "skipped",
+   "backend/tests/test_define_runthrough.py::test_run_the_approval_writes_the_gate_document_once": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_the_judge_does_not_take_a_restating_move_for_parroting": "passed",
    "backend/tests/test_define_runthrough.py::test_run_the_validation_layer_is_consistent_over_five_runs": "skipped",
    "backend/tests/test_define_runthrough.py::test_runthrough_metric_meaning_comes_from_the_registry": "skipped",

@@ -53,9 +53,17 @@ def parse_limit(text: str) -> Optional[dict[str, Any]]:
 _MONTH = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
           r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)")
 #: ADR-0086 — a date as a goal writes it: ISO, "31 March 2027", "March 31, 2027", "(end of) March 2027".
-_GOAL_DATE = re.compile(r"(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH + r"\.?,?\s+\d{4}|"
-                        + _MONTH + r"\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|(?:end of\s+)?" + _MONTH
-                        + r"\.?\s+\d{4})\b")
+_GOAL_DATE = re.compile(r"(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}[./]\d{4}|\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH
+                        + r"\.?,?\s+\d{4}|" + _MONTH + r"\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|(?:end of\s+)?"
+                        + _MONTH + r"\.?\s+\d{4}|(?:end of\s+)?q([1-4])\s*(?:/\s*)?(\d{4}))\b")
+#: ADR-0086 note (founder 2026-10-14): a quarter is read as its last day, shown with the quarter it came from.
+_QUARTER_END = {"1": "31 March", "2": "30 June", "3": "30 September", "4": "31 December"}
+#: ADR-0086 note (founder 2026-10-14): a figure counts as the target only when a target word introduces it —
+#: "to", "down to", a limit ("under", "at most" …) or "target (of)"; "by 30%", "by 5 points", "halve" are
+#: changes relative to the baseline, never the target value, and the target is taught.
+_TARGET_CUE = re.compile(r"(?:\bto|\btarget(?:\s+of)?|\bunder|\bbelow|\bless than|\blower than|\bat most|"
+                         r"\bno more than|\bnot more than|\bup to|\bat least|\bover|\babove|\bmore than|"
+                         r"\bgreater than|\bno less than)\s*(?:around|about|roughly|approximately|~)?\s*$")
 
 
 def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
@@ -69,8 +77,8 @@ def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
     rest = _GOAL_DATE.sub(" ", text)
     figures = [m for m in re.finditer(_NUMBER + _UNIT, rest.lower()) if not _is_year(m)]
     value = None
-    if figures:
-        start = figures[-2].end() if len(figures) > 1 else 0
+    start = figures[-2].end() if len(figures) > 1 else 0
+    if figures and _TARGET_CUE.search(rest.lower()[start:figures[-1].start()]):
         mv = metric_value(rest[start:], target=True)
         unit = primary_unit(artifacts)
         baseline = as_metric(artifacts["baseline_estimate"], unit=unit) if artifacts.get("baseline_estimate") else None
@@ -78,7 +86,12 @@ def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
         if mv["value"] is not None and mv["unit"] and (not base_unit or mv["unit"] == base_unit) \
                 and not (baseline and baseline.get("value") == mv["value"]):
             value = {**mv, "raw": text.strip()}
-    return {"target_value": value, "target_date": date.group(1).strip() if date else None}
+    when = None
+    if date and date.group(2):
+        when = f"{_QUARTER_END[date.group(2)]} {date.group(3)} (end of Q{date.group(2)} {date.group(3)})"
+    elif date:
+        when = date.group(1).strip()
+    return {"target_value": value, "target_date": when}
 
 
 def _is_year(m: "re.Match[str]") -> bool:

@@ -40,3 +40,12 @@ parsed in code → one Confirm stores both; a missing part is taught; Change fal
 - **The coach writes the read-back**: the values would be the model's reading of the goal; the parser
   already decides the target in code (G-120, ADR-0071).
 - **Folding the target into the goal element**: changes the thirteen elements (R4) and the gate document.
+
+## Notes
+
+Note (founder, 2026-10-14): relative targets are never read as the target value — "from 23% by 30%", "halve
+the rate", "reduce by 5 points": a figure counts only when a target word introduces it ("to", "down to", a
+limit such as "under" or "at most", "target of"); otherwise the target value is taught. Dates are parsed:
+"31.03.2027" (and 31/03/2027) is read as written; a quarter ("Q1 2027") is read as its last day and shown with
+the quarter it came from ("31 March 2027 (end of Q1 2027)") in the read-back the Belt confirms; a year alone
+("by end of 2027") is no date, and the target date is taught.

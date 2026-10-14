@@ -4757,3 +4757,34 @@ def test_a8_a_goal_with_no_date_reads_back_the_value_and_teaches_the_date(env, m
     dated = _askd(env, action="confirm", message="Confirm")
     assert dated["move"] == "store_and_advance" and dated["move_field"] == "target_date", (dated["move"], dated["move_field"])
     assert "target_value" in _define(env)["structured"] and "target_date" not in _define(env)["structured"]
+
+
+def test_a8_a_relative_target_is_taught_and_dates_are_read_as_noted(env, monkeypatch) -> None:
+    """ADR-0086 note (founder 2026-10-14): a relative target — "from 23% by 30%", "halve the rate", "reduce
+    by 5 points" — is never read as the target value: through the routes and graph the target is taught.
+    Dates: "31.03.2027" is read as written; "Q1 2027" is read as its last day, the quarter shown beside it;
+    a year alone is no date (the date is taught)."""
+    from backend.phases.define import parse
+
+    _a8_at_goal_read_back(env, monkeypatch, "Reduce the late payment rate from 23% by 30% by 31 March 2027.")
+    _coach_saying(monkeypatch, "Here is what the target value is.")
+    taught = _askd(env, action="confirm", message="Confirm")
+    assert taught["move"] == "store_and_advance" and taught["move_field"] == "target_value", taught["move"]
+    assert "Your goal already states the target" not in taught["answer"], "a relative target was read back"
+    assert "target_value" not in _define(env)["structured"]
+
+    baseline = {"baseline_estimate": {"value": 23.0, "unit": "%", "direction": None, "is_estimate": False,
+                                      "raw": "23%"}}
+
+    def read(goal: str) -> tuple:
+        found = parse.goal_targets(goal, baseline)
+        return (found["target_value"] or {}).get("value"), found["target_date"]
+    for relative in ("Reduce the late payment rate from 23% by 30% by 31 March 2027.",
+                     "Halve the late payment rate by 31 March 2027.",
+                     "Reduce late payments by 5 points by 31 March 2027.",
+                     "Reduce late payments by 5% by 31 March 2027."):
+        assert read(relative)[0] is None, relative
+    assert read("Reduce the late payment rate from 23% to under 5% by 31.03.2027.") == (5.0, "31.03.2027")
+    assert read("Reduce the late payment rate to under 5% by Q1 2027.") == (5.0, "31 March 2027 (end of Q1 2027)")
+    assert read("A target of 5% late payments by end of Q4 2027") == (5.0, "31 December 2027 (end of Q4 2027)")
+    assert read("Reduce the late payment rate to under 5% by end of 2027.") == (5.0, None)
