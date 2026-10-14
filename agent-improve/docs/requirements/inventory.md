@@ -142,7 +142,7 @@ Paths: `ui/` and `backend/` are under `agent-improve/`. The whole UI is one file
 | B53 | backend | Model retry middleware | `_build_executor` (`ModelRetryMiddleware`) | works — `test_middleware.py::test_position_1_wrap_encloses_position_4_retry` | T46 | keep |
 | B54 | backend | Tool retry middleware | `_build_executor` (`ToolRetryMiddleware`) | works — `test_middleware.py::test_on_failure_continue_is_current_not_merely_accepted` | T46 | keep |
 | B55 | backend | Contradiction detection | `backend/middleware/contradiction.py::ContradictionDetectionMiddleware` | partial — detects, never interrupts ("guarded until 7.3") | T55 | fix — with the re-approval requirement (Q05) |
-| B56 | backend | Coherence check (layer 2a) | `backend/middleware/coherence.py::CoherenceMiddleware` | partial — logs rejections; never re-asks (`test_row_12` is a strict expected failure) | T44 | fix |
+| B56 | backend | Coherence check (layer 2a) | — (`CoherenceMiddleware` removed, ADR-0083) | retired — its purpose is served before the coach by the input guard (T71, T93), the planner's judgment (T47, ADR-0007) and the copy check (G-159) | T44 | retired |
 | B57 | backend | Coaching-quality grader | `backend/middleware/grader.py::DMAICGraderMiddleware` | works — `test_row_13` (live), `test_judges_once.py` | T44, T64 | keep |
 | B58 | backend | Middleware execution order | `_build_executor` middleware list | works — `test_middleware_execution_order.py` | T46 | keep |
 | B59 | backend | Methodology lookup (multi-query, fusion, phase filter) | `backend/knowledge/tools.py::rag_lookup_methodology` | works — `test_fusion.py`, `test_turn_budget.py` | T25, T51, T58 | keep |

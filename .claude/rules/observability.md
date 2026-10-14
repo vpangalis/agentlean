@@ -31,7 +31,7 @@ LangSmith does **not** trace plain Python functions.
 
 `@traceable` is REQUIRED on every function that:
 - Extracts fields from LLM responses
-- **Validates gate criteria — all four layers of §9.2**
+- **Validates gate criteria — all three layers of §9.2 (2b–2d)**
 - Scores completeness
 - Makes routing decisions outside LangGraph node routing
 - Calls an external Azure service directly, outside a LangChain runnable

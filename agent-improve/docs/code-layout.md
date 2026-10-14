@@ -101,7 +101,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 |  | `asks.py` | Asks — the coach's recorded requests for data. Procedure step 6.12. | `OPEN`, `ANSWERED`, `SENTINEL_ROLE`, `SENTINEL_KIND`, `SENTINEL_SHAPE`, `MEASURE_SHAPES`, `SHAPES_BY_PHASE`, `shape_for_field`, `content_digest`, `new_ask`, `open_ask_for_role`, `ensure_ask`, `check_shape`, `mark_answered` |
 |  | `classifier.py` | Content-type and kind classification for uploads — procedure step 6.11. | `SUPPORTED_IMAGE_TYPES`, `ARTEFACT_PURPOSES`, `EVIDENCE_PURPOSES`, `EVIDENCE`, `ARTEFACT`, `classify_content_type`, `classify_kind`, `is_image`, `is_supported` |
 |  | `parsers.py` | Deterministic extraction for the four formats a Belt actually uploads. | `TYPE_SAMPLE_ROWS`, `MAX_DISTINCT_SAMPLE`, `MAX_TEXT_CHARS`, `NUMERIC_TYPES`, `refusal`, `parse_csv`, `parse_xlsx`, `parse_pdf`, `parse_docx`, `parse_text`, `PARSERS`, `parse_upload`, `hidden_text` |
-| `validation/` | `__init__.py` | Validation schemas and, from stage 7, the four-layer stack. | — |
+| `validation/` | `__init__.py` | Validation schemas and, from stage 7, the three-layer stack (2b-2d). | — |
 |  | `rubric.py` | Layer 2d for Define — the R7 rubric, graded at the gate. | `DEFINE_CRITERIA`, `CODE_ONLY`, `MODEL_ASKS`, `grade_define` |
 |  | `schemas.py` C | Structured outputs for the coaching grader — procedure step 6.5. | `CriterionResult`, `CoachingGraderVerdict`, `CriterionVerdict`, `GraderVerdict` |
 

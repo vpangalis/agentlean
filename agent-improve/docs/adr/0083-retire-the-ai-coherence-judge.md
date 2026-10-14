@@ -38,3 +38,7 @@ re-confirm after a store, the planner's baseline reading. The code checks propos
 - **Option B's code checks as the replacement**: on the labelled set they rejected nothing (0% false
   rejects, 100% false accepts) — a check that never fires is cost without signal.
 - **Keeping the judge log-only**: a signal wrong on four good replies in ten is noise in every record.
+
+## Notes
+
+Note (founder, 2026-10-14): The purpose of 2a, keeping unusable Belt input out, is served before the coach by the input guard (T71, T93), the planner's judgment of each substantive answer (T47, ADR-0007) and the code copy check (G-159); a separate pre-LLM coherence call would duplicate T47's single judgment.

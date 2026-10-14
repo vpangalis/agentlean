@@ -49,7 +49,7 @@ Each phase subgraph contains exactly these nodes:
 planner            — structured plan: focus_field, next_action,
                      retrieval_strategy, tools_needed
 executor           — create_agent with the phase's tool subset
-validation_stack   — the four layers (§9.2), shared cap of 3
+validation_stack   — the three layers (§9.2, 2b–2d), shared cap of 3
 gate_review        — interrupt() — presents validated fields, stops
 gate_apply         — policy advisory, applies corrections, assembles
                      and writes the gate document (§9.6), routes on

@@ -17,7 +17,7 @@ paths:
 | Step | What happens |
 |---|---|
 | 1. Executor runs | Coach responds; extraction captures fields |
-| 2. **Validation stack** | Four layers, cheapest first (§9.2), accumulated feedback. **Checks the AI's work. The Belt does not see this loop.** |
+| 2. **Validation stack** | Three layers (2b–2d), cheapest first (§9.2), accumulated feedback. **Checks the AI's work. The Belt does not see this loop.** |
 | 3. Interrupt fires | `gate_review_node` pauses; Belt sees validated output |
 | 4. Belt reviews | Checks AI-captured values |
 | 5. Belt edits *(optional)* | Corrects wrong fields |
@@ -26,25 +26,25 @@ paths:
 | 8. Checkpoint saves | State committed **only now** |
 | 9. Next phase | The subgraph reaches `END`; the parent's static edge advances. **The supervisor makes no decision** (§3.1) |
 
-### 9.2 — The four-layer validation stack
+### 9.2 — The three-layer validation stack
 
-All four run inside step 2. **Cheapest first; each fires only if the
+All three run inside step 2. **Cheapest first; each fires only if the
 previous passes.**
 
 | Layer | Checks | Mechanism | Fires |
 |---|---|---|---|
-| **2a. Coherence** | **Retired** (ADR-0083): its AI judge is gone; the faults it was meant to catch are checked in code | — | — |
+| **2a. Coherence** | **Retired** (ADR-0083): its AI judge is gone; the faults it was meant to catch are checked in code. The purpose of 2a, keeping unusable Belt input out, is served before the coach by the input guard (T71, T93), the planner's judgment of each substantive answer (T47, ADR-0007) and the code copy check (G-159); a separate pre-LLM coherence call would duplicate T47's single judgment. | — | — |
 | **2b. Field presence** | All **Tier 1** fields populated (`DMAICGateValidator`) | **Deterministic**, no LLM | Gate boundary only |
 | **2c. Constraint** | Addresses budget / timeline / risk / measurement | `constraint` role, temp 0.1 | Gate + key decisions mid-conversation |
 | **2d. Quality rubric** | Gate document vs `PHASE_RUBRIC`, per criterion. **Tier 1 fails, Tier 2 warns** | `grader` role, temp 0.1 | Gate boundary only |
 
-- **2a is middleware; 2b–2d are the `validation_stack` node.** Do not move
-  either across.
+- **2b–2d are the `validation_stack` node.** 2a was middleware and is retired (ADR-0083); its purpose is
+  served before the coach (row 2a).
 - **Layer 2d is NOT `DMAICGraderMiddleware`** — two graders (§8.2).
-- **The cap is 3, SHARED across all four layers** — not per layer. Counter
+- **The cap is 3, SHARED across all three layers** — not per layer. Counter
   `PhaseState.gate_attempts`, feedback `PhaseState.validator_feedback`
   (§10.1); neither in route scope. Feedback is specific, never *"try again."*
-- **2a and 2c stay LLM calls** — settled; never re-optimise into a regex or
+- **2c stays an LLM call** — settled; never re-optimise into a regex or
   format check.
 - **Per-phase constraint sets** are `{PHASE}_CONSTRAINTS` in
   `core/prompts.py`; Measure is covered by its rubric. **Value-dependent
@@ -56,7 +56,7 @@ previous passes.**
 
 | Layer | Every turn | Key decision moments | Gate boundary |
 |---|---|---|---|
-| 2a Coherence | ✅ | ✅ | ✅ |
+| 2a Coherence — retired (ADR-0083) | — | — | — |
 | 2b Field presence | ❌ | ❌ | ✅ |
 | 2c Constraint | ❌ | ✅ | ✅ full check |
 | 2d Quality rubric | ❌ | ❌ | ✅ last |
@@ -66,9 +66,9 @@ previous passes.**
 
 | Level | Trigger | Belt sees | Retry |
 |---|---|---|---|
-| 1 — Silent | Coherence failure mid-turn | **Invisible** | One re-ask in `enforce` mode (ADR-0079); `log_only` until false rejects < 20% (G-161) |
+| 1 — Silent | Retired with the coherence judge (ADR-0083) | — | — |
 | 2 — Coached | Constraint failure on a Belt proposal — coach teaches | Transparent | **No cap** — dialogue, not a loop |
-| 3 — Validated | Full four-layer check at the gate | Pass/fail, Belt corrects and approves | Max 3, accumulated feedback |
+| 3 — Validated | Full three-layer check (2b–2d) at the gate | Pass/fail, Belt corrects and approves | Max 3, accumulated feedback |
 | 4 — Escalated | Attempts exhausted — defers with unresolved constraints named | Transparent, Belt is arbiter | None |
 
 **Transparency is the default; there is no silent retry** — the coherence

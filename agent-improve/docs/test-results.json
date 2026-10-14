@@ -1,9 +1,9 @@
 {
- "source_hash": "1d9616703d1c9d3a",
- "commit": "cff1396",
+ "source_hash": "022c7d2cece35c14",
+ "commit": "1390bdf",
  "commit_matches_source": false,
- "full_run_hash": "1d9616703d1c9d3a",
- "recorded_at": "2026-10-14T09:09:00+00:00",
+ "full_run_hash": "022c7d2cece35c14",
+ "recorded_at": "2026-10-14T09:23:35+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1718,8 +1718,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "13faebff6a647d39",
-  "recorded_at": "2026-10-14T08:21:50+00:00",
+  "source_hash": "1d9616703d1c9d3a",
+  "recorded_at": "2026-10-14T09:09:00+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -3391,6 +3391,7 @@
    "backend/tests/test_procedure_guards.py::test_rule_19_passes_an_accepted_adr_and_an_ungated_one": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_19_refuses_landing_a_feature_whose_adr_is_proposed": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_20_refuses_a_requirement_change_without_a_ruling_and_passes_with_one": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_21_passes_a_founders_note_appended_but_not_a_note_with_an_edit": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_passes_superseding_an_accepted_adr_and_a_link_only_change": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_passes_withdrawing_an_accepted_adr_but_not_withdrawing_and_editing": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_refuses_an_edit_to_an_accepted_adr": "passed",
