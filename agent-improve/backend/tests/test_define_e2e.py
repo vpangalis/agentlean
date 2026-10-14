@@ -910,9 +910,55 @@ def test_report_sections_show_a_labelled_picture_where_the_data_allows() -> None
     _not_written('DEF-087')
 
 
-def test_the_define_report_has_the_visual_of_every_section() -> None:
-    """DEF-088 — R5 amendment: the Define report's seven sections carry the visuals of R5's table (team table, cost and benefit timeline, 5W2H and scope, VOC→CTQ, base"""
-    _not_written('DEF-088')
+def test_the_define_report_has_the_visual_of_every_section(env) -> None:
+    """DEF-088 — R5 (amended 2026-10-12): the report the server pauses on (POST /gate, GET /gate/review), drawn
+    by the page's own defineReportHtml, carries each section's visual from R5's table — 1 the team table
+    with roles, lead and Champion named; 2 the cost-of-gap and benefit timeline; 3 the 5W2H mind map and
+    in / out of scope side by side; 4 the customer need → CTQ table; 5 the baseline → target chart and
+    the secondaries; 6 the SIPOC with each step's time and frequency and the problem steps marked; 7 the
+    issues as a list, with no owner (owners belong to Improve's action plan)."""
+    import re
+
+    from backend.tests.test_define_report import _render
+
+    # section 6's data as the coach's read-back stores it (ADR-0078): two steps, one with a problem seen
+    sipoc = dict(env.case.phases["define"].structured["process_map_sipoc"])
+    sipoc["process_steps"] = [
+        {"id": "S1", "name": "Receive invoice", "duration": {"avg": "1 day"}, "runs_per_period": "400 a month",
+         "problems": []},
+        {"id": "S2", "name": "Approve invoice", "duration": {"avg": "6 days", "max": "20 days"},
+         "runs_per_period": "400 a month", "problems": [{"note": "waits for the budget holder", "said_by": "Lena"}]}]
+    env.case.phases["define"].structured["process_map_sipoc"] = sipoc
+    _submit(env)
+    review = env.client.get(f"/gate/review/{CASE_ID}/define")
+    assert review.status_code == 200, review.text
+    report = review.json()["report"]
+    html = _render(report)
+    cards = re.split(r">(?=\d · )", html)
+    card = {int(c[0]): c for c in cards[1:] if c[:1].isdigit()}
+    assert sorted(card) == list(range(1, 8)), sorted(card)
+    # 1 — the team table with roles; the lead and the Champion named
+    assert ">Role</th>" in card[1] and ">Function</th>" in card[1], "section 1: the team table"
+    assert "Project lead:" in card[1] and "Champion:" in card[1] and "not named in the team yet" not in card[1]
+    # 2 — the cost of the gap and the benefit, with its realisation timeline
+    assert "benefit_timeline" in report["visuals"] and 'class="benefit-timeline"' in card[2], "section 2: the timeline"
+    # 3 — the 5W2H mind map; in and out of scope side by side
+    assert 'id="report-mindmap"' in card[3] and "mindmap_5w2h" in report["visuals"], "section 3: the 5W2H mind map"
+    assert "In scope:" in card[3] and "Out of scope:" in card[3] and "display:flex" in card[3]
+    # 4 — customer need → CTQ
+    assert ">Need</th>" in card[4] and ">Requirement (measurable)</th>" in card[4], "section 4: the CTQ table"
+    # 5 — the baseline → target chart; the secondaries listed
+    assert 'id="report-target"' in card[5] and "baseline_target" in report["visuals"], "section 5: the chart"
+    assert "Secondary metrics:" in card[5]
+    # 6 — the SIPOC, with step times and frequency, the problem steps marked
+    assert 'id="report-sipoc"' in card[6] and "sipoc" in report["visuals"], "section 6: the SIPOC"
+    assert ">Time (range)</th>" in card[6] and ">How often</th>" in card[6] and ">Problems seen</th>" in card[6]
+    assert "⚠ S2 · Approve invoice" in card[6] and "waits for the budget holder (Lena)" in card[6], \
+        "the problem step is not marked"
+    assert "⚠ S1" not in card[6] and "6 days" in card[6] and "400 per month" in card[6]
+    # 7 — the issues as a list, no owner in Define
+    assert "<ul" in card[7] and "<li>" in card[7], "section 7: the issues as a list"
+    assert "owner" not in card[7].lower(), "Define names no owner (R5 amended 2026-10-12)"
 
 
 def test_project_status_figures_are_computed_once_by_the_backend() -> None:
