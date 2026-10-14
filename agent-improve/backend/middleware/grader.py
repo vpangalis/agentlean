@@ -305,6 +305,8 @@ class DMAICGraderMiddleware(AgentMiddleware):
             "iteration": self._iterations,
             "status": "pass" if verdict.passed else "failed",
             "criteria_failed": [c.criterion for c in verdict.failed],
+            # Founder 2026-10-14 — every asked criterion's verdict (G1–G5, the code check), not only the fails.
+            "verdicts": {c.criterion: c.status for c in verdict.criteria},
             "feedback": [c.feedback for c in verdict.failed if c.feedback],
             # 6.61 — each failed criterion WITH its feedback, so section 5 can
             # keep only what applies to the next turn's move.

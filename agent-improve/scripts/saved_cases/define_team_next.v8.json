@@ -1,0 +1,34 @@
+{
+ "case_id": "IMPR-SAVED-TEMPLATE",
+ "title": "SAVED CASE — the business case confirmed; the team is next (slice 1)",
+ "belt_level": "green",
+ "leader": "Priya Shah",
+ "department": "Finance — Accounts Payable",
+ "team": [],
+ "created_at": "2026-10-13T15:42:44.922814+00:00",
+ "target_date": "2027-03-31",
+ "current_phase": "define",
+ "status": "active",
+ "conversation_history": [],
+ "state_schema_version": 8,
+ "phases": {
+  "define": {
+   "gate_passed": false,
+   "submitted_by": null,
+   "submitted_at": null,
+   "structured": {
+    "business_case": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock."
+   },
+   "analyst_output": null,
+   "citations": [],
+   "uploads": [],
+   "field_status": {},
+   "field_log": []
+  }
+ },
+ "_saved": {
+  "from": "IMPR-2026-15A (run 20261013T154211)",
+  "state_schema_version": 8,
+  "about": "the business case confirmed; the team is next (slice 1)"
+ }
+}

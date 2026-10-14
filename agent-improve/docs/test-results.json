@@ -1,9 +1,9 @@
 {
- "source_hash": "d2ff95ee20d53871",
- "commit": "a067c20",
+ "source_hash": "f3f30c773a3ad7bb",
+ "commit": "4525347",
  "commit_matches_source": false,
- "full_run_hash": "d2ff95ee20d53871",
- "recorded_at": "2026-10-14T11:46:35+00:00",
+ "full_run_hash": "f3f30c773a3ad7bb",
+ "recorded_at": "2026-10-14T11:58:35+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1728,8 +1728,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "9dae9b07628f65de",
-  "recorded_at": "2026-10-14T11:28:27+00:00",
+  "source_hash": "d2ff95ee20d53871",
+  "recorded_at": "2026-10-14T11:46:35+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1919,6 +1919,7 @@
    "backend/tests/test_capability_rows.py::test_g152_a_trace_past_retention_is_not_read_as_missing": "passed",
    "backend/tests/test_capability_rows.py::test_mutation_row_10_a_row_short_a_key_is_red": "passed",
    "backend/tests/test_capability_rows.py::test_mutation_row_11_a_metric_entry_that_does_not_mirror_is_red": "passed",
+   "backend/tests/test_capability_rows.py::test_mutation_row_12_a_challenge_naming_no_criterion_is_red": "passed",
    "backend/tests/test_capability_rows.py::test_mutation_row_12_a_rejection_with_no_reask_is_red": "passed",
    "backend/tests/test_capability_rows.py::test_mutation_row_13_a_grade_that_never_reaches_step_log_is_red": "passed",
    "backend/tests/test_capability_rows.py::test_mutation_row_17_a_2b_that_passes_a_missing_field_is_red": "passed",

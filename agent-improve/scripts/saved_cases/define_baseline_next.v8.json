@@ -1,0 +1,88 @@
+{
+ "case_id": "IMPR-SAVED-TEMPLATE",
+ "title": "SAVED CASE — five elements confirmed; the baseline is next (slice 3)",
+ "belt_level": "green",
+ "leader": "Priya Shah",
+ "department": "Finance — Accounts Payable",
+ "team": [],
+ "created_at": "2026-10-13T15:42:44.922814+00:00",
+ "target_date": "2027-03-31",
+ "current_phase": "define",
+ "status": "active",
+ "conversation_history": [],
+ "state_schema_version": 8,
+ "phases": {
+  "define": {
+   "gate_passed": false,
+   "submitted_by": null,
+   "submitted_at": null,
+   "structured": {
+    "business_case": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+    "team": [
+     {
+      "name": "Priya Shah",
+      "role": "Green Belt",
+      "function": "Leading the project and running it day to day"
+     },
+     {
+      "name": "Tom Okafor",
+      "role": "Finance Director",
+      "function": "Sponsor who signs off and clears blockers"
+     },
+     {
+      "name": "Lena Hart",
+      "role": "Accounts Payable Manager",
+      "function": "Process owner"
+     },
+     {
+      "name": "Dev Patel",
+      "role": "AP clerk",
+      "function": "Processes invoices; needs a half-day on data collection before Measure"
+     },
+     {
+      "name": "Amira Khan",
+      "role": "AP clerk",
+      "function": "Processes invoices; needs a half-day on data collection before Measure"
+     }
+    ],
+    "voc_summary": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+    "critical_to_quality": [
+     {
+      "customer": "suppliers",
+      "need": "payments made on the agreed 30-day terms",
+      "requirement": "paid within 30 days of the invoice date on every invoice"
+     },
+     {
+      "customer": "ward managers",
+      "need": "stock to keep arriving",
+      "requirement": "no supplier puts us on stop in a quarter"
+     }
+    ],
+    "problem_statement": "From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms. Suppliers chase us by phone and email, and some put us on stop, which delays ward stock and costs interest, lost discounts, and supplier trust. The delays occur at the resolve mismatches and approve steps, where invoices wait.",
+    "problem_5w2h": {
+     "what": "supplier invoices are paid after their 30-day terms",
+     "where": "the accounts payable team across our three hospital sites",
+     "when": "every month since January 2026 — I measured January to June",
+     "who": "the suppliers, and the ward managers whose stock gets held",
+     "why": "interest, lost discounts and supplier stops",
+     "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate",
+     "how": "suppliers chase us by phone and email, and some put us on stop",
+     "steps": [
+      "resolve mismatches",
+      "approve"
+     ]
+    }
+   },
+   "analyst_output": null,
+   "citations": [],
+   "uploads": [],
+   "field_status": {},
+   "field_log": []
+  }
+ },
+ "_saved": {
+  "from": "IMPR-2026-15A (run 20261013T154211)",
+  "state_schema_version": 8,
+  "about": "five elements confirmed; the baseline is next (slice 3)"
+ }
+}

@@ -1,0 +1,389 @@
+{
+ "case_id": "IMPR-SAVED-TEMPLATE",
+ "title": "SAVED CASE — every Define element confirmed, the report not submitted (slice 2)",
+ "belt_level": "green",
+ "leader": "Priya Shah",
+ "department": "Finance — Accounts Payable",
+ "team": [],
+ "created_at": "2026-10-13T15:42:44.922814+00:00",
+ "target_date": "2027-03-31",
+ "current_phase": "define",
+ "status": "active",
+ "conversation_history": [],
+ "state_schema_version": 8,
+ "phases": {
+  "define": {
+   "gate_passed": false,
+   "submitted_by": null,
+   "submitted_at": null,
+   "structured": {
+    "business_case": "Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments to our suppliers are costing us: we paid about £62,000 in late-payment interest and lost early-payment discounts last year, and three key medical suppliers put us on stop twice this year, which held up ward stock.",
+    "team": [
+     {
+      "name": "Priya Shah",
+      "role": "Green Belt",
+      "function": "Leading the project and running it day to day"
+     },
+     {
+      "name": "Tom Okafor",
+      "role": "Finance Director",
+      "function": "Sponsor who signs off and clears blockers"
+     },
+     {
+      "name": "Lena Hart",
+      "role": "Accounts Payable Manager",
+      "function": "Process owner"
+     },
+     {
+      "name": "Dev Patel",
+      "role": "AP clerk",
+      "function": "Processes invoices; needs a half-day on data collection before Measure"
+     },
+     {
+      "name": "Amira Khan",
+      "role": "AP clerk",
+      "function": "Processes invoices; needs a half-day on data collection before Measure"
+     }
+    ],
+    "voc_summary": "Our customers are the suppliers, who need paying on the agreed 30-day terms, and our own ward managers, who need stock to keep arriving. Suppliers complain most about payments arriving late and not knowing when they will be paid; ward managers about deliveries being held. One more thing: suppliers also told us they cannot see the status of an invoice once it is submitted.",
+    "critical_to_quality": [
+     {
+      "customer": "suppliers",
+      "need": "payments made on the agreed 30-day terms",
+      "requirement": "paid within 30 days of the invoice date on every invoice"
+     },
+     {
+      "customer": "ward managers",
+      "need": "stock to keep arriving",
+      "requirement": "no supplier puts us on stop in a quarter"
+     }
+    ],
+    "problem_statement": "From January to June 2026, 23% of supplier invoices processed by the accounts payable team across our three hospital sites were paid after their 30-day terms. Suppliers chase us by phone and email, and some put us on stop, which delays ward stock and costs interest, lost discounts, and supplier trust. The delays occur at the resolve mismatches and approve steps, where invoices wait.",
+    "problem_5w2h": {
+     "what": "supplier invoices are paid after their 30-day terms",
+     "where": "the accounts payable team across our three hospital sites",
+     "when": "every month since January 2026 — I measured January to June",
+     "who": "the suppliers, and the ward managers whose stock gets held",
+     "why": "interest, lost discounts and supplier stops",
+     "how_much": "23% of invoices were paid late over January to June 2026 — one measure, the late payment rate",
+     "how": "suppliers chase us by phone and email, and some put us on stop",
+     "steps": [
+      "resolve mismatches",
+      "approve"
+     ]
+    },
+    "baseline_estimate": {
+     "value": 23.0,
+     "unit": "%",
+     "direction": null,
+     "is_estimate": false,
+     "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+    },
+    "metric_definitions": [
+     {
+      "name": "late_payment_rate",
+      "unit": "%",
+      "meaning": "The share of supplier invoices paid more than 30 days after the invoice date"
+     }
+    ],
+    "phase_metrics": [
+     {
+      "name": "late_payment_rate",
+      "unit": "%",
+      "baseline_estimate": {
+       "value": 23.0,
+       "unit": "%",
+       "direction": null,
+       "is_estimate": false,
+       "raw": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days."
+      },
+      "target_value": {
+       "value": 5.0,
+       "unit": "%",
+       "direction": "<=",
+       "is_estimate": false,
+       "raw": "Late payment rate: under 5% of supplier invoices."
+      },
+      "source": "stated"
+     }
+    ],
+    "project_scope": {
+     "in_scope": "Invoice receipt to payment release for purchase-order invoices at our three hospital sites",
+     "out_scope": "Non-PO invoices, payroll, procurement tendering, and the ERP system itself"
+    },
+    "goal_statement": "Reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.",
+    "target_value": {
+     "value": 5.0,
+     "unit": "%",
+     "direction": "<=",
+     "is_estimate": false,
+     "raw": "Late payment rate: under 5% of supplier invoices."
+    },
+    "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31).",
+    "benefits_analysis": {
+     "cost_of_gap": "About £68,000 a year in interest and lost discounts, from the savings calculation.",
+     "impact_type": "Sustainable — every year, not one-off.",
+     "realisation_schedule": "Starting in Q2 2027 at about £17,000 a quarter.",
+     "finance_contact": "Sam Reid, management accountant, who will validate the figure."
+    },
+    "computation_results": [
+     {
+      "tool": "calculate_expected_savings",
+      "inputs": {
+       "baseline_value": "23.0%",
+       "target_value": "5.0%",
+       "unit_cost": "£9",
+       "annual_volume": "42,000 invoices"
+      },
+      "result": {
+       "annual_savings": "68040",
+       "currency": "as supplied in unit_cost",
+       "calculation_note": "(23% baseline − 5% target) × 42000 units/year × 9 per unit = 68040 a year. Check the units agree: the rates are shares of the yearly volume, and the unit cost is the cost of one defect."
+      },
+      "turn": 25,
+      "phase": "define"
+     }
+    ],
+    "secondary_metrics": "Two things must not get worse: the number of supplier payment queries the AP team handles each month, and AP staff overtime hours. Both should stay at or below today's levels.",
+    "process_map_sipoc": {
+     "suppliers": [
+      "medical and general suppliers",
+      "purchasing team"
+     ],
+     "inputs": [
+      "supplier invoices",
+      "purchase orders",
+      "goods-received notes"
+     ],
+     "process_steps": [
+      {
+       "id": "S1",
+       "name": "Receive the invoice",
+       "duration": {
+        "avg": {
+         "value": 1.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "about 1 day"
+        },
+        "min": {
+         "value": 2.0,
+         "unit": "hours",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "2 hours"
+        },
+        "max": {
+         "value": 3.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "3 days"
+        }
+       },
+       "runs_per_period": {
+        "value": 600.0,
+        "unit": "per week",
+        "direction": null,
+        "is_estimate": false,
+        "raw": "about 600 a week"
+       },
+       "problems": []
+      },
+      {
+       "id": "S2",
+       "name": "Match",
+       "duration": {
+        "avg": {
+         "value": 1.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "about 1 day"
+        },
+        "min": {
+         "value": 1.0,
+         "unit": "hours",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "1 hour"
+        },
+        "max": {
+         "value": 2.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "2 days"
+        }
+       },
+       "runs_per_period": {
+        "value": 600.0,
+        "unit": "per week",
+        "direction": null,
+        "is_estimate": false,
+        "raw": "about 600 a week"
+       },
+       "problems": []
+      },
+      {
+       "id": "S3",
+       "name": "Resolve mismatches",
+       "duration": {
+        "avg": {
+         "value": 5.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "about 5 days"
+        },
+        "min": {
+         "value": 1.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "1 day"
+        },
+        "max": {
+         "value": 20.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "20 days"
+        }
+       },
+       "runs_per_period": {
+        "value": 140.0,
+        "unit": "per week",
+        "direction": null,
+        "is_estimate": false,
+        "raw": "about 140 a week"
+       },
+       "problems": [
+        {
+         "note": "Buyers answer queries late",
+         "said_by": "Dev"
+        }
+       ]
+      },
+      {
+       "id": "S4",
+       "name": "Approve",
+       "duration": {
+        "avg": {
+         "value": 4.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "about 4 days"
+        },
+        "min": {
+         "value": 1.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "1 day"
+        },
+        "max": {
+         "value": 15.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "15 days"
+        }
+       },
+       "runs_per_period": {
+        "value": 600.0,
+        "unit": "per week",
+        "direction": null,
+        "is_estimate": false,
+        "raw": "about 600 a week"
+       },
+       "problems": [
+        {
+         "note": "Approvers on leave and nobody covers",
+         "said_by": "Lena"
+        }
+       ]
+      },
+      {
+       "id": "S5",
+       "name": "Schedule and release payment",
+       "duration": {
+        "avg": {
+         "value": 2.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "about 2 days"
+        },
+        "min": {
+         "value": 1.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "1 day"
+        },
+        "max": {
+         "value": 4.0,
+         "unit": "days",
+         "direction": null,
+         "is_estimate": false,
+         "raw": "4 days"
+        }
+       },
+       "runs_per_period": {
+        "value": null,
+        "unit": "per week",
+        "direction": null,
+        "is_estimate": false,
+        "raw": "two payment runs a week"
+       },
+       "problems": []
+      }
+     ],
+     "outputs": [
+      "paid invoices",
+      "remittance advice"
+     ],
+     "customers": [
+      "suppliers",
+      "ward managers"
+     ],
+     "process_metrics": [
+      "days from invoice receipt to payment release",
+      "share of invoices with a match exception"
+     ],
+     "process_performance": {
+      "lead_time": {
+       "value": 12.0,
+       "unit": "days",
+       "direction": null,
+       "is_estimate": false,
+       "raw": "about 12 days"
+      },
+      "runs_per_period": {
+       "value": 600.0,
+       "unit": "per week",
+       "direction": null,
+       "is_estimate": false,
+       "raw": "about 600 invoices a week"
+      }
+     }
+    },
+    "issues_and_barriers": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter.",
+    "acknowledged_gaps": []
+   },
+   "analyst_output": null,
+   "citations": [],
+   "uploads": [],
+   "field_status": {},
+   "field_log": []
+  }
+ },
+ "_saved": {
+  "from": "IMPR-2026-15A (run 20261013T154211)",
+  "state_schema_version": 8,
+  "about": "every Define element confirmed, the report not submitted (slice 2)"
+ }
+}
