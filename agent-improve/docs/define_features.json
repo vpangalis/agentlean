@@ -6058,38 +6058,6 @@
    "stage": "coached",
    "layer": "coaching",
    "pilot": true
-  },
-  {
-   "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [
-    "DEF-015"
-   ],
-   "sources": {
-    "architecture": [],
-    "procedure": [],
-    "code": [
-     "agent-improve/backend/phases/nodes_common.py::_build_executor"
-    ],
-    "guidance": []
-   },
-   "lane": "A",
-   "priority_override": null,
-   "phase": "define",
-   "id": "DEF-168",
-   "description": "T69 as amended (ADR-0084): a fifth model call only for a grader-triggered revision — the revision regenerates the reply text only (no tool runs, no second store), never starts with less than 15 s before the deadline, and is never revised twice; the turn's call count includes it.",
-   "test": "backend/tests/test_define_e2e.py::test_t69_a_fifth_call_only_for_a_grader_revision",
-   "provenance": {
-    "steps": [],
-    "capability_rows": [],
-    "gaps": []
-   },
-   "requirement": "T69",
-   "belt_impact": "degraded",
-   "rework_risk": "high",
-   "effort": "M",
-   "stage": "coached",
-   "layer": "coaching",
-   "pilot": true
   }
  ]
 }

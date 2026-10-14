@@ -124,26 +124,5 @@ class GraderVerdict(BaseModel):
         return not self.failed
 
 
-class CriterionCheck(BaseModel):
-    """Grader v2 (ADR-0084) — one criterion's judgement of one reply. **The order of the fields is the
-    order the model writes them in**: the reasoning first, then the sentence quoted from the reply as
-    evidence, then the verdict — a verdict written before its reasons is the v1 flaw this order removes."""
-
-    criterion: Literal["C1", "C2", "C3", "C4"] = Field(description="Which criterion: C1, C2, C3 or C4.")
-    reasoning: str = Field(description="Why, in one to three sentences, before any verdict.")
-    evidence: str = Field(
-        default="",
-        description="One sentence copied word for word from the reply that the verdict rests on; empty only "
-                    "when the verdict is not_applicable.")
-    verdict: Literal["pass", "fail", "not_applicable"] = Field(
-        description="pass, fail, or not_applicable when the criterion does not apply to this reply.")
-
-
-class GraderV2Verdict(BaseModel):
-    """Grader v2 (ADR-0084) — the reply's judgement, one entry per criterion asked about."""
-
-    criteria: list[CriterionCheck] = Field(default_factory=list)
-
-
 __all__ = ["CriterionResult", "CoachingGraderVerdict",
-           "CriterionVerdict", "GraderVerdict", "CriterionCheck", "GraderV2Verdict"]
+           "CriterionVerdict", "GraderVerdict"]

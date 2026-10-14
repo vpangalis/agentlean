@@ -114,6 +114,18 @@ def test_rule_21_passes_superseding_an_accepted_adr_and_a_link_only_change(repo)
     g.check_adr_immutability(str(repo), staged)
 
 
+def test_rule_21_passes_withdrawing_an_accepted_adr_but_not_withdrawing_and_editing(repo) -> None:
+    """Founder, 2026-10-14 (ADR-0084): a decision taken back with nothing in its place is WITHDRAWN."""
+    g = _guard()
+    withdrawn = _read(repo, _ADR).replace("Status: ACCEPTED (founder, 2026-09-27)",
+                                          "Status: WITHDRAWN (founder, 2026-10-14: taken back)")
+    g.check_adr_immutability(str(repo), _stage(repo, _ADR, withdrawn))
+    _git(repo, "reset", "-q", "--hard")
+    staged = _stage(repo, _ADR, withdrawn.replace("on every commit", "on each commit"))
+    with pytest.raises(SystemExit):
+        g.check_adr_immutability(str(repo), staged)
+
+
 def test_rule_21_refuses_deleting_a_record(repo) -> None:
     _git(repo, "rm", "-q", _NEW_ADR)
     staged = _git(repo, "diff", "--cached", "--name-only").splitlines()

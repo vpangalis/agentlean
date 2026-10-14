@@ -8,7 +8,7 @@ and each requirement names the ADR behind it in its `Design:` field.
 
 | Part | Holds |
 |---|---|
-| Status | `PROPOSED`, `ACCEPTED` or `SUPERSEDED by NNNN`, with who ruled and when |
+| Status | `PROPOSED`, `ACCEPTED`, `SUPERSEDED by NNNN` or `WITHDRAWN`, with who ruled and when |
 | Context | The forces: what is true, what the requirement asks, what the framework offers |
 | Decision | What is done, numbered, with where it is wired |
 | Consequences | What follows — costs, what changes in `ARCHITECTURE.md` and when |
@@ -21,10 +21,12 @@ flowchart LR
   P[PROPOSED] -- "founder accepts" --> A[ACCEPTED]
   A -- "a new ADR replaces it" --> S["SUPERSEDED by NNNN"]
   P -- "founder rejects: a new ADR" --> S
+  A -- "founder takes it back, nothing replaces it" --> W[WITHDRAWN]
 ```
 
 - **An ADR is never edited, only superseded.** A changed decision is a new ADR; the old one's
-  status line becomes `SUPERSEDED by NNNN` and nothing else changes. A change to link targets only
+  status line becomes `SUPERSEDED by NNNN` and nothing else changes. A decision the founder takes back
+  with nothing in its place has its status line become `WITHDRAWN (who, when, why)`. A change to link targets only
   is allowed. Guard rule 21 refuses any other change to an ACCEPTED record
   (`tools/control_board/adrs.py`).
 - **The design gate** (guard rule 19): a feature whose requirement says `Design: ADR-nnnn` lands
@@ -120,5 +122,5 @@ Generated from each file's status line; never typed.
 | [0081](0081-two-independent-judges-log-only-until-proven.md) | Two independent judges on every reply, each log-only until proven | ACCEPTED | — |
 | [0082](0082-model-fallback-keeps-refusals-and-token-limits-out.md) | The coach's model fallback as shipped, with refusals and token-limit errors kept out of it | ACCEPTED | — |
 | [0083](0083-retire-the-ai-coherence-judge.md) | The AI coherence judge (layer 2a) is retired | ACCEPTED | — |
-| [0084](0084-grader-v2-evaluator-with-reflection.md) | Grader v2 — the evaluator judges the reply the Belt sees, on four criteria, and the coach revises once | ACCEPTED | — |
+| [0084](0084-grader-v2-evaluator-with-reflection.md) | Grader v2 — the evaluator judges the reply the Belt sees, on four criteria, and the coach revises once | WITHDRAWN | — |
 <!-- END ADR INDEX -->

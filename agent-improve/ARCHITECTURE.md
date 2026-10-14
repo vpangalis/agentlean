@@ -522,11 +522,6 @@ Tier 1 fields can fail a gate; Tier 2 can only warn and become an acknowledged g
 reference dicts are checked by Store lookup of the referenced phase's `phase_metrics` entry. The
 grader reads `belt_level` from the case record.
 
-**Grader v2, the per-turn evaluator (ADR-0084):** `validation/grader_v2.py::grade` judges the reply the
-Belt sees on C1–C4 (`prompts.GRADER_V2_CRITERIA`; which apply is `MOVE_CRITERIA`), reasoning before a
-quoted sentence before the verdict (`schemas.GraderV2Verdict`), after two code checks. Built and measured
-log-only; the node after the executor and the one revision come next.
-
 ### 3.9 API
 
 Generated from the code on every commit: [docs/api-routes.md](docs/api-routes.md).

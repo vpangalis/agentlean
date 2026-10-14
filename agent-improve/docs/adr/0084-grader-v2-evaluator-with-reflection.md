@@ -1,6 +1,6 @@
 # ADR-0084: Grader v2 — the evaluator judges the reply the Belt sees, on four criteria, and the coach revises once
 
-Status: ACCEPTED (founder, 2026-10-14, with the points of decisions 7, 9 and 10; drafted by Claude Code from the rulings)
+Status: WITHDRAWN (founder, 2026-10-14: "grader stays middleware, log-only; findings reported per run; calibration after Define" — no v2 node, no revision loop, no T69 change; accepted earlier the same day)
 Requirements: R1, R2, R3, R6 (the coaching moves); T69 (the call budget — see decision 7); DEF-015
 Supersedes, when accepted: ADR-0081 decision 2's grader half (its log-only line stays until v2 passes);
 the B2 rubric of 7e68b96 for the per-turn grader

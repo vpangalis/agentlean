@@ -4511,9 +4511,3 @@ def test_the_problem_statement_and_the_process_steps_are_linked_both_ways(env, m
 def test_t95_past_case_search_returns_completed_cases_only() -> None:
     """DEF-165 — T95: past-case search returns completed cases only (before customers)."""
     _not_written('DEF-165')
-
-
-def test_t69_a_fifth_call_only_for_a_grader_revision() -> None:
-    """DEF-168 — T69 as amended (ADR-0084): a fifth model call only for a grader-triggered revision, which
-    regenerates the reply text only, never starts with less than 15 s left and is never revised twice."""
-    _not_written('DEF-168')
