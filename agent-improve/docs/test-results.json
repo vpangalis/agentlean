@@ -1,9 +1,9 @@
 {
- "source_hash": "19c0883f0d105a53",
- "commit": "f213021",
+ "source_hash": "13faebff6a647d39",
+ "commit": "06834d8",
  "commit_matches_source": false,
- "full_run_hash": "19c0883f0d105a53",
- "recorded_at": "2026-10-14T08:15:58+00:00",
+ "full_run_hash": "13faebff6a647d39",
+ "recorded_at": "2026-10-14T08:21:50+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1475,6 +1475,7 @@
   "backend/tests/test_run_records.py::test_g153_a_run_with_more_than_one_cut_off_fails": "passed",
   "backend/tests/test_run_records.py::test_the_founders_sheet_is_read_and_right_for_the_wrong_reason_is_counted_apart": "passed",
   "backend/tests/test_run_records.py::test_the_judge_evaluation_scores_false_rejects_and_false_accepts_against_the_labels": "passed",
+  "backend/tests/test_runthrough_report.py::test_the_grader_findings_section_reads_each_turns_step_log": "passed",
   "backend/tests/test_runthrough_tokens.py::test_each_call_records_its_tokens_and_the_run_totals_them": "passed",
   "backend/tests/test_session_start.py::test_the_session_start_hook_prints_every_section": "passed",
   "backend/tests/test_size_budget.py::test_an_unbudgeted_file_is_never_measured": "passed",
@@ -1716,8 +1717,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "19184a19bacdeafb",
-  "recorded_at": "2026-10-14T07:12:48+00:00",
+  "source_hash": "19c0883f0d105a53",
+  "recorded_at": "2026-10-14T08:15:58+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -3390,6 +3391,7 @@
    "backend/tests/test_procedure_guards.py::test_rule_19_refuses_landing_a_feature_whose_adr_is_proposed": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_20_refuses_a_requirement_change_without_a_ruling_and_passes_with_one": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_passes_superseding_an_accepted_adr_and_a_link_only_change": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_21_passes_withdrawing_an_accepted_adr_but_not_withdrawing_and_editing": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_refuses_an_edit_to_an_accepted_adr": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_refuses_deleting_a_record": "passed",
    "backend/tests/test_prompt_record.py::test_hook_lines_group_into_commit_attempts": "passed",

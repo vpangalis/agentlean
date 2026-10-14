@@ -374,8 +374,10 @@ def test_run_an_answer_is_judged_at_most_once(run) -> None:
 
 
 def test_run_most_coaching_turns_are_graded(run) -> None:
-    """DEF-015 on the live run: the grader runs on the coaching turns — a turn goes ungraded only
-    when coherence rejected it (S-C13 B3) — at least 90% of them."""
+    """DEF-015 on the live run, proven by coverage (founder ruling 2026-10-14): every coached reply has a
+    logged grader verdict — its step_log entry, carried on the record's turn — and the record's summary has
+    the "Grader findings" section."""
     coached = [t for t in run["turns"] if "coach" in (t.get("model_calls") or [])]
-    graded = [t for t in coached if "grader" in t["model_calls"]]
-    assert coached and len(graded) >= 0.9 * len(coached), (len(graded), len(coached))
+    without = [t["n"] for t in coached if not (t.get("grader") or {}).get("status")]
+    assert coached and not without, ("coached replies with no logged grader verdict", without)
+    assert "grader_findings" in run["summary"], "the record has no Grader findings section"

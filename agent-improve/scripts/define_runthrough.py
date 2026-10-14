@@ -269,6 +269,8 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             "limit": mrec.get("limit"),
             "resend": bool(mrec.get("resend")),
             "error": None if resp.status_code == 200 else resp.text[:400],
+            # Founder ruling 2026-10-14: the log-only grader's verdict on this reply, from step_log.
+            "grader": grader_entry(case_id, message),
         }
         # Founder ruling 3, 2026-09-28: the stored state is checked after EVERY Confirm — a Confirm
         # that moved on must have stored its element; one that did not must say so (G-117, G-121).
@@ -416,11 +418,14 @@ def main() -> int:
                # G-153 (founder 2026-10-11): the calls cut off at their token limit, counted per run.
                "cut_offs": cut_offs(walk), **out}
     summary["cost"] = _cost(summary["tokens"])
+    summary["grader_findings"] = grader_findings([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines()
+                                                  if l.strip()])
     # Founder ruling 2026-10-12 (turn time): median and 90th percentile per turn type, p90 watched.
     summary["turn_times"] = turn_times([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines()
                                         if l.strip()])
     _write(rec, summary)
     print(json.dumps(summary, indent=1, default=str))
+    print(grader_findings_text(summary["grader_findings"]))
     _time_it(started, len(CALLS))
     tree = OUT_DIR / f"define_runthrough_{stamp}.json"
     tree.write_text(json.dumps([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines() if l.strip()],
@@ -442,6 +447,63 @@ def _scenarios_only(scratch: Path) -> int:
         result = run_all(client, lambda e: _write(rec, e), GOOD)
     print(f"scenarios: {result}; record: {rec}; USD {_cost(token_totals(CALLS)).get('usd')}")
     return 0 if all(result.values()) else 6
+
+
+def grader_entry(case_id: str, belt: str) -> dict[str, Any] | None:
+    """Founder ruling 2026-10-14 — the grader's step_log entry for the turn just sent (the log-only
+    after_agent middleware, unchanged): status, move, and each failed criterion with the grader's reason.
+    Read from the define subgraph's latest checkpoint, and only when that checkpoint is this turn's (its
+    last Belt message is the one sent); None when the turn ran no coach (a reply written in code)."""
+    from scripts.coaching_proof_656 import _latest_final
+    try:
+        final = _latest_final(case_id)
+    except Exception as exc:  # noqa: BLE001 — a report line, never a stopped run
+        return {"status": "unread", "error": f"{type(exc).__name__}: {exc}"[:200]}
+    human = [m for m in final.get("messages") or [] if getattr(m, "type", "") == "human"]
+    if not human or str(human[-1].content).strip() != str(belt or "").strip():
+        return None
+    g = next((e for e in final.get("step_log") or [] if isinstance(e, dict) and e.get("node") == "coaching_grader"),
+             None)
+    if g is None:
+        return None
+    return {"status": g.get("status"), "move": g.get("move"),
+            "failed": [{"criterion": f.get("criterion"), "reason": f.get("feedback") or ""}
+                       for f in g.get("failed") or [] if isinstance(f, dict)]}
+
+
+def grader_findings(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Founder ruling 2026-10-14 — the report's "Grader findings": per flagged turn, the turn, move, element,
+    failed criterion and the grader's reason; counts per criterion; and coverage — every coached reply has
+    a logged verdict (DEF-015). Read from the record's turns, which carry the step_log entry."""
+    turns = [e for e in entries if e.get("kind") == "turn"]
+    coached = [t for t in turns if "coach" in (t.get("model_calls") or [])]
+    flagged = [{"n": t["n"], "move": (t.get("grader") or {}).get("move") or t.get("move"), "element": t.get("field"),
+                "criterion": f["criterion"], "reason": f["reason"]}
+               for t in turns if (t.get("grader") or {}).get("status") == "failed"
+               for f in (t.get("grader") or {}).get("failed") or []]
+    per: dict[str, int] = {}
+    for f in flagged:
+        per[str(f["criterion"])] = per.get(str(f["criterion"]), 0) + 1
+    statuses: dict[str, int] = {}
+    for t in coached:
+        s = str((t.get("grader") or {}).get("status") or "no verdict")
+        statuses[s] = statuses.get(s, 0) + 1
+    return {"coached_replies": len(coached), "verdicts": statuses,
+            "without_verdict": [t["n"] for t in coached if not (t.get("grader") or {}).get("status")],
+            "flagged_turns": sorted({f["n"] for f in flagged}), "per_criterion": dict(sorted(per.items())),
+            "findings": flagged}
+
+
+def grader_findings_text(g: dict[str, Any]) -> str:
+    """The section as printed at the end of a run."""
+    lines = ["", "## Grader findings (log-only)",
+             f"coached replies {g['coached_replies']} · verdicts {g['verdicts']} · without a verdict "
+             f"{g['without_verdict'] or 'none'}",
+             "per criterion: " + (", ".join(f"{c} {k}" for c, k in g["per_criterion"].items()) or "none failed"),
+             "", "| turn | move | element | criterion | grader's reason |", "|---|---|---|---|---|"]
+    lines += [f"| {f['n']} | {f['move']} | {f['element']} | {f['criterion']} | "
+              f"{str(f['reason']).replace('|', '/').replace(chr(10), ' ')} |" for f in g["findings"]]
+    return "\n".join(lines)
 
 
 def _cost(tokens: dict[str, Any]) -> dict[str, Any]:
