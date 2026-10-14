@@ -339,6 +339,11 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
                      "model_calls": [c["kind"] for c in CALLS[c0:]], "body": decided})
         print(f"gate decision {dc.status_code}")
         if dc.status_code == 200:
+            # T23, live (founder 2026-10-14): the approval wrote the gate document once — the Store's
+            # record and the case's confirmed values agree, and a second approval changes neither.
+            out["t23"] = t23_check(client, case_id)
+            _write(rec, {"kind": "t23_check", **out["t23"]})
+            print(f"T23 live check: {out['t23']}")
             c0, t0 = len(CALLS), time.time()
             ms = client.post("/ask", json={"case_id": case_id, "phase": "measure", "user": USER,
                                            "message": "We're ready for Measure. Where do we start?"})
@@ -449,6 +454,28 @@ def _scenarios_only(scratch: Path) -> int:
     return 0 if all(result.values()) else 6
 
 
+def t23_check(client: Any, case_id: str) -> dict[str, Any]:
+    """T23 on the live run (founder 2026-10-14): after the approval the Store holds the Define gate
+    document, every value in it equals the case's confirmed value, and a second approval request changes
+    neither the Store record nor the case (written once)."""
+    from backend.core.store import get_store
+    from backend.phases.mappers_common import read_gate_document
+
+    def snapshot() -> tuple[dict[str, Any], dict[str, Any]]:
+        doc = read_gate_document(get_store(), case_id, "define") or {}
+        structured = ((client.get(f"/cases/{case_id}").json().get("phases") or {}).get("define") or {}).get(
+            "structured") or {}
+        return dict(doc), dict(structured)
+    doc, structured = snapshot()
+    differ = sorted(k for k in doc if k in structured and doc[k] != structured[k])
+    again = client.post("/gate/decision", json={"case_id": case_id, "phase": "define", "decision": "approve",
+                                               "actor": "Priya Shah"})
+    doc2, structured2 = snapshot()
+    return {"store_written": bool(doc), "fields_in_store": len(doc), "differ_from_case": differ,
+            "second_approval_http": again.status_code, "unchanged_after_second": doc2 == doc and structured2 == structured,
+            "passed": bool(doc) and not differ and doc2 == doc and structured2 == structured}
+
+
 def grader_entry(case_id: str, belt: str) -> dict[str, Any] | None:
     """Founder ruling 2026-10-14 — the grader's step_log entry for the turn just sent (the log-only
     after_agent middleware, unchanged): status, move, and each failed criterion with the grader's reason.
@@ -467,8 +494,13 @@ def grader_entry(case_id: str, belt: str) -> dict[str, Any] | None:
     if g is None:
         return None
     return {"status": g.get("status"), "move": g.get("move"),
-            "failed": [{"criterion": f.get("criterion"), "reason": f.get("feedback") or ""}
-                       for f in g.get("failed") or [] if isinstance(f, dict)]}
+            # Founder 2026-10-14: G1–G5 with the sentence of the reply each fail quotes; a fail with no
+            # quote is not counted and is shown apart.
+            "failed": [{"criterion": f.get("criterion"), "reason": f.get("feedback") or "",
+                        "evidence": f.get("evidence") or ""}
+                       for f in g.get("failed") or [] if isinstance(f, dict)],
+            "not_counted": [{"criterion": f.get("criterion"), "reason": f.get("feedback") or ""}
+                            for f in g.get("not_counted") or [] if isinstance(f, dict)]}
 
 
 def grader_findings(entries: list[dict[str, Any]]) -> dict[str, Any]:
@@ -478,7 +510,7 @@ def grader_findings(entries: list[dict[str, Any]]) -> dict[str, Any]:
     turns = [e for e in entries if e.get("kind") == "turn"]
     coached = [t for t in turns if "coach" in (t.get("model_calls") or [])]
     flagged = [{"n": t["n"], "move": (t.get("grader") or {}).get("move") or t.get("move"), "element": t.get("field"),
-                "criterion": f["criterion"], "reason": f["reason"]}
+                "criterion": f["criterion"], "reason": f["reason"], "evidence": f.get("evidence") or ""}
                for t in turns if (t.get("grader") or {}).get("status") == "failed"
                for f in (t.get("grader") or {}).get("failed") or []]
     per: dict[str, int] = {}
@@ -488,7 +520,8 @@ def grader_findings(entries: list[dict[str, Any]]) -> dict[str, Any]:
     for t in coached:
         s = str((t.get("grader") or {}).get("status") or "no verdict")
         statuses[s] = statuses.get(s, 0) + 1
-    return {"coached_replies": len(coached), "verdicts": statuses,
+    uncounted = sum(len((t.get("grader") or {}).get("not_counted") or []) for t in turns)
+    return {"coached_replies": len(coached), "verdicts": statuses, "not_counted": uncounted,
             "without_verdict": [t["n"] for t in coached if not (t.get("grader") or {}).get("status")],
             "flagged_turns": sorted({f["n"] for f in flagged}), "per_criterion": dict(sorted(per.items())),
             "findings": flagged}
@@ -500,8 +533,11 @@ def grader_findings_text(g: dict[str, Any]) -> str:
              f"coached replies {g['coached_replies']} · verdicts {g['verdicts']} · without a verdict "
              f"{g['without_verdict'] or 'none'}",
              "per criterion: " + (", ".join(f"{c} {k}" for c, k in g["per_criterion"].items()) or "none failed"),
-             "", "| turn | move | element | criterion | grader's reason |", "|---|---|---|---|---|"]
+             f"fails given without a quoted sentence (not counted): {g.get('not_counted', 0)}",
+             "", "| turn | move | element | criterion | the sentence quoted | grader's reason |",
+             "|---|---|---|---|---|---|"]
     lines += [f"| {f['n']} | {f['move']} | {f['element']} | {f['criterion']} | "
+              f"{str(f.get('evidence') or '').replace('|', '/').replace(chr(10), ' ')} | "
               f"{str(f['reason']).replace('|', '/').replace(chr(10), ' ')} |" for f in g["findings"]]
     return "\n".join(lines)
 

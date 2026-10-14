@@ -373,6 +373,23 @@ def test_run_an_answer_is_judged_at_most_once(run) -> None:
     assert not over and not clicks, (over, clicks)
 
 
+def test_run_the_approval_writes_the_gate_document_once(run) -> None:
+    """T23 on the live run (founder 2026-10-14): after the approval the Store holds the Define gate document,
+    it agrees with the case's confirmed values, and a second approval changes nothing."""
+    check = run.get("t23_check")
+    assert check, "the record has no T23 check — the run did not approve, or predates the check"
+    assert check["passed"], check
+
+
+def test_run_every_grader_fail_quotes_its_sentence(run) -> None:
+    """Founder ruling 2026-10-14 (G1–G5): every counted fail in the record carries the sentence of the reply
+    it quotes; fails without one are counted apart, never as findings."""
+    findings = (run["summary"].get("grader_findings") or {}).get("findings") or []
+    unquoted = [(f["n"], f["criterion"]) for f in findings if not str(f.get("evidence") or "").strip()
+                and f["criterion"] != "no external URLs"]
+    assert not unquoted, unquoted
+
+
 def test_run_most_coaching_turns_are_graded(run) -> None:
     """DEF-015 on the live run, proven by coverage (founder ruling 2026-10-14): every coached reply has a
     logged grader verdict — its step_log entry, carried on the record's turn — and the record's summary has

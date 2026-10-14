@@ -1,9 +1,9 @@
 {
- "source_hash": "b68ef6f08da3e953",
- "commit": "6a4cad3",
+ "source_hash": "861715dfc8646cbc",
+ "commit": "a7fe5fd",
  "commit_matches_source": false,
- "full_run_hash": "b68ef6f08da3e953",
- "recorded_at": "2026-10-14T11:05:24+00:00",
+ "full_run_hash": "861715dfc8646cbc",
+ "recorded_at": "2026-10-14T11:11:38+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -647,6 +647,7 @@
   "backend/tests/test_define_runthrough.py::test_run_a_weak_answer_is_challenged_not_completed": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_an_answer_is_judged_at_most_once": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_an_untaught_field_is_taught_example_before_ask": "skipped",
+  "backend/tests/test_define_runthrough.py::test_run_every_grader_fail_quotes_its_sentence": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_every_turn_answers_inside_its_time_limit": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_every_turn_states_its_step": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[1-business_case]": "skipped",
@@ -670,6 +671,7 @@
   "backend/tests/test_define_runthrough.py::test_run_scenario_d_a_parked_element_is_resumed": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_scenario_e_an_upload_is_read_back_and_stored": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_sends_no_trace": "skipped",
+  "backend/tests/test_define_runthrough.py::test_run_the_approval_writes_the_gate_document_once": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_the_validation_layer_is_consistent_over_five_runs": "skipped",
   "backend/tests/test_define_runthrough.py::test_runthrough_metric_meaning_comes_from_the_registry": "skipped",
   "backend/tests/test_define_runthrough.py::test_runthrough_no_reply_carries_a_link": "skipped",
@@ -1724,8 +1726,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "226b154e8e2f2df6",
-  "recorded_at": "2026-10-14T10:48:03+00:00",
+  "source_hash": "b68ef6f08da3e953",
+  "recorded_at": "2026-10-14T11:05:24+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2413,7 +2415,7 @@
    "backend/tests/test_define_e2e.py::test_the_coach_says_when_values_it_read_were_masked": "passed",
    "backend/tests/test_define_e2e.py::test_the_create_form_shows_no_case_id_the_server_did_not_assign": "passed",
    "backend/tests/test_define_e2e.py::test_the_creator_is_the_project_lead_and_alone_manages_the_team": "skipped",
-   "backend/tests/test_define_e2e.py::test_the_define_report_has_the_visual_of_every_section": "skipped",
+   "backend/tests/test_define_e2e.py::test_the_define_report_has_the_visual_of_every_section": "passed",
    "backend/tests/test_define_e2e.py::test_the_four_blocks_reach_the_screen": "skipped",
    "backend/tests/test_define_e2e.py::test_the_gate_screen_shows_the_document_and_acts_on_the_pause": "passed",
    "backend/tests/test_define_e2e.py::test_the_gate_write_keeps_the_change_log_and_uploads": "passed",

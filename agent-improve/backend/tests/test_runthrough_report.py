@@ -13,11 +13,15 @@ def test_the_grader_findings_section_reads_each_turns_step_log(monkeypatch) -> N
 
     final = {"messages": [HumanMessage(content="Our scope is invoices."), AIMessage(content="Here is the scope.")],
              "step_log": [{"node": "coaching_grader", "status": "failed", "move": "read_back",
-                           "failed": [{"criterion": "C3", "feedback": "adds a step the Belt did not give"}]}]}
+                           "failed": [{"criterion": "G3", "feedback": "adds a step the Belt did not give",
+                                       "evidence": "Then it is approved twice."}],
+                           "not_counted": [{"criterion": "G1", "feedback": "unquoted", "evidence": ""}]}]}
     monkeypatch.setattr(proof, "_latest_final", lambda case_id: final)
     entry = R.grader_entry("case-1", "Our scope is invoices.")
     assert entry == {"status": "failed", "move": "read_back",
-                     "failed": [{"criterion": "C3", "reason": "adds a step the Belt did not give"}]}
+                     "failed": [{"criterion": "G3", "reason": "adds a step the Belt did not give",
+                                 "evidence": "Then it is approved twice."}],
+                     "not_counted": [{"criterion": "G1", "reason": "unquoted"}]}
     assert R.grader_entry("case-1", "Confirm") is None          # the checkpoint is another turn's
     turns = [{"kind": "turn", "n": 4, "field": "project_scope", "move": "read_back", "model_calls": ["coach", "grader"],
               "grader": entry},
@@ -26,8 +30,10 @@ def test_the_grader_findings_section_reads_each_turns_step_log(monkeypatch) -> N
              {"kind": "turn", "n": 6, "model_calls": ["coach"], "grader": None},
              {"kind": "turn", "n": 7, "model_calls": [], "grader": None}]
     g = R.grader_findings(turns)
-    assert g["findings"] == [{"n": 4, "move": "read_back", "element": "project_scope", "criterion": "C3",
-                              "reason": "adds a step the Belt did not give"}]
-    assert g["per_criterion"] == {"C3": 1} and g["coached_replies"] == 3 and g["without_verdict"] == [6]
+    assert g["findings"] == [{"n": 4, "move": "read_back", "element": "project_scope", "criterion": "G3",
+                              "reason": "adds a step the Belt did not give", "evidence": "Then it is approved twice."}]
+    assert g["per_criterion"] == {"G3": 1} and g["coached_replies"] == 3 and g["without_verdict"] == [6]
+    assert g["not_counted"] == 1
     text = R.grader_findings_text(g)
-    assert "## Grader findings" in text and "| 4 | read_back | project_scope | C3 |" in text
+    assert "## Grader findings" in text and "| 4 | read_back | project_scope | G3 | Then it is approved twice. |" in text
+    assert "not counted): 1" in text

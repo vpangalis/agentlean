@@ -1071,8 +1071,26 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
 
 
 def test_define_is_done_within_forty_turns_none_over_45_seconds() -> None:
-    """DEF-093 — A fresh case with the scripted persona reaches an approved Define report in at most 40 Belt turns, no turn over 45 s, no element unreachable; the run-"""
-    _not_written('DEF-093')
+    """DEF-093 — R12, on the latest live run-through (bound to the product source like every run test): a
+    fresh case with the scripted persona reaches an APPROVED Define report in at most 40 Belt turns, no turn
+    over 45 s, no element unreachable (the walk ends done, never stuck), and the record carries the turns,
+    the model calls, the time and the cost."""
+    from backend.tests.test_define_runthrough import _load, features
+
+    run = _load()
+    s = run.get("summary") or {}
+    assert s.get("product_hash") == features.product_hash(), \
+        f"{run['file']} ran on older product source — the record is stale, re-run the run-through"
+    turns = run["turns"]
+    assert s.get("stopped") == "done" and not s.get("stuck_at"), (s.get("stopped"), s.get("stuck_at"))
+    assert len(turns) <= 40, f"{len(turns)} Belt turns"
+    slow = [(t["n"], t.get("seconds")) for t in turns if (t.get("seconds") or 0) > 45]
+    assert not slow, f"turns over 45 s: {slow}"
+    decision = run.get("gate_decision") or {}
+    assert decision.get("http") == 200, decision
+    assert (run.get("final_case") or {}).get("current_phase") == "measure", "the Define report was not approved"
+    assert s.get("model_calls") and s.get("minutes") is not None and (s.get("cost") or {}).get("usd") is not None, \
+        {k: s.get(k) for k in ("model_calls", "minutes", "cost")}
 
 
 def test_an_ordinary_turn_makes_at_most_four_model_calls(env, monkeypatch) -> None:
