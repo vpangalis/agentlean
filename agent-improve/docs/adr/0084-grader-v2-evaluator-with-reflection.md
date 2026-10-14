@@ -1,6 +1,6 @@
 # ADR-0084: Grader v2 — the evaluator judges the reply the Belt sees, on four criteria, and the coach revises once
 
-Status: PROPOSED (drafted by Claude Code from the founder's ruling of 2026-10-14; build after the founder's OK)
+Status: ACCEPTED (founder, 2026-10-14, with the points of decisions 7, 9 and 10; drafted by Claude Code from the rulings)
 Requirements: R1, R2, R3, R6 (the coaching moves); T69 (the call budget — see decision 7); DEF-015
 Supersedes, when accepted: ADR-0081 decision 2's grader half (its log-only line stays until v2 passes);
 the B2 rubric of 7e68b96 for the per-turn grader
@@ -54,14 +54,17 @@ fails: before B2, 52% false fails and 47% false passes; after B2's rubric, 60% /
    - **C4 One clear next step** — ends with one clear question or action; after a store, the next element;
      never re-confirms a stored value.
    - C7 (raw statistical output) is kept for Measure and Analyse; not applicable in Define.
+   - The two lines of the old rubric outside C1–C4 become **code checks** (founder, 2026-10-14): no external
+     URLs (DEF-019's link removal, now also a check), and on the phase's topic (the reply names the phase or
+     one of its elements). A failed code check is a failed reply, as a failed criterion is.
 4. **An explicit move → criteria table** replaces keyword filtering:
 
    | Move | C1 | C2 | C3 | C4 |
    |---|---|---|---|---|
    | teach | ✓ | n/a | ✓ (nothing added) | ✓ |
    | challenge | n/a | ✓ | ✓ | ✓ |
-   | read_back | n/a | ✓ (no vague value let through) | ✓ | ✓ |
-   | store_and_advance | ✓ (the next element) | n/a | n/a | ✓ |
+   | read_back | n/a | ✓ (no vague value let through — confirmed by the founder) | ✓ | ✓ |
+   | store_and_advance | ✓ (judged on the next element's teaching — confirmed by the founder) | n/a | n/a | ✓ |
    | respond | n/a | n/a | ✓ | ✓ |
    | offer_park | n/a | n/a | n/a | ✓ |
 
@@ -70,16 +73,20 @@ fails: before B2, 52% false fails and 47% false passes; after B2's rubric, 60% /
 6. **Its output, per criterion and in this order:** `reasoning`, `evidence` (a sentence quoted from the
    reply, or empty), `verdict` (pass | fail | not_applicable). A fail without a quoted sentence is
    recorded as not checked, never as a fail. The reply passes when no applicable criterion fails.
-7. **The call budget.** Reflection needs up to two more calls on a failed turn (the revision and its
-   grade). T69 allows four: planner judgment, coach, one after-agent check — the coherence call freed by
-   ADR-0083 covers the revision, not its grade. **Open for the founder:** (a) T69 rises to five on a turn
-   that revises; (b) the revision is sent ungraded when the budget is spent; (c) reflection only on
-   teaching turns, where no planner call was made. Every option stays inside the 45 s deadline: no
-   revision starts with less than 15 s left (ADR-0080's clock).
+7. **The call budget (founder, option a).** T69 allows a fifth model call only on a turn that revises:
+   the coherence call ADR-0083 freed covers the revision, the fifth its grade. A revision never starts with
+   less than 15 s before the 45 s deadline (ADR-0080's clock). A revision that fails again is sent and
+   logged — never revised twice.
 8. **Log-only until accepted:** the node grades and records (`step_log`, with the evidence); it routes back
    only in `enforce` mode. Accepted per criterion against the founder's labels: ≥ 90% repeatability on
    replay, ≤ 20% false fails, ≤ 20% false passes — measured on gpt-4o-mini and gpt-4o by replay before the
    model is chosen.
+9. **A revision regenerates the reply text only** (founder): the coach is called once more with the
+   grader's quoted feedback and no tools; nothing is stored again, no move is decided again, and the turn's
+   model calls are counted with it. The revised reply names the one it replaces, and every reader of the
+   conversation (the coach's next input, the reload, the route's answer) shows the revised one only.
+10. **Tests for each** (founder): no tool runs in a revision, no second store, the call count, the 15 s
+   floor, never revised twice.
 
 ## Consequences
 
