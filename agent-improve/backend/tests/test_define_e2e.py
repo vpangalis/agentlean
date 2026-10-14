@@ -1070,6 +1070,12 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     assert "isinstance(error.error, NodeTimeoutError)" in inspect.getsource(nodes_common.executor_timeout_handler)
 
 
+
+def test_a_step_time_with_one_end_of_its_range_reads_in_words() -> None:
+    """DEF-172 — G-179 (founder 2026-10-14, before customers): a step with only a maximum (or only a minimum)
+    time reads in words in the report, never "(? to 20 days)"."""
+    _not_written('DEF-172')
+
 def test_define_is_done_within_forty_turns_none_over_45_seconds() -> None:
     """DEF-093 — R12, on the latest live run-through (bound to the product source like every run test): a
     fresh case with the scripted persona reaches an APPROVED Define report in at most 40 Belt turns, no turn

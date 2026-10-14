@@ -1899,6 +1899,19 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-179",
+   "symptom": "THE REPORT SHOWS A STEP WITH ONLY A MAXIMUM TIME AS \"6 days (? to 20 days)\". Seen 2026-10-14 writing DEF-088's test: section 6's step table (ui/index.html defineReportHtml) writes the range as \"(min to max)\" and puts \"?\" for the missing end. D4 OCCURRENCE: the cell's template assumes both ends or neither. D4 ESCAPE: no test drew a step with one end of its range. Before customers (founder 2026-10-14).",
+   "requirement": [
+    "R5"
+   ],
+   "feature": [
+    "DEF-172"
+   ],
+   "lane": [
+    "C"
+   ]
   }
  ]
 }

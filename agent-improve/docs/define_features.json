@@ -3722,6 +3722,44 @@
    "pilot": true
   },
   {
+   "id": "DEF-172",
+   "description": "R5 section 6: a step's time range is written in words when one end is missing — \"6 days, at most 20 days\", never \"(? to 20 days)\" (G-179).",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-088"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_step_time_with_one_end_of_its_range_reads_in_words",
+   "sources": {
+    "architecture": [
+     "ADR-0078 the SIPOC's steps with their times"
+    ],
+    "procedure": [
+     "G-179"
+    ],
+    "code": [
+     "agent-improve/ui/index.html"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-179"
+    ]
+   },
+   "requirement": "R5",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen",
+   "pilot": false
+  },
+  {
    "id": "DEF-089",
    "description": "Project status (phase, days since creation, target date and days remaining, days per phase, open and awaiting items) is computed once by the backend and shown identically everywhere.",
    "clause": "the Belt sees it, approves it",

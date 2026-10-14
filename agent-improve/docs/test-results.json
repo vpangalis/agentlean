@@ -1,9 +1,9 @@
 {
- "source_hash": "bbf043186df149ac",
- "commit": "7e3f890",
+ "source_hash": "9dae9b07628f65de",
+ "commit": "d28d91d",
  "commit_matches_source": false,
- "full_run_hash": "bbf043186df149ac",
- "recorded_at": "2026-10-14T11:19:33+00:00",
+ "full_run_hash": "9dae9b07628f65de",
+ "recorded_at": "2026-10-14T11:28:27+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -418,6 +418,7 @@
   "backend/tests/test_define_e2e.py::test_a_reply_is_never_asked_again_inside_its_turn": "passed",
   "backend/tests/test_define_e2e.py::test_a_reply_shows_the_file_and_page_it_used": "skipped",
   "backend/tests/test_define_e2e.py::test_a_reply_takes_thumbs_and_a_comment_stored_against_its_trace": "skipped",
+  "backend/tests/test_define_e2e.py::test_a_step_time_with_one_end_of_its_range_reads_in_words": "skipped",
   "backend/tests/test_define_e2e.py::test_a_submission_missing_a_field_is_refused_by_name": "passed",
   "backend/tests/test_define_e2e.py::test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case": "passed",
   "backend/tests/test_define_e2e.py::test_an_approved_report_prints_with_the_record_heading": "skipped",
@@ -1727,8 +1728,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "861715dfc8646cbc",
-  "recorded_at": "2026-10-14T11:11:38+00:00",
+  "source_hash": "bbf043186df149ac",
+  "recorded_at": "2026-10-14T11:19:33+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2292,6 +2293,7 @@
    "backend/tests/test_defects.py::test_ids_are_unique_and_none_was_lost_in_the_move": "passed",
    "backend/tests/test_defects.py::test_the_feature_links_agree_with_the_feature_list_both_ways": "passed",
    "backend/tests/test_define_e2e.py::test_a8_a_goal_with_no_date_reads_back_the_value_and_teaches_the_date": "passed",
+   "backend/tests/test_define_e2e.py::test_a8_a_relative_target_is_taught_and_dates_are_read_as_noted": "passed",
    "backend/tests/test_define_e2e.py::test_a8_change_of_the_target_read_from_the_goal_teaches_it": "passed",
    "backend/tests/test_define_e2e.py::test_a8_the_target_is_read_from_the_confirmed_goal_and_confirmed_once": "passed",
    "backend/tests/test_define_e2e.py::test_a_belt_edit_at_the_gate_is_advised_not_blocked": "skipped",
