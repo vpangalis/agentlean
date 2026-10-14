@@ -147,14 +147,18 @@ def test_run_a_sufficient_answer_is_read_back_and_not_stored(run) -> None:
 
 
 def test_run_a_confirm_click_stores_and_advances(run) -> None:
-    """DEF-008 — Confirm stores the pending value and the next field becomes current."""
+    """DEF-008 — Confirm stores the pending value and the next field becomes current. ADR-0086 (A8): the
+    goal's Confirm stores the goal and is shown as the read-back of the target it states — the next field,
+    current, awaiting its own Confirm."""
     turns = run["turns"]
     clicks = [i for i, t in enumerate(turns) if t.get("action") == "confirm"]
     assert clicks, "no Confirm click recorded"
     bad = []
     for i in clicks:
         t, before = turns[i], turns[i - 1]
-        if t.get("move") != "store_and_advance" or before["field"] not in t.get("stored_keys", []):
+        from_goal = (before["field"] == "goal_statement" and t.get("move") == "read_back"
+                     and t.get("field") in ("target_value", "target_date"))
+        if (t.get("move") != "store_and_advance" and not from_goal) or before["field"] not in t.get("stored_keys", []):
             bad.append((t["n"], before["field"], t.get("move")))
     assert not bad, bad
 

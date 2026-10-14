@@ -7,8 +7,8 @@
 
 | | |
 |---|---|
-| **Headline** | 115 of 167 Define features pass (core 107 of 158) — A 55/70 · B 30/36 · C 20/38 · integrator 10/23 · M1: 46 proven · 0 awaiting fresh run · 2 open |
-| **Next — lane A** | DEF-008 — Clicking Confirm under a read-back stores the pending value in the Belt's words and advances to the next field — no model reads the click. |
+| **Headline** | 116 of 167 Define features pass (core 108 of 158) — A 56/70 · B 30/36 · C 20/38 · integrator 10/23 · M1: 47 proven · 0 awaiting fresh run · 1 open |
+| **Next — lane A** | DEF-119 — A replayed step leaves one `step_log` entry (today the channel appends — see the drift list) |
 | **Next — lane B** | DEF-170 — T23's 'or neither' after the case write: an approval that fails after the case record is written leaves neither the Store record nor the app |
 | **Next — lane C** | DEF-104 — The creator of a case is its project lead; only the lead adds or removes members and assigns roles; the lead is shown on the form, header, l |
 | **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
