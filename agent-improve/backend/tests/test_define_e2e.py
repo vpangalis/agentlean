@@ -2300,7 +2300,7 @@ def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, mon
 
 
 def test_no_ai_judge_rules_on_a_reply_the_grader_is_the_one_check(env, monkeypatch, stub_planner) -> None:
-    """DEF-013, restated by ADR-0083 (founder ruling 2026-10-13, B1: the AI coherence judge is retired),
+    """DEF-166 (founder ruling 2026-10-14: replaces the retired DEF-013; ADR-0083, the coherence judge retired),
     through the routes and graph: no coherence verdict is asked for or recorded on a coaching turn; the one
     after-agent check is the grader, and the turn's call budget counts one after-agent call."""
     from backend.phases import nodes_common
@@ -2317,7 +2317,7 @@ def test_no_ai_judge_rules_on_a_reply_the_grader_is_the_one_check(env, monkeypat
 
 
 def test_a_reply_is_never_asked_again_inside_its_turn(env, monkeypatch, stub_planner) -> None:
-    """DEF-014, restated by ADR-0083 (the re-ask of ADR-0079 is retired with the coherence judge), through
+    """DEF-167 (founder ruling 2026-10-14: replaces the retired DEF-014; ADR-0083 retires ADR-0079's re-ask), through
     the routes and graph: whatever the grader says of a reply, the coach is called once for it — no
     second reply is asked for inside the turn — and the Belt gets that reply."""
     from langchain_core.messages import AIMessage
