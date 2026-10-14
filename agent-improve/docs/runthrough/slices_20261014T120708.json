@@ -1,0 +1,333 @@
+[
+ {
+  "kind": "scenario_slice_1",
+  "passed": true,
+  "checks": {
+   "the saved case loads through the v9 migrations": true,
+   "the upload lands": true,
+   "the upload turn names the file": true,
+   "the upload turn reads the team back": true,
+   "\"use the file\" stores it": true,
+   "the five people are stored": true,
+   "its source is the upload": true
+  },
+  "turns": [
+   {
+    "n": 1,
+    "why": "upload",
+    "http": 200
+   },
+   {
+    "n": 2,
+    "why": "the upload turn",
+    "http": 200,
+    "seconds": 13.1,
+    "move": "read_back",
+    "field": "team",
+    "answer": "I've read your file project_team_ap_late_payments.csv. For Team it shows: names a champion (sponsor) by name; names the process owner by name; each person has a name, a role and a function; says what training anyone needs, or that none is needed. It covers everything Team asks for.\n\nWelcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be"
+   },
+   {
+    "n": 3,
+    "why": "use the file",
+    "http": 200,
+    "seconds": 26.7,
+    "move": "store_and_advance",
+    "field": "voc_summary",
+    "answer": "Stored: Team.\n\nGot it — your team list has been confirmed exactly as listed in the file `project_team_ap_late_payments.csv`. Now, let's move on to the Voice of the Customer (VOC) and Critical-to-Quality requirements (CTQs)."
+   }
+  ],
+  "model_calls": [
+   "other",
+   "coach",
+   "grader",
+   "coach",
+   "coach",
+   "other",
+   "coach",
+   "grader"
+  ],
+  "tokens": {
+   "calls": 8,
+   "input_tokens": 47541,
+   "output_tokens": 1964
+  },
+  "cost": {
+   "usd": 0.1196,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.1184,
+    "gpt-4o-mini-2024-07-18": 0.0012
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  },
+  "case_id": "IMPR-SAVED-427F89"
+ },
+ {
+  "kind": "scenario_slice_2",
+  "passed": true,
+  "checks": {
+   "the saved case loads through the v9 migrations": true,
+   "T14: the validated report pauses the graph": true,
+   "T14: nothing is written before the decision": true,
+   "T15: the pause survives a process restart": true,
+   "the approval is accepted": true,
+   "T23: the gate document is in the Store": true,
+   "T23: and in the phase's final, the same": true,
+   "T23: the Store agrees with the case": true,
+   "T15/T23: a second approval writes nothing": true
+  },
+  "turns": [
+   {
+    "n": 1,
+    "why": "submit",
+    "http": 200,
+    "seconds": 4.8,
+    "passed": true,
+    "awaiting": true
+   },
+   {
+    "n": 2,
+    "why": "approve after the restart",
+    "http": 200,
+    "seconds": 2.4
+   },
+   {
+    "n": 3,
+    "why": "a second approval",
+    "http": 409
+   }
+  ],
+  "model_calls": [
+   "other"
+  ],
+  "tokens": {
+   "calls": 1,
+   "input_tokens": 4073,
+   "output_tokens": 187
+  },
+  "cost": {
+   "usd": 0.0007,
+   "by_model": {
+    "gpt-4o-mini-2024-07-18": 0.0007
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  },
+  "case_id": "IMPR-SAVED-E23C5D",
+  "t23": {
+   "store_written": true,
+   "fields_in_store": 22,
+   "differ_from_case": [],
+   "second_approval_http": 409,
+   "unchanged_after_second": true,
+   "passed": true
+  },
+  "final_keys": 22,
+  "store_keys": 22
+ },
+ {
+  "kind": "scenario_slice_3",
+  "passed": true,
+  "checks": {
+   "the saved case loads through the v9 migrations": true,
+   "five turns answered": true,
+   "every coached reply has a G1–G5 verdict in step_log": true,
+   "verdicts are G1–G5 (and the code check)": true,
+   "every fail quotes a sentence (counted only with one, in the text it graded)": true
+  },
+  "turns": [
+   {
+    "n": 1,
+    "why": "teach the baseline",
+    "http": 200,
+    "seconds": 13.1,
+    "move": "teach",
+    "field": "baseline_estimate",
+    "answer": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most imp",
+    "grader": {
+     "status": "failed",
+     "move": "teach",
+     "verdicts": {
+      "G1": "pass",
+      "G3": "fail",
+      "G4": "fail"
+     },
+     "failed": [
+      {
+       "criterion": "G3",
+       "reason": "Ensure all suggestions are grounded in the Belt's words or confirmed case values.",
+       "evidence": "A usable Define baseline has three parts: a number, the period it covers, and where it came from — a report, a log, a sample."
+      },
+      {
+       "criterion": "G4",
+       "reason": "Provide a clearer explanation of how to define the primary metric and its importance.",
+       "evidence": "If the definition shifts between phases, nothing downstream compares."
+      }
+     ],
+     "not_counted": []
+    }
+   },
+   {
+    "n": 2,
+    "why": "the baseline",
+    "http": 200,
+    "seconds": 13.3,
+    "move": "read_back",
+    "field": "baseline_estimate",
+    "answer": "Thank you for your input! Here's what I understood:\n\nPrimary metric: late payment rate, measured in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. Baseline: about 23% today, from the AP ledger for January to June 2026. This metric feeds our finance KPI, creditor days.\n\nSecondary metrics: none mentioned yet.\n\nIs this right?\n\nAbout your metric — late payment",
+    "grader": {
+     "status": "pass",
+     "move": "read_back",
+     "verdicts": {
+      "G1": "pass",
+      "G2": "pass",
+      "G3": "pass"
+     },
+     "failed": [],
+     "not_counted": []
+    }
+   },
+   {
+    "n": 3,
+    "why": "confirm the baseline",
+    "http": 200,
+    "seconds": 11.9,
+    "move": "store_and_advance",
+    "field": "project_scope",
+    "answer": "Stored: Primary metric and baseline.\n\nLet's move on to the next step: defining the project scope.",
+    "grader": {
+     "status": "failed",
+     "move": "store_and_advance",
+     "verdicts": {
+      "G1": "pass",
+      "G3": "fail",
+      "G4": "fail"
+     },
+     "failed": [
+      {
+       "criterion": "G3",
+       "reason": "Ensure that all suggestions and statements are grounded in the Belt's words or confirmed case values.",
+       "evidence": "Let's move on to the next step: defining the project scope."
+      },
+      {
+       "criterion": "G4",
+       "reason": "Explain how to define the project scope using the method, including why it matters.",
+       "evidence": "The project's boundaries: where the process starts and ends, what is in, and — just as important — what is out."
+      }
+     ],
+     "not_counted": []
+    }
+   },
+   {
+    "n": 4,
+    "why": "the scope",
+    "http": 200,
+    "seconds": 13.4,
+    "move": "read_back",
+    "field": "project_scope",
+    "answer": "Here's what I understood from your response:\n\n**In scope:** Invoice receipt to payment release for purchase-order invoices at our three hospital sites.\n**Out of scope:** Non-PO invoices, payroll, procurement tendering, and the ERP system itself.\n\nIs this right?",
+    "grader": {
+     "status": "failed",
+     "move": "read_back",
+     "verdicts": {
+      "G1": "pass",
+      "G2": "pass",
+      "G3": "fail"
+     },
+     "failed": [
+      {
+       "criterion": "G3",
+       "reason": "The coach's response includes an example that is not grounded in the Belt's words or the confirmed case values.",
+       "evidence": "**In scope:** Invoice receipt to payment release for purchase-order invoices at our three hospital sites."
+      }
+     ],
+     "not_counted": []
+    }
+   },
+   {
+    "n": 5,
+    "why": "confirm the scope",
+    "http": 200,
+    "seconds": 11.4,
+    "move": "store_and_advance",
+    "field": "goal_statement",
+    "answer": "Stored: Scope.\n\nThank you for confirming your project's scope. Now, let's move on to defining the goal statement. This is where we set the project's objective — how much improvement it will deliver on the primary metric, by when.",
+    "grader": {
+     "status": "failed",
+     "move": "store_and_advance",
+     "verdicts": {
+      "G1": "pass",
+      "G3": "fail",
+      "G4": "pass"
+     },
+     "failed": [
+      {
+       "criterion": "G3",
+       "reason": "The example provided is not grounded in the Belt's data; it should use the late payment rate metric instead.",
+       "evidence": "\"Reduce the invoice error rate from 12% to under 3% by 30 September 2026.\""
+      }
+     ],
+     "not_counted": []
+    }
+   }
+  ],
+  "model_calls": [
+   "coach",
+   "grader",
+   "planner-judgment",
+   "coach",
+   "grader",
+   "coach",
+   "grader",
+   "planner-judgment",
+   "coach",
+   "grader",
+   "coach",
+   "grader"
+  ],
+  "tokens": {
+   "calls": 12,
+   "input_tokens": 44051,
+   "output_tokens": 2050
+  },
+  "cost": {
+   "usd": 0.1041,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.1024,
+    "gpt-4o-mini-2024-07-18": 0.0017
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  },
+  "case_id": "IMPR-SAVED-5E2959",
+  "graded": 5,
+  "fails": 6,
+  "fails_quoting_text_the_belt_never_saw": []
+ },
+ {
+  "kind": "summary",
+  "source_hash": "1a99cdb945e56274",
+  "product_hash": "7debf14b42b7e08a",
+  "started": "20261014T120708",
+  "slices": {
+   "slice_1": true,
+   "slice_2": true,
+   "slice_3": true
+  },
+  "model_calls": 21,
+  "langsmith_sends": 0,
+  "cost": {
+   "usd": 0.2244,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.2208,
+    "gpt-4o-mini-2024-07-18": 0.0036
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  }
+ }
+]
