@@ -4630,3 +4630,66 @@ def test_the_problem_statement_and_the_process_steps_are_linked_both_ways(env, m
 def test_t95_past_case_search_returns_completed_cases_only() -> None:
     """DEF-165 — T95: past-case search returns completed cases only (before customers)."""
     _not_written('DEF-165')
+
+
+def _a8_at_goal_read_back(env, monkeypatch, goal: str) -> None:
+    """ADR-0086 tests: every element before the goal confirmed, the goal read back awaiting Confirm, and a
+    coach built with the executor that fails the turn if it is ever called."""
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_wiring import _FakeCoach
+
+    _at_element(env, "goal_statement")
+    env.case.phases["define"].field_status["goal_statement"] = {
+        "status": moves.ANSWERED, "answer": goal, "messages": 1,
+        "pending": {"field": "goal_statement", "fields": ["goal_statement"], "belt_words": goal, "messages": 1,
+                    "store": {"goal_statement": goal}}}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([]))
+                        if role == "coach" else planner(role, **kw))
+
+
+def test_a8_the_target_is_read_from_the_confirmed_goal_and_confirmed_once(env, monkeypatch) -> None:
+    """DEF-171 — ADR-0086 (A8, founder 2026-10-13): through the routes and graph, the goal's Confirm stores
+    the goal and — the goal stating its target — reads the target value and date back IN CODE (no coach
+    call) for one Confirm, shown as a read-back of the target value with its chart not yet confirmed and no
+    sample; that Confirm stores both and moves past the target date."""
+    goal = "Reduce the late payment rate from 23% to under 5% by 31 March 2027."
+    _a8_at_goal_read_back(env, monkeypatch, goal)
+    first = _askd(env, action="confirm", message="Confirm")
+    assert first["move"] == "read_back" and first["move_field"] == "target_value", (first["move"], first["move_field"])
+    assert "Stored: " in first["answer"] and "at most 5%" in first["answer"] and "31 March 2027" in first["answer"], \
+        first["answer"]
+    assert first["example"] == "", "a read-back shows no sample"
+    assert (first.get("visualisation") or {}).get("confirmed") is False, first.get("visualisation")
+    define = _define(env)
+    assert define["structured"]["goal_statement"] == goal and "target_value" not in define["structured"]
+
+    _coach_saying(monkeypatch, "Next, the benefits.")
+    second = _askd(env, action="confirm", message="Confirm")
+    define = _define(env)
+    assert define["structured"]["target_value"]["value"] == 5.0 and define["structured"]["target_value"]["unit"] == "%"
+    assert define["structured"]["target_date"] == "31 March 2027"
+    assert second["move_field"] == "benefits_analysis", second["move_field"]
+
+
+def test_a8_change_of_the_target_read_from_the_goal_teaches_it(env, monkeypatch) -> None:
+    """ADR-0086 decision 4: Change on the target read from the goal teaches the target value as usual;
+    nothing of it is stored."""
+    _a8_at_goal_read_back(env, monkeypatch, "Reduce the late payment rate from 23% to under 5% by 31 March 2027.")
+    _askd(env, action="confirm", message="Confirm")
+    _coach_saying(monkeypatch, "Here is what the target value is.")
+    changed = _askd(env, action="change", message="Change")
+    assert changed["move"] == "teach" and changed["move_field"] == "target_value", (changed["move"], changed["move_field"])
+    assert "target_value" not in _define(env)["structured"]
+
+
+def test_a8_a_goal_with_no_date_reads_back_the_value_and_teaches_the_date(env, monkeypatch) -> None:
+    """ADR-0086 decision 3: a goal that states the value but no date — the value is read back alone, and
+    the target date is taught next."""
+    _a8_at_goal_read_back(env, monkeypatch, "Reduce the late payment rate from 23% to under 5%.")
+    only = _askd(env, action="confirm", message="Confirm")
+    assert only["move"] == "read_back" and "The target date comes next." in only["answer"], only["answer"]
+    _coach_saying(monkeypatch, "Here is what the target date is.")
+    dated = _askd(env, action="confirm", message="Confirm")
+    assert dated["move"] == "store_and_advance" and dated["move_field"] == "target_date", (dated["move"], dated["move_field"])
+    assert "target_value" in _define(env)["structured"] and "target_date" not in _define(env)["structured"]

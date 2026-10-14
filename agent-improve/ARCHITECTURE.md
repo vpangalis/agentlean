@@ -158,7 +158,8 @@ sequenceDiagram
 3. The planner's model returns one `SufficiencyJudgment` against the element's acceptance
    criteria, read from its SKILL.md block. The baseline and the target are MetricValues read by one
    parser, `define/parse.py::metric_value` (ADR-0071): no number, or a target in another unit than
-   the baseline's, is asked again, decided in code. The SIPOC is stored only with its six columns;
+   the baseline's, is asked again, decided in code. A confirmed goal that states its target has
+   the target value and date read back from it in code, for one Confirm (ADR-0086). The SIPOC is stored only with its six columns;
   its steps are entries with a stable id and their times and frequency as MetricValues, and the
   problem's steps are checked against them in code at read-back (ADR-0078).
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked

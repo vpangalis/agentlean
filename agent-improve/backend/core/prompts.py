@@ -1645,6 +1645,10 @@ UPLOAD_CHECK_SHOWS = "For {element} it shows: {items}."
 UPLOAD_CHECK_CONFLICTS = "It does not agree with: {items}."
 UPLOAD_CHECK_MISSING = "It does not cover yet: {items}. Could you add that?"
 UPLOAD_CHECK_COMPLETE = "It covers everything {element} asks for."
+#: ADR-0086 (A8) — after the goal's Confirm, the target it states, read back in code for one Confirm.
+GOAL_TARGET_HEAD = "Your goal already states the target. Here is what I read from it:"
+GOAL_TARGET_NEXT = "The target date comes next."
+GOAL_TARGET_ASK = "Is this right? Confirm to store it, or Change to set it yourself."
 
 #: G-117 (DEF-156) — the only sentences that tell the Belt what was stored, written by
 #: `phases/nodes_common._store_truth` from the storage result, never by the coach model.

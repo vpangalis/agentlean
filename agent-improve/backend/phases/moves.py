@@ -268,6 +268,37 @@ def uses_upload(text: str, pending: Optional[dict[str, Any]]) -> bool:
         all(_USE_FILE.search(p) or _COURTESY.match(p) for p in parts)
 
 
+#: ADR-0086 (A8) — the positions a confirmed goal can fill: its target value and its target date.
+GOAL_FIELDS: tuple[str, ...] = ("target_value", "target_date")
+
+
+def from_goal(phase: str, nxt: Optional[tuple[str, Any]], artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """ADR-0086 (A8, founder 2026-10-13): the read-back the next position starts with when the confirmed
+    goal states it — for the target value, the value (and the date, when the goal gives one and none is
+    stored), for the target date, the date; parsed in code (`parse.goal_targets`). None when the goal
+    does not state it: the position is taught as usual."""
+    if phase != "define" or not nxt or nxt[0] not in GOAL_FIELDS:
+        return None
+    goal = artifacts.get("goal_statement")
+    if not isinstance(goal, str) or not goal.strip():
+        return None
+    from backend.phases.define import parse
+    found = parse.goal_targets(goal, artifacts)
+    store: dict[str, Any] = {}
+    if nxt[0] == "target_value":
+        if found["target_value"] is None:
+            return None
+        store["target_value"] = found["target_value"]
+        if found["target_date"] and not artifacts.get("target_date"):
+            store["target_date"] = found["target_date"]
+    elif found["target_date"]:
+        store["target_date"] = found["target_date"]
+    else:
+        return None
+    return {"field": nxt[0], "fields": list(store), "belt_words": goal.strip(), "messages": 1,
+            "from_goal": True, "store": store, "proposed": dict(store), "sources": {f: "typed" for f in store}}
+
+
 def is_confirmation(text: str) -> bool:
     """A plain yes to the read-back: it opens with an affirmative and carries
     nothing that qualifies it. Anything else is a correction, and returns the
@@ -531,13 +562,22 @@ async def decide(phase: str, artifacts: dict[str, Any],
                         reason=CONFIRM_INCOMPLETE.format(missing=", ".join(f"`{f}`" for f in missing)))
         after[field] = {"status": CONFIRMED}
         nxt = current(phase, merged, after)
-        if nxt is not None:
+        # ADR-0086 (A8) — a confirmed goal that states the target: the next position is read back from
+        # it, for one Confirm; otherwise it is taught.
+        derived = from_goal(phase, nxt, merged)
+        if nxt is not None and derived is not None:
+            after[nxt[0]] = {"status": ANSWERED, "answer": derived["belt_words"], "messages": 1, "pending": derived}
+        elif nxt is not None:
             after[nxt[0]] = {"status": ASKED}
         # R16 (DEF-021, DEF-082): what the change log needs from the read-back just confirmed.
         return done(nxt[0] if nxt else None, nxt[1] if nxt else (), status, STORE_AND_ADVANCE,
                     store=store, stored_field=field,
                     confirmed={k: pending.get(k) for k in ("belt_words", "reasons", "sources")})
 
+    if pending and action == CHANGE_CLICK and pending.get("from_goal"):
+        # ADR-0086 — a Change of the target read from the goal teaches the element as usual.
+        after[field] = {"status": ASKED}
+        return done(field, fields, status, TEACH)
     if pending and action == CHANGE_CLICK:
         words = str(pending.get("belt_words") or "")
         after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1),

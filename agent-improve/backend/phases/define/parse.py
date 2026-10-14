@@ -50,6 +50,37 @@ def parse_limit(text: str) -> Optional[dict[str, Any]]:
             "direction": direction}
 
 
+_MONTH = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|"
+          r"sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)")
+#: ADR-0086 — a date as a goal writes it: ISO, "31 March 2027", "March 31, 2027", "(end of) March 2027".
+_GOAL_DATE = re.compile(r"(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH + r"\.?,?\s+\d{4}|"
+                        + _MONTH + r"\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|(?:end of\s+)?" + _MONTH
+                        + r"\.?\s+\d{4})\b")
+
+
+def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
+    """ADR-0086 (A8, founder 2026-10-13): what a confirmed goal states for the target, parsed in code —
+    `target_value` a MetricValue (the goal's last figure, read as a limit, after any baseline figure:
+    "from 23% to under 5%" is under 5 %) or None, and `target_date` the date phrase as the goal writes it,
+    or None. The value counts only as `_judged_in_code` would accept a typed target (G-120, ADR-0071): in
+    the baseline's unit, and different from the baseline."""
+    text = str(goal or "")
+    date = _GOAL_DATE.search(text)
+    rest = _GOAL_DATE.sub(" ", text)
+    figures = [m for m in re.finditer(_NUMBER + _UNIT, rest.lower()) if not _is_year(m)]
+    value = None
+    if figures:
+        start = figures[-2].end() if len(figures) > 1 else 0
+        mv = metric_value(rest[start:], target=True)
+        unit = primary_unit(artifacts)
+        baseline = as_metric(artifacts["baseline_estimate"], unit=unit) if artifacts.get("baseline_estimate") else None
+        base_unit = unit or (baseline or {}).get("unit", "")
+        if mv["value"] is not None and mv["unit"] and (not base_unit or mv["unit"] == base_unit) \
+                and not (baseline and baseline.get("value") == mv["value"]):
+            value = {**mv, "raw": text.strip()}
+    return {"target_value": value, "target_date": date.group(1).strip() if date else None}
+
+
 def _is_year(m: "re.Match[str]") -> bool:
     """G-135 (2026-09-29): a four-digit 1900-2099 with no unit of its own is a year — "January
     to June 2026" — never a baseline or a target. The run-through read "2026" as the baseline

@@ -3315,6 +3315,46 @@
    "layer": "coaching"
   },
   {
+   "id": "DEF-171",
+   "description": "A8 (ADR-0086): when the confirmed goal states its target, the target value and date are read back from it in code for one Confirm that stores both; a missing part is taught; Change teaches the target.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-076",
+    "DEF-032"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a8_the_target_is_read_from_the_confirmed_goal_and_confirmed_once",
+   "sources": {
+    "architecture": [
+     "ADR-0086 the target read from the confirmed goal",
+     "ADR-0071 MetricValues parsed in code"
+    ],
+    "procedure": [
+     "A8 (founder ruling 2026-10-13)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/parse.py::goal_targets",
+     "agent-improve/backend/phases/moves.py::from_goal",
+     "agent-improve/backend/phases/nodes_common.py::_goal_target_reply"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R4",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api",
+   "pilot": true
+  },
+  {
    "id": "DEF-077",
    "description": "R13 hard limit: no turn exceeds 45 s; a turn that would answers with what it has and says so (T24's proof).",
    "clause": "A Belt is coached through the thirteen elements",

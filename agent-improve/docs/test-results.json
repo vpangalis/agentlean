@@ -1,9 +1,9 @@
 {
- "source_hash": "7e6dfd6409ffb261",
- "commit": "cf89268",
+ "source_hash": "226b154e8e2f2df6",
+ "commit": "9724184",
  "commit_matches_source": false,
- "full_run_hash": "7e6dfd6409ffb261",
- "recorded_at": "2026-10-14T10:31:54+00:00",
+ "full_run_hash": "226b154e8e2f2df6",
+ "recorded_at": "2026-10-14T10:48:03+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -403,6 +403,9 @@
   "backend/tests/test_defects.py::test_every_defect_has_the_founders_fields_and_no_status": "passed",
   "backend/tests/test_defects.py::test_ids_are_unique_and_none_was_lost_in_the_move": "passed",
   "backend/tests/test_defects.py::test_the_feature_links_agree_with_the_feature_list_both_ways": "passed",
+  "backend/tests/test_define_e2e.py::test_a8_a_goal_with_no_date_reads_back_the_value_and_teaches_the_date": "passed",
+  "backend/tests/test_define_e2e.py::test_a8_change_of_the_target_read_from_the_goal_teaches_it": "passed",
+  "backend/tests/test_define_e2e.py::test_a8_the_target_is_read_from_the_confirmed_goal_and_confirmed_once": "passed",
   "backend/tests/test_define_e2e.py::test_a_calculation_is_recorded_with_its_five_keys": "passed",
   "backend/tests/test_define_e2e.py::test_a_confirmed_field_can_be_revised": "passed",
   "backend/tests/test_define_e2e.py::test_a_contradiction_stops_in_a_node_and_resumes": "skipped",
@@ -1721,8 +1724,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "b2d1858be86772c7",
-  "recorded_at": "2026-10-14T10:21:01+00:00",
+  "source_hash": "7e6dfd6409ffb261",
+  "recorded_at": "2026-10-14T10:31:54+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2366,6 +2369,7 @@
    "backend/tests/test_define_e2e.py::test_t17_the_retention_sweep_never_removes_a_paused_thread": "passed",
    "backend/tests/test_define_e2e.py::test_t21_a_replayed_step_leaves_one_step_log_entry_today_the_channel_append": "skipped",
    "backend/tests/test_define_e2e.py::test_t22_re_ingesting_a_document_leaves_one_copy_per_chunk_ids_passed_on_ad": "skipped",
+   "backend/tests/test_define_e2e.py::test_t23_an_approval_failing_after_the_case_write_leaves_neither": "skipped",
    "backend/tests/test_define_e2e.py::test_t28_turn_latency_p50_and_p99_are_recorded_per_phase": "skipped",
    "backend/tests/test_define_e2e.py::test_t29_every_node_with_an_external_write_has_an_error_handler_that_undoes": "passed",
    "backend/tests/test_define_e2e.py::test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p": "passed",

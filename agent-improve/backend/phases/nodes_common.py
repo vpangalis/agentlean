@@ -1462,7 +1462,9 @@ def _move_record(plan: CoachingPlan | None, pending: dict | None,
     carries_answer = plan.move in (moves.CHALLENGE, moves.READ_BACK, moves.RESPOND)
     return {
         "field": plan.focus_field,
-        "move": plan.move,
+        # ADR-0086 (A8): a store turn that ends with the target read back from the goal shows a
+        # read-back — its Confirm and Change buttons are the target's.
+        "move": moves.READ_BACK if goal_read_back(plan) is not None else plan.move,
         "status": plan.status,
         "answer": plan.answer if carries_answer else "",
         "messages": plan.messages if carries_answer else 0,
@@ -1612,7 +1614,7 @@ def _with_script_sample(phase: str, plan: Optional[CoachingPlan], reply: Coachin
     inserted by code — never the coach's, so never the Belt's or the case's values (C3 as amended). A
     move that asks for nothing new (a read-back) shows none. Returns a COPY, or `reply`."""
     example = ""
-    if plan is not None and plan.move in SAMPLE_MOVES and plan.focus_field:
+    if plan is not None and plan.move in SAMPLE_MOVES and plan.focus_field and goal_read_back(plan) is None:
         from backend.middleware.skills import teaching_blocks
         example = teaching_blocks(phase, plan.focus_field).get("example", "")
     return reply if str(reply.example or "") == example else reply.model_copy(update={"example": example})
@@ -2028,6 +2030,35 @@ _LIMIT_NOTICE = "Model call limits exceeded"
 
 #: The question a Change click is answered with (ruling on 6.61's review).
 CHANGE_QUESTION = "What would you like to change?"
+
+
+def goal_read_back(plan: Optional[CoachingPlan]) -> Optional[dict[str, Any]]:
+    """ADR-0086 (A8): the read-back of the target a store turn ends with, when the confirmed goal states
+    it (`moves.from_goal`, decided in the planner) — its pending record, or None."""
+    if plan is None or plan.move != moves.STORE_AND_ADVANCE or not plan.focus_field:
+        return None
+    pending = ((plan.field_status or {}).get(plan.focus_field) or {}).get("pending") or {}
+    return pending if pending.get("from_goal") else None
+
+
+def _goal_target_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
+    """ADR-0086 (A8): after the goal's Confirm, the target it states read back IN CODE for one Confirm —
+    the value and the date, or the one the goal gives (the other is taught next). No model call."""
+    pending = goal_read_back(plan)
+    if pending is None or phase != "define":
+        return None
+    from backend.core import prompts as P
+    from backend.phases.define import parse
+    store = dict(pending.get("store") or {})
+    lines = [P.GOAL_TARGET_HEAD]
+    if "target_value" in store:
+        lines.append(f"- {guard_messages.element_name(phase, 'target_value')}: {parse.metric_text(store['target_value'])}")
+    if "target_date" in store:
+        lines.append(f"- {guard_messages.element_name(phase, 'target_date')}: {store['target_date']}")
+    if "target_value" in store and "target_date" not in store:
+        lines.append(P.GOAL_TARGET_NEXT)
+    return CoachingResponse(message=chr(10).join(lines) + chr(10) * 2 + P.GOAL_TARGET_ASK,
+                            prompt=P.GOAL_TARGET_ASK)
 
 
 def _change_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
@@ -2463,7 +2494,8 @@ async def executor(
     fell_back = engine_timeout
     # A Change click is answered in code and the coach is not called
     # (`_change_reply`); every other move is the model's to write.
-    written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan))
+    written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
+                                                    or _goal_target_reply(phase, plan))
     try:
         # No time limit here (T70): the node's limit is the engine's `TimeoutPolicy`, and its
         # handler composes the answer when it fires.
@@ -2921,6 +2953,11 @@ async def executor(
         drawn = (visuals.for_field(plan.focus_field, {**prior_artifacts, **dict((pending or {}).get("proposed") or {})},
                                    confirmed=False)
                  if move == moves.READ_BACK and plan is not None and pending is not None else
+                 # ADR-0086: the target read back from the goal — its chart, not yet confirmed.
+                 visuals.for_field(plan.focus_field, {**prior_artifacts, **kept,
+                                                      **dict((goal_read_back(plan) or {}).get("store") or {})},
+                                   confirmed=False)
+                 if move == moves.STORE_AND_ADVANCE and plan is not None and goal_read_back(plan) is not None else
                  visuals.for_field(plan.stored_field, {**prior_artifacts, **kept}, confirmed=True)
                  if move == moves.STORE_AND_ADVANCE and plan is not None else None)
         if drawn:
