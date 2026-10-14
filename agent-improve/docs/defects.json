@@ -1876,6 +1876,29 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-177",
+   "symptom": "THE COMMIT HOOK RUNS THE TESTS BEFORE IT REGENERATES THE GENERATED DOCUMENTS, SO A COMMIT THAT CHANGES A GENERATED SOURCE FAILS ITS OWN RUN. Seen 2026-10-14 three times: c4e870c (the grader's names → docs/code-layout.md), 6ba9ca3 (STATE_SCHEMA_VERSION → docs/data-models.md) and 247bd3d (a docstring → code-layout.md): the pre-commit run of the staged tree failed test_generated_docs.py, then the hook regenerated and staged the documents, and the retried commit passed. D4 OCCURRENCE: the pre-commit hook's order — tests on the staged tree first, the generators (code layout, data models, section index, board) after. D4 ESCAPE: nothing tests the hook's own order; the retry hides it. Before customers (founder 2026-10-14).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: the pre-commit hook runs the generators and stages their output before it runs the tests on the staged tree, and a test of the hook holds that order."
+  },
+  {
+   "id": "G-178",
+   "symptom": "T23'S 'OR NEITHER' HALF IS TESTED AT ONE FAILURE POINT ONLY. DEF-122's test makes the output mapper fail after the Store write and proves the record is removed and the case is not written; no test makes the approval fail AFTER the case write (blob.write_phase_gate succeeded, a later step raised), where the Store record and the case record could disagree. D4 OCCURRENCE: _undo_gate_write (core/graph.py) removes only the Store record; nothing undoes a case write. D4 ESCAPE: the T29 test injects its failure inside the mapper, before the case write. Before customers (founder 2026-10-14).",
+   "requirement": [
+    "T23"
+   ],
+   "feature": [
+    "DEF-170"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }

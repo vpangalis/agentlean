@@ -2672,6 +2672,47 @@
    "layer": "persistence"
   },
   {
+   "id": "DEF-170",
+   "description": "T23's 'or neither' after the case write: an approval that fails after the case record is written leaves neither the Store record nor the approved case record — both or neither, at every failure point (G-178).",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-060",
+    "DEF-122"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_t23_an_approval_failing_after_the_case_write_leaves_neither",
+   "sources": {
+    "architecture": [
+     "ADR-0011 the gate document written to both or neither",
+     "T29 the error handler"
+    ],
+    "procedure": [
+     "G-178 (founder 2026-10-14, before customers)"
+    ],
+    "code": [
+     "agent-improve/backend/core/graph.py::_undo_gate_write",
+     "agent-improve/backend/storage/blob.py::write_phase_gate"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-178"
+    ]
+   },
+   "requirement": "T23",
+   "belt_impact": "data_loss",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "record_written",
+   "layer": "persistence",
+   "pilot": false
+  },
+  {
    "id": "DEF-061",
    "description": "The gate write keeps the Belt's change log, citations and uploads.",
    "clause": "the record is written once and correctly",

@@ -398,6 +398,12 @@ def test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case(env
                       "measure_input_mapper will raise PriorGateDocumentMissing")
 
 
+
+def test_t23_an_approval_failing_after_the_case_write_leaves_neither() -> None:
+    """DEF-170 — G-178 (founder 2026-10-14, before customers): an approval that fails AFTER the case record
+    is written leaves neither the Store record nor the approved case record."""
+    _not_written('DEF-170')
+
 def test_the_create_form_shows_no_case_id_the_server_did_not_assign(monkeypatch) -> None:
     """DEF-074 — G-113: before the server assigns a case id, the create form shows none; the
     number a Belt sees is always the one the case is saved under (W6). The page's own initCreate
