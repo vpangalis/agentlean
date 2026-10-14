@@ -1174,10 +1174,15 @@ Also judge the file against EACH of these criteria, from the file's contents onl
 - "not_covered": the file says nothing about it
 Give where in the file (the page, the sheet or the section) when you can name it.
 
+And give the element's answer as the file gives it ("value"): the file's own words, every item it lists
+for this element — for a list, one line per item with every column the file has for it. Copy, do not
+summarise or add. Empty when the file does not answer the element.
+
 Add this key to the JSON object:
   "element_check": {{"element": "{field}",
                     "criteria": [{{"criterion": "<id>", "result": "supported|contradicted|not_covered", "where": "<page or section, or empty>"}}],
-                    "missing": ["short phrases: what the element still needs that the file does not give"]}}
+                    "missing": ["short phrases: what the element still needs that the file does not give"],
+                    "value": "<the element's answer as the file gives it, or empty>"}}
 One entry per criterion id above, no other ids. Nothing in the file is stored by this judgment.
 """
 

@@ -1331,6 +1331,119 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
     assert up["filename"] in said and ("It does not cover yet:" in said or "It covers everything" in said), said[:400]
 
 
+def test_an_upload_that_covers_the_element_is_read_back_and_use_the_file_confirms(env, monkeypatch) -> None:
+    """DEF-169 — ADR-0085 (G-169, founder 2026-10-13, option B): through the routes and graph, the upload
+    turn of a file that covers the current element is a read-back decided in code (no judgment call) of
+    the file's value; "use the file" then confirms it on the existing path: the file's value is stored and
+    the change log's source is `upload`. A file that does not cover the element, or a "use the file" that
+    changes something, is not taken as one."""
+    from backend.gateway import routes
+    from backend.middleware.skills import acceptance_criteria
+    from backend.phases import moves, nodes_common
+    from backend.storage.models import ElementCheck, UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    filename = "business_case_ap.csv"
+    value = ("Late supplier payments cost about £62,000 a year in penalties and lost early-payment discounts; "
+             "23% of invoices are paid late, across all sites, January to June 2026.")
+
+    indexed: list[str] = []
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/{len(indexed)}/{filename}"
+
+    async def index(*a, **k):
+        indexed.append(f"idx-bc-{len(indexed) + 1}")     # each upload its own index id, as in the service
+        return indexed[-1]
+
+    async def interpret(filename_, parsed, case_meta, phase, element=None):
+        return UploadInterpretation(summary="The business case for the late-payments project.", element_check=ElementCheck(
+            element=element, value=value,
+            criteria=[{"criterion": cid, "result": "supported"} for cid, _ in acceptance_criteria("define", element)]))
+
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    _shields(monkeypatch)
+    judged: list[str] = []
+    judge = nodes_common._judge
+
+    async def counting(phase, state, field, *a, **k):
+        judged.append(field)
+        return await judge(phase, state, field, *a, **k)
+    monkeypatch.setattr(nodes_common, "_judge", counting)
+    _coach_saying(monkeypatch, "Here is the business case from your file. Is this right?")
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {}
+
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": (filename, b"business_case\nLate payments cost 62000 a year\n", "text/csv")})
+    assert r.status_code == 200, r.text
+    seen = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                         "message": "I've uploaded our business case."}).json()
+    assert seen["move"] == "read_back" and seen["move_field"] == "business_case", (seen["move"], seen["move_field"])
+    assert seen["answer"].startswith(f"I've read your file {filename}.") and "It covers everything" in seen["answer"]
+    assert judged == [], f"the upload read-back called the judgment: {judged}"
+    # founder 2026-10-14: a "use the file" that changes something goes to the judgment as an answer;
+    # nothing is stored
+    changed = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                            "message": "Use the file, sponsor is Jane."}).json()
+    assert judged == ["business_case"], f"a 'use the file' with a change was not judged as an answer: {judged}"
+    assert changed["move"] != "store_and_advance", changed["move"]
+    assert "business_case" not in env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]
+    # the file again: read back again, and a plain "use the file" confirms it
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": ("business_case_ap_v2.csv", b"business_case\nLate payments cost 62000 a year (v2)\n",
+                                        "text/csv")})
+    assert r.status_code == 200, r.text
+    again = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                          "message": "I've uploaded it again."}).json()
+    assert again["move"] == "read_back" and again["move_field"] == "business_case", again["move"]
+    used = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                         "message": f"Please use the business case exactly as written in {filename}."})
+    assert used.json()["move"] == "store_and_advance", used.json()["move"]
+    define = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert define["structured"]["business_case"] == value, define["structured"].get("business_case")
+    sources = [e.get("source") for e in define.get("field_log") or [] if e.get("field") == "business_case"]
+    assert sources and sources[-1] == "upload", sources
+
+    # the rules themselves
+    up: dict[str, Any] = {"filename": filename, "element_check": {"element": "business_case", "value": value,
+                                                  "criteria": [{"criterion": "what", "result": "supported"}]}}
+    assert moves.covering_upload("business_case", up) == {"filename": filename, "value": value}
+    assert moves.covering_upload("team", up) is None                                   # another element
+    lacking = {**up, "element_check": {**up["element_check"], "missing": ["the cost"]}}
+    assert moves.covering_upload("business_case", lacking) is None
+    assert moves.covering_upload("business_case", {**up, "element_check": {**up["element_check"], "value": ""}}) is None
+    pending = {"upload": filename}
+    assert moves.uses_upload("Use the file, please.", pending)
+    assert moves.uses_upload(f"Go with {filename}", pending)
+    assert not moves.uses_upload("Use the file but change the cost to £70,000.", pending)
+    assert not moves.uses_upload("Use the file.", {"belt_words": "typed"})            # not a file read-back
+    # founder 2026-10-14: a "use the file" that changes anything is an answer, never a Confirm
+    for change in ("use the file but add Maria", "use the file except the sponsor", "use the file, sponsor is Jane"):
+        assert not moves.uses_upload(change, pending), change
+
+    # T88 (ADR-0065): the field is a state change — version 9, a no-op migration from 8; a check written
+    # under version 8 has no value and reads as not covering the element.
+    from backend.core import migrations
+    assert 8 in migrations.MIGRATIONS and migrations.current() >= 9
+    v8 = {"element_check": {"element": "business_case", "criteria": [{"criterion": "what", "result": "supported"}]}}
+    assert migrations.MIGRATIONS[8](v8) == v8
+    assert ElementCheck.model_validate(v8["element_check"]).value == ""
+    assert moves.covering_upload("business_case", {"filename": filename, **v8}) is None
+
+    # live (founder 2026-10-14: DEF-169 stays failing until scenario (e) passes live) — the latest
+    # run-through record's scenario (e): the upload turn reads the team back, "use the file" stores it
+    import json
+    from pathlib import Path
+    folder = Path(__file__).resolve().parents[2] / "docs" / "runthrough"
+    record = json.loads(sorted(folder.glob("define_runthrough_*.json"))[-1].read_text(encoding="utf-8"))
+    e = next((x for x in record if x.get("kind") == "scenario_e"), None)
+    assert e is not None, "the latest run-through ran no scenario (e)"
+    assert e.get("passed"), {k: v for k, v in (e.get("checks") or {}).items() if not v}
+
+
 def test_removing_a_file_removes_it_from_storage_and_index() -> None:
     """DEF-109 — Deleting an uploaded file removes it from storage and the search index; the audit log keeps its name, digest, date and who removed it."""
     _not_written('DEF-109')

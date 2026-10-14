@@ -124,4 +124,5 @@ Generated from each file's status line; never typed.
 | [0082](0082-model-fallback-keeps-refusals-and-token-limits-out.md) | The coach's model fallback as shipped, with refusals and token-limit errors kept out of it | ACCEPTED | — |
 | [0083](0083-retire-the-ai-coherence-judge.md) | The AI coherence judge (layer 2a) is retired | ACCEPTED | — |
 | [0084](0084-grader-v2-evaluator-with-reflection.md) | Grader v2 — the evaluator judges the reply the Belt sees, on four criteria, and the coach revises once | WITHDRAWN | — |
+| [0085](0085-an-upload-that-covers-the-element-is-read-back.md) | An upload that covers the current element is read back on its upload turn, and "use the file" confirms it | ACCEPTED | — |
 <!-- END ADR INDEX -->

@@ -358,8 +358,8 @@ def test_run_scenario_d_a_parked_element_is_resumed(run) -> None:
 
 
 def test_run_scenario_e_an_upload_is_read_back_and_stored(run) -> None:
-    """Scenario (e) — DEF-056's and DEF-082's run criterion: an upload lands, is read back naming the file,
-    is confirmed and stored, and its source is recorded as the upload."""
+    """Scenario (e) — DEF-056's, DEF-082's and DEF-169's run criterion: an upload lands; its upload turn names
+    the file and reads the team back from it (ADR-0085); "use the file" confirms; stored, its source the upload."""
     _scenario(run, "e")
 
 

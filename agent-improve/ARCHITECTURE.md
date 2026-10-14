@@ -168,8 +168,9 @@ sequenceDiagram
    the newest unread (`_unread_upload`). The executor calls `load_evidence_series` on its numeric
    column before the model runs. The interpretation call judged the file against the element
    current at upload (`element_check`, ADR-0074); code writes the reply's file part from it, ahead
-   of the coach's words. The file is then read, kept in the phase record's `consumed`, unless the
-   read raised.
+   of the coach's words. A file that covers the element (its check gives the `value`) is read back,
+   decided in code; "use the file" confirms it (ADR-0085, `moves.covering_upload`). The file is then
+   read, kept in the phase record's `consumed`, unless the read raised.
 5a. Calculations run in code, never by the coach (ADR-0077, `phases/calculations.py`): inputs from
    confirmed values, the rest from the judgment's `calculation_inputs`; the row joins
    `computation_results`; the read-back carries the figure and how; the teaching turn explains it.

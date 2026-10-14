@@ -28,6 +28,9 @@ class ElementCheck(BaseModel):
     criteria: list[CriterionCheck] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list,
                                description="What the element still needs that the file does not give.")
+    #: ADR-0085 (G-169) — what a read-back of the file shows: the element's answer as the file gives it.
+    value: str = Field(default="", description="The element's answer as the file gives it, in the file's own "
+                                               "words; empty when the file does not answer it.")
 
 
 class UploadInterpretation(BaseModel):

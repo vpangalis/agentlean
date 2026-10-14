@@ -1777,10 +1777,10 @@
    "id": "G-169",
    "symptom": "A BELT CANNOT ADOPT AN UPLOAD'S CONTENT WITHOUT RETYPING IT. Scenario (e), live, 2026-10-13: the team list uploaded as a CSV; the upload turn named the file and said it covers every criterion of the team element (ADR-0074 point 2); the Belt answered \"Please use the team exactly as listed in project_team_ap_late_payments.csv.\" — the planner's judgment read only that sentence (the file is not in its input) and challenged; the Confirm after it had nothing pending. ADR-0074 point 3 says the file's values go through the normal read-back and Confirm, but nothing carries them there: the judgment sees the Belt's words alone, and a plain-text element stores the Belt's words verbatim (moves.pending_store), so a file can only ever reach a structured element, and not even that through this path. Design question for the founder (stop condition 2): should a Belt's reference to an upload let the judgment and the read-back use the file's interpretation?",
    "requirement": [
-    "R1"
+    "W5"
    ],
    "feature": [
-    "DEF-056"
+    "DEF-169"
    ],
    "lane": [
     "C"

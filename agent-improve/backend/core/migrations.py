@@ -185,9 +185,16 @@ def _sipoc_log(log: Any) -> Any:
     return log
 
 
+def migrate_v8_to_v9(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0085 (DEF-169, G-169): an upload's `element_check` gains `value`, the element's answer as the
+    file gives it. A no-op: a check written under version 8 has none and reads as empty, so its file
+    is never taken as covering the element (`moves.covering_upload`); nothing converts."""
+    return dict(values)
+
+
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
                                     4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7,
-                                    7: migrate_v7_to_v8}
+                                    7: migrate_v7_to_v8, 8: migrate_v8_to_v9}
 
 
 def current() -> int:

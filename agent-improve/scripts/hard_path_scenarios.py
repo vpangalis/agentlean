@@ -10,10 +10,9 @@ scenario says which part failed. Called by `scripts/define_runthrough.py` after 
       last checkpoint: a coached reply, nothing stored.
   (c) the turn deadline is hit → the Belt is asked to send again → the resend succeeds.
   (d) an element fails three times → parked → the next element is taught → resumed → confirmed.
-  (e) a team list uploaded → the upload turn names the file and what it covers (ADR-0074) → the Belt
-      asks to use it → read back → Confirm → stored, its source recorded as the upload. On the team
-      element: a structured value stores the version read back; a plain-text one stores the Belt's own
-      words, so a file can never be its value (moves.pending_store).
+  (e) a team list uploaded → the upload turn names the file, says it covers the team, and reads the team
+      back from the file (ADR-0085, G-169) → the Belt asks to use the file, which confirms it → stored, its
+      source recorded as the upload.
 
 The crash in (b) and the short deadline in (c) are made by this harness, never by the product: (b)
 makes the coach's model fail once, (c) shortens the route's turn limit for one turn.
@@ -167,7 +166,8 @@ TEAM_CSV = "\n".join([
 
 
 def scenario_e_upload(client: Any, good: dict[str, str]) -> dict[str, Any]:
-    """(e) A team list uploaded: named by the upload turn, read back, confirmed, stored with its source."""
+    """(e) A team list uploaded: the upload turn names the file and reads the team back (ADR-0085, G-169);
+    "use the file" confirms it; stored with the upload as its source."""
     c0 = len(CALLS)
     case_id = _case(client, "SCENARIO (e) — an uploaded team list read back and confirmed")
     filename = "project_team_ap_late_payments.csv"
@@ -185,8 +185,7 @@ def scenario_e_upload(client: Any, good: dict[str, str]) -> dict[str, Any]:
                      files={"file": (filename, TEAM_CSV.encode(), "text/csv")})
     turns.append({"n": len(turns) + 1, "why": "upload", "http": up.status_code, "seconds": round(time.time() - t0, 1)})
     seen = say("the upload turn", "I've uploaded our team list.")
-    read = say("use the file", f"Please use the team exactly as listed in {filename}.")
-    say("confirm the team", "Confirm", action="confirm")
+    used = say("use the file", f"Please use the team exactly as listed in {filename}.")
     st = _case_state(client, case_id)
     team = st["structured"].get("team") or []
     sources = [e.get("source") for e in st["field_log"] if e.get("field") == "team"]
@@ -194,7 +193,9 @@ def scenario_e_upload(client: Any, good: dict[str, str]) -> dict[str, Any]:
     checks = {"the team element is current": taught.get("move_field") == "team",
               "the upload lands": up.status_code == 200,
               "the upload turn names the file": filename in str(seen.get("answer") or ""),
-              "the team is read back": read.get("move") == "read_back",
+              "the upload turn reads the team back": seen.get("move") == "read_back"
+              and seen.get("move_field") == "team",
+              "\"use the file\" confirms it": used.get("move") == "store_and_advance",
               "confirmed and stored, the five people in it": {"Priya Shah", "Tom Okafor", "Lena Hart", "Dev Patel",
                                                               "Amira Khan"} <= names,
               "its source is recorded as the upload": any("upload" in str(x or "") for x in sources)}

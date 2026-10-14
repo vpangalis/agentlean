@@ -585,7 +585,9 @@ async def _plan_turn(phase: str, state: PhaseState,
     element = ((config or {}).get("configurable") or {}).get("belt_element")     # W9 (DEF-079)
     d = await moves.decide(phase, dict(state.get("artifacts") or {}),
                            dict(state.get("field_status") or {}),
-                           moves.belt_message(messages), judge, action=action, element=element)
+                           moves.belt_message(messages), judge, action=action, element=element,
+                           # ADR-0085 (G-169) — a file that covers the element is read back on its upload turn.
+                           upload=_unread_upload(state))
     return CoachingPlan(
         focus_field=d["field"], status=d["status"], move=d["move"],
         judgment=d["judgment"], answer=d["answer"], messages=d["messages"],
@@ -2793,6 +2795,9 @@ async def executor(
                                for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
                    "sources": {str(e.get("field_name")): str(e.get("source") or "")
                                for e in captures if e.get("field_name")}}
+        if pending.get("upload"):
+            # ADR-0085 (G-169) — a read-back of an uploaded file: what a Confirm stores came from the file (R16).
+            pending["sources"] = {**pending["sources"], **{f: "upload" for f in store}}
         link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
         short = moves.store_missing(pending.get("fields") or [pending.get("field")], prior_artifacts, store)
         unfilled = placeholders(store)

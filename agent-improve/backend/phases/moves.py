@@ -103,6 +103,10 @@ COLUMNS_MISSING = ("The Belt confirmed, but NOTHING WAS STORED: the SIPOC needs 
 #: R6 — the team REJECTED the Define report naming this element; the resumed
 #: run carries this action. Like Change, but from the gate, with its reason.
 REJECTED = "rejected"
+#: ADR-0085 (G-169) — the read-back an upload turn makes of a file that covers the element (no judgment).
+UPLOAD_READ_BACK_REASON = ("Decided in code (ADR-0085): the Belt's file {filename} covers every criterion of this "
+                           "element. Read its values back — the answer so far is the file's — and ask the Belt "
+                           "to confirm them.")
 REJECT_REASON = ("The team rejected the Define report and named this element to "
                  "change — their reason: {reason}. Show the Belt their current "
                  "words and ask what should change.")
@@ -219,6 +223,49 @@ _QUALIFIER = re.compile(
     r"\b(but|except|however|although|though|actually|change|changed|instead|not|no|"
     r"wrong|missing|add|also|should|rather|correction|correct it|update|replace)\b")
 _NOTHING_TO_CHANGE = re.compile(r"\b(no changes?|nothing to change|no corrections?|not a thing)\b")
+
+
+#: ADR-0085 (G-169) — a Belt's message asking to use the uploaded file's values as read back.
+_USE_FILE = re.compile(r"\b(use|take|go with|keep|accept)\b.{0,80}\b(file|upload|uploaded|csv|spreadsheet|"
+                       r"list|as listed|attached|attachment)\b")
+_FILE_CHANGE = re.compile(r"\b(but|except|however|change|changed|instead|without|apart from|remove|add|"
+                          r"replace|update|wrong|missing|not)\b")
+#: The parts of a message, split at clause breaks; each must ask to use the file or be a courtesy.
+_CLAUSE = re.compile(r"[,;:!?]|\.(?=\s|$)|\s(?:and|then|also)\s")
+_COURTESY = re.compile(r"^(please|thanks|thank you|thank you very much|cheers|yes|yes please|ok|okay|great|"
+                       r"that's fine|that's right|that's correct|correct|perfect|as is|as it is)$")
+
+
+def covering_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> Optional[dict[str, str]]:
+    """ADR-0085 (G-169): {filename, value} when the upload this turn reads was checked against `field`
+    and covers it — every criterion supported, nothing contradicted or missing — and gives its value.
+    Otherwise None, and the upload turn stays as ADR-0074 made it (the file named, what it lacks)."""
+    check = (upload or {}).get("element_check") or {}
+    value = str(check.get("value") or "").strip()
+    criteria = list(check.get("criteria") or [])
+    if not field or check.get("element") != field or not value or not criteria:
+        return None
+    if any(c.get("result") != "supported" for c in criteria) or any(str(m).strip() for m in check.get("missing") or []):
+        return None
+    return {"filename": str((upload or {}).get("filename") or "the file"), "value": value}
+
+
+def uses_upload(text: str, pending: Optional[dict[str, Any]]) -> bool:
+    """ADR-0085 (G-169): on a read-back of an uploaded file, "use the file" is a Confirm — a message whose
+    every part either asks to use the file (or names it) or is a courtesy, and that changes nothing. Any
+    other content ("use the file, sponsor is Jane") is an answer, judged as one (founder, 2026-10-14)."""
+    filename = str((pending or {}).get("upload") or "").lower()
+    if not filename:
+        return False
+    stem = filename.rsplit(".", 1)[0]
+    t = " ".join((text or "").lower().replace("’", "'").replace(filename, " the file ").replace(stem, " the file ")
+                 .split())
+    if not t or _FILE_CHANGE.search(t):
+        return False
+    parts = [" ".join(re.sub(r"[^\w'\s]", " ", p).split()) for p in _CLAUSE.split(t)]
+    parts = [p for p in parts if p]
+    return bool(parts) and any(_USE_FILE.search(p) for p in parts) and \
+        all(_USE_FILE.search(p) or _COURTESY.match(p) for p in parts)
 
 
 def is_confirmation(text: str) -> bool:
@@ -354,7 +401,7 @@ def _join(*parts: str) -> str:
 async def decide(phase: str, artifacts: dict[str, Any],
                  field_status: dict[str, dict[str, Any]], belt: str,
                  judge: Judge, action: Optional[str] = None,
-                 element: Optional[str] = None) -> dict[str, Any]:
+                 element: Optional[str] = None, upload: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """THE MOVE, from the STORED status (brief item 2, rulings R4 and R5), and
     the statuses AFTER this turn — which the executor stores at turn end.
 
@@ -431,12 +478,25 @@ async def decide(phase: str, artifacts: dict[str, Any],
                     messages=int(entry.get("messages") or 1),
                     reason=REJECT_REASON.format(reason=reason))
 
+    # ADR-0085 (G-169) — the upload turn of a file that covers this element reads the file's values back,
+    # decided in code (no judgment call); a Confirm, or "use the file", stores them on the path below.
+    covered = covering_upload(field, upload) if action is None else None
+    if covered is not None:
+        words = covered["value"]
+        new_pending = {"field": field, "fields": list(fields), "belt_words": words, "messages": 1,
+                       "upload": covered["filename"], **_earlier_kw(entry, None)}
+        after[field] = {"status": ANSWERED, "answer": words, "messages": 1, "pending": new_pending,
+                        **_attempts(entry)}
+        return done(field, fields, status, READ_BACK, answer=words, messages=1, pending=new_pending,
+                    reason=UPLOAD_READ_BACK_REASON.format(filename=covered["filename"]))
+
     if status == NOT_TAUGHT:
         after[field] = {"status": ASKED}
         return done(field, fields, status, TEACH)
 
     pending = entry.get("pending") if status == ANSWERED else None
-    if pending and (action == CONFIRM_CLICK or (action is None and is_confirmation(belt))):
+    if pending and (action == CONFIRM_CLICK or (action is None and (is_confirmation(belt)
+                                                                     or uses_upload(belt, pending)))):
         store = dict(pending.get("store") or {})
         merged = {**artifacts, **store}
         if store_missing(fields, artifacts, store):

@@ -2462,8 +2462,7 @@
     "gaps": [
      "G-73",
      "G-97",
-     "G-98",
-     "G-169"
+     "G-98"
     ]
    },
    "requirement": "R1",
@@ -4233,6 +4232,49 @@
      "G-145",
      "G-146",
      "G-149"
+    ]
+   },
+   "requirement": "W5",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api",
+   "pilot": true
+  },
+  {
+   "id": "DEF-169",
+   "description": "An upload that covers the current element is read back on its upload turn, decided in code with no judgment call; a Confirm, a plain yes or 'use the file' stores the file's values, and the change log records the source as upload (ADR-0085, G-169).",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-108",
+    "DEF-082"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_an_upload_that_covers_the_element_is_read_back_and_use_the_file_confirms",
+   "sources": {
+    "architecture": [
+     "ADR-0085 an upload that covers the element is read back",
+     "ADR-0074 the upload judged against the current element"
+    ],
+    "procedure": [
+     "G-169 (scenario (e), 2026-10-13)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py::covering_upload",
+     "agent-improve/backend/phases/moves.py::uses_upload",
+     "agent-improve/backend/storage/models.py::ElementCheck",
+     "agent-improve/scripts/hard_path_scenarios.py::scenario_e_upload"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-169"
     ]
    },
    "requirement": "W5",
