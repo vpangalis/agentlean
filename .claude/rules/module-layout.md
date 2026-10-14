@@ -42,7 +42,7 @@ Classes are permitted ONLY in these files.
 
 ### Tool and validation schemas
 - `knowledge/tool_args.py` — Pydantic schemas for `@tool` `args_schema=`
-- `validation/schemas.py` — `CriterionResult`, `CoachingGraderVerdict`,
+- `validation/schemas.py` — `CriterionResult`, `CoachingGraderVerdict`, `CriterionCheck`, `GraderV2Verdict`,
   `CriterionVerdict`, `GraderVerdict`
 - `core/errors.py` — `AgentImproveError` (§12.3)
 
