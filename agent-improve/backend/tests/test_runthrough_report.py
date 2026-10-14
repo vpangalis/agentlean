@@ -18,7 +18,7 @@ def test_the_grader_findings_section_reads_each_turns_step_log(monkeypatch) -> N
                            "not_counted": [{"criterion": "G1", "feedback": "unquoted", "evidence": ""}]}]}
     monkeypatch.setattr(proof, "_latest_final", lambda case_id: final)
     entry = R.grader_entry("case-1", "Our scope is invoices.")
-    assert entry == {"status": "failed", "move": "read_back",
+    assert entry == {"status": "failed", "move": "read_back", "verdicts": None,
                      "failed": [{"criterion": "G3", "reason": "adds a step the Belt did not give",
                                  "evidence": "Then it is approved twice."}],
                      "not_counted": [{"criterion": "G1", "reason": "unquoted"}]}

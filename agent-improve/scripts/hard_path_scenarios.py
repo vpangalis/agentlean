@@ -341,10 +341,16 @@ def slice_3_grader(client: Any, good: dict[str, str]) -> dict[str, Any]:
               and all(t.get("status") for t in graded),
               "verdicts are G1–G5 (and the code check)": all(
                   set((t.get("verdicts") or {})) <= {"G1", "G2", "G3", "G4", "G5", "no external URLs"} for t in graded),
-              "every fail quotes a sentence of its reply": all(
-                  f.get("criterion") == "no external URLs" or quoted(f.get("evidence") or "", t["reply"])
-                  for t in graded for f in t.get("failed") or [])}
-    return {**_record("slice_3", c0, turns, checks), "case_id": case_id, "graded": len(graded), "fails": len(fails)}
+              "every fail quotes a sentence (counted only with one, in the text it graded)": all(
+                  str(f.get("evidence") or "").strip() for t in graded for f in t.get("failed") or [])}
+    # A finding, not a check (founder 2026-10-14: placement and calibration after Define): the grader runs in
+    # the coach's after_agent hook, on the coach's own reply — before code replaces the example (G-170) and,
+    # after a store, the teaching (G-175). A fail can quote a sentence the Belt never sees.
+    unseen = [(n, f["criterion"], str(f.get("evidence") or "")[:120]) for n, f in fails
+              if f.get("criterion") != "no external URLs"
+              and not quoted(f.get("evidence") or "", next(t["reply"] for t in graded if t["n"] == n))]
+    return {**_record("slice_3", c0, turns, checks), "case_id": case_id, "graded": len(graded), "fails": len(fails),
+            "fails_quoting_text_the_belt_never_saw": unseen}
 
 
 def run_slices(client: Any, write: Callable[[dict[str, Any]], None], good: dict[str, str]) -> dict[str, bool]:

@@ -645,7 +645,7 @@ def grader_entry(case_id: str, belt: str) -> dict[str, Any] | None:
              None)
     if g is None:
         return None
-    return {"status": g.get("status"), "move": g.get("move"),
+    return {"status": g.get("status"), "move": g.get("move"), "verdicts": g.get("verdicts"),
             # Founder 2026-10-14: G1–G5 with the sentence of the reply each fail quotes; a fail with no
             # quote is not counted and is shown apart.
             "failed": [{"criterion": f.get("criterion"), "reason": f.get("feedback") or "",
