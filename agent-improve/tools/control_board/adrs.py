@@ -94,7 +94,9 @@ def change_refusal(old: str, new: str) -> str | None:
     """Why this change to a record may not land (guard rule 21), or None.
 
     Any record: a change to link targets only is allowed (ruling 5). An ACCEPTED record:
-    nothing else, except its status line becoming `SUPERSEDED by NNNN` or `WITHDRAWN (...)`."""
+    nothing else, except its status line becoming `SUPERSEDED by NNNN` or `WITHDRAWN (...)`, or a
+    founder's dated note appended at the end under `## Notes` (founder, 2026-10-14: ADR-0083) — the
+    record above it unchanged."""
     a, b = old.replace("\r\n", "\n").split("\n"), new.replace("\r\n", "\n").split("\n")
     if [_LINK.sub("[]()", x) for x in a] == [_LINK.sub("[]()", x) for x in b]:
         return None
@@ -106,9 +108,34 @@ def change_refusal(old: str, new: str) -> str | None:
             p = parse(diff[0][1])
             if (p["status"] == "SUPERSEDED" and p["superseded_by"]) or p["status"] == "WITHDRAWN":
                 return None
+    if _founder_note_appended(a, b):
+        return None
     return ("it is ACCEPTED, and an ACCEPTED record is never edited: the one change allowed "
             "is its status line to `Status: SUPERSEDED by NNNN` (a new record carries the new "
-            "decision) or `Status: WITHDRAWN (...)` on the founder's ruling, or a change to link targets only")
+            "decision) or `Status: WITHDRAWN (...)` on the founder's ruling, a founder's dated note appended "
+            "under `## Notes` (`Note (founder, YYYY-MM-DD): ...`), or a change to link targets only")
+
+
+_NOTE = re.compile(r"^Note \(founder, \d{4}-\d{2}-\d{2}\): \S")
+
+
+def _founder_note_appended(a: list[str], b: list[str]) -> bool:
+    """Every line of the record kept as it was, then only a `## Notes` section (once) whose entries are
+    founder notes, each opening `Note (founder, YYYY-MM-DD): `; continuation lines are free text."""
+    while a and not a[-1].strip():
+        a = a[:-1]
+    if b[:len(a)] != a:
+        return False
+    added = [x for x in b[len(a):] if x.strip()]
+    if not added:
+        return False
+    if "## Notes" in a:
+        heads = added
+    elif added[0].strip() == "## Notes":
+        heads = added[1:]
+    else:
+        return False
+    return bool(heads) and bool(_NOTE.match(heads[0])) and "## Notes" not in heads
 
 
 def main(argv: list[str]) -> int:

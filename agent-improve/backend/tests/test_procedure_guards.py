@@ -126,6 +126,20 @@ def test_rule_21_passes_withdrawing_an_accepted_adr_but_not_withdrawing_and_edit
         g.check_adr_immutability(str(repo), staged)
 
 
+def test_rule_21_passes_a_founders_note_appended_but_not_a_note_with_an_edit(repo) -> None:
+    """Founder, 2026-10-14 (ADR-0083): a dated founder note may be appended under `## Notes`; the record
+    above it stays as accepted, and a note that is not the founder's, dated, is refused."""
+    g = _guard()
+    text = _read(repo, _ADR).rstrip("\n")
+    note = "\n\n## Notes\n\nNote (founder, 2026-10-14): what this decision's purpose is served by.\n"
+    g.check_adr_immutability(str(repo), _stage(repo, _ADR, text + note))
+    for bad in (text.replace("on every commit", "on each commit") + note,
+                text + "\n\n## Notes\n\nA note with no founder and no date.\n"):
+        _git(repo, "reset", "-q", "--hard")
+        with pytest.raises(SystemExit):
+            g.check_adr_immutability(str(repo), _stage(repo, _ADR, bad))
+
+
 def test_rule_21_refuses_deleting_a_record(repo) -> None:
     _git(repo, "rm", "-q", _NEW_ADR)
     staged = _git(repo, "diff", "--cached", "--name-only").splitlines()

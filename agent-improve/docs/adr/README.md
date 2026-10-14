@@ -26,7 +26,8 @@ flowchart LR
 
 - **An ADR is never edited, only superseded.** A changed decision is a new ADR; the old one's
   status line becomes `SUPERSEDED by NNNN` and nothing else changes. A decision the founder takes back
-  with nothing in its place has its status line become `WITHDRAWN (who, when, why)`. A change to link targets only
+  with nothing in its place has its status line become `WITHDRAWN (who, when, why)`. A founder's note on an accepted record is appended at its end, under `## Notes`, as
+  `Note (founder, YYYY-MM-DD): ...`; the record above it does not change. A change to link targets only
   is allowed. Guard rule 21 refuses any other change to an ACCEPTED record
   (`tools/control_board/adrs.py`).
 - **The design gate** (guard rule 19): a feature whose requirement says `Design: ADR-nnnn` lands
