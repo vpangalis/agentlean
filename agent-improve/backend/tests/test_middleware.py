@@ -987,13 +987,78 @@ def test_coherence_is_not_a_rubric_criterion() -> None:
 
     assert "coheren" not in COACHING_QUALITY_RUBRIC.lower()
     assert "gibberish" not in COACHING_QUALITY_RUBRIC.lower()
-    assert COACHING_QUALITY_RUBRIC.count("- Coach") == 10, (
-        "§36's nine criteria and B2's tenth (founder ruling 2026-10-13: never ask for what was already "
-        "given); an eleventh needs checking against §36"
-    )
+    assert [line[2:4] for line in COACHING_QUALITY_RUBRIC.splitlines() if line.startswith("- G")] == \
+        ["G1", "G2", "G3", "G4", "G5"], "the founder's five criteria (2026-10-14); a sixth needs a ruling"
+    assert "url" not in COACHING_QUALITY_RUBRIC.lower(), "external URLs are a code check, not a criterion"
 
 
 # ── position 8 — the grader ───────────────────────────────────────────────
+
+
+def test_the_grader_rubric_g1_to_g5_as_ruled() -> None:
+    """Founder ruling 2026-10-14 — the grader's criteria G1–G5, by an explicit move table; a fail counts
+    only with a sentence quoted from the reply; "no external URLs" is a code check; the grader is given
+    the Belt's message, the reply, the move, the confirmed values and the element's purpose and acceptance
+    criteria from the script — never the Belt's earlier messages. Log-only: it suggests, never blocks."""
+    import asyncio
+    from backend.middleware import grader as G
+    from backend.phases.nodes_common import _element_purpose
+    from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
+
+    # the explicit table, as ruled
+    assert G.MOVE_CRITERIA["read_back"] == ("G1", "G2", "G3")          # G4 on every move but a read-back
+    assert G.MOVE_CRITERIA["challenge"] == ("G1", "G2", "G3", "G4")
+    assert all("G2" not in G.MOVE_CRITERIA[m] for m in ("teach", "store_and_advance", "respond", "offer_park"))
+    assert all(c in ids for ids in G.MOVE_CRITERIA.values() for c in ("G1", "G3"))
+    assert "G5" not in G.criteria_for("teach", "define") and "G5" in G.criteria_for("teach", "measure") \
+        and "G5" in G.criteria_for("read_back", "analyse")
+    assert not hasattr(G, "MOVE_EXCLUDES")
+    assert "G4 GUIDES" not in G.rubric_for_move("read_back") and "G2 HANDLES" in G.rubric_for_move("challenge")
+    assert G.applies("G2", "challenge") and not G.applies("G2", "teach") and G.applies(G.NO_URLS, "teach")
+    assert G.GRADER_MODE == "log_only"
+
+    reply = "Here is what I captured for your scope: invoices from receipt to payment. Is this right?"
+    seen: list[str] = []
+
+    class _Model:
+        def __init__(self, verdict: CoachingGraderVerdict) -> None:
+            self.verdict = verdict
+
+        def with_structured_output(self, schema, **_):
+            return self
+
+        async def ainvoke(self, prompt):
+            seen.append(prompt)
+            return self.verdict
+
+    verdict = CoachingGraderVerdict(criteria=[
+        CriterionResult(criterion="G1", status="pass"),
+        CriterionResult(criterion="G2", status="fail", feedback="name the end point",
+                        evidence="invoices from receipt to payment."),
+        CriterionResult(criterion="G3", status="fail", feedback="invented", evidence="a sentence not in it"),
+        CriterionResult(criterion="G4", status="fail", feedback="not asked of a read-back",
+                        evidence="Is this right?")])
+    mw = G.DMAICGraderMiddleware("define", move="read_back", context="- business_case: late payments cost £62,000",
+                                 purpose=_element_purpose("define", "project_scope"))
+    import backend.middleware.grader as grader_module
+    original = grader_module.get_llm
+    grader_module.get_llm = lambda role, **kw: _Model(verdict)   # type: ignore[assignment]
+    try:
+        graded = asyncio.run(mw._grade("Invoices from receipt to payment.", reply))
+    finally:
+        grader_module.get_llm = original                          # type: ignore[assignment]
+    by = {c.criterion: c.status for c in graded.criteria}
+    assert by == {"G1": "pass", "G2": "fail", "G3": "pass"}, by   # G3 unquoted: not counted; G4 not asked
+    assert mw._uncounted == [{"criterion": "G3", "feedback": "invented", "evidence": "a sentence not in it"}]
+    prompt = seen[0]
+    assert "late payments cost £62,000" in prompt and "Acceptance criteria:" in prompt
+    assert "Invoices from receipt to payment." in prompt and "THE MOVE" not in prompt.upper().replace("THIS TURN'S MOVE", "")
+    assert "G4 GUIDES" not in prompt and "earlier messages" not in prompt.lower()
+
+    # the code check: a web address fails, quoted; none passes
+    check = G.url_check("Read more at https://example.org/sipoc today. Then tell me your steps.")
+    assert check is not None and check.criterion == G.NO_URLS and "https://example.org/sipoc" in check.evidence
+    assert G.url_check("Your late rate is 23.5% today; e.g. a target of 5%.") is None
 
 
 def test_the_grader_uses_the_coaching_rubric_never_a_phase_rubric() -> None:

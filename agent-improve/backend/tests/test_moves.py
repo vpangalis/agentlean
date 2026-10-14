@@ -341,24 +341,21 @@ def test_each_move_is_graded_only_on_what_it_does() -> None:
     into the next challenge, sent the coach on lookups the move never asked
     for (4 of 5 live runs, one to the backstop)."""
     from backend.middleware.grader import applies, rubric_for_move
-    methodology = "Coach must name what the element is for, as the phase script gives it, not just opinion"   # B2: was "reference methodology"
-    challenge = "Coach must challenge weak inputs with specific follow-up questions"
-    assert not applies(methodology, "challenge") and applies(challenge, "challenge")
-    assert not applies(challenge, "read_back") and not applies(challenge, "store_and_advance")
-    assert applies(methodology, "teach")
-    computation = "Coach must not dump raw statistical output without explanation."
+    # Founder ruling 2026-10-14: G1–G5 by an explicit move table.
+    assert not applies("G4", "read_back") and applies("G4", "challenge") and applies("G4", "teach")
+    assert not applies("G2", "teach") and not applies("G2", "store_and_advance") and applies("G2", "read_back")
     assert [m for m in ("teach", "challenge", "read_back", "store_and_advance", "respond")
-            if applies(computation, m)] == ["teach", "store_and_advance"]
-    assert "what the element is for" not in rubric_for_move("challenge")   # B2: was "reference methodology"
-    assert "challenge weak inputs" in rubric_for_move("challenge")
+            if applies("G5", m, "measure")] == ["teach", "challenge", "read_back", "store_and_advance", "respond"]
+    assert not any(applies("G5", m, "define") for m in ("teach", "challenge", "read_back"))
+    assert "G2 HANDLES" not in rubric_for_move("teach") and "G2 HANDLES" in rubric_for_move("challenge")
 
 
 def test_section_5_leaves_out_what_this_turns_move_does_not_do() -> None:
     from backend.core.substate import CoachingPlan
     from backend.middleware.state_injection import BeforeModelStateInjection
-    methodology = "Coach must name what the element is for, as the phase script gives it, not just opinion"   # B2: was "reference methodology"
-    fb: dict[str, Any] = {"grader": {"status": "fail", "criteria_failed": [methodology],
-                     "failed": [{"criterion": methodology, "feedback": "cite the book"}]},
+    handles = "G2"                    # founder ruling 2026-10-14: asked of challenges and read-backs only
+    fb: dict[str, Any] = {"grader": {"status": "fail", "criteria_failed": [handles],
+                     "failed": [{"criterion": handles, "feedback": "cite the book"}]},
           "coherence": {"coherent": True, "reason": ""}}
     prior = AIMessage(content="What is it costing you?",
                       additional_kwargs={moves.QUALITY_FEEDBACK_KEY: fb})
@@ -370,12 +367,12 @@ def test_section_5_leaves_out_what_this_turns_move_does_not_do() -> None:
             "messages": [HumanMessage(content="Hi"), prior, HumanMessage(content="It's slow.")]}))
         return mw._compose_feedback()
 
-    assert "nothing that applies to this turn's move" in section_5("challenge")
-    assert "cite the book" in section_5("teach")
-    # A verdict on a reply graded as a read-back carries nothing a read-back
-    # is not graded on — even into a move that would be.
-    fb["grader"]["move"] = "read_back"
     assert "nothing that applies to this turn's move" in section_5("teach")
+    assert "cite the book" in section_5("challenge")
+    # A verdict on a reply graded as a teach carries nothing a teach is not
+    # graded on — even into a move that would be.
+    fb["grader"]["move"] = "teach"
+    assert "nothing that applies to this turn's move" in section_5("challenge")
 
 
 

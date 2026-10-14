@@ -28,9 +28,8 @@ CUT = 4000
 
 async def _grade(turn: dict[str, Any], turns: list[dict[str, Any]]) -> dict[str, Any]:
     from backend.middleware.grader import DMAICGraderMiddleware
-    from scripts.judge_replay import earlier, grader_for
+    from scripts.judge_replay import grader_for
     grader = grader_for(turn)
-    grader._earlier = earlier(turn, turns)
     g = await grader._grade(turn["belt"], turn["reply_judged"])
     return {"passed": g.passed, "criteria": {c.criterion: c.status for c in g.criteria},
             "failed": [c.criterion for c in g.failed]}

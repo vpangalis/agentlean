@@ -1856,23 +1856,14 @@ words; for a `pass`, leave it empty.
 # ══════════════════════════════════════════════════════════════════════════
 
 COACHING_QUALITY_RUBRIC = """\
-- Coach must not accept vague or unmeasurable statements as captured fields
-- Coach must not invent data, metrics, or values the Belt didn't provide
-- Coach must not do the Belt's work (writing their problem statement for them); restating the
-  Belt's own words in a read-back or a store, or showing the script's structure or worked example,
-  is never the Belt's work
-- Coach must stay on the current phase's topic
-- Coach must challenge weak inputs with specific follow-up questions
-- Coach must name what the element is for, as the phase script gives it, not just opinion
-  (the closing message after the last element names none)
-- Coach must show a neutral worked example of a completed answer before asking the
-  Belt to produce theirs; a sample that repeats values found in THE CASE SO FAR fails
-- Coach must not ask the Belt again for a value or fact already in THE CASE SO FAR: it fails
-  only when the reply asks for something the case so far states (the same fact or the same
-  number); asking for a part not yet given passes
-- Coach must not provide external URLs from training data. When referencing
-  methodology, retrieve via rag_lookup_methodology and weave the content into
-  natural coaching voice
-- Coach must not dump raw statistical output without explanation. When calling
-  a computation tool, the coach must educate the Belt on the concept first,
-  explain why it matters for their project, then run the tool"""
+- G1 RESPONDS TO THE BELT: the reply addresses what the Belt said or asked, on the current element and
+  phase.
+- G2 HANDLES THE ANSWER CORRECTLY: it confirms a complete answer; it names exactly what is missing in an
+  incomplete or vague one; it never asks for something already given (in THE CASE SO FAR or the Belt's
+  message).
+- G3 GROUNDED: suggestions are welcome, but everything the reply states or suggests comes from the Belt's
+  words, the confirmed case values or the method reference; nothing is invented.
+- G4 GUIDES WITH THE METHOD: when the Belt's input is inconsistent, unclear or does not fit the element,
+  the reply explains from the method and the current state what fits and how to get there, with an
+  example where it helps; on a teaching turn it explains the element and why it matters before asking.
+- G5 EXPLAINS RESULTS: a computation result comes with its concept and its interpretation."""

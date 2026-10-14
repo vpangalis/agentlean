@@ -66,8 +66,9 @@ Belt knows what a Cpk, a p-value or a control limit is. **A p-value with no
 concept and no interpretation is a rubric failure.** Every SKILL.md must carry
 the sequence for each tool in its `allowed-tools` (§8.3; §43.1).
 
-**Show before asking is a rubric criterion** — a concrete completed example
-per field, carried in each SKILL.md.
+**Criteria G1–G5** (by move: `MOVE_CRITERIA`): G1 responds to the Belt · G2 handles the answer
+(read-back, challenge) · G3 grounded · G4 guides with the method (no read-back) ·
+G5 explains results (Measure/Analyse). **A fail needs a quoted sentence**; URLs: a code check.
 
 **Mechanism, both graders:** `grader` role, temperature 0.1 (§4.7);
 **one grade per reply** (step 6.52 B2), its one call counted inside T69's four;

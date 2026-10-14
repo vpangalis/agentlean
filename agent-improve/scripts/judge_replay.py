@@ -82,31 +82,12 @@ def grader_for(turn: dict[str, Any]) -> Any:
     return DMAICGraderMiddleware("define", move=turn["move"], purpose=_element_purpose("define", field))
 
 
-def earlier(turn: dict[str, Any], turns: list[dict[str, Any]]) -> str:
-    """B2: the Belt's messages before `turn` in its run, as the grader is given them live — read from the
-    run's record (every turn), else from the set's own turns of that run. The set carries no confirmed
-    values, so the case so far is the Belt's earlier messages."""
-    runs = Path(__file__).resolve().parents[1] / "docs" / "runthrough"
-    record = next((p for p in (runs / f"define_runthrough_{turn['run']}.json",
-                               runs / f"failed_define_runthrough_{turn['run']}.json") if p.exists()), None)
-    if record is not None:
-        rows = [r for r in json.loads(record.read_text(encoding="utf-8")) if isinstance(r, dict)
-                and r.get("kind") == "turn" and int(r.get("n") or 0) < int(turn["turn"])]
-        said = [str(r.get("belt") or "") for r in sorted(rows, key=lambda r: int(r["n"]))]
-    else:
-        said = [t["belt"] for t in sorted(turns, key=lambda t: t["turn"]) if t["run"] == turn["run"]
-                and t["turn"] < turn["turn"]]
-    said = [s for s in said if s.strip() and s.strip().lower() not in ("confirm", "next, please.")]
-    return "\n".join(f"- {s[:400]}" for s in said[-12:])
-
-
 async def replay(turn: dict[str, Any], turns: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """The grader, rebuilt for the turn's move, on the reply it judged (the coherence judge is retired,
     ADR-0083: its recorded verdicts are reported as history, never replayed)."""
     from backend.middleware.grader import DMAICGraderMiddleware
     t0 = time.time()
     grader = grader_for(turn)
-    grader._earlier = earlier(turn, turns or [])
     g = await grader._grade(turn["belt"], turn["reply_judged"])
     return {"id": turn["id"],
             "grader": {"passed": g.passed, "failed": [{"criterion": f.criterion, "reason": f.feedback} for f in g.failed],

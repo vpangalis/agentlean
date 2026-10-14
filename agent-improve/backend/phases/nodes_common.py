@@ -1472,11 +1472,14 @@ def _move_record(plan: CoachingPlan | None, pending: dict | None,
 
 
 def _element_purpose(phase: str, field: Optional[str]) -> str:
-    """B2: the element's purpose as the script gives it (its explanation block), for the grader."""
+    """The element's purpose as the script gives it (its explanation block) and its acceptance criteria,
+    for the grader (founder ruling 2026-10-14: from the phase script, no retrieval)."""
     if not field:
         return ""
-    from backend.middleware.skills import teaching_blocks
-    return teaching_blocks(phase, field).get("explanation", "")
+    from backend.middleware.skills import acceptance_criteria, teaching_blocks
+    purpose = teaching_blocks(phase, field).get("explanation", "")
+    criteria = "\n".join(f"- {cid}: {text}" for cid, text in acceptance_criteria(phase, field))
+    return purpose + (f"\nAcceptance criteria:\n{criteria}" if criteria else "")
 
 
 def _grader_context(state: PhaseState) -> str:

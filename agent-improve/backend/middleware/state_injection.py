@@ -469,8 +469,8 @@ class BeforeModelStateInjection(AgentMiddleware):
             # ...and only what applied to the move the reply was GRADED as:
             # a verdict recorded before a criterion was excluded for that
             # move cannot leak through.
-            kept = [f for f in failed if applies(str(f.get("criterion")), move)
-                    and applies(str(f.get("criterion")), g.get("move"))]
+            kept = [f for f in failed if applies(str(f.get("criterion")), move, self.phase)
+                    and applies(str(f.get("criterion")), g.get("move"), self.phase)]
             if g.get("status") == "pass" or not failed:
                 lines.append("  Coaching quality: passed every criterion.")
             elif kept:

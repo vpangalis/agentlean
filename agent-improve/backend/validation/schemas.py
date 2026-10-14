@@ -48,7 +48,14 @@ class CriterionResult(BaseModel):
     **No `tier` field** — see the module docstring and G-12.
     """
 
-    criterion: str = Field(description="The rubric line being judged.")
+    criterion: str = Field(description="The criterion's id: G1, G2, G3, G4 or G5.")
+    evidence: str = Field(
+        default="",
+        description=(
+            "On a fail: the sentence of the reply that breaks the criterion, copied word for word. "
+            "Empty on a pass. A fail without it is not counted (founder ruling 2026-10-14)."
+        ),
+    )
     status: Literal["pass", "fail"] = Field(
         description="Whether the coach met this criterion on this turn.",
     )
