@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -214,6 +215,14 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             # fallback reply, so the walk stops itself rather than trust it.
             out["stopped"] = f"cap: {cap} model calls"
             break
+        if getattr(walk, "_field", None) == "issues_and_barriers" and "early_gate" not in out:
+            # DEF-064 / row 17 (founder 2026-10-14, A+): one gate submit while a field is still missing —
+            # layer 2b refuses it in code, no model call.
+            eg = client.post("/gate", json={"case_id": case_id, "submitted_by": USER, "phase": "define"})
+            eb = eg.json() if eg.headers.get("content-type", "").startswith("application/json") else {"text": eg.text[:300]}
+            out["early_gate"] = {"http": eg.status_code, "passed": bool(isinstance(eb, dict) and eb.get("passed")),
+                                 "missing": (eb.get("missing_fields") if isinstance(eb, dict) else None)}
+            _write(rec, {"kind": "early_gate", **out["early_gate"]})
         if walk_field := getattr(walk, "_field", None):
             if walk_field == "process_map_sipoc" and not uploaded:
                 uploaded = True
@@ -310,6 +319,11 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
         if why == "stuck":
             out["stuck_at"] = line["field"]
 
+    # ── DEF-064, A+ (founder 2026-10-14): while the case is still in Define — one correction of a confirmed
+    # element (row 6), one traced coaching turn (rows 2, 13, 33, 35), then the capability rows on the case ──
+    if out.get("stopped") == "done":
+        out["capability"] = capability_steps(client, rec, case_id, scratch)
+
     # ── the gate, as far as it exists: review, then submit (no model call) ──
     rv = client.get(f"/gate/review/{case_id}/define")
     review = rv.json() if rv.status_code == 200 else {"error": rv.text[:400]}
@@ -370,6 +384,10 @@ def main() -> int:
     ap.add_argument("--scenarios-only", action="store_true",
                     help="run only the hard-path scenarios (b)-(e); the record goes to --scratch, never the tree")
     args = ap.parse_args()
+    # DEF-064: the real send methods, kept for the one traced turn (traced_turn), before tracing goes off.
+    from langsmith import Client as _LSClient
+    from scripts.coaching_proof_656 import _CLIENT_SENDS
+    REAL_SENDS.update({m: getattr(_LSClient, m) for m in _CLIENT_SENDS if hasattr(_LSClient, m)})
     _tracing_off()
     # The walk stops itself at --max-calls (`run` checks it); the hard cap at the model boundary leaves the
     # hard-path scenarios their own allowance — they ran into the walk's cap on 2026-10-13 (run 074320).
@@ -452,6 +470,113 @@ def _scenarios_only(scratch: Path) -> int:
         result = run_all(client, lambda e: _write(rec, e), GOOD)
     print(f"scenarios: {result}; record: {rec}; USD {_cost(token_totals(CALLS)).get('usd')}")
     return 0 if all(result.values()) else 6
+
+
+#: DEF-064 — the correction (row 6): issues and barriers revised once, after every element is confirmed.
+REVISED_ISSUES = ("Three barriers now: the three sites use different approval routes, the ERP change freeze until "
+                  "January, and the AP team's year-end close in December, when nobody is free for workshops.")
+#: DEF-064 — the traced turn (rows 2, 13, 33, 35): a question that reaches the coach, captures nothing.
+TRACED_TURN = ("Before we submit, can you remind me what the customers column of our SIPOC is for, and whether "
+               "ours names the right people?")
+TRACED_USER = "capability-traced-turn"
+#: The LangSmith client's real send methods, kept before tracing is switched off (main).
+REAL_SENDS: dict[str, Any] = {}
+
+
+def _parent_inputs(case_id: str) -> int:
+    """How many `input` checkpoints the case's parent graph holds — row 2 counts one per POST."""
+    from backend.core.checkpointer import get_checkpointer
+    cfg = {"configurable": {"thread_id": case_id, "checkpoint_ns": ""}}
+    return sum(1 for t in get_checkpointer().list(cfg) if (t.metadata or {}).get("source") == "input")
+
+
+def traced_turn(client: Any, case_id: str) -> dict[str, Any]:
+    """DEF-064 (founder 2026-10-14): ONE coaching turn traced to LangSmith as its own run, labelled by its
+    user (`capability-traced-turn`): the real client methods for this request only, flushed, then tracing
+    is switched off again. The walk's own send count is untouched — a true 0 (DEF-004)."""
+    import datetime as _dt
+    import langsmith.utils as ls_utils
+    from langchain_core.tracers.langchain import wait_for_all_tracers
+    from langsmith import Client
+    from langsmith.run_trees import configure
+    from backend.core.config import settings
+    sends_before = len(SENDS)
+    for method, fn in REAL_SENDS.items():
+        setattr(Client, method, fn)
+    for name in ("LANGCHAIN_TRACING_V2", "LANGSMITH_TRACING_V2", "LANGSMITH_TRACING", "LANGCHAIN_TRACING"):
+        os.environ[name] = "true"
+    os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGCHAIN_API_KEY or "")
+    os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT or "agentlean-improve"
+    getattr(ls_utils.get_env_var, "cache_clear")()
+    configure(enabled=True)
+    inputs_before = _parent_inputs(case_id)
+    started = _dt.datetime.now(_dt.timezone.utc)
+    try:
+        resp = client.post("/ask", json={"case_id": case_id, "phase": "define", "user": TRACED_USER,
+                                         "message": TRACED_TURN})
+        body: Any = resp.json() if resp.content else {}
+        status = resp.status_code
+    finally:
+        wait_for_all_tracers()
+        _tracing_off()
+    return {"status": status, "body": body, "inputs_before": inputs_before,
+            "inputs_after": _parent_inputs(case_id), "started": started.isoformat(),
+            "walk_sends_unchanged": len(SENDS) == sends_before}
+
+
+def capability_rows(case_id: str, driven_path: Path) -> dict[str, Any]:
+    """DEF-064 — every Define capability row's own check, run on this case (pytest, its own process; rows
+    read the case from Azure), the traced turn handed to row 2. Each row: passed, failed or skipped (a skip
+    is not a pass, Appendix H)."""
+    import subprocess
+    import xml.etree.ElementTree as ET
+    junit = driven_path.with_suffix(".rows.xml")
+    env = {**os.environ, "CAPABILITY_CASE_ID": case_id, "CAPABILITY_SCRIPT_CASE_ID": case_id,
+           "CAPABILITY_DRIVEN_TURN": str(driven_path)}
+    proc = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:randomly", "-p", "no:cacheprovider",
+                           "backend/tests/test_capability_rows.py", "-k", "test_row_", f"--junitxml={junit}"],
+                          cwd=str(Path(__file__).resolve().parents[1]), env=env, capture_output=True, text=True,
+                          timeout=900)
+    rows: dict[str, str] = {}
+    if junit.exists():
+        for case in ET.parse(junit).getroot().iter("testcase"):
+            name = case.get("name") or ""
+            outcome = "failed" if case.find("failure") is not None or case.find("error") is not None else \
+                "skipped" if case.find("skipped") is not None else "passed"
+            detail = next((str(c.get("message") or "")[:300] for c in case if c.tag in ("failure", "error", "skipped")), "")
+            rows[name] = outcome if not detail else f"{outcome}: {detail}"
+    return {"rows": rows, "green": bool(rows) and all(v == "passed" for v in rows.values()),
+            "exit": proc.returncode}
+
+
+def capability_steps(client: Any, rec: Path, case_id: str, scratch: Path) -> dict[str, Any]:
+    """DEF-064, A+ — while the case is in Define: the correction (row 6), the traced turn, the rows."""
+    out: dict[str, Any] = {}
+    # Row 6 — one confirmed element changed: Revise, the new answer, its read-back, Confirm.
+    steps: list[tuple[str, dict[str, Any]]] = [
+        ("revise", {"message": "Change: issues and barriers", "action": "revise", "element": "issues_and_barriers"}),
+        ("new answer", {"message": REVISED_ISSUES}), ("confirm", {"message": "Confirm", "action": "confirm"})]
+    for why, extra in steps:
+        t0 = time.time()
+        r = client.post("/ask", json={"case_id": case_id, "phase": "define", "user": USER, **extra})
+        b = r.json() if r.status_code == 200 else {}
+        _write(rec, {"kind": "check_turn", "why": f"row 6: {why}", "http": r.status_code,
+                     "seconds": round(time.time() - t0, 1), "move": b.get("move"), "field": b.get("move_field")})
+    out["correction_stored"] = (((client.get(f"/cases/{case_id}").json().get("phases") or {}).get("define") or {})
+                                .get("structured") or {}).get("issues_and_barriers") == REVISED_ISSUES
+    # Rows 2, 13, 33, 35 — the one traced turn.
+    driven = traced_turn(client, case_id)
+    _write(rec, {"kind": "traced_turn", **{k: v for k, v in driven.items() if k != "body"},
+                 "answer": str((driven.get("body") or {}).get("answer") or "")[:300],
+                 "move": (driven.get("body") or {}).get("move")})
+    path = scratch.parent / f"driven_turn_{case_id}.json"
+    path.write_text(json.dumps(driven, default=str), encoding="utf-8")
+    out["traced_turn"] = {"status": driven["status"], "walk_sends_unchanged": driven["walk_sends_unchanged"]}
+    out["rows"] = capability_rows(case_id, path)
+    _write(rec, {"kind": "capability_rows", **out["rows"]})
+    print(f"capability rows: {'GREEN' if out['rows']['green'] else 'NOT GREEN'} "
+          f"{ {k: v for k, v in out['rows']['rows'].items() if v != 'passed'} }")
+    return out
 
 
 def t23_check(client: Any, case_id: str) -> dict[str, Any]:

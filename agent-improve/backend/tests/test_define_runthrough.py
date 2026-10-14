@@ -283,9 +283,21 @@ def test_runthrough_no_reply_carries_a_link(run) -> None:
         assert not deferral.search(said), f"turn {r.get('n')} defers to a source: {said[:300]}"
 
 
-def test_every_define_row_is_green_on_the_run_through_case() -> None:
-    """DEF-064 — not written yet (a stub, step 6.67): Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run."""
-    _not_written('DEF-064')
+def test_every_define_row_is_green_on_the_run_through_case(run) -> None:
+    """DEF-064 — Define end to end (founder ruling 2026-10-14, A+): on ONE fresh case carrying an upload,
+    every Define capability row's own check is green after one run — run on the run-through's case while it
+    is still in Define, after one early gate submit (row 17), one correction (row 6) and one traced turn
+    (rows 2, 13, 33, 35); row 12 re-pointed to the planner's challenge. The walk itself sends no trace."""
+    assert run.get("upload") and run["upload"].get("http") == 200, "the case carries no upload"
+    early = run.get("early_gate") or {}
+    assert early and not early.get("passed"), f"no early gate submit refused with a field missing: {early}"
+    traced = run.get("traced_turn") or {}
+    assert traced.get("status") == 200 and traced.get("walk_sends_unchanged"), traced
+    assert run["summary"]["langsmith_sends"] == 0, "the walk sent a trace (DEF-004)"
+    rows = (run.get("capability_rows") or {}).get("rows") or {}
+    assert rows, "the record has no capability rows"
+    red = {k: v for k, v in rows.items() if v != "passed"}
+    assert not red, red
 
 
 # ── R3 — the validation layer, repeated on the live model ───────────────────

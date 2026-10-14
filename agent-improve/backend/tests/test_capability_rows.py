@@ -68,6 +68,9 @@ REPROOF_OWED = {
 }
 PHASE = "define"
 LIVE_TURN = os.environ.get("CAPABILITY_LIVE_TURN") == "1"
+#: DEF-064 (founder 2026-10-14): the turn the run-through drove and traced, handed to row 2 as a file —
+#: the same fields the `turn` fixture records when it drives one itself.
+DRIVEN_TURN = os.environ.get("CAPABILITY_DRIVEN_TURN") or ""
 
 #: What the one live turn says. A question, not an answer: it asks the coach
 #: to take stock, so it captures nothing and cannot overwrite what the Belt
@@ -84,7 +87,6 @@ COMPUTATION_KEYS = {"tool", "inputs", "result", "turn", "phase"}
 #: executor's agent, and the prefix middleware hooks are traced with.
 MODEL_NODE = "model"
 MIDDLEWARE_MARK = "Middleware."
-COHERENCE_NODE = "CoherenceMiddleware.after_agent"
 
 def _degraded() -> set[str]:
     from backend.phases.nodes_common import _CAP_MESSAGE, _TIMEOUT_MESSAGE
@@ -254,6 +256,8 @@ def turn():
     record = _read_turn(cp)
     if driven is not None:
         driven["inputs_after"] = len([r for r in _history(cp) if r["source"] == "input"])
+    elif DRIVEN_TURN:
+        driven = json.loads(open(DRIVEN_TURN, encoding="utf-8").read())
     return {"driven": driven, "record": record}
 
 
@@ -376,27 +380,6 @@ def _row_11(metrics: list[dict], structured: dict) -> list[str]:
         if not _same(primary.get(key), structured.get(key)):
             problems.append(f"phase_metrics[0].{key} = {primary.get(key)!r}, but the case "
                             f"holds {structured.get(key)!r}")
-    return problems
-
-
-def _row_12(traces: dict[str, list[dict]]) -> list[str]:
-    """`traces`: trace id -> its LLM runs, each {node, start, end}.
-
-    A turn in which layer 2a checked more than once REJECTED at least once
-    (its loop returns on the first pass). "Rejects and re-asks" then needs a
-    model call AFTER the first rejection — a fresh reply to judge.
-    """
-    problems = []
-    for trace_id, runs in sorted(traces.items()):
-        checks = sorted((r for r in runs if r["node"] == COHERENCE_NODE), key=lambda r: r["start"])
-        if len(checks) < 2:
-            continue
-        rejected_at = checks[0]["end"]
-        reasked = [r for r in runs if r["node"] == MODEL_NODE and r["start"] >= rejected_at]
-        if not reasked:
-            problems.append(f"trace {trace_id}: layer 2a checked {len(checks)} times — it "
-                            "rejected — and no model call followed, so nothing was re-asked; "
-                            "the same reply was re-judged")
     return problems
 
 
@@ -646,29 +629,38 @@ def test_row_11_the_metric_entry_mirrors_the_primary_scalars() -> None:
     "reply up to three times (10 of 10 rejecting turns on IMPR-2026-0E5, no model "
     "call after the rejection); since B2 it checks once and degrades. A fresh "
     "reply on reject is step 6.53, gated on G-83. Bug in stories.py, S40."))
+def _row_12_challenges(step_logs: list[list[dict]]) -> tuple[list[dict], list[str]]:
+    """Row 12, re-pointed (founder 2026-10-14; ADR-0083's note): the planner's challenges of an answer it
+    judged insufficient, and the problems — a challenge that names no failed criterion, or one that is not
+    the element's own."""
+    from backend.middleware.skills import acceptance_criteria
+    found, problems = [], []
+    for log in step_logs:
+        for e in log:
+            j = e.get("judgment") if isinstance(e, dict) and e.get("node") == "planner" else None
+            if not (isinstance(j, dict) and e.get("move") == "challenge" and j.get("verdict") == "insufficient"):
+                continue
+            found.append(e)
+            ids = [cid for cid, _ in acceptance_criteria(PHASE, str(e.get("focus_field") or ""))]
+            crit = str(j.get("failed_criterion") or "")
+            if not crit:
+                problems.append(f"{e.get('key')}: the challenge of {e.get('focus_field')} names no failed criterion")
+            elif ids and crit not in ids:
+                problems.append(f"{e.get('key')}: {crit!r} is not one of {e.get('focus_field')}'s criteria {ids}")
+    return found, problems
+
+
 def test_row_12_vague_answers_are_caught_inside_the_turn() -> None:
-    """**Row 12.** Read from the case's traces: layer 2a writes nothing to state
-    (its B7), so the trace is the only record of a rejection.
-    """
+    """**Row 12**, re-pointed from layer 2a (retired, ADR-0083) to the planner's judgment (founder ruling
+    2026-10-14): a vague answer is caught inside its turn — the planner judges it insufficient, the move is
+    a challenge, and the challenge names the element's failed criterion. Read from the case's step_log."""
     _require_storage(12)
-    client, project, reason = _langsmith()
-    if reason:
-        pytest.skip(f"{reason}: layer 2a leaves no other record" + NOT_A_PASS)
-    traces: dict[str, list[dict]] = {}
-    for r in client.list_runs(project_name=project, run_type="llm", filter=_thread_filter()):
-        node = ((r.extra or {}).get("metadata") or {}).get("langgraph_node")
-        if r.start_time is None or r.end_time is None:
-            continue
-        traces.setdefault(str(r.trace_id), []).append(
-            {"node": node, "start": r.start_time, "end": r.end_time})
-    rejecting = {t: rs for t, rs in traces.items()
-                 if sum(1 for r in rs if r["node"] == COHERENCE_NODE) >= 2}
-    if not rejecting:
-        pytest.skip(f"no turn on {CASE_ID} was ever rejected by layer 2a "
-                    f"({len(traces)} traced turns read)" + NOT_A_PASS)
-    problems = _row_12(rejecting)
-    assert not problems, (f"{len(problems)} of {len(rejecting)} rejecting turn(s): "
-                          + "; ".join(problems))
+    logs = [[e for e in (f["values"].get("step_log") or []) if isinstance(e, dict)]
+            for f in _all_subgraph_finals(_checkpointer())]
+    found, problems = _row_12_challenges(logs)
+    if not found:
+        pytest.skip(f"no answer on {CASE_ID} was ever judged insufficient and challenged" + NOT_A_PASS)
+    assert not problems, "; ".join(problems)
 
 
 def test_row_13_the_coaching_rubric_scores_the_turn(turn) -> None:
@@ -886,16 +878,16 @@ def test_mutation_row_11_a_metric_entry_that_does_not_mirror_is_red() -> None:
     assert _row_11([], s)
 
 
-def test_mutation_row_12_a_rejection_with_no_reask_is_red() -> None:
-    t = dt.datetime(2026, 9, 23, 12, 0, 0)
-    s = lambda n: t + dt.timedelta(seconds=n)  # noqa: E731
-    reasked = {"a": [{"node": MODEL_NODE, "start": s(0), "end": s(1)},
-                     {"node": COHERENCE_NODE, "start": s(2), "end": s(3)},
-                     {"node": MODEL_NODE, "start": s(4), "end": s(5)},
-                     {"node": COHERENCE_NODE, "start": s(6), "end": s(7)}]}
-    assert not _row_12(reasked)
-    rejudged = {"a": [r for r in reasked["a"] if r["start"] != s(4)]}
-    assert _row_12(rejudged)
+def test_mutation_row_12_a_challenge_naming_no_criterion_is_red() -> None:
+    """Row 12 re-pointed (founder 2026-10-14): a vague answer judged insufficient and challenged, naming
+    one of the element's own criteria, is green; a challenge naming none, or another element's, is red."""
+    good: dict[str, Any] = {"node": "planner", "key": "define:4:planner", "focus_field": "problem_statement",
+            "move": "challenge", "judgment": {"verdict": "insufficient", "failed_criterion": "defect", "reason": "vague"}}
+    found, problems = _row_12_challenges([[good]])
+    assert found and not problems
+    assert _row_12_challenges([[{**good, "judgment": {**good["judgment"], "failed_criterion": None}}]])[1]
+    assert _row_12_challenges([[{**good, "judgment": {**good["judgment"], "failed_criterion": "ctq-measurable"}}]])[1]
+    assert not _row_12_challenges([[{**good, "move": "read_back"}]])[0], "a read-back is no challenge"
 
 
 def test_mutation_row_13_a_grade_that_never_reaches_step_log_is_red() -> None:
