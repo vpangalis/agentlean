@@ -353,11 +353,14 @@ def slice_3_grader(client: Any, good: dict[str, str]) -> dict[str, Any]:
             "fails_quoting_text_the_belt_never_saw": unseen}
 
 
-def run_slices(client: Any, write: Callable[[dict[str, Any]], None], good: dict[str, str]) -> dict[str, bool]:
-    """The three slices, each written as it ends; returns {name: passed}."""
+def run_slices(client: Any, write: Callable[[dict[str, Any]], None], good: dict[str, str],
+               only: int | None = None) -> dict[str, bool]:
+    """The three slices (or slice `only`), each written as it ends; returns {name: passed}."""
     out = {}
     for name, fn in (("slice_1", lambda: slice_1_upload(client)), ("slice_2", lambda: slice_2_gate(client)),
                      ("slice_3", lambda: slice_3_grader(client, good))):
+        if only and name != f"slice_{only}":
+            continue
         try:
             entry = fn()
         except Exception as exc:  # noqa: BLE001 — a slice that raises is a failed slice, recorded

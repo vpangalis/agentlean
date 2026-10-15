@@ -1200,7 +1200,11 @@ def _build_executor(
                 move=plan.move if plan else None,
                 # B2 (founder ruling 2026-10-13) — the case's confirmed values, for "already given".
                 context=_grader_context(state),
-                purpose=_element_purpose(phase, plan.focus_field if plan else None),
+                # Option A (founder ruling 2026-10-15): the coach's own sources — the element's script
+                # block as the coach was given it, the Belt's words for the element, the answer awaiting
+                # a Confirm.
+                purpose=_grader_method(phase, plan.focus_field if plan else None),
+                sources=_grader_sources(plan),
             ),
             ContradictionDetectionMiddleware(),
         ],
@@ -1484,6 +1488,30 @@ def _element_purpose(phase: str, field: Optional[str]) -> str:
     purpose = teaching_blocks(phase, field).get("explanation", "")
     criteria = "\n".join(f"- {cid}: {text}" for cid, text in acceptance_criteria(phase, field))
     return purpose + (f"\nAcceptance criteria:\n{criteria}" if criteria else "")
+
+
+def _grader_method(phase: str, field: Optional[str]) -> str:
+    """Option A (founder ruling 2026-10-15): the method for the element exactly as the coach was given it —
+    its block of the phase script (what it is, why it matters, the worked example, the ask, the acceptance
+    criteria); with no element, the closing block."""
+    from backend.middleware.skills import script_section
+    return script_section(phase, field, False)
+
+
+def _grader_sources(plan: Optional[CoachingPlan]) -> str:
+    """Option A (founder ruling 2026-10-15): what the Belt has given for the element this turn works on —
+    their words so far — and the answer awaiting their Confirm, as the coach had them."""
+    if plan is None:
+        return ""
+    pending = dict(plan.pending or {})
+    words = str(pending.get("belt_words") or plan.answer or "").strip()
+    awaiting = pending.get("store") or pending.get("proposed")
+    lines = []
+    if words:
+        lines.append(f"The Belt's words for this element so far: {words[:1500]}")
+    if awaiting:
+        lines.append("Awaiting the Belt's Confirm: " + json.dumps(awaiting, ensure_ascii=False, default=str)[:1000])
+    return "\n".join(lines)
 
 
 def _grader_context(state: PhaseState) -> str:

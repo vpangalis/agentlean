@@ -69,6 +69,7 @@ the sequence for each tool in its `allowed-tools` (§8.3; §43.1).
 **Criteria G1–G5** (by move: `MOVE_CRITERIA`): G1 responds to the Belt · G2 handles the answer
 (read-back, challenge) · G3 grounded · G4 guides with the method (no read-back) ·
 G5 explains results (Measure/Analyse). **A fail needs a quoted sentence**; URLs: a code check.
+Its sources are the coach's (2026-10-15): the element's script block, the Belt's words, the answer to confirm.
 
 **Mechanism, both graders:** `grader` role, temperature 0.1 (§4.7);
 **one grade per reply** (step 6.52 B2), its one call counted inside T69's four;

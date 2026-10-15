@@ -1061,6 +1061,49 @@ def test_the_grader_rubric_g1_to_g5_as_ruled() -> None:
     assert G.url_check("Your late rate is 23.5% today; e.g. a target of 5%.") is None
 
 
+
+def test_the_grader_receives_the_coachs_sources() -> None:
+    """Founder ruling 2026-10-15 (option A): the grader is given what the coach worked from — the element's
+    block of the phase script exactly as the coach was given it (its worked example among it), the Belt's
+    words for the element, and the answer awaiting a Confirm — so a sentence taken from the method or the
+    Belt is graded as grounded."""
+    import asyncio
+    from backend.core.substate import CoachingPlan
+    from backend.middleware import grader as G
+    from backend.middleware.skills import script_section
+    from backend.phases.nodes_common import _grader_method, _grader_sources
+    from backend.validation.schemas import CoachingGraderVerdict
+
+    method = _grader_method("define", "project_scope")
+    assert method == script_section("define", "project_scope", False) and "Show" in method
+    plan = CoachingPlan(focus_field="project_scope", status="answered", move="read_back",
+                        answer="In: PO invoices at three sites. Out: payroll.",
+                        pending={"belt_words": "In: PO invoices at three sites. Out: payroll.",
+                                 "store": {"project_scope": {"in_scope": "PO invoices", "out_scope": "payroll"}}})
+    sources = _grader_sources(plan)
+    assert "The Belt's words for this element so far: In: PO invoices" in sources
+    assert 'Awaiting the Belt\'s Confirm: {"project_scope"' in sources
+    assert _grader_sources(None) == ""
+    seen: list[str] = []
+
+    class _Model:
+        def with_structured_output(self, schema, **_):
+            return self
+
+        async def ainvoke(self, prompt):
+            seen.append(prompt)
+            return CoachingGraderVerdict(criteria=[])
+
+    mw = G.DMAICGraderMiddleware("define", move="read_back", purpose=method, sources=sources)
+    original = G.get_llm
+    G.get_llm = lambda role, **kw: _Model()          # type: ignore[assignment]
+    try:
+        asyncio.run(mw._grade("In: PO invoices at three sites. Out: payroll.", "Here is your scope. Is this right?"))
+    finally:
+        G.get_llm = original                          # type: ignore[assignment]
+    assert "THE METHOD FOR THIS ELEMENT, exactly as the coach was given it" in seen[0]
+    assert method[:200] in seen[0] and "Awaiting the Belt's Confirm" in seen[0]
+
 def test_the_grader_uses_the_coaching_rubric_never_a_phase_rubric() -> None:
     """**B1**, and §36 calls confusing the two graders a violation.
 

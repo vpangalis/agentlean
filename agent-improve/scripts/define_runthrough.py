@@ -383,6 +383,7 @@ def main() -> int:
     ap.add_argument("--scratch", required=True, help="where the coach's full inputs go (outside the tree)")
     ap.add_argument("--slices", action="store_true",
                     help="the three live slices from saved cases (founder 2026-10-14); recorded in the tree")
+    ap.add_argument("--slice", type=int, choices=(1, 2, 3), help="one live slice only")
     ap.add_argument("--scenarios-only", action="store_true",
                     help="run only the hard-path scenarios (b)-(e); the record goes to --scratch, never the tree")
     args = ap.parse_args()
@@ -396,8 +397,8 @@ def main() -> int:
     _count_model_calls(args.max_calls + SCENARIO_CALLS)
     if args.scenarios_only:
         return _scenarios_only(Path(args.scratch))
-    if args.slices:
-        return _slices(Path(args.scratch))
+    if args.slices or args.slice:
+        return _slices(Path(args.scratch), args.slice)
     # R3's repeated-run record first (10 calls, inside the same cap), so one
     # re-run by the integrator refreshes both records it binds to the source.
     from scripts.validation_repeat import run as validation_repeat
@@ -461,7 +462,7 @@ def main() -> int:
     return exit_code(summary, SENDS)
 
 
-def _slices(scratch: Path) -> int:
+def _slices(scratch: Path, only: int | None = None) -> int:
     """The three live slices (founder ruling 2026-10-14), each from a saved case: recorded line by line to
     scratch, then to docs/runthrough/slices_<stamp>.json with the cost and the source they ran on."""
     from fastapi.testclient import TestClient
@@ -473,7 +474,7 @@ def _slices(scratch: Path) -> int:
     scratch.mkdir(parents=True, exist_ok=True)
     source, product = _source_hash(), _product_hash()
     with TestClient(app) as client:
-        result = run_slices(client, lambda e: _write(rec, e), GOOD)
+        result = run_slices(client, lambda e: _write(rec, e), GOOD, only)
     _write(rec, {"kind": "summary", "source_hash": source, "product_hash": product, "started": stamp,
                  "slices": result, "model_calls": len(CALLS), "langsmith_sends": len(SENDS),
                  "cost": _cost(token_totals(CALLS))})
