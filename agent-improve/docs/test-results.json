@@ -1,9 +1,9 @@
 {
- "source_hash": "e3133a5283d3a278",
- "commit": "1933cb7",
+ "source_hash": "425739cb98ba8448",
+ "commit": "850b3da",
  "commit_matches_source": false,
- "full_run_hash": "e3133a5283d3a278",
- "recorded_at": "2026-10-14T12:43:47+00:00",
+ "full_run_hash": "425739cb98ba8448",
+ "recorded_at": "2026-10-15T08:20:29+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -674,6 +674,7 @@
   "backend/tests/test_define_runthrough.py::test_run_scenario_e_an_upload_is_read_back_and_stored": "passed",
   "backend/tests/test_define_runthrough.py::test_run_sends_no_trace": "passed",
   "backend/tests/test_define_runthrough.py::test_run_the_approval_writes_the_gate_document_once": "passed",
+  "backend/tests/test_define_runthrough.py::test_run_the_first_measure_turn_is_inside_the_watch_line": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_the_validation_layer_is_consistent_over_five_runs": "passed",
   "backend/tests/test_define_runthrough.py::test_runthrough_metric_meaning_comes_from_the_registry": "passed",
   "backend/tests/test_define_runthrough.py::test_runthrough_no_reply_carries_a_link": "passed",
@@ -1728,8 +1729,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "1a99cdb945e56274",
-  "recorded_at": "2026-10-14T12:38:46+00:00",
+  "source_hash": "e3133a5283d3a278",
+  "recorded_at": "2026-10-14T12:43:47+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2550,7 +2551,7 @@
    "backend/tests/test_define_runthrough.py::test_run_a_change_click_reopens_the_field_with_the_belts_words": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_complete_case_assembles_a_gate_document": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_complete_define_passes_the_gate_rubric": "passed",
-   "backend/tests/test_define_runthrough.py::test_run_a_confirm_click_stores_and_advances": "skipped",
+   "backend/tests/test_define_runthrough.py::test_run_a_confirm_click_stores_and_advances": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_confirmed_value_survives_later_turns": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_question_is_answered_and_the_field_asked_again": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_sufficient_answer_is_read_back_and_not_stored": "passed",

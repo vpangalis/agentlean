@@ -1912,6 +1912,19 @@
    "lane": [
     "C"
    ]
+  },
+  {
+   "id": "G-180",
+   "symptom": "THE FIRST MEASURE TURN TAKES 38.7 s. Run 20261014T121626: after the Define approval, the first Measure turn (\"We're ready for Measure. Where do we start?\") answered in 38.7 s — over the 30 s p90 watch line (founder ruling 2026-10-12), under the 45 s limit; every Define turn of the walk was under 25 s. D4 OCCURRENCE: not yet worked — the turn carries Measure's first teaching and the cross-phase brief built from the approved Define record. D4 ESCAPE: the run's turn-time report watches it (`p90_over_watch`); no test held it. For Measure (founder 2026-10-15).",
+   "requirement": [
+    "T28"
+   ],
+   "feature": [
+    "DEF-173"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }

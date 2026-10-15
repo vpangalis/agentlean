@@ -2806,6 +2806,44 @@
    "layer": "gate"
   },
   {
+   "id": "DEF-173",
+   "description": "The first Measure turn after the Define approval answers inside the 30 s watch line (run 121626: 38.7 s, under the 45 s limit) — for Measure (G-180).",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-062"
+   ],
+   "test": "backend/tests/test_define_runthrough.py::test_run_the_first_measure_turn_is_inside_the_watch_line",
+   "sources": {
+    "architecture": [
+     "ADR-0080 the turn deadline"
+    ],
+    "procedure": [
+     "G-180 (run 20261014T121626)"
+    ],
+    "code": [
+     "agent-improve/scripts/define_runthrough.py::turn_times"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-180"
+    ]
+   },
+   "requirement": "T28",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "next_phase",
+   "layer": "gate",
+   "pilot": false
+  },
+  {
    "id": "DEF-063",
    "description": "A scripted Belt goes through all thirteen elements on a fresh case — good, weak and corrected answers, Confirm clicks — then submits the gate and approves it as far as the gate exists, through the real /ask route, tracing off, audit recorder on, within 150 live model calls.",
    "clause": "A Belt is coached through the thirteen elements",

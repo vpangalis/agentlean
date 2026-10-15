@@ -406,6 +406,13 @@ def test_run_every_grader_fail_quotes_its_sentence(run) -> None:
     assert not unquoted, unquoted
 
 
+
+def test_run_the_first_measure_turn_is_inside_the_watch_line(run) -> None:
+    """DEF-173 — G-180 (founder 2026-10-15, for Measure): the first Measure turn after the approval answers
+    inside the 30 s watch line (run 121626: 38.7 s)."""
+    first = (run["summary"].get("turn_times") or {}).get("by_type", {}).get("first Measure turn") or {}
+    assert first and first["max"] <= 30, first
+
 def test_run_most_coaching_turns_are_graded(run) -> None:
     """DEF-015 on the live run, proven by coverage (founder ruling 2026-10-14): every coached reply has a
     logged grader verdict — its step_log entry, carried on the record's turn — and the record's summary has
