@@ -407,6 +407,24 @@ def test_run_every_grader_fail_quotes_its_sentence(run) -> None:
 
 
 
+
+def test_define_is_done_within_forty_turns_none_over_45_seconds(run) -> None:
+    """DEF-093 — R12, on the latest live run-through (the `run` fixture binds it to the product source): a
+    fresh case with the scripted persona reaches an APPROVED Define report in at most 40 Belt turns, no turn
+    over 45 s, no element unreachable (the walk ends done, never stuck), and the record carries the turns,
+    the model calls, the time and the cost."""
+    s = run.get("summary") or {}
+    turns = run["turns"]
+    assert s.get("stopped") == "done" and not s.get("stuck_at"), (s.get("stopped"), s.get("stuck_at"))
+    assert len(turns) <= 40, f"{len(turns)} Belt turns"
+    slow = [(t["n"], t.get("seconds")) for t in turns if (t.get("seconds") or 0) > 45]
+    assert not slow, f"turns over 45 s: {slow}"
+    decision = run.get("gate_decision") or {}
+    assert decision.get("http") == 200, decision
+    assert (run.get("final_case") or {}).get("current_phase") == "measure", "the Define report was not approved"
+    assert s.get("model_calls") and s.get("minutes") is not None and (s.get("cost") or {}).get("usd") is not None, \
+        {k: s.get(k) for k in ("model_calls", "minutes", "cost")}
+
 def test_run_the_first_measure_turn_is_inside_the_watch_line(run) -> None:
     """DEF-173 — G-180 (founder 2026-10-15, for Measure): the first Measure turn after the approval answers
     inside the 30 s watch line (run 121626: 38.7 s)."""

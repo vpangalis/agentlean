@@ -6,7 +6,7 @@ import time
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
@@ -487,17 +487,24 @@ def _mirror_asks(case_id: str, phase: str, result: Any) -> None:
         )
 
 
-async def _with_unfinished_work(case: CaseDocument) -> CaseDocument:
+async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None) -> CaseDocument:
     """The case as the Belt sees it — ADR-0066. The blob holds what is decided (framing,
     uploads, approved records); the checkpoint holds the unfinished work. This returns a COPY
     of the blob's case with, read through the compiled graph, the conversation and every open
     phase's record (captured values, statuses, log) from the checkpoint. The copy is for reading:
-    no route writes it back, so the blob never holds unfinished work."""
+    no route writes it back, so the blob never holds unfinished work.
+
+    `at` (a checkpoint id) reads the case as it was reloaded at that checkpoint — every phase record the
+    checkpoint holds, whatever the blob has since approved. No route passes it; the capability rows
+    use it to read a case as it stood before its approval (DEF-064, founder 2026-10-15)."""
     from backend.core.graph import get_graph
     from backend.phases import record as phase_record
     out = case.model_copy(deep=True)
+    config: dict[str, Any] = {"configurable": {"thread_id": case.case_id}}
+    if at:
+        config["configurable"]["checkpoint_id"] = at
     try:
-        snapshot = await get_graph().aget_state({"configurable": {"thread_id": case.case_id}})
+        snapshot = await get_graph().aget_state(config)  # type: ignore[arg-type]
     except Exception as exc:  # noqa: BLE001 — a reload must render; the blob copy is the floor
         logger.warning("case %s: the checkpoint could not be read (%s); showing the blob", case.case_id, exc)
         return out
@@ -515,7 +522,7 @@ async def _with_unfinished_work(case: CaseDocument) -> CaseDocument:
                                 for i, m in enumerate(shown)]
     for phase, rec in phase_record.latest_by_phase(messages).items():
         held = out.phases.get(phase)
-        if held is None or held.gate_passed:
+        if held is None or (held.gate_passed and not at):
             continue
         held.structured = dict(rec.get("structured") or {})
         held.field_status = {f: dict(v) for f, v in (rec.get("field_status") or {}).items()}

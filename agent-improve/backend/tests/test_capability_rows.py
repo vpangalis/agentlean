@@ -109,9 +109,22 @@ def _require_storage(row: int) -> None:
         pytest.skip(f"no storage configured, so row {row} CANNOT BE EVALUATED" + NOT_A_PASS)
 
 
+#: DEF-064 (founder 2026-10-15): read the case as it stood at this checkpoint — the parent graph's last one
+#: before the approval — when the rows are run on a case approved since.
+AT_CHECKPOINT = os.environ.get("CAPABILITY_AT_CHECKPOINT") or None
+
+
 def _load_case():
+    """The case as the app reloads it (GET /cases — ADR-0066: the blob, with the unfinished work read
+    through the compiled graph from the checkpoint), at `AT_CHECKPOINT` when one is given. The blob alone
+    holds no confirmed value of a case still in Define (T13: written only at approval)."""
+    from backend.gateway.routes import _with_unfinished_work
     from backend.storage import blob
-    return asyncio.run(blob.load_case(CASE_ID))
+
+    async def reloaded():
+        case = await blob.load_case(CASE_ID)
+        return None if case is None else await _with_unfinished_work(case, at=AT_CHECKPOINT)
+    return asyncio.run(reloaded())
 
 
 def _case_or_skip(row: int):

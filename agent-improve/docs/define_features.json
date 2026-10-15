@@ -3916,7 +3916,7 @@
    "depends_on": [
     "DEF-064"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_define_is_done_within_forty_turns_none_over_45_seconds",
+   "test": "backend/tests/test_define_runthrough.py::test_define_is_done_within_forty_turns_none_over_45_seconds",
    "sources": {
     "architecture": [],
     "procedure": [],

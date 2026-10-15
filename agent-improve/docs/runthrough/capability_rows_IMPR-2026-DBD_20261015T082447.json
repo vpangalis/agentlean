@@ -1,0 +1,15 @@
+{
+ "kind": "capability_rows_recheck",
+ "case_id": "IMPR-2026-DBD",
+ "run": "define_runthrough_20261014T121626",
+ "at_checkpoint": "1f1c7cb1-9c18-68dc-808d-d5ff617e2e5f",
+ "at_checkpoint_ts": "2026-10-14T12:30:54.959842+00:00",
+ "why": "founder ruling 2026-10-15: rows 5, 6 and 11 re-pointed to read the case as the app reloads it (GET /cases, ADR-0066), run on run 121626's case at the parent graph's last checkpoint before the approval",
+ "rows": {
+  "test_row_5_a_captured_field_survives_the_next_turn": "passed",
+  "test_row_6_every_change_is_kept_dated_with_its_prior_value": "passed",
+  "test_row_11_the_metric_entry_mirrors_the_primary_scalars": "passed"
+ },
+ "green": true,
+ "recorded": "20261015T082447"
+}
