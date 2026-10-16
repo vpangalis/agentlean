@@ -125,6 +125,9 @@ class GateSubmitResponse(BaseModel):
     awaiting_acceptance: bool = False
     #: ADR-0076 (T65) — the third failed submission: the report is held for the project lead.
     escalated: bool = False
+    #: G-193 — the server's failing checks, one per element: {criterion, element, element_name, reason}.
+    #: The result screen draws these and nothing else; `element` is the position the "work on it" link opens.
+    failed_checks: list[dict[str, str]] = []
 
 
 class GateDecisionRequest(BaseModel):

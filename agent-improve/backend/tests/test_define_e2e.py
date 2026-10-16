@@ -5182,9 +5182,54 @@ def test_escalation_counts_changed_submits_and_reaches_the_champion() -> None:
     _not_written('DEF-192')
 
 
-def test_the_gate_result_shows_the_servers_failing_checks() -> None:
-    """DEF-193 — The gate result screen shows the server's failing checks, by element, with a link to fix each (G-193; founder test findings 74)"""
-    _not_written('DEF-193')
+def test_the_gate_result_shows_the_servers_failing_checks(env) -> None:
+    """DEF-193 — The gate result screen shows the server's failing checks, by element, with a link to fix each (G-193; founder test findings 74).
+    On the real routes and graph: a case whose target date is not after the gate fails rubric DEF-R09; POST /gate
+    returns that one failing check with its element and reason, and a case missing an element returns that
+    element. The page's own renderGateResult, run in node on the response, draws exactly those checks, each
+    with a link that opens the element — and none of the old browser checklist."""
+    import json
+
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {**COMPLETE, "target_date": "2025-01-01"}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f, _ in moves.positions("define")}
+    body = _submit(env)
+    assert body["passed"] is False, body
+    assert body["failed_checks"] == [{"criterion": "DEF-R09", "element": "target_date",
+                                      "element_name": body["failed_checks"][0]["element_name"],
+                                      "reason": "The target date is not in the future."}], body["failed_checks"]
+    name = body["failed_checks"][0]["element_name"]
+    assert name and name != "target_date", name
+
+    page = _run_page(("function renderGateResult",), _PAGE_STUBS + """
+const S={phase:'define',case:{case_id:'C1'}};
+const PHASES={define:{label:'Define'},measure:{label:'Measure'}};
+function getStructured(){return {}}
+function fieldHasValue(v){return !!v}
+const resp=""" + json.dumps(body) + """;
+renderGateResult(resp);
+process.stdout.write(JSON.stringify({html:els['gate-content'].innerHTML}));
+""")
+    html = page["html"]
+    assert html.count('class="gate-failed-check"') == 1, html
+    assert name in html and "The target date is not in the future." in html, html
+    assert "reviseElement('target_date')" in html, "the link opens the element"
+    assert "1 check failed" in " ".join(html.split()), html
+    for legacy in ("Problem description", "Scope boundaries defined", "Project charter complete"):
+        assert legacy not in html, f"the old browser checklist is drawn: {legacy}"
+
+    # Layer 2b: an element not confirmed is the failing check.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items() if k != "issues_and_barriers"}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in record.structured}
+    body = _submit(env)
+    assert [(c["element"], c["reason"]) for c in body["failed_checks"]] == [
+        ("issues_and_barriers", "Not confirmed yet.")], body["failed_checks"]
 
 
 def test_a_failed_rubric_criterion_is_logged_by_id_element_and_reason() -> None:

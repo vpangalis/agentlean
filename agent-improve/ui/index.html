@@ -6398,36 +6398,7 @@ function renderGateResult(resp) {
   // depends on, a plain-language label, a detail accessor for
   // captured values, and a fix prompt for failed checks.
   const GATE_CHECKS = {
-    define: [
-      { key: 'what', label: 'Problem description',
-        detail: () => structured.what
-          ? 'What: ' + structured.what.substring(0, 60)
-          : null,
-        fix: 'Describe the problem — what is going wrong.' },
-      { key: 'goal_statement', label: 'Goal statement',
-        detail: () => structured.goal_statement
-          ? structured.goal_statement.substring(0, 70)
-          : null,
-        fix: 'Write the goal — what will we improve, by how much, by when.' },
-      { key: 'scope_out', label: 'Scope boundaries defined',
-        detail: () => structured.scope_in
-          ? 'In: ' + structured.scope_in
-          : null,
-        fix: 'Define what is in scope and what is explicitly excluded.' },
-      { key: 'sipoc', label: 'SIPOC diagram confirmed',
-        detail: () => structured.sipoc ? 'Confirmed by team' : null,
-        fix: 'Complete the SIPOC diagram in the AI guide.' },
-      { key: 'hard_benefits', label: 'Business case complete',
-        detail: () => structured.current_cost
-          ? 'Cost: ' + structured.current_cost
-          : null,
-        fix: 'Capture the current cost and expected savings.' },
-      { key: 'project_milestones', label: 'Project charter complete',
-        detail: () => structured.process_owner
-          ? 'Owner: ' + structured.process_owner
-          : null,
-        fix: 'Document the team, sponsor, metrics, and milestones.' },
-    ],
+    define: [],                     // G-193: drawn from resp.failed_checks
     measure: [
       { key: 'primary_metric_confirmed',
         label: 'Metrics confirmed',
@@ -6542,13 +6513,27 @@ function renderGateResult(resp) {
     },
   ];
 
-  const checks = GATE_CHECKS[S.phase] || [];
+  // G-193: Define draws the server's failing checks, by element, each with a link to work on it — never a
+  // checklist kept in the browser.
+  const failedChecks = resp.failed_checks || [];
+  const checks = S.phase === 'define' ? [] : (GATE_CHECKS[S.phase] || []);
   const phaseLabel = PHASES[S.phase]?.label || S.phase;
   const nextLabel = nextPhase
     ? (PHASES[nextPhase]?.label || nextPhase)
     : null;
 
-  const checkRows = checks.map(c => {
+  const serverRows = failedChecks.map(c => `
+      <div class="gate-failed-check" style="display:flex;align-items:flex-start;gap:10px;
+        padding:8px 0;border-bottom:0.5px solid #E4E2DC">
+        <i class="ti ti-x" style="font-size:14px;margin-top:1px;flex-shrink:0;color:#A32D2D" aria-hidden="true"></i>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:500;color:#791F1F">${escapeHtml(c.element_name || c.element)}</div>
+          <div style="font-size:11px;color:#A32D2D;margin-top:3px">${escapeHtml(c.reason || '')}</div>
+          <div style="font-size:11px;color:#0070BA;cursor:pointer;margin-top:3px"
+            onclick="selectTab('chat'); reviseElement('${escapeHtml(c.element)}')">→ Work on ${escapeHtml(c.element_name || c.element)}</div>
+        </div>
+      </div>`).join('');
+  const checkRows = S.phase === 'define' ? serverRows : checks.map(c => {
     const isMissing = missing.includes(c.key)
       || !fieldHasValue(structured[c.key]);
     const failed = !passed && isMissing;
@@ -6619,7 +6604,7 @@ function renderGateResult(resp) {
           color:#791F1F">Gate not ready yet</div>
         <div style="font-size:11px;color:#A32D2D;
           margin-top:1px">
-          ${missing.length} check${missing.length !== 1 ? 's' : ''}
+          ${(failedChecks.length || missing.length)} check${(failedChecks.length || missing.length) !== 1 ? 's' : ''}
           failed — fix these before submitting
         </div>
       </div>

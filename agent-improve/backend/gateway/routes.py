@@ -1808,6 +1808,7 @@ async def submit_gate(request: GateSubmitRequest,
         passed=False,
         phase=request.phase,
         missing_fields=[f.replace("_", " ") for f in missing],
+        failed_checks=_failed_checks(request.phase, verdict),
         escalated=escalated,
         message=(GATE_ESCALATED.format(lead=case.leader or "the project lead",
                                        criteria="; ".join(m.replace("_", " ") for m in missing))
@@ -1815,6 +1816,32 @@ async def submit_gate(request: GateSubmitRequest,
                  (f"Parked: {names}. Complete {'it' if len(held) == 1 else 'them'} to submit. " if held else "")
                  + f"Not quite ready yet. {len(missing)} item(s) still needed."),
     )
+
+
+def _failed_checks(phase: str, verdict: dict[str, Any]) -> list[dict[str, str]]:
+    """G-193 — what failed, by element, from the gate's own verdict: each failed rubric criterion (layer 2d)
+    with its reason, else each element still missing (layer 2b). `element` is the position a revise opens."""
+    from backend.core import guard_messages
+    from backend.phases import moves
+    position = {f: field for field, fields in moves.positions(phase) for f in fields}
+    out: list[dict[str, str]] = []
+    if phase == "define":
+        from backend.validation.rubric import DEFINE_CRITERIA
+        field_of = {cid: field for cid, field, _ in DEFINE_CRITERIA}
+        for v in verdict.get("verdicts") or []:
+            if isinstance(v, dict) and v.get("status") == "fail":
+                element = position.get(field_of.get(str(v.get("criterion")), ""), field_of.get(str(v.get("criterion")), ""))
+                out.append({"criterion": str(v.get("criterion")), "element": element,
+                            "element_name": guard_messages.element_name(phase, element),
+                            "reason": str(v.get("feedback") or "")})
+    if not out:
+        for f in verdict.get("missing") or []:
+            if " — " in str(f):
+                continue
+            element = position.get(str(f), str(f))
+            out.append({"criterion": "", "element": element,
+                        "element_name": guard_messages.element_name(phase, element), "reason": "Not confirmed yet."})
+    return out
 
 
 def _refuse_degraded(result: Any) -> None:
