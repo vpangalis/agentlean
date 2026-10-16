@@ -1,0 +1,24 @@
+{
+ "_about": "Item 18 'How-to questions answered' (G-211): the how-to eval set. Each case: a saved case with every element before `element` confirmed, the Belt's how-to question, and what a good reply does — answers from the element's method (section 2) with the Belt's own confirmed numbers, asks the element's question again, stores nothing. First cases added 2026-10-16 (founder ruling); run by scripts/howto_replay.py.",
+ "cases": [
+  {"id": "A99-benefits", "element": "benefits_analysis",
+   "question": "Before I answer: how do I calculate the cost of the gap for this project?",
+   "source": "IMPR-2026-A99, turn of 2026-10-15 15:14:53 UTC (verdict not_an_answer, move respond; the reply repeated the ask)",
+   "good": "explains the cost of the gap from the element's Educate text, worked with the confirmed baseline and volume; then asks for the benefits analysis again"},
+  {"id": "baseline-how", "element": "baseline_estimate",
+   "question": "How do I find the baseline if we have no report for it yet?",
+   "good": "explains a usable Define baseline (a number, a period, a source; a sample is fine); then asks for the baseline again"},
+  {"id": "ctq-what", "element": "voc_summary",
+   "question": "What makes a good CTQ?",
+   "good": "explains a CTQ as a need turned into a measurable requirement, from the element's block; then asks for the VOC again"},
+  {"id": "problem-vs-goal", "element": "problem_statement",
+   "question": "What is the difference between the problem statement and the goal?",
+   "good": "the problem states the pain without cause or fix; the goal (element 7) states the improvement; then asks the 5W2H again"},
+  {"id": "scope-out", "element": "project_scope",
+   "question": "How do I decide what to leave out of scope?",
+   "good": "explains in / out of scope and 'not too broad' from the element's block; then asks for the scope again"},
+  {"id": "sipoc-detail", "element": "process_map_sipoc",
+   "question": "How detailed should the SIPOC be?",
+   "good": "explains 4–8 high-level steps as-is, from the element's block; then asks for the SIPOC again"}
+ ]
+}

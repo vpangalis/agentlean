@@ -1591,13 +1591,16 @@ MOVE_INSTRUCTIONS: dict[str, str] = {
     "respond": (
         "MOVE: RESPOND, then ask again for `{field}`.\n"
         "The Belt's latest message is not an answer to `{field}`: {reason}\n"
-        "Answer it briefly and truthfully from section 3. Then ask again for "
-        "`{field}`. Leave `fields_captured` empty."
+        "Answer it: a question about the method or how to do it from section 2 (this element's block), "
+        "worked with the Belt's own confirmed numbers; a question about this project from section 3. "
+        "Then ask again for `{field}`. Leave `fields_captured` empty."
     ),
     "respond_pending": (
         "MOVE: RESPOND, then repeat the read-back of `{field}`.\n"
         "The Belt's latest message is neither a yes nor a correction: {reason}\n"
-        "Answer it briefly and truthfully from section 3. Then read back again the "
+        "Answer it: a question about the method or how to do it from section 2 (this element's block), "
+        "worked with the Belt's own confirmed numbers; a question about this project from section 3. "
+        "Then read back again the "
         "value awaiting their confirmation (in section 3) and ask \"Is this "
         "right?\". Leave `fields_captured` empty."
     ),
