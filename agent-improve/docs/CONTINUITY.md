@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 81 of 221 Define features pass, 31 more proven on earlier code (core 78 of 212) — A 30/87 · B 28/41 · C 19/66 · integrator 4/27 · M1: 31 proven · 23 awaiting fresh run · 18 open |
+| **Headline** | 82 of 221 Define features pass, 31 more proven on earlier code (core 79 of 212) — A 31/87 · B 28/41 · C 19/66 · integrator 4/27 · M1: 32 proven · 23 awaiting fresh run · 17 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |

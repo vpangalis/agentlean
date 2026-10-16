@@ -165,6 +165,29 @@ def ctq_question(rows: Any, words: Any) -> str:
             f"row{'s' if len(rows) != 1 else ''}. Which customer does each CTQ apply to?")
 
 
+#: Decision 7: a goal named where the problem is described — a goal word, or a target cue before a figure.
+_GOAL_WORDS = re.compile(r"\b(?:target|goal|objective|aim(?:ing)?\s+(?:for|to|at)|we want to (?:reach|get|bring|reduce|cut))\b"
+                         r"|\b(?:reduce|cut|bring|get)\b[^.;]{0,40}?\b(?:to|under|below)\s*\d", re.I)
+
+
+def goal_named(text: Any) -> str:
+    """ADR-0088 decision 7: the goal phrase a 5W2H answer or a problem statement carries, or "". The problem
+    states the pain as it shows up today; the goal is element 7 (R7, `no-cause-no-fix`)."""
+    m = _GOAL_WORDS.search(str(text or ""))
+    return m.group(0).strip() if m else ""
+
+
+def five_w_two_h_question(store: Any) -> str:
+    """ADR-0088 decision 7: when the seventh answer (`how`) or the composed statement carries a goal, the
+    question the read-back asks before Confirm; empty otherwise."""
+    store = store if isinstance(store, dict) else {}
+    how = (store.get("problem_5w2h") or {}).get("how") if isinstance(store.get("problem_5w2h"), dict) else None
+    if goal_named(how) or goal_named(store.get("problem_statement")):
+        return ("The problem statement describes the problem as it shows up today; the goal comes later, at "
+                "the goal statement. How does the problem show up — how is it detected?")
+    return ""
+
+
 def _is_year(m: "re.Match[str]") -> bool:
     """G-135 (2026-09-29): a four-digit 1900-2099 with no unit of its own is a year — "January
     to June 2026" — never a baseline or a target. The run-through read "2026" as the baseline

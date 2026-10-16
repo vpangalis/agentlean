@@ -1773,13 +1773,13 @@ function renderOverview(){
         num: '1', gate: false,
         action: 'Describe the problem',
         tool: 'Tool: 5W2H framework',
-        desc: 'Answer 7 guided questions about what is going wrong, where, when, who is affected, why it matters, how bad it is today, and what the target is.',
+        desc: 'Answer 7 guided questions about what is going wrong, where, when, who is affected, why it matters, how it shows up, and how much.',
         time: '15–20 min',
         explainer: {
           label: 'What is 5W2H?',
           term: '5W2H is a structured way to describe a problem precisely',
-          body: 'The 7 letters stand for: <strong>What</strong> is the problem · <strong>Where</strong> does it happen · <strong>When</strong> did it start · <strong>Who</strong> is affected · <strong>Why</strong> does it matter to the business · <strong>How Much</strong> is the baseline today · <strong>How Goal</strong> — what does the target look like.',
-          example: 'Example: "Billing agents are receiving 28 complaints/week since February 2026 due to unresolved queries, causing €35k/month revenue loss. Target: under 20/week within 6 months."',
+          body: 'The 7 letters stand for: <strong>What</strong> is the problem · <strong>Where</strong> does it happen · <strong>When</strong> did it start · <strong>Who</strong> is affected · <strong>Why</strong> does it matter to the business · <strong>How</strong> does it show up — how is it detected · <strong>How much</strong> — its size today.',
+          example: 'Example: "Since February 2026 billing agents receive 28 complaints a week about unresolved queries; customers chase the status by phone, and the queries cost about €35k a month."',
         },
       },
       {
@@ -6689,7 +6689,7 @@ function renderSteps(){
     if(e[1]) vals[e[0].replace(/_/g,' ')]=String(e[1]);
   });
   // Map each step question to a field key
-  const stepKeys=['what','where','when','who affected','why','how much','how goal'];
+  const stepKeys=['what','where','when','who affected','why','how it shows up','how much'];
   document.getElementById('step-list').innerHTML=p.steps.map(function(q,i){
     // Try matching step to a value by keyword
     const qLow=q.toLowerCase();
@@ -6748,7 +6748,7 @@ function buildDefineDiagram(){
       +'<text x="'+( x+10)+'" y="'+( y+14)+'" font-size="8" font-weight="700" fill="'+lc+'" letter-spacing=".05em">'+label+"</text>"
       +'<text x="'+( x+w/2)+'" y="'+my+'" text-anchor="middle" font-size="10" fill="'+vc+'" '+vs+">"+(wrap(dv,x+w/2,my,26,13)||dv.slice(0,26))+"</text>";
   }
-  var f7=["what","where","who_affected","when","why_it_matters","how_much_baseline","how_goal"];
+  var f7=["what","where","who_affected","when","why_it_matters","how_much_baseline","how_shows_up"];
   var c7=f7.filter(function(k){return getVal(k);}).length;
   var pct=Math.round(c7/7*100);
   var bw=Math.round(120*c7/7);
@@ -6761,7 +6761,7 @@ function buildDefineDiagram(){
     +card(12,268,200,74,"WHEN \u2014 timing","when")
     +card(224,10,200,74,"WHY \u2014 business impact","why_it_matters")
     +card(224,96,200,74,"HOW MUCH \u2014 baseline","how_much_baseline")
-    +card(224,182,200,74,"GOAL \u2014 target state","how_goal")
+    +card(224,182,200,74,"HOW \u2014 it shows up","how_shows_up")
     +'<rect x="438" y="10" width="192" height="332" rx="10" fill="#EAF4FC" stroke="#A8CDE8" stroke-width="1"/>'
     +'<text x="534" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#00305A">5W2H progress</text>'
     +'<text x="534" y="108" text-anchor="middle" font-size="38" font-weight="700" fill="#0070BA">'+c7+"/7</text>"
@@ -7086,13 +7086,13 @@ function renderSipocDiagram(sipoc, containerId) {
 }
 
 // DEF-099 (R2: "5W2H keeps its live mind map") — the server's mind map (ADR-0070, `visuals.draw`) is flat:
-// {what, where, when, who_affected, why, how_much, how_often, filled_count, confirmed}. This drawing
+// {what, where, when, who_affected, why, how_much, how, filled_count, confirmed}. This drawing
 // reads `data.fields`; read flat, every branch was "not yet captured". Mapped here, once, for both the
 // reply's live map and the report's.
 function mindmapFromServer(viz) {
   if (!viz || viz.data || viz.what === undefined && viz.where === undefined) return viz;
   const fields = {what: viz.what, where: viz.where, when: viz.when, who_affected: viz.who_affected,
-                  why_it_matters: viz.why, how_much_baseline: viz.how_much, how_goal: viz.how_often};
+                  why_it_matters: viz.why, how_much_baseline: viz.how_much, how_shows_up: viz.how || viz.how_often};
   return {...viz, data: {problem_summary: viz.what || 'Problem being defined…', fields},
           draft: viz.confirmed === false, captured_count: viz.filled_count || 0, total_count: viz.total_count || 7};
 }
@@ -7213,9 +7213,9 @@ function render5W2HMindmap(viz, containerId) {
         stroke="#0070BA" stroke-width="1.5"
         ${!fields.why_it_matters ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
       <line x1="340" y1="${centerY+centerH}" x2="340" y2="${centerY+centerH+78}"
-        stroke="${fields.how_goal ? '#0070BA' : 'var(--color-text-tertiary)'}"
+        stroke="${fields.how_shows_up ? '#0070BA' : 'var(--color-text-tertiary)'}"
         stroke-width="1.5"
-        ${!fields.how_goal ? 'stroke-dasharray="5 4"' : ''}/>
+        ${!fields.how_shows_up ? 'stroke-dasharray="5 4"' : ''}/>
       <line x1="268" y1="${centerY+centerH-8}" x2="196" y2="${centerY+centerH+76}"
         stroke="#0070BA" stroke-width="1.5"
         ${!fields.how_much_baseline ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
@@ -7226,7 +7226,7 @@ function render5W2HMindmap(viz, containerId) {
       ${node('WHEN', fields.when, 552, centerY-82, 124, 44)}
       ${node('WHO AFFECTED', fields.who_affected, 602, centerY+centerH/2-8, 128, 44)}
       ${node('WHY IT MATTERS', fields.why_it_matters, 522, centerY+centerH+80, 156, 44)}
-      ${node('HOW GOAL', fields.how_goal, 340, centerY+centerH+82, 220, 44)}
+      ${node('HOW IT SHOWS UP', fields.how_shows_up, 340, centerY+centerH+82, 220, 44)}
       ${node('HOW MUCH', fields.how_much_baseline, 134, centerY+centerH+80, 152, 44)}
 
       <!-- Legend -->
@@ -7476,7 +7476,7 @@ function updateRightPanel(resp){
   // Group definitions: [groupKey, display label, field label keywords]
   const GROUPS = [
     ['problem', 'PROBLEM',  ['what','where','when','who']],
-    ['impact',  'IMPACT',   ['why','how much','baseline','how goal','goal']],
+    ['impact',  'IMPACT',   ['why','how much','baseline','goal']],
     ['metrics', 'METRICS',  ['primary metric','secondary metric']],
     ['project', 'PROJECT',  ['target','belt','process owner','sponsor','team']],
   ];

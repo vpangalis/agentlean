@@ -139,8 +139,9 @@ def build_mindmap_5w2h(data: dict[str, Any]) -> dict[str, Any]:
     inside the payload rather than beside it. `total_count` is what the UI
     prints as the progress denominator; the seven 5W2H slots are the count.
     """
-    slots = ("what", "where", "when", "who_affected", "why", "how_much",
-             "how_often")
+    # ADR-0088 decision 7: the seventh slot is `how`, how the problem shows up ("how_often" is its old name).
+    data = {**data, "how": data.get("how") or data.get("how_often")}
+    slots = ("what", "where", "when", "who_affected", "why", "how_much", "how")
     filled = {k: str(data[k]).strip() for k in slots
               if str(data.get(k) or "").strip()}
     if not filled:

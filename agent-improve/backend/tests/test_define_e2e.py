@@ -4901,9 +4901,59 @@ def test_an_element_is_read_back_and_stored_only_with_all_its_required_parts() -
     _not_written('DEF-188')
 
 
-def test_the_seventh_5w2h_question_has_one_definition() -> None:
-    """DEF-189 — The seventh 5W2H question has one definition everywhere: how the problem shows up (G-189; founder test findings 38)"""
-    _not_written('DEF-189')
+def test_the_seventh_5w2h_question_has_one_definition(env, monkeypatch) -> None:
+    """DEF-189 — The seventh 5W2H question has one definition everywhere: how the problem shows up (G-189; founder test findings 38).
+    ADR-0088 decision 7, on the real routes and graph: a 5W2H whose seventh answer is a goal is asked, in code,
+    how the problem shows up; the answer as the skill defines it is stored under `how`, and the mind map draws
+    it as "HOW IT SHOWS UP". The skill, the report and the screen name the question the same way; no "How
+    goal" text is left on the screen."""
+    from pathlib import Path
+
+    from backend.phases import moves
+    from backend.phases.define.report import FIVE_W_TWO_H_QUESTIONS
+    from backend.tests.test_define_report import COMPLETE
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    record = env.case.phases["define"]
+    done = ("business_case", "team", "voc_summary", "critical_to_quality")
+    record.structured = {f: COMPLETE[f] for f in done}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in ("business_case", "team", "voc_summary")}
+    record.field_status["problem_statement"] = {"status": moves.ASKED}
+    five = {"what": "complaints closed late", "where": "complaints desk, step 3 (investigate)",
+            "when": "since January 2026", "who": "business customers", "why": "they chase us and some leave",
+            "how": "Target: under 5 days by March 2027", "how_much": "40% closed after 5 working days"}
+    statement = ("Since January 2026, 40% of business customers' complaints at the complaints desk are closed "
+                 "after 5 working days; customers chase us and some leave.")
+    words = "; ".join(f"{k}: {v}" for k, v in five.items())
+    _coach_saying(monkeypatch, "Here is your 5W2H and the statement. Is this right?", captured=[
+        {"field_name": "problem_5w2h", "value": five, "source": "belt"},
+        {"field_name": "problem_statement", "value": statement, "source": "belt"}])
+    answer = ask(message=words)
+    assert "How does the problem show up" in answer["answer"], answer["answer"]
+
+    shows = "customers phone to chase the status, and the account manager escalates it"
+    _coach_saying(monkeypatch, "Here is your 5W2H and the statement. Is this right?", captured=[
+        {"field_name": "problem_5w2h", "value": {**five, "how": shows}, "source": "belt"},
+        {"field_name": "problem_statement", "value": statement, "source": "belt"}])
+    body = ask(message=f"how: {shows}")
+    assert "How does the problem show up" not in body["answer"], body["answer"]
+    viz = body.get("visualisation") or {}
+    assert viz.get("type") == "mindmap_5w2h" and viz.get("how") == shows and "how_often" not in viz, viz
+    _coach_saying(monkeypatch, "Thank you. Next, the baseline.")
+    ask(message="Confirm", action="confirm")
+    assert _define(env)["structured"]["problem_5w2h"]["how"] == shows
+
+    # One definition: the skill, the report and the screen.
+    root = Path(__file__).resolve().parents[2]
+    skill = (root / "skills" / "dmaic-define-phase" / "SKILL.md").read_text(encoding="utf-8")
+    assert "How does it show up?" in skill and FIVE_W_TWO_H_QUESTIONS["how"] == "How does it show up?"
+    html = (root / "ui" / "index.html").read_text(encoding="utf-8")
+    assert "HOW IT SHOWS UP" in html and "how_shows_up: viz.how" in html
+    assert "how goal" not in html.lower(), "a legacy 'How goal' text is left on the screen"
 
 
 def test_the_5w2h_mind_map_shows_every_answer_in_full() -> None:

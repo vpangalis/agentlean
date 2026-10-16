@@ -367,7 +367,7 @@ class ProposeDiagramArgs(BaseModel):
                     "For 'sipoc': suppliers, inputs, process_steps, outputs, "
                     "customers, each a list of short strings. For "
                     "'mindmap_5w2h': what, where, when, who_affected, why, "
-                    "how_much, how_often."
+                    "how_much, how (how the problem shows up)."
     )
 
 

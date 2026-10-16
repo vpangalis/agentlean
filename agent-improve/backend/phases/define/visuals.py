@@ -29,7 +29,7 @@ UI_KEY: dict[str, str] = {"sipoc": "sipoc_diagram", "mindmap_5w2h": "visualisati
                           "baseline_target": "visualisation", "benefit_timeline": "visualisation"}
 #: The 5W2H mind map's slots, from the stored `problem_5w2h` keys.
 _5W2H_SLOTS = {"what": "what", "where": "where", "when": "when", "who": "who_affected", "why": "why",
-               "how_much": "how_much", "how": "how_often"}
+               "how_much": "how_much", "how": "how"}
 
 
 #: A MetricValue's direction as the chart names it.

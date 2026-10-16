@@ -2974,8 +2974,12 @@ async def executor(
         if meaning:
             new_messages = _with_code_line(new_messages, reply, meaning)
         # ADR-0088 decision 2: rows at odds with the CTQs the Belt listed are asked about before Confirm.
-        from backend.phases.define.parse import ctq_question
+        from backend.phases.define.parse import ctq_question, five_w_two_h_question
         asked = ctq_question((pending.get("store") or {}).get("critical_to_quality"), pending.get("belt_words"))
+        if asked:
+            new_messages = _with_code_line(new_messages, reply, asked)
+        # ADR-0088 decision 7: the seventh 5W2H answer is how the problem shows up, never a goal.
+        asked = five_w_two_h_question(pending.get("store"))
         if asked:
             new_messages = _with_code_line(new_messages, reply, asked)
     # ADR-0070 — the element's visual, drawn by the program with the gate document's own function:
