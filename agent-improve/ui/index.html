@@ -7109,13 +7109,12 @@ function render5W2HMindmap(viz, containerId) {
   const isDraft = viz.draft !== false;
   const captured = viz.captured_count || 0;
   const total = viz.total_count || 7;
-  const allDone = !isDraft;
+  // ADR-0088 decision 6 (G-188): the badge counts the answers stored, never a fixed "7 / 7".
+  const allDone = !isDraft && captured >= total;
 
   const badgeBg = allDone ? '#E1F5EE' : '#FFF0E6';
   const badgeColor = allDone ? '#085041' : '#A04800';
-  const badgeText = allDone
-    ? 'Confirmed — 7 / 7'
-    : `Draft — ${captured} / ${total}`;
+  const badgeText = `${isDraft ? 'Draft' : 'Confirmed'} — ${captured} / ${total}`;
 
   // Helper: truncate value for display
   const trunc = (v, n=28) => v && v.length > n ? v.substring(0,n)+'…' : (v || '');

@@ -2962,8 +2962,11 @@ def test_a_confirmed_field_can_be_revised(env, monkeypatch, stub_planner) -> Non
         assert r.status_code == 200, r.text
         return r.json()
 
+    # ADR-0088 decision 6 (G-188): a team is stored only with a champion, a process owner and training stated.
     new_team = [{"name": "Ana Silva", "role": "project lead", "function": "Finance"},
-                {"name": "Dev Patel", "role": "AP clerk", "function": "Accounts payable"}]
+                {"name": "Tom Okafor", "role": "Champion", "function": "Finance Director"},
+                {"name": "Lena Hart", "role": "Process owner", "function": "AP manager"},
+                {"name": "Dev Patel", "role": "AP clerk", "function": "Accounts payable; no training needed"}]
     judged_before = stub_planner.calls
     _coach_saying(monkeypatch, "Who should be on the team now?")
     first = ask(action="revise", element="team", message="Dev joined the team.")
@@ -4896,9 +4899,64 @@ def test_the_chat_renders_markdown_safely() -> None:
     _not_written('DEF-187')
 
 
-def test_an_element_is_read_back_and_stored_only_with_all_its_required_parts() -> None:
-    """DEF-188 — An element is read back and confirmed only with all its required parts; nothing stored is shown as complete when it is not (G-188; founder test findings 37, 49)"""
-    _not_written('DEF-188')
+def test_an_element_is_read_back_and_stored_only_with_all_its_required_parts(env, monkeypatch) -> None:
+    """DEF-188 — An element is read back and confirmed only with all its required parts; nothing stored is shown as complete when it is not (G-188; founder test findings 37, 49).
+    ADR-0088 decision 6, on the real routes and graph: a 5W2H with six answers is not read back for a
+    Confirm — the reply says, in code, that the answer to "how it shows up" is missing, and a Confirm stores
+    nothing; with all seven it is read back and stored, and the mind map counts the seven stored answers. The
+    team's and the CTQs' required parts (R7: DEF-R02, DEF-R03) are named the same way."""
+    from pathlib import Path
+
+    from backend.phases import moves
+    from backend.phases.define import parse
+    from backend.tests.test_define_report import COMPLETE
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    record = env.case.phases["define"]
+    done = ("business_case", "team", "voc_summary", "critical_to_quality")
+    record.structured = {f: COMPLETE[f] for f in done}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in ("business_case", "team", "voc_summary")}
+    record.field_status["problem_statement"] = {"status": moves.ASKED}
+    seven = {"what": "complaints closed late", "where": "complaints desk, step 3 (investigate)",
+             "when": "since January 2026", "who": "business customers", "why": "they chase us and some leave",
+             "how": "customers phone to chase the status", "how_much": "40% closed after 5 working days"}
+    six = {k: v for k, v in seven.items() if k != "how"}
+    statement = ("Since January 2026, 40% of business customers' complaints at the complaints desk are closed "
+                 "after 5 working days; customers chase us and some leave.")
+    _coach_saying(monkeypatch, "Here is your 5W2H and the statement. Is this right?", captured=[
+        {"field_name": "problem_5w2h", "value": six, "source": "belt"},
+        {"field_name": "problem_statement", "value": statement, "source": "belt"}])
+    body = ask(message="; ".join(f"{k}: {v}" for k, v in six.items()))
+    assert body["move"] == moves.CHALLENGE, body["move"]
+    reply = " ".join(str(body.get(k) or "") for k in ("answer", "explanation", "prompt"))
+    assert "Not stored yet" in reply and "how it shows up" in reply, reply
+    ask(message="Confirm", action="confirm")
+    assert "problem_5w2h" not in _define(env)["structured"], "six answers were stored as a complete 5W2H"
+
+    _coach_saying(monkeypatch, "Here is your 5W2H and the statement. Is this right?", captured=[
+        {"field_name": "problem_5w2h", "value": seven, "source": "belt"},
+        {"field_name": "problem_statement", "value": statement, "source": "belt"}])
+    body = ask(message=f"how: {seven['how']}")
+    assert body["move"] == moves.READ_BACK, body["move"]
+    viz = body.get("visualisation") or {}
+    assert viz.get("filled_count") == 7 and viz.get("total_count") == 7, viz
+    _coach_saying(monkeypatch, "Thank you. Next, the baseline.")
+    ask(message="Confirm", action="confirm")
+    assert _define(env)["structured"]["problem_5w2h"] == seven
+
+    # The badge counts what is stored; the team's and the CTQs' parts are named as R7 states them.
+    html = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    assert "Confirmed — 7 / 7" not in html and "${captured} / ${total}" in html
+    assert parse.missing_parts("team", [{"name": "Priya", "role": "Belt", "function": "lead"}]) == [
+        "a champion", "a process owner", "the training anyone needs, or that none is needed"]
+    assert parse.missing_parts("team", COMPLETE["team"]) == []
+    assert parse.missing_parts("critical_to_quality", [{"customer": "suppliers", "need": "on time",
+                                                        "requirement": "paid on time"}]) == [
+        "at least one CTQ as a measurable requirement (with a number)"]
 
 
 def test_the_seventh_5w2h_question_has_one_definition(env, monkeypatch) -> None:

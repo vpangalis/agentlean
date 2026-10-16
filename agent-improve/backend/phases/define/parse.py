@@ -165,6 +165,41 @@ def ctq_question(rows: Any, words: Any) -> str:
             f"row{'s' if len(rows) != 1 else ''}. Which customer does each CTQ apply to?")
 
 
+#: Decision 6: the 5W2H answers by the question the Belt is asked (the report's wording).
+_FIVE_W_TWO_H = (("what", "what is going wrong"), ("where", "where"), ("when", "when, or since when"),
+                 ("who", "who is affected"), ("why", "why it matters"), ("how", "how it shows up"),
+                 ("how_much", "how much"))
+_CHAMPION = re.compile(r"champion|sponsor", re.I)
+_OWNER = re.compile(r"process owner|owner of the process|owns the process", re.I)
+#: Training stated in any words — a need ("a half-day on data collection") or none; the grader judges the rest.
+_TRAINING = re.compile(r"train|course|workshop|half[- ]day|full[- ]day|session|learn|coaching|"
+                       r"none needed|nothing needed|no (?:\w+ )?needed|needs? no", re.I)
+
+
+def missing_parts(field: str, value: Any) -> list[str]:
+    """ADR-0088 decision 6: the required parts of an element R7 names that `value` lacks, in the Belt's words —
+    the seven 5W2H answers (DEF-R04); a champion, a process owner and training stated (DEF-R02); customers, needs
+    and at least one measurable CTQ (DEF-R03). Empty when complete, or for an element with no parts to check."""
+    def text(v: Any) -> str:
+        return " ".join(str(x) for x in v.values()) if isinstance(v, dict) else str(v or "")
+    if field == "problem_5w2h" and isinstance(value, dict):
+        blank = [name for key, name in _FIVE_W_TWO_H if not text(value.get(key)).strip()]
+        return [f"the 5W2H answer{'s' if len(blank) > 1 else ''} to {' and '.join(blank)}"] if blank else []
+    if field == "team" and isinstance(value, list):
+        everyone = " ".join(text(e) for e in value)
+        return [part for part, pattern in (("a champion", _CHAMPION), ("a process owner", _OWNER),
+                                           ("the training anyone needs, or that none is needed", _TRAINING))
+                if not pattern.search(everyone)]
+    if field == "critical_to_quality" and isinstance(value, list):
+        rows = [r for r in value if isinstance(r, dict)]
+        out = [part for part, key in (("the customer of each CTQ", "customer"), ("the need behind each CTQ", "need"))
+               if not rows or any(not text(r.get(key)).strip() for r in rows)]
+        if not any(re.search(r"\d", text(r.get("requirement"))) for r in rows):
+            out.append("at least one CTQ as a measurable requirement (with a number)")
+        return out
+    return []
+
+
 #: Decision 7: a goal named where the problem is described — a goal word, or a target cue before a figure.
 _GOAL_WORDS = re.compile(r"\b(?:target|goal|objective|aim(?:ing)?\s+(?:for|to|at)|we want to (?:reach|get|bring|reduce|cut))\b"
                          r"|\b(?:reduce|cut|bring|get)\b[^.;]{0,40}?\b(?:to|under|below)\s*\d", re.I)

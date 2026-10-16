@@ -1823,11 +1823,13 @@ def _missing_words(phase: str, missing: list[str], artifacts: dict[str, Any],
                    pending: dict[str, Any]) -> str:
     """G-163 — what a read-back still lacks, in the Belt's words: a number with its unit for a baseline
     or target, the SIPOC's missing columns, otherwise the part's own name."""
-    from backend.phases.define.parse import METRIC_FIELDS, missing_columns
+    from backend.phases.define.parse import METRIC_FIELDS, missing_columns, missing_parts
     store = {**artifacts, **(pending.get("store") or {}), **(pending.get("proposed") or {})}
     parts = []
     for f in missing:
-        if f in METRIC_FIELDS:
+        if missing_parts(f, (pending.get("store") or {}).get(f)):
+            parts.extend(missing_parts(f, (pending.get("store") or {}).get(f)))      # ADR-0088 decision 6
+        elif f in METRIC_FIELDS:
             parts.append(f"a number with its unit for the {f.replace('_', ' ')}")
         elif f == "process_map_sipoc" and isinstance(store.get(f), dict):
             cols = [c.replace("_", " ") for c in missing_columns(store.get(f))]

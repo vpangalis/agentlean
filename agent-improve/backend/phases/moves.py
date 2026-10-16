@@ -150,7 +150,9 @@ def store_missing(fields: Any, artifacts: dict[str, Any], store: dict[str, Any])
     `store` would still leave unstored, given what `artifacts` already holds. The Confirm refuses on it
     (below) and the executor never offers a Confirm on it (`nodes_common`), so the two cannot disagree."""
     merged = {**artifacts, **store}
-    return [f for f in fields if not _stored(merged, f)]
+    # ADR-0088 decision 6 (G-188): a value this read-back stores counts only with its required parts.
+    from backend.phases.define.parse import missing_parts
+    return [f for f in fields if not _stored(merged, f) or (f in store and missing_parts(f, store[f]))]
 
 
 def focus(phase: str, artifacts: dict[str, Any]) -> Optional[tuple[str, tuple[str, ...]]]:
