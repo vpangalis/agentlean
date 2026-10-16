@@ -3266,7 +3266,8 @@ def test_three_failed_gate_attempts_escalate(env, monkeypatch) -> None:
     assert rows[CASE_ID].status == "active", "escalated before the third attempt"
     third = _submit(env)
     assert third["passed"] is False and third.get("escalated") is True, third
-    assert "project lead" in third["message"] and ACTOR in third["message"], third["message"]
+    # G-192: the lead (ACTOR) submitted, so the Champion is told — never the person submitting.
+    assert "the Champion, Tom" in third["message"] and "For your information" in third["message"], third["message"]
     assert "the business case names no cost" in third["message"], third["message"]
     assert rows[CASE_ID].status == "escalated", rows[CASE_ID]
     assert any("the business case names no cost" in c for c in rows[CASE_ID].escalation["criteria"])
@@ -5216,9 +5217,64 @@ def test_a_dotted_date_passes_the_gate(env, monkeypatch) -> None:
     assert parse.calendar_date("by end of 2027") is None
 
 
-def test_escalation_counts_changed_submits_and_reaches_the_champion() -> None:
-    """DEF-192 — Escalation counts only a submit that changed something, reaches the champion when the lead submits, and reads as information (G-192; founder test findings 78)"""
-    _not_written('DEF-192')
+def test_escalation_counts_changed_submits_and_reaches_the_champion(env, monkeypatch) -> None:
+    """DEF-192 — Escalation counts only a submit that changed something, reaches the champion when the lead submits, and reads as information (G-192; founder test findings 78).
+    Through POST /gate with the real graph: three failed submits by the project lead escalate to the
+    Champion, in words that inform; by another team member, to the project lead. And the same failure
+    submitted again with nothing changed is not counted: three unchanged submits do not escalate."""
+    from types import SimpleNamespace
+
+    from backend.gateway import routes
+    from backend.validation import rubric
+
+    rows: dict = {CASE_ID: SimpleNamespace(case_id=CASE_ID, status="active", escalation=None)}
+
+    async def load_registry():
+        return SimpleNamespace(cases=list(rows.values()))
+
+    async def save_registry(_reg):
+        return None
+    monkeypatch.setattr(routes.blob, "load_registry", load_registry)
+    monkeypatch.setattr(routes.blob, "save_registry", save_registry)
+
+    async def one_fails(criteria, document):
+        out = [rubric.CriterionVerdict(criterion=c, status="pass") for c, _, _ in criteria]
+        out[0] = rubric.CriterionVerdict(criterion=out[0].criterion, status="fail",
+                                         feedback="the business case names no cost")
+        return rubric.GraderVerdict(verdicts=out)
+    monkeypatch.setattr(rubric, "_llm_verdicts", one_fails)
+
+    def submit(by: str, business_case: str) -> dict:
+        env.case.phases["define"].structured = {**(env.case.phases["define"].structured or {}),
+                                                "business_case": business_case}
+        r = env.client.post("/gate", json={"case_id": CASE_ID, "submitted_by": by, "phase": "define"})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    # The lead submits three changed versions: the Champion is told, as information.
+    _submit(env)
+    for n in (1, 2):
+        submit(ACTOR, f"Version {n}: late payments cost about £62k a year.")
+    third = submit(ACTOR, "Version 3: late payments cost about £62k a year in interest.")
+    assert third["escalated"] is True, third
+    assert "For your information" in third["message"] and "the Champion, Tom" in third["message"], third["message"]
+    assert ACTOR not in third["message"], "the escalation went to the person submitting"
+    assert rows[CASE_ID].escalation["to"] == "the Champion, Tom", rows[CASE_ID].escalation
+
+    # Another team member submits: the project lead is told.
+    rows[CASE_ID].escalation, rows[CASE_ID].status = None, "active"
+    env.holder["saver"]._container.blobs.clear()                 # a fresh count
+    env.restart()
+    for n in (1, 2, 3):
+        last = submit("Lena", f"Lena's version {n}: late payments cost about £62k a year.")
+    assert last["escalated"] is True and f"the project lead, {ACTOR}" in last["message"], last["message"]
+
+    # Nothing changed between submits: not counted (needs the fingerprint — see G-192's ruling).
+    rows[CASE_ID].escalation, rows[CASE_ID].status = None, "active"
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    same = [submit(ACTOR, "Unchanged: late payments cost about £62k a year.") for _ in range(3)]
+    assert not any(s["escalated"] for s in same), [s["escalated"] for s in same]
 
 
 def test_the_gate_result_shows_the_servers_failing_checks(env) -> None:

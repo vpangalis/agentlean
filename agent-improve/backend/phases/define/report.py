@@ -195,6 +195,14 @@ def _process_section(sipoc: Any) -> dict[str, Any]:
             "process_performance": {k: text(perf.get(k)) for k in parse.PROCESS_PERFORMANCE_KEYS if perf.get(k)}}
 
 
+def champion_of(team: Any) -> dict[str, Any] | None:
+    """R6 amendment (DEF-100): the Champion — the team member whose role says Champion or Sponsor
+    (§39.1.4); None when the team names none. The report and the escalation (G-192) read it here."""
+    return next(({"name": m.get("name"), "role": m.get("role")} for m in (team if isinstance(team, list) else [])
+                 if isinstance(m, dict) and any(w in str(m.get("role") or "").lower()
+                                                for w in ("champion", "sponsor"))), None)
+
+
 def _savings(artifacts: dict[str, Any]) -> dict[str, Any] | None:
     rows = [r for r in (artifacts.get("computation_results") or [])
             if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
@@ -220,11 +228,7 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
     sipoc = _value(a, "process_map_sipoc") or {}
 
     team = _value(a, "team") or []
-    # R6 amendment (DEF-100): the report names the project lead and the Champion — the team member
-    # whose role says Champion or Sponsor (§39.1.4); None when the team names none.
-    champion = next(({"name": m.get("name"), "role": m.get("role")} for m in team
-                     if isinstance(m, dict) and any(w in str(m.get("role") or "").lower()
-                                                    for w in ("champion", "sponsor"))), None)
+    champion = champion_of(team)
     body: dict[int, dict[str, Any]] = {
         1: {"project": frame, "team": team, "project_lead": frame.get("leader"), "champion": champion},
         2: {"business_case": _value(a, "business_case"),
@@ -279,4 +283,4 @@ def _sipoc_columns(sipoc: dict[str, Any]) -> dict[str, list[str]]:
 
 
 __all__ = ["FIVE_W_TWO_H_QUESTIONS", "REPORT_SECTIONS", "FIELD_EXPLAIN", "VISUAL_READ", "define_report",
-           "element_of"]
+           "element_of", "champion_of"]

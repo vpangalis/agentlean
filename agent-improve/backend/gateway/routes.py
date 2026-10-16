@@ -1798,20 +1798,21 @@ async def submit_gate(request: GateSubmitRequest,
     held = moves.parked(request.phase, dict(getattr(record, "field_status", None) or {}))
     names = ", ".join(guard_messages.element_name(request.phase, f) for f in held)
     escalated = bool(verdict.get("escalated"))
+    told = _escalated_to(case, request.phase, request.submitted_by) if escalated else ""
     if escalated:
         # ADR-0076 (T65): the third failure — the report is held for the lead; the case stays open.
+        # G-192: when the lead submits, the Champion is told.
         await blob.set_escalation(request.case_id, {
             "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "attempts": int(verdict.get("attempts") or verdict.get("gate_attempts") or 0),
-            "criteria": [m.replace("_", " ") for m in missing]})
+            "criteria": [m.replace("_", " ") for m in missing], "to": told})
     return GateSubmitResponse(
         passed=False,
         phase=request.phase,
         missing_fields=[f.replace("_", " ") for f in missing],
         failed_checks=_failed_checks(request.phase, verdict),
         escalated=escalated,
-        message=(GATE_ESCALATED.format(lead=case.leader or "the project lead",
-                                       criteria="; ".join(m.replace("_", " ") for m in missing))
+        message=(GATE_ESCALATED.format(who=told, criteria="; ".join(m.replace("_", " ") for m in missing))
                  if escalated else
                  (f"Parked: {names}. Complete {'it' if len(held) == 1 else 'them'} to submit. " if held else "")
                  + f"Not quite ready yet. {len(missing)} item(s) still needed."),
@@ -1858,10 +1859,24 @@ APPROVE_LEAD_ONLY = ("Only the project lead, {lead}, approves the Define report,
                      "Ask {lead} to approve it — or reject it naming what to change, which anyone may do.")
 
 
-#: ADR-0076 (T65) — said in code on the third failed submission; the case stays open.
-GATE_ESCALATED = ("This is the third time the report has not passed, so it has gone to the project lead, "
-                  "{lead}, to decide with you. What still fails: {criteria}. You can keep working on "
+#: ADR-0076 (T65) — said in code on the third failed submission; the case stays open. G-192: it reads as
+#: information, and names who was told — the Champion when the project lead submitted.
+GATE_ESCALATED = ("For your information: the report has not passed three times, so {who} has been told, to "
+                  "help decide the next step with you. What still fails: {criteria}. You can keep working on "
                   "these with the coach and submit again.")
+
+
+def _escalated_to(case: Any, phase: str, submitted_by: Optional[str]) -> str:
+    """G-192 — who an escalation goes to, in words: the project lead; the Champion when the lead submitted
+    (ADR-0076 escalates to someone other than the person submitting)."""
+    lead = str(getattr(case, "leader", "") or "").strip()
+    if lead and " ".join(str(submitted_by or "").split()).lower() != " ".join(lead.split()).lower():
+        return f"the project lead, {lead}"
+    from backend.phases.define.report import champion_of
+    record = (getattr(case, "phases", None) or {}).get(phase)
+    champion = champion_of(((getattr(record, "structured", None) or {}).get("team")))
+    return (f"the Champion, {champion['name']}" if champion and champion.get("name")
+            else "the Champion (the team names none yet — add one under Project and team)")
 
 
 async def _clear_escalation(case_id: str) -> None:
