@@ -1730,12 +1730,27 @@ _NOT_A_CLAIM = re.compile(r"(?<![A-Za-z])(not|nothing|until|only if|unless|once 
 _SENTENCE_END = re.compile(r"(?<=[.!?])[ \t]+")
 
 
-def _without_store_claims(text: str) -> str:
-    """The text with every sentence that claims a store removed, line by line."""
+def _plain(text: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9£€%]+", text.lower()))
+
+
+def _belts_own(sentence: str, belt: str) -> bool:
+    """G-185: every store word in the sentence stands among the Belt's own words — the same word with up to
+    three words either side, as the Belt wrote them ('…of being logged within…' read back is no claim)."""
+    words = _plain(sentence).split()
+    hits = [i for i, w in enumerate(words) if _STORE_CLAIM.fullmatch(w) or w == "captured"]
+    return bool(belt) and bool(hits) and all(
+        " ".join(words[max(0, i - 3):i + 4]) in belt for i in hits)
+
+
+def _without_store_claims(text: str, belt: str = "") -> str:
+    """The text with every sentence that claims a store removed, line by line — never a sentence that
+    repeats the Belt's own words (G-185; `belt` is everything the Belt wrote)."""
+    own = _plain(belt)
     lines = []
     for line in text.split(chr(10)):
         kept = [x for x in _SENTENCE_END.split(line)
-                if not (_STORE_CLAIM.search(x) and not _NOT_A_CLAIM.search(x))]
+                if not (_STORE_CLAIM.search(x) and not _NOT_A_CLAIM.search(x) and not _belts_own(x, own))]
         lines.append(" ".join(kept))
     return chr(10).join(lines).strip()
 
@@ -1757,13 +1772,20 @@ def _repeats(part: str, block: set[str]) -> bool:
 
 
 def _without_repeated_blocks(text: str, example: str, prompt: str, explanation: str = "",
-                             whole: bool = True) -> str:
+                             whole: bool = True, belt: str = "") -> str:
     """G-171: the message with every paragraph that repeats the example or the explanation block, and every
     question that repeats the question block, removed — the screen shows the blocks under the message. A
     paragraph that loses half its sentences or more goes whole (it was mostly a repeat), and a lead-in line
     ending in ':' goes with what it introduced. When that leaves nothing, only the repeated sentences go;
-    `text` comes back unchanged only when even that leaves nothing."""
+    `text` comes back unchanged only when even that leaves nothing. G-185: a list item or a paragraph that
+    holds the Belt's own words (`belt`) never goes whole — only its repeated question does."""
     ex, ask, why = _block_words(example), _block_words(prompt), _block_words(explanation)
+    own = _plain(belt)
+
+    def belts(lines: list[str]) -> bool:
+        return bool(own) and any(len(p) > 15 and p in own
+                                 for p in (_plain(_LIST_ITEM.sub("", s, count=1)) for line in lines
+                                           for s in _SENTENCE_END.split(line)))
     paragraphs = re.split(r"\n\s*\n", text.strip())
     kept: list[str] = []
     for para in paragraphs:
@@ -1777,8 +1799,8 @@ def _without_repeated_blocks(text: str, example: str, prompt: str, explanation: 
                 items[-1].append(line)
         lines = []
         for item in items:
-            if _LIST_ITEM.match(item[0]) and any(s.rstrip().endswith("?") and _repeats(s, ask)
-                                                 for s in _SENTENCE_END.split(" ".join(item))):
+            if _LIST_ITEM.match(item[0]) and not belts(item) and any(
+                    s.rstrip().endswith("?") and _repeats(s, ask) for s in _SENTENCE_END.split(" ".join(item))):
                 continue
             for line in item:
                 sentences = [s for s in _SENTENCE_END.split(line)
@@ -1788,7 +1810,8 @@ def _without_repeated_blocks(text: str, example: str, prompt: str, explanation: 
                 elif lines and lines[-1].rstrip().endswith(":"):
                     lines.pop()
         after = [s for line in lines for s in _SENTENCE_END.split(line) if s.strip()]
-        if _repeats(para, ex) or _repeats(para, why) or (whole and before and len(after) * 2 <= len(before)):
+        if not belts(before) and (_repeats(para, ex) or _repeats(para, why)
+                                  or (whole and before and len(after) * 2 <= len(before))):
             if kept and kept[-1].rstrip().endswith(":"):
                 kept.pop()
             continue
@@ -1800,7 +1823,7 @@ def _without_repeated_blocks(text: str, example: str, prompt: str, explanation: 
     out = (chr(10) * 2).join(kept).strip()
     if not out and whole:
         # Everything was a repeat: keep what the sentences alone leave, never an empty message.
-        return _without_repeated_blocks(text, example, prompt, explanation, whole=False)
+        return _without_repeated_blocks(text, example, prompt, explanation, whole=False, belt=belt)
     return out or text
 
 
@@ -1841,7 +1864,7 @@ def _missing_words(phase: str, missing: list[str], artifacts: dict[str, Any],
 
 
 def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
-                 plan: Optional[CoachingPlan], stored: dict[str, Any]) -> list:
+                 plan: Optional[CoachingPlan], stored: dict[str, Any], belt: str = "") -> list:
     """G-117 (DEF-156): the only sentence telling the Belt what was stored is written HERE, from
     the storage result, like the read-back. The coach model's own store claims are removed from
     the reply (message and explanation); then, when this turn stored a value, one line names the
@@ -1859,7 +1882,7 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
             element=guard_messages.element_name(phase, plan.focus_field or ""),
             missing=" and ".join("the " + f.replace("_", " ") for f in missing) or "every field")
     if reply is not None:
-        reply.explanation = _without_links(_without_store_claims(str(reply.explanation or "")))
+        reply.explanation = _without_links(_without_store_claims(str(reply.explanation or ""), belt))
         reply.example = _without_links(str(reply.example or ""))           # DEF-019
         reply.prompt = _without_links(str(reply.prompt or ""))
     for i in range(len(messages) - 1, -1, -1):
@@ -1869,7 +1892,7 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
             # saved" is the system's statement, not a model's store claim.
             return messages
         if isinstance(msg, AIMessage) and msg.text.strip():
-            body = _without_links(_without_store_claims(msg.text))
+            body = _without_links(_without_store_claims(msg.text, belt))
             text = f"{note}{chr(10) * 2}{body}".strip() if note else body
             if text == msg.text:
                 return messages
@@ -2972,7 +2995,11 @@ async def executor(
         new_messages = _with_progress(new_messages, reply, define_step["label"])
 
     # G-117 (DEF-156) — what was stored is said by code, from `kept`, never by the model.
-    new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {})
+    # G-185: the Belt's own words are never taken for a store claim — everything the Belt wrote.
+    belt_words = chr(10).join([*(m.text for m in (state.get("messages") or []) if isinstance(m, HumanMessage)),
+                               str(plan.answer or "") if plan else ""])
+    new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {},
+                                belt_words)
     new_messages = _with_carried(new_messages, reply, phase, carried)
     if move == moves.READ_BACK and phase == "define" and pending is not None:
         new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
@@ -3072,7 +3099,7 @@ async def executor(
         # (a reply written in code is composed once, its ask included).
         shown = next((m.text for m in reversed(new_messages) if isinstance(m, AIMessage)), "")
         single = _without_repeated_blocks(shown, str(reply.example or ""), str(reply.prompt or ""),
-                                          str(reply.explanation or ""))
+                                          str(reply.explanation or ""), belt=belt_words)
         if single != shown:
             new_messages = _with_text(new_messages, single)
             reply = reply.model_copy(update={"message": single})

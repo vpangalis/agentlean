@@ -1,9 +1,9 @@
 {
- "source_hash": "ec908b058180bb63",
- "commit": "af18a2a",
+ "source_hash": "4de16bbbab897fd2",
+ "commit": "c354bb8",
  "commit_matches_source": false,
  "full_run_hash": "3bd3b09266e4208b",
- "recorded_at": "2026-10-16T15:36:50+00:00",
+ "recorded_at": "2026-10-16T15:50:13+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -420,7 +420,7 @@
   "backend/tests/test_define_e2e.py::test_a_new_case_opens_in_define": "passed",
   "backend/tests/test_define_e2e.py::test_a_partial_file_is_read_back_as_a_draft_with_its_gaps": "skipped",
   "backend/tests/test_define_e2e.py::test_a_qualified_yes_is_treated_as_a_correction": "passed",
-  "backend/tests/test_define_e2e.py::test_a_read_back_never_loses_the_belts_words": "skipped",
+  "backend/tests/test_define_e2e.py::test_a_read_back_never_loses_the_belts_words": "passed",
   "backend/tests/test_define_e2e.py::test_a_reply_is_never_asked_again_inside_its_turn": "passed",
   "backend/tests/test_define_e2e.py::test_a_reply_shows_the_file_and_page_it_used": "skipped",
   "backend/tests/test_define_e2e.py::test_a_reply_takes_thumbs_and_a_comment_stored_against_its_trace": "skipped",

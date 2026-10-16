@@ -4967,9 +4967,21 @@ def test_ctq_rows_are_the_rows_the_belt_stated(env, monkeypatch) -> None:
     assert (moved.phases["define"].structured or {})["critical_to_quality"] == rows
 
 
-def test_a_read_back_never_loses_the_belts_words() -> None:
-    """DEF-185 — A read-back never removes the Belt's own words (G-185; founder test findings 31)"""
-    _not_written('DEF-185')
+def test_a_read_back_never_loses_the_belts_words(env, monkeypatch) -> None:
+    """DEF-185 — A read-back never removes the Belt's own words (G-185; founder test findings 31).
+    Through the routes and graph: the Belt's CTQ says '…of being logged within one hour'; the reply reads it
+    back — the sentence stays whole, with its number — while the coach's own store claim in the same reply
+    ('I've logged your answer.') is still removed (G-117)."""
+    belt = ("1. Callers want every fault to have the certainty of being logged within one hour.\n"
+            "2. Callers want one named contact for every open fault.")
+    _at_element(env, "voc_summary")
+    _coach_saying(monkeypatch, "Here is your voice of the customer, as you gave it:\n" + belt
+                  + "\nI've logged your answer. Is this right?")
+    r = _askd(env, message=belt)
+    answer = r["answer"]
+    assert "1. Callers want every fault to have the certainty of being logged within one hour." in answer, answer
+    assert "2. Callers want one named contact for every open fault." in answer, answer
+    assert "I've logged your answer" not in answer, f"the coach's store claim reached the Belt: {answer!r}"
 
 
 def test_step_durations_are_read_with_their_units_and_checked(env, monkeypatch) -> None:
