@@ -4827,9 +4827,64 @@ def test_gate_view_section_g_follows_the_mockup() -> None:
     _not_written('DEF-182')
 
 
-def test_list_elements_are_split_as_the_belt_numbered_them() -> None:
-    """DEF-183 — List-shaped elements are split as the Belt numbered them, with no label kept as content (G-183; founder test findings 66, 69, 70)"""
-    _not_written('DEF-183')
+def test_list_elements_are_split_as_the_belt_numbered_them(env, monkeypatch) -> None:
+    """DEF-183 — List-shaped elements are split as the Belt numbered them, with no label kept as content (G-183; founder test findings 66, 69, 70).
+    ADR-0088 decision 1, on the real routes and graph, with the Belt's words from IMPR-2026-A99's kind: three
+    numbered barriers, one with a ";" inside, are read back as 3 items and the report shows 3 issues with no
+    label; two numbered secondary metrics with their label are read back as 2 items and shown as 2; the
+    stored value stays the Belt's text. "None identified" is one item."""
+    from backend.phases import moves
+    from backend.phases.define import parse
+    from backend.phases.define.report import define_report
+
+    def at(field: str) -> None:
+        _at_element(env, field)
+        env.case.phases["define"].field_status[field] = {"status": moves.ASKED}
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def items(reply: dict) -> list[str]:
+        text = "\n".join(str(reply.get(k) or "") for k in ("answer", "explanation", "prompt"))
+        return [line.split(". ", 1)[1] for line in text.splitlines() if line[:1].isdigit() and ". " in line]
+
+    issues = ("Issues and barriers: (1) Data: the logging dates are entered by hand; we may need to sample. "
+              "(2) People: the team is busy at month end, and IT has no slot before May. (3) Systems: a change "
+              "to the ticket tool needs 6 weeks' approval.")
+    at("issues_and_barriers")
+    _coach_saying(monkeypatch, "Here are your issues and barriers. Is this right?",
+                  captured=[{"field_name": "issues_and_barriers", "value": issues, "source": "belt"}])
+    read = ask(message=issues)
+    assert "Read as 3 items:" in " ".join(str(read.get(k) or "") for k in ("answer", "explanation")), read["answer"]
+    assert len(items(read)) == 3 and items(read)[0].startswith("Data: the logging dates"), items(read)
+    _coach_saying(monkeypatch, "Thank you. Every element is confirmed.")
+    ask(message="Confirm", action="confirm")
+    stored = _define(env)["structured"]
+    assert stored["issues_and_barriers"] == issues, "the stored value stays the Belt's text"
+    sections = {s["n"]: s for s in define_report(stored)["sections"]}
+    assert sections[7]["issues"] == [
+        "Data: the logging dates are entered by hand; we may need to sample.",
+        "People: the team is busy at month end, and IT has no slot before May.",
+        "Systems: a change to the ticket tool needs 6 weeks' approval."], sections[7]["issues"]
+
+    secondary = ("Secondary metrics: (1) first-time fix rate, in %, today 82%, must not fall; "
+                 "(2) handling time per complaint, 25 minutes, must not rise.")
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    at("secondary_metrics")
+    _coach_saying(monkeypatch, "Here are your secondary metrics. Is this right?",
+                  captured=[{"field_name": "secondary_metrics", "value": secondary, "source": "belt"}])
+    read = ask(message=secondary)
+    assert items(read) == ["first-time fix rate, in %, today 82%, must not fall",
+                           "handling time per complaint, 25 minutes, must not rise."], items(read)
+    _coach_saying(monkeypatch, "Thank you. Next, the process map.")
+    ask(message="Confirm", action="confirm")
+    sections = {s["n"]: s for s in define_report(_define(env)["structured"])["sections"]}
+    assert len(sections[5]["secondary_metric_items"]) == 2 and not any(
+        "Secondary metrics" in i for i in sections[5]["secondary_metric_items"]), sections[5]
+    assert parse.list_items("None identified at this stage.", "Issues and barriers") == ["None identified at this stage"]
 
 
 def test_ctq_rows_are_the_rows_the_belt_stated(env, monkeypatch) -> None:

@@ -161,13 +161,9 @@ def parse_steps_names(section6: dict[str, Any]) -> list[str]:
 
 
 def _issues(value: Any) -> list[str]:
-    """Section 7's issues as a list: one per line or per ';', else the whole answer as one."""
-    import re
-    text = str(value or "").strip()
-    if not text:
-        return []
-    parts = [p.strip(" -•\t") for p in re.split(r"\n|;", text)]
-    return [p for p in parts if p] or [text]
+    """Section 7's issues as the Belt numbered them (ADR-0088 decision 1: the one list parser, the label dropped)."""
+    from backend.phases.define.parse import list_items
+    return list_items(value, "Issues and barriers")
 
 def _process_section(sipoc: Any) -> dict[str, Any]:
     """Section 6 (ADR-0078, DEF-084): the SIPOC's columns as the diagram draws them (step names),
@@ -205,6 +201,7 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
     gate-required field not yet confirmed, `elements` the thirteen with whether
     each is confirmed (the reject control's choices).
     """
+    from backend.phases.define.parse import list_items
     a = dict(artifacts or {})
     frame = {k: (case or {}).get(k) for k in
              ("case_id", "title", "leader", "belt_level", "department", "target_date")}
@@ -239,6 +236,8 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
             "target_value": _value(a, "target_value"),
             "target_date": _value(a, "target_date"),
             "secondary_metrics": _value(a, "secondary_metrics"),
+            # ADR-0088 decision 1 (G-183): the secondary metrics as the Belt numbered them, the label dropped.
+            "secondary_metric_items": list_items(_value(a, "secondary_metrics"), "Secondary metrics"),
             "other_registered": registry[1:]},
         # The drawn columns (step names as the diagram shows them), what is measured on the outputs, and
         # each step's performance with the whole process's (ADR-0078, DEF-084).

@@ -4588,7 +4588,12 @@ function defineReportHtml(rep, isPassed) {
     card(s5, line('Primary metric', prim.name ? `${prim.name} (${prim.unit || ''}) — ${prim.meaning || ''}` : null, 'primary') +
       line('Baseline → target', (s5.baseline || s5.target) ? `${s5.baseline || '—'} → ${s5.target || '—'}` : null, 'baseline_target') +
       (vis.baseline_target ? `<div id="report-target"></div>` + read('baseline_target') : '') +
-      line('By', s5.target_date, 'target_date') + line('Secondary metrics', s5.secondary_metrics, 'secondary_metrics') +
+      line('By', s5.target_date, 'target_date') +
+      // ADR-0088 decision 1 (G-183): the secondary metrics as the Belt numbered them, one per line.
+      ((s5.secondary_metric_items || []).length > 1
+        ? `<div style="font-size:11px;line-height:1.6;margin:2px 0"><span style="color:#5B6B7C;font-weight:600">Secondary metrics:</span></div>${why('secondary_metrics')}` +
+          `<ul style="font-size:11px;line-height:1.6;margin:0 0 0 16px;padding:0">${s5.secondary_metric_items.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
+        : line('Secondary metrics', (s5.secondary_metric_items || [])[0] || s5.secondary_metrics, 'secondary_metrics')) +
       ((s5.other_registered || []).length
         ? line('Also registered', s5.other_registered.map(m => m.name).join(', ')) : '')),
     card(s6, why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +

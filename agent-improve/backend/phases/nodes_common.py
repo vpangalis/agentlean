@@ -2986,6 +2986,13 @@ async def executor(
             from backend.phases.define.parse import date_shown
             new_messages = _with_code_line(new_messages, reply, "Read as a date: " + date_shown(
                 pending["store"]["target_date"], pending.get("belt_words")))
+        # ADR-0088 decision 1 (G-183): a list-shaped answer is read back as the items the Belt numbered.
+        from backend.phases.define.parse import list_items
+        for f, label in (("secondary_metrics", "Secondary metrics"), ("issues_and_barriers", "Issues and barriers")):
+            items = list_items((pending.get("store") or {}).get(f), label)
+            if len(items) > 1:
+                new_messages = _with_code_line(new_messages, reply, f"Read as {len(items)} items:" + "".join(
+                    f"{chr(10)}{n}. {item}" for n, item in enumerate(items, start=1)))
         # ADR-0088 decision 7: the seventh 5W2H answer is how the problem shows up, never a goal.
         asked = five_w_two_h_question(pending.get("store"))
         if asked:
