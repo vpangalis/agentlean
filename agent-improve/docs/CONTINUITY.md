@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 80 of 168 Define features pass, 31 more proven on earlier code (core 77 of 159) — A 29/70 · B 28/37 · C 19/38 · integrator 4/23 · M1: 24 proven · 22 awaiting fresh run · 3 open |
+| **Headline** | 80 of 221 Define features pass, 31 more proven on earlier code (core 77 of 212) — A 29/87 · B 28/41 · C 19/66 · integrator 4/27 · M1: 30 proven · 23 awaiting fresh run · 19 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
@@ -15,7 +15,7 @@
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
-| **Block regenerated** | 2026-10-15 |
+| **Block regenerated** | 2026-10-16 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.

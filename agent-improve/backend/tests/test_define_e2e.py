@@ -4772,3 +4772,272 @@ def test_a8_a_relative_target_is_taught_and_dates_are_read_as_noted(env, monkeyp
     assert read("Reduce the late payment rate to under 5% by Q1 2027.") == (5.0, "31 March 2027 (end of Q1 2027)")
     assert read("A target of 5% late payments by end of Q4 2027") == (5.0, "31 December 2027 (end of Q4 2027)")
     assert read("Reduce the late payment rate to under 5% by end of 2027.") == (5.0, None)
+
+
+def test_g3_never_fails_the_methods_own_material() -> None:
+    """DEF-174 — G-181 (founder 2026-10-15, grader calibration after Define): G3 treats the element's script
+    block, its worked example and the metric's registry name as grounded."""
+    _not_written('DEF-174')
+
+
+def test_the_scripts_worked_examples_carry_no_past_date() -> None:
+    """DEF-175 — G-182 (founder 2026-10-15): the phase script's worked examples use a future date or no year."""
+    _not_written('DEF-175')
+
+
+# ── founder Define test 2026-10-15: findings registered (step 0, founder 2026-10-16) ──
+
+
+def test_gate_view_section_a_follows_the_mockup() -> None:
+    """DEF-176 — Gate view section A · Project and team: the team table with time on project and training as their own columns, one name for the lead (gate_view_mockup.html; G-198)"""
+    _not_written('DEF-176')
+
+
+def test_gate_view_section_b_follows_the_mockup() -> None:
+    """DEF-177 — Gate view section B · Business case and benefits: the business case by its template (What/Where/Since when/Size/Cost), cost of the gap and expected saving as two labelled figures (gate_view_mockup.html; G-198)"""
+    _not_written('DEF-177')
+
+
+def test_gate_view_section_c_follows_the_mockup() -> None:
+    """DEF-178 — Gate view section C · Problem, goal and scope: the composed statement highlighted with the 5W2H table under it, the goal as a highlighted block, scope as two labelled boxes (gate_view_mockup.html; G-198)"""
+    _not_written('DEF-178')
+
+
+def test_gate_view_section_d_follows_the_mockup() -> None:
+    """DEF-179 — Gate view section D · Voice of the customer and CTQs: the need-to-CTQ table with the rows as stated (gate_view_mockup.html; G-198)"""
+    _not_written('DEF-179')
+
+
+def test_gate_view_section_e_follows_the_mockup() -> None:
+    """DEF-180 — Gate view section E · Metrics: the primary metric by its display name, a chart scaled 0–100 % for shares, the target pending until confirmed (gate_view_mockup.html; G-198)"""
+    _not_written('DEF-180')
+
+
+def test_gate_view_section_f_follows_the_mockup() -> None:
+    """DEF-181 — Gate view section F · High-level process: the numbered flow with arrows, per-step time and frequency, the R18 step highlighted, the performance table (gate_view_mockup.html; G-198)"""
+    _not_written('DEF-181')
+
+
+def test_gate_view_section_g_follows_the_mockup() -> None:
+    """DEF-182 — Gate view section G · Issues and barriers: the issues as the Belt numbered them, no owner (gate_view_mockup.html; G-198)"""
+    _not_written('DEF-182')
+
+
+def test_list_elements_are_split_as_the_belt_numbered_them() -> None:
+    """DEF-183 — List-shaped elements are split as the Belt numbered them, with no label kept as content (G-183; founder test findings 66, 69, 70)"""
+    _not_written('DEF-183')
+
+
+def test_ctq_rows_are_the_rows_the_belt_stated() -> None:
+    """DEF-184 — CTQ rows are the rows the Belt stated, never a cross product (G-184; founder test findings 36)"""
+    _not_written('DEF-184')
+
+
+def test_a_read_back_never_loses_the_belts_words() -> None:
+    """DEF-185 — A read-back never removes the Belt's own words (G-185; founder test findings 31)"""
+    _not_written('DEF-185')
+
+
+def test_step_durations_are_read_with_their_units_and_checked() -> None:
+    """DEF-186 — Step durations are read with their units (working days, same day, ranges) and checked against each other (G-186; founder test findings 71)"""
+    _not_written('DEF-186')
+
+
+def test_the_chat_renders_markdown_safely() -> None:
+    """DEF-187 — The chat renders the coach's Markdown (bold, lists, tables), escaped (G-187; founder test findings 28, 59)"""
+    _not_written('DEF-187')
+
+
+def test_an_element_is_read_back_and_stored_only_with_all_its_required_parts() -> None:
+    """DEF-188 — An element is read back and confirmed only with all its required parts; nothing stored is shown as complete when it is not (G-188; founder test findings 37, 49)"""
+    _not_written('DEF-188')
+
+
+def test_the_seventh_5w2h_question_has_one_definition() -> None:
+    """DEF-189 — The seventh 5W2H question has one definition everywhere: how the problem shows up (G-189; founder test findings 38)"""
+    _not_written('DEF-189')
+
+
+def test_the_5w2h_mind_map_shows_every_answer_in_full() -> None:
+    """DEF-190 — The 5W2H mind map shows every answer in full, wrapped, never cut mid-word (G-190; founder test findings 39)"""
+    _not_written('DEF-190')
+
+
+def test_a_dotted_date_passes_the_gate() -> None:
+    """DEF-191 — Every date is read by one parser and stored as a calendar date; a correct date never fails the gate (G-191; founder test findings 77, 80)"""
+    _not_written('DEF-191')
+
+
+def test_escalation_counts_changed_submits_and_reaches_the_champion() -> None:
+    """DEF-192 — Escalation counts only a submit that changed something, reaches the champion when the lead submits, and reads as information (G-192; founder test findings 78)"""
+    _not_written('DEF-192')
+
+
+def test_the_gate_result_shows_the_servers_failing_checks() -> None:
+    """DEF-193 — The gate result screen shows the server's failing checks, by element, with a link to fix each (G-193; founder test findings 74)"""
+    _not_written('DEF-193')
+
+
+def test_a_failed_rubric_criterion_is_logged_by_id_element_and_reason() -> None:
+    """DEF-194 — A failed rubric criterion is logged and returned by id, element and reason; no serializer warning (G-194; founder test findings 75)"""
+    _not_written('DEF-194')
+
+
+def test_the_read_back_is_the_exact_value_a_confirm_stores() -> None:
+    """DEF-195 — The read-back is rendered in code from the exact value a Confirm will store, as a criteria card (G-195; founder test findings 17, 60, 64, 73)"""
+    _not_written('DEF-195')
+
+
+def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip() -> None:
+    """DEF-196 — Every reply names its element ('Element n of 13 · name'); a Confirm shows its own confirmation strip; the next element its own card (G-197; founder test findings 19, 30, 40, 44, 46, 51, 58)"""
+    _not_written('DEF-196')
+
+
+def test_the_gate_view_follows_the_approved_mockup() -> None:
+    """DEF-197 — The Gate view follows the approved mockup (gate_view_mockup.html): lettered sections, element cards from templates (G-198; founder test findings 18, 32, 33, 35, 36, 41, 43, 48, 51, 72)"""
+    _not_written('DEF-197')
+
+
+def test_one_numbering_and_per_element_status_everywhere() -> None:
+    """DEF-198 — One numbering scheme across sidebar, chat and Gate; each report section shows the status of each element in it (G-199; founder test findings 32, 35)"""
+    _not_written('DEF-198')
+
+
+def test_the_report_shows_history_behind_a_link_never_json() -> None:
+    """DEF-199 — The report shows each element's history behind a History link, as sentences, never raw JSON (G-200; founder test findings 48)"""
+    _not_written('DEF-199')
+
+
+def test_the_welcome_is_built_by_the_server() -> None:
+    """DEF-200 — The welcome is built by the server from the phase state, greets the Belt by name, laid out in blocks (G-201; founder test findings 11, 15)"""
+    _not_written('DEF-200')
+
+
+def test_the_visual_pane_follows_the_current_element() -> None:
+    """DEF-201 — The visual pane shows the visual of the element being worked on, and nothing when it has none (G-202; founder test findings 12, 20, 40, 54)"""
+    _not_written('DEF-201')
+
+
+def test_submit_is_disabled_until_every_element_is_confirmed() -> None:
+    """DEF-202 — 'Submit for gate review' is disabled until every required element is confirmed, with the reason (G-203; founder test findings 14)"""
+    _not_written('DEF-202')
+
+
+def test_the_sidebar_highlights_the_current_element() -> None:
+    """DEF-203 — The sidebar highlights the element being worked on, drops the legacy label, and shows 'Change' small (G-204; founder test findings 16, 21)"""
+    _not_written('DEF-203')
+
+
+def test_one_progress_figure_everywhere() -> None:
+    """DEF-204 — One progress figure everywhere: 'n of 13 confirmed' (G-205; founder test findings 45)"""
+    _not_written('DEF-204')
+
+
+def test_an_upload_starts_its_own_turn() -> None:
+    """DEF-205 — An upload in the chat starts its own upload turn; no browser-written 'Let me process it' (G-206; founder test findings 22)"""
+    _not_written('DEF-205')
+
+
+def test_the_files_panel_refreshes_after_an_upload() -> None:
+    """DEF-206 — The case files panel refreshes after an upload (G-207; founder test findings 23, 34)"""
+    _not_written('DEF-206')
+
+
+def test_the_team_ask_mentions_the_upload() -> None:
+    """DEF-207 — The team element's ask mentions that the team list can be uploaded as a file (G-208; founder test findings 24)"""
+    _not_written('DEF-207')
+
+
+def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps() -> None:
+    """DEF-208 — A file that covers an element only partly is read back as a draft table with its gaps marked (G-209; founder test findings 25)"""
+    _not_written('DEF-208')
+
+
+def test_a_message_pointing_at_the_file_is_not_judged() -> None:
+    """DEF-209 — A message pointing at the uploaded file is never judged as a typed answer (G-210; founder test findings 26)"""
+    _not_written('DEF-209')
+
+
+def test_a_how_to_question_is_answered_and_the_element_resumes() -> None:
+    """DEF-210 — A how-to question in any element is answered from the method, and the element resumes (G-211; founder test findings 56)"""
+    _not_written('DEF-210')
+
+
+def test_the_sipoc_is_taught_and_checked_with_its_flow() -> None:
+    """DEF-211 — The SIPOC is taught and checked with a drawn flow; the R18 check shows every step with problem notes (G-212; founder test findings 59, 61)"""
+    _not_written('DEF-211')
+
+
+def test_the_completion_card_and_the_decision_banner() -> None:
+    """DEF-212 — After the last Confirm a completion card says what to do in order; the decision panel is pinned at the top, elements named as in the sidebar (G-213; founder test findings 67, 81)"""
+    _not_written('DEF-212')
+
+
+def test_progress_steps_are_shown_while_a_turn_runs() -> None:
+    """DEF-213 — While a turn runs the Belt sees a visible indicator and plain-words steps (G-214; founder test findings 47)"""
+    _not_written('DEF-213')
+
+
+def test_the_overview_is_served_from_the_skill() -> None:
+    """DEF-214 — The Define overview is served from the skill and says 13 elements and that the project lead approves (G-215; founder test findings 9, 10)"""
+    _not_written('DEF-214')
+
+
+def test_the_lead_and_members_are_stored_with_their_details() -> None:
+    """DEF-215 — The project lead and the members are stored with their details, one name for the lead everywhere (G-216; founder test findings 2, 4, 29)"""
+    _not_written('DEF-215')
+
+
+def test_only_registered_people_open_a_case_and_the_lead_approves() -> None:
+    """DEF-216 — Only registered people open a case (by e-mail, checked by the server); the lead approves as a person, not by typed name (G-217; founder test findings 5)"""
+    _not_written('DEF-216')
+
+
+def test_the_new_case_number_stays_until_the_lead_continues() -> None:
+    """DEF-217 — The new case number stays shown, with a copy button, until the lead continues (G-218; founder test findings 6)"""
+    _not_written('DEF-217')
+
+
+def test_case_numbers_are_unique_and_the_case_list_keeps_every_case() -> None:
+    """DEF-218 — Case numbers are unique under concurrent creation, and the case list keeps every case (G-219; founder test findings 7, 8)"""
+    _not_written('DEF-218')
+
+
+def test_checkpoint_weight_is_bounded() -> None:
+    """DEF-219 — Checkpoints stay small and are written few times per turn (analysis first) (G-220; founder test findings 76, 79)"""
+    _not_written('DEF-219')
+
+
+def test_the_coach_writes_no_sample_of_its_own() -> None:
+    """DEF-220 — The coach writes no sample of its own and no repeated explanation; the sample is the code-inserted one (G-221; founder test findings 50)"""
+    _not_written('DEF-220')
+
+
+def test_a_strict_limit_is_kept_as_written() -> None:
+    """DEF-221 — A target's operator is kept as the Belt wrote it ('under 10%' stays < 10%) (G-222; founder test findings 52)"""
+    _not_written('DEF-221')
+
+
+def test_the_a8_read_back_shows_its_chart() -> None:
+    """DEF-222 — The target read back from the goal shows its baseline-to-target chart (G-223; founder test findings 53)"""
+    _not_written('DEF-222')
+
+
+def test_metric_lines_are_their_own_block_and_never_show_ids() -> None:
+    """DEF-223 — The code-written metric reading is its own block, and display names replace registry ids (G-224; founder test findings 42, 43)"""
+    _not_written('DEF-223')
+
+
+def test_the_same_answer_gets_the_same_verdict() -> None:
+    """DEF-224 — The judgment rules on the rubric's criteria only, and the same answer gets the same verdict (G-225; founder test findings 68)"""
+    _not_written('DEF-224')
+
+
+def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures() -> None:
+    """DEF-225 — The cost of the gap and the expected saving are two labelled figures, in €, with thousands separators (G-226; founder test findings 57, 72)"""
+    _not_written('DEF-225')
+
+
+def test_confirm_and_change_appear_under_every_read_back() -> None:
+    """DEF-226 — Confirm and Change appear under every read-back as soon as it is shown (to verify) (G-227; founder test findings 55)"""
+    _not_written('DEF-226')

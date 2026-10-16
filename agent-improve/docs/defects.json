@@ -1925,6 +1925,627 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-181",
+   "symptom": "G3 FAILS THE METHOD'S OWN MATERIAL EVEN WHEN GIVEN IT. Slice 3 after option A (run 20261015T084836): of three G3 fails, two quote the phase script's worked examples word for word (the scope's \"In: UK invoice generation…\", the goal's \"Reduce the invoice error rate from 12% to under 3%…\") and one the metric's registry name (\"late_payment_rate\" for the Belt's \"late payment rate\") — all sources the grader is now given. D4 OCCURRENCE: the prompt names the method as grounded but G3's wording (\"the Belt's words, the confirmed case values or the method reference\") is read as the Belt's data only. D4 ESCAPE: the unit tests grade fake verdicts. Grader calibration, after Define (founder 2026-10-15).",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-174"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-182",
+   "symptom": "THE SCRIPT'S WORKED EXAMPLES USE A DATE ALREADY PAST. skills/dmaic-define-phase/SKILL.md (and coaching_script.md): the goal's example \"…by 30 September 2026\" and the target date's example \"30 September 2026\" — past on 2026-10-15. D4 OCCURRENCE: written 2026-08-25 (DEFINE_AMENDMENT) with a date then in the future. D4 ESCAPE: no check that an example's date lies ahead. Examples use a future date or no year (founder 2026-10-15).",
+   "requirement": [
+    "C3"
+   ],
+   "feature": [
+    "DEF-175"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-183",
+   "symptom": "LIST-SHAPED ELEMENTS ARE SPLIT AS THE BELT NUMBERED THEM, WITH NO LABEL KEPT AS CONTENT. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 66, 69, 70, build item 12: Issues and barriers: three numbered barriers shown as 2 items (split at a ';'), then as 1 after the correction; secondary metrics shown as one text with the label doubled. D4 OCCURRENCE: report._issues splits at new lines and ';' only; secondary metrics are never split; the Belt's leading label is kept. D4 ESCAPE: no test used a numbered list.",
+   "requirement": [
+    "R5"
+   ],
+   "feature": [
+    "DEF-183"
+   ],
+   "lane": [
+    "B"
+   ]
+  },
+  {
+   "id": "G-184",
+   "symptom": "CTQ ROWS ARE THE ROWS THE BELT STATED, NEVER A CROSS PRODUCT. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 36, build item 12: Two CTQs and two customers stored as 4 rows (each need crossed with each customer). D4 OCCURRENCE: the coach's structured capture built the cross product; nothing in code compares the rows with the Belt's CTQs. D4 ESCAPE: tests fed one customer.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-184"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-185",
+   "symptom": "A READ-BACK NEVER REMOVES THE BELT'S OWN WORDS. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 31, build item 12: The VOC read-back showed '1.' with nothing after it; the stored CTQs were complete. D4 OCCURRENCE: G-117's store-claim filter (_without_store_claims) removes every sentence containing 'logged', and the Belt's first CTQ said '…of being logged…'. D4 ESCAPE: the filter's tests used the coach's own claims only.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-185"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-186",
+   "symptom": "STEP DURATIONS ARE READ WITH THEIR UNITS (WORKING DAYS, SAME DAY, RANGES) AND CHECKED AGAINST EACH OTHER. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 71, build item 12: Stored '2 working days' with unit 'working', 'same day' with no number; shown as '2 working (1 days to 6 days)', 'End-to-end lead time: 8 working'; no min<=avg<=max or lead-time check; the outputs measure shown as raw JSON. D4 OCCURRENCE: parse.unit_of takes one word as the unit. D4 ESCAPE: tests used single-word units.",
+   "requirement": [
+    "R17"
+   ],
+   "feature": [
+    "DEF-186"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-187",
+   "symptom": "THE CHAT RENDERS THE COACH'S MARKDOWN (BOLD, LISTS, TABLES), ESCAPED. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 28, 59, build item 9: Replies show '**…**', '- ' items run together and Markdown tables as raw pipes. D4 OCCURRENCE: renderTurn puts turn.text into the page as raw HTML — no escaping, no Markdown. D4 ESCAPE: no screen test with Markdown.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-187"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-188",
+   "symptom": "AN ELEMENT IS READ BACK AND CONFIRMED ONLY WITH ALL ITS REQUIRED PARTS; NOTHING STORED IS SHOWN AS COMPLETE WHEN IT IS NOT. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 37, 49, build item 14: The first 5W2H Confirm stored six answers and 'steps' — no seventh answer — and the mind map said 'Confirmed — 7 / 7'. D4 OCCURRENCE: moves.store_missing checks the element is present, not its parts; the badge is hard-coded on confirmation. D4 ESCAPE: tests read back complete 5W2Hs only.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-188"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-189",
+   "symptom": "THE SEVENTH 5W2H QUESTION HAS ONE DEFINITION EVERYWHERE: HOW THE PROBLEM SHOWS UP. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 38, build item 14: Three definitions: the mind map 'HOW GOAL', the Gate 'How does it show up?', the coach accepted a goal; the composed statement ended with the goal. D4 OCCURRENCE: the screen's legacy 5-section model (how_goal) survives in the mind map and the overview. D4 ESCAPE: no test compared the labels.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-189"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-190",
+   "symptom": "THE 5W2H MIND MAP SHOWS EVERY ANSWER IN FULL, WRAPPED, NEVER CUT MID-WORD. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 39, build item 14: Boxes cut mid-word ('In the Austrian field servic…'); the founder: as cut, the mind map is useless. D4 OCCURRENCE: render5W2HMindmap truncates at 28 characters. D4 ESCAPE: tests used short answers.",
+   "requirement": [
+    "C2"
+   ],
+   "feature": [
+    "DEF-190"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-191",
+   "symptom": "EVERY DATE IS READ BY ONE PARSER AND STORED AS A CALENDAR DATE; A CORRECT DATE NEVER FAILS THE GATE. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 77, 80, build item 25: '31.03.2027' failed rubric DEF-R09 on three submits (false fail; escalation followed). D4 OCCURRENCE: three date readers — A8 stores as written, the rubric knows no dd.mm.yyyy, the report has its own. D4 ESCAPE: A8's tests never ran the rubric.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-191"
+   ],
+   "lane": [
+    "B"
+   ]
+  },
+  {
+   "id": "G-192",
+   "symptom": "ESCALATION COUNTS ONLY A SUBMIT THAT CHANGED SOMETHING, REACHES THE CHAMPION WHEN THE LEAD SUBMITS, AND READS AS INFORMATION. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 78, build item 25: Three submits of the same false fail escalated to the project lead — who was submitting — with alarming wording. D4 OCCURRENCE: every POST /gate counts; the target is always the lead. D4 ESCAPE: tests submitted three different failures.",
+   "requirement": [
+    "T65"
+   ],
+   "feature": [
+    "DEF-192"
+   ],
+   "lane": [
+    "B"
+   ]
+  },
+  {
+   "id": "G-193",
+   "symptom": "THE GATE RESULT SCREEN SHOWS THE SERVER'S FAILING CHECKS, BY ELEMENT, WITH A LINK TO FIX EACH. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 74, build item 23: The result screen listed five ✗ from a hard-coded browser checklist of the old 5-section model and hid the one real failure (DEF-R09). D4 OCCURRENCE: renderGateResult draws GATE_CHECKS against old field names. D4 ESCAPE: no screen test of a failing submit.",
+   "requirement": [
+    "R14"
+   ],
+   "feature": [
+    "DEF-193"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-194",
+   "symptom": "A FAILED RUBRIC CRITERION IS LOGGED AND RETURNED BY ID, ELEMENT AND REASON; NO SERIALIZER WARNING. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 75, build item 23: Server log 'layer 2d FAILED (1 of 13 criteria failed)' named no criterion; a Pydantic serializer warning on GraderVerdict. D4 OCCURRENCE: the log line counts only. D4 ESCAPE: none looked.",
+   "requirement": [
+    "W10"
+   ],
+   "feature": [
+    "DEF-194"
+   ],
+   "lane": [
+    "B"
+   ]
+  },
+  {
+   "id": "G-195",
+   "symptom": "THE READ-BACK IS RENDERED IN CODE FROM THE EXACT VALUE A CONFIRM WILL STORE, AS A CRITERIA CARD. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 17, 60, 64, 73, build item 9: Read-backs are the coach's restatement: three barriers shown, one stored; verbatim echoes of whole answers; no per-criterion check shown. D4 OCCURRENCE: the reply's text is the model's; the pending value is never rendered. D4 ESCAPE: tests checked the stored value, not what the Belt saw.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-195"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-196",
+   "symptom": "VALUES FOR OTHER ELEMENTS IN ONE ANSWER ARE OFFERED WHEN THAT ELEMENT COMES UP (DEF-098). Founder Define test 2026-10-15 (IMPR-2026-A99), findings 17, build item 9: The business case carried the metric, the baseline (38%), the cost of the gap (€20k) and a CTQ hint; none was offered later. D4 OCCURRENCE: to be reported (why DEF-098 did not trigger). D4 ESCAPE: DEF-098 not built.",
+   "requirement": [
+    "R15"
+   ],
+   "feature": [
+    "DEF-098"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-197",
+   "symptom": "EVERY REPLY NAMES ITS ELEMENT ('ELEMENT N OF 13 · NAME'); A CONFIRM SHOWS ITS OWN CONFIRMATION STRIP; THE NEXT ELEMENT ITS OWN CARD. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 19, 30, 40, 44, 46, 51, 58, build item 9: 'Stored: …' runs into the next element's introduction in one block; the header says 'Step 6 of 13' while element 4 is corrected and never names the element; the goal appears under three names. D4 OCCURRENCE: the reply and its header are one block; the header shows the next open position. D4 ESCAPE: no screen test of a Confirm.",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-196"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-198",
+   "symptom": "THE GATE VIEW FOLLOWS THE APPROVED MOCKUP (GATE_VIEW_MOCKUP.HTML): LETTERED SECTIONS, ELEMENT CARDS FROM TEMPLATES. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 18, 32, 33, 35, 36, 41, 43, 48, 51, 72, build item 17: The Gate repeats the Belt's text, 'Not confirmed yet' above confirmed values, two numbering schemes, crossed CTQ rows, a full-width red bar for 38%, the registry id shown, inline JSON history, the goal under three names, template sentences with doubled stops. D4 OCCURRENCE: the report renders stored text, not per-element templates. D4 ESCAPE: report tests check presence, not readability.",
+   "requirement": [
+    "R5"
+   ],
+   "feature": [
+    "DEF-197"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-199",
+   "symptom": "ONE NUMBERING SCHEME ACROSS SIDEBAR, CHAT AND GATE; EACH REPORT SECTION SHOWS THE STATUS OF EACH ELEMENT IN IT. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 32, 35, build item 13: Gate sections 1–7 vs elements 1–13; section 2 'Not confirmed yet' above a confirmed business case. D4 OCCURRENCE: the section badge is per section. D4 ESCAPE: none.",
+   "requirement": [
+    "W2"
+   ],
+   "feature": [
+    "DEF-198"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-200",
+   "symptom": "THE REPORT SHOWS EACH ELEMENT'S HISTORY BEHIND A HISTORY LINK, AS SENTENCES, NEVER RAW JSON. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 48, build item 16: Change history printed inline in small text with raw JSON; scope's in/out hard to find. D4 OCCURRENCE: the report prints value_history inline with JSON.stringify. D4 ESCAPE: none.",
+   "requirement": [
+    "R16"
+   ],
+   "feature": [
+    "DEF-199"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-201",
+   "symptom": "THE WELCOME IS BUILT BY THE SERVER FROM THE PHASE STATE, GREETS THE BELT BY NAME, LAID OUT IN BLOCKS. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 11, 15, build item 8: A hard-coded browser opener ('Let's start by understanding the problem') at element 1 (business case); the real welcome only after the Belt asked, as one wall of text. D4 OCCURRENCE: ui/index.html phase openers. D4 ESCAPE: none.",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-200"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-202",
+   "symptom": "THE VISUAL PANE SHOWS THE VISUAL OF THE ELEMENT BEING WORKED ON, AND NOTHING WHEN IT HAS NONE. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 12, 20, 40, 54, build item 8: The 5W2H mind map shows from element 1 to the end, across tabs, at 'Draft 0/7' while the Gate says 7/7. D4 OCCURRENCE: the pane is driven by the browser's old workProduct model. D4 ESCAPE: none.",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-201"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-203",
+   "symptom": "'SUBMIT FOR GATE REVIEW' IS DISABLED UNTIL EVERY REQUIRED ELEMENT IS CONFIRMED, WITH THE REASON. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 14, build item 8: Submit active at step 1 of 13. D4 OCCURRENCE: the button is always enabled. D4 ESCAPE: none.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-202"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-204",
+   "symptom": "THE SIDEBAR HIGHLIGHTS THE ELEMENT BEING WORKED ON, DROPS THE LEGACY LABEL, AND SHOWS 'CHANGE' SMALL. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 16, 21, build item 8: The current element shows only a faint dot; '5W2H · charter · scope' leftover label; 'Change' dominates the list. D4 OCCURRENCE: legacy sidebar markup. D4 ESCAPE: none.",
+   "requirement": [
+    "W4"
+   ],
+   "feature": [
+    "DEF-203"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-205",
+   "symptom": "ONE PROGRESS FIGURE EVERYWHERE: 'N OF 13 CONFIRMED'. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 45, build item 8: '2 fields captured' in the bottom bar while 5 of 13 were confirmed. D4 OCCURRENCE: three counters, three computations. D4 ESCAPE: none.",
+   "requirement": [
+    "W2"
+   ],
+   "feature": [
+    "DEF-204"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-206",
+   "symptom": "AN UPLOAD IN THE CHAT STARTS ITS OWN UPLOAD TURN; NO BROWSER-WRITTEN 'LET ME PROCESS IT'. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 22, build item 10: After an upload the browser wrote 'Let me process it' and nothing followed until the Belt's next message. D4 OCCURRENCE: handleChatFile posts /upload and stops. D4 ESCAPE: scenario (e) and its tests send a follow-up message.",
+   "requirement": [
+    "R14"
+   ],
+   "feature": [
+    "DEF-205"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-207",
+   "symptom": "THE CASE FILES PANEL REFRESHES AFTER AN UPLOAD. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 23, 34, build item 10: The panel showed 0 after the upload, 1 only on a later turn. D4 OCCURRENCE: no refresh after POST /upload. D4 ESCAPE: none.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-206"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-208",
+   "symptom": "THE TEAM ELEMENT'S ASK MENTIONS THAT THE TEAM LIST CAN BE UPLOADED AS A FILE. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 24, build item 10: The team ask does not tell the Belt a list can be uploaded. Skill text.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-207"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-209",
+   "symptom": "A FILE THAT COVERS AN ELEMENT ONLY PARTLY IS READ BACK AS A DRAFT TABLE WITH ITS GAPS MARKED. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 25, build item 11: The team file lacked training needs, so no read-back; the Belt would retype five people. D4 OCCURRENCE: ADR-0085 point 5 reads back only a covering file. D4 ESCAPE: by design.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-208"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-210",
+   "symptom": "A MESSAGE POINTING AT THE UPLOADED FILE IS NEVER JUDGED AS A TYPED ANSWER. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 26, build item 11: 'Our project team is in the attached file' was challenged as 'does not directly answer'. D4 OCCURRENCE: only a covering file's read-back accepts 'use the file'. D4 ESCAPE: none.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-209"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-211",
+   "symptom": "A HOW-TO QUESTION IN ANY ELEMENT IS ANSWERED FROM THE METHOD, AND THE ELEMENT RESUMES. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 56, build item 18: 'How do I calculate the cost of the gap?' — verdict not_an_answer, move RESPOND (step_log, IMPR-2026-A99) — got the element's ask repeated. D4 OCCURRENCE: the respond move's text points the coach at the project facts (section 3), not the method (section 2). D4 ESCAPE: no how-to eval.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-210"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-212",
+   "symptom": "THE SIPOC IS TAUGHT AND CHECKED WITH A DRAWN FLOW; THE R18 CHECK SHOWS EVERY STEP WITH PROBLEM NOTES. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 59, 61, build item 19: The SIPOC example arrived as raw Markdown tables; the R18 check was text only and named step 5 although steps 1–3 also carried problem notes. D4 OCCURRENCE: the sample is Markdown typed in the skill; the R18 check reads one step. D4 ESCAPE: none.",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-211"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-213",
+   "symptom": "AFTER THE LAST CONFIRM A COMPLETION CARD SAYS WHAT TO DO IN ORDER; THE DECISION PANEL IS PINNED AT THE TOP, ELEMENTS NAMED AS IN THE SIDEBAR. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 67, 81, build item 22: After the 13th Confirm the reply said 'approve or reject' before any submit; the decision panel sat at the end of the long Gate; reject checkboxes showed field ids. D4 OCCURRENCE: no completion card; panel at the end. D4 ESCAPE: none.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-212"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-214",
+   "symptom": "WHILE A TURN RUNS THE BELT SEES A VISIBLE INDICATOR AND PLAIN-WORDS STEPS. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 47, build item 15: Only a small grey 'AI is thinking'. D4 OCCURRENCE: no streamed progress. D4 ESCAPE: W12 accepted, not built.",
+   "requirement": [
+    "W12"
+   ],
+   "feature": [
+    "DEF-213"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-215",
+   "symptom": "THE DEFINE OVERVIEW IS SERVED FROM THE SKILL AND SAYS 13 ELEMENTS AND THAT THE PROJECT LEAD APPROVES. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 9, 10, build item 6: The overview is hard-coded in ui/index.html with 5 sections and 'the AI approves the gate'; it promises hard/soft benefits the element does not store. D4 OCCURRENCE: legacy browser text. D4 ESCAPE: none.",
+   "requirement": [
+    "W1"
+   ],
+   "feature": [
+    "DEF-214"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-216",
+   "symptom": "THE PROJECT LEAD AND THE MEMBERS ARE STORED WITH THEIR DETAILS, ONE NAME FOR THE LEAD EVERYWHERE. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 2, 4, 29, build item 2: The lead is stored and shown as 'You'/'Project leader'; members carry only name and role; the Gate shows two names for the lead. D4 OCCURRENCE: CaseDocument.leader is a typed string; TeamMemberRecord{name, role}. D4 ESCAPE: none.",
+   "requirement": [
+    "R8b"
+   ],
+   "feature": [
+    "DEF-215"
+   ],
+   "lane": [
+    "integrator"
+   ]
+  },
+  {
+   "id": "G-217",
+   "symptom": "ONLY REGISTERED PEOPLE OPEN A CASE (BY E-MAIL, CHECKED BY THE SERVER); THE LEAD APPROVES AS A PERSON, NOT BY TYPED NAME. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 5, build item 3: The sign-in pop-up accepts any name with no rule; no server check; approval compares a typed name letter for letter ('VP' vs 'Vassilis' is a dead end; anyone typing the name approves). D4 OCCURRENCE: prompt() in the browser; routes.decide_gate's name match. D4 ESCAPE: R8a/W17 accepted, not built.",
+   "requirement": [
+    "W17"
+   ],
+   "feature": [
+    "DEF-216"
+   ],
+   "lane": [
+    "integrator"
+   ]
+  },
+  {
+   "id": "G-218",
+   "symptom": "THE NEW CASE NUMBER STAYS SHOWN, WITH A COPY BUTTON, UNTIL THE LEAD CONTINUES. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 6, build item 4: The page with the new number flashes and the overview opens. D4 OCCURRENCE: createCase calls openWorkspace on the next statement. D4 ESCAPE: none.",
+   "requirement": [
+    "W6"
+   ],
+   "feature": [
+    "DEF-217"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-219",
+   "symptom": "CASE NUMBERS ARE UNIQUE UNDER CONCURRENT CREATION, AND THE CASE LIST KEEPS EVERY CASE. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 7, 8, build item 5: 3 hex characters from uuid4 (4,096 a year); a clash fails the creation; registry.json is saved without an ETag, so concurrent creates lose a list entry. D4 OCCURRENCE: routes.create_case, blob.register_case. D4 ESCAPE: no concurrency test.",
+   "requirement": [
+    "W6"
+   ],
+   "feature": [
+    "DEF-218"
+   ],
+   "lane": [
+    "integrator"
+   ]
+  },
+  {
+   "id": "G-220",
+   "symptom": "CHECKPOINTS STAY SMALL AND ARE WRITTEN FEW TIMES PER TURN (ANALYSIS FIRST). Founder Define test 2026-10-15 (IMPR-2026-A99), findings 76, 79, build item 24: Each checkpoint write ~1.48 MB, written ~8 times on one gate submit (~0.85 s each); a one-line date correction hit the 45 s deadline late in the case. D4 OCCURRENCE: to analyse (what makes up the state). D4 ESCAPE: no size or write-count measure.",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-219"
+   ],
+   "lane": [
+    "integrator"
+   ]
+  },
+  {
+   "id": "G-221",
+   "symptom": "THE COACH WRITES NO SAMPLE OF ITS OWN AND NO REPEATED EXPLANATION; THE SAMPLE IS THE CODE-INSERTED ONE. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 50, build item 9: At the goal the coach wrote the worked example into its own text and the sample box showed it again; the explanation repeated in WHY IT MATTERS. D4 OCCURRENCE: G-171's repeat filter misses a paraphrased example. D4 ESCAPE: none.",
+   "requirement": [
+    "C3"
+   ],
+   "feature": [
+    "DEF-220"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-222",
+   "symptom": "A TARGET'S OPERATOR IS KEPT AS THE BELT WROTE IT ('UNDER 10%' STAYS < 10%). Founder Define test 2026-10-15 (IMPR-2026-A99), findings 52, build item 25: The Belt wrote 'under 10%', the A8 read-back said 'at most 10%'. D4 OCCURRENCE: parse_limit maps 'under' to '<='. D4 ESCAPE: tests checked the number only.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-221"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-223",
+   "symptom": "THE TARGET READ BACK FROM THE GOAL SHOWS ITS BASELINE-TO-TARGET CHART. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 53, build item 25: No chart under the A8 read-back although ADR-0086/ADR-0070 say it shows one. D4 OCCURRENCE: the response's visualisation key is set but the screen did not show it (to verify). D4 ESCAPE: the run checks the record, not the screen.",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-222"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-224",
+   "symptom": "THE CODE-WRITTEN METRIC READING IS ITS OWN BLOCK, AND DISPLAY NAMES REPLACE REGISTRY IDS. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 42, 43, build item 9: 'Read as a number — …38% About your metric…' runs into the coach's text; the Gate shows 'late_closure_rate (%)'. D4 OCCURRENCE: _with_metric_reading appends inline; the report prints the id. D4 ESCAPE: none.",
+   "requirement": [
+    "C1"
+   ],
+   "feature": [
+    "DEF-223"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-225",
+   "symptom": "THE JUDGMENT RULES ON THE RUBRIC'S CRITERIA ONLY, AND THE SAME ANSWER GETS THE SAME VERDICT. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 68, build item 9: On Change of element 13 the judgment challenged the confirmed barriers for not naming 'time', then passed the same three barriers. D4 OCCURRENCE: the skill's prompt list (data/people/systems/time) is read as criteria (G-168 class). D4 ESCAPE: no replay of confirmed answers.",
+   "requirement": [
+    "T47"
+   ],
+   "feature": [
+    "DEF-224"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-226",
+   "symptom": "THE COST OF THE GAP AND THE EXPECTED SAVING ARE TWO LABELLED FIGURES, IN €, WITH THOUSANDS SEPARATORS. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 57, 72, build item 7: The calculation's expected saving (15120) was appended unlabelled next to the cost of the gap; the skill's TOOL step calls the saving 'the cost of the gap'; no € or separator; the report sentence capitalised mid-sentence with a double stop. D4 OCCURRENCE: one benefits field; skill wording. D4 ESCAPE: none.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-225"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-227",
+   "symptom": "CONFIRM AND CHANGE APPEAR UNDER EVERY READ-BACK AS SOON AS IT IS SHOWN (TO VERIFY). Founder Define test 2026-10-15 (IMPR-2026-A99), findings 55, build item 9: Under the A8 target read-back no Confirm/Change buttons were seen while 'AI is thinking' still ran. To verify. D4 OCCURRENCE: unknown. D4 ESCAPE: none.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-226"
+   ],
+   "lane": [
+    "C"
+   ]
+  },
+  {
+   "id": "G-228",
+   "symptom": "THE SERVER LOG IS FLOODED AND THE FAVICON IS MISSING (finding 3, founder test 2026-10-15, nice to have). Azure SDK request/response blocks are logged at INFO; favicon.ico answers 404.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: the Azure SDK loggers at WARNING; a favicon served with the UI."
   }
  ]
 }
