@@ -106,7 +106,7 @@ Generated from each file's status line; never typed.
 | [0060](0060-contextual-retrieval.md) | Contextual retrieval and reranking, adopted only on eval evidence | ACCEPTED | — |
 | [0061](0061-offline-eval-set.md) | An offline evaluation set built from real failures | ACCEPTED | — |
 | [0062](0062-pii-handling.md) | Personal data in uploads and messages is detected and handled before a model sees it | ACCEPTED | — |
-| [0063](0063-one-runtime-graph-with-phase-entry.md) | One compiled runtime graph that enters at the current phase | ACCEPTED | refined by 0066 |
+| [0063](0063-one-runtime-graph-with-phase-entry.md) | One compiled runtime graph that enters at the current phase | ACCEPTED | refined by 0066, 0087 |
 | [0064](0064-process-performance-data.md) | The as-is process carries its performance, and the problem points at its steps | ACCEPTED | — |
 | [0065](0065-state-schema-versioning.md) | Checkpoints carry a state schema version; every state change ships a migration | ACCEPTED | — |
 | [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063 |
@@ -114,9 +114,13 @@ Generated from each file's status line; never typed.
 | [0068](0068-no-lookups-on-answer-turns.md) | The coach looks up the method on teaching turns only | ACCEPTED | refines 0059; refined by 0069 |
 | [0069](0069-answer-turns-bind-no-tools.md) | Answer turns bind no tools; upload turns count as teaching turns | ACCEPTED | refines 0068; refined by 0070 |
 | [0070](0070-visuals-drawn-from-the-structured-read-back.md) | Visuals drawn from the structured read-back | ACCEPTED | refines 0069 |
-| [0071](0071-baseline-and-target-as-number-with-unit.md) | Baseline and target are stored as a number with a unit | ACCEPTED | — |
+| [0071](0071-baseline-and-target-as-number-with-unit.md) | Baseline and target are stored as a number with a unit | ACCEPTED | refined by 0088 |
 | [0072](0072-park-an-element.md) | Parking an element is a coaching move decided in code | ACCEPTED | — |
+| [0073](0073-one-structured-reply-per-coach-call.md) | The coach makes one tool call per response (parallel tool calls off) | PROPOSED | — |
 | [0074](0074-upload-judged-at-interpretation.md) | An upload is judged against the current element when it is interpreted | ACCEPTED | — |
+| [0075](0075-fields-captured-accepts-two-shapes.md) | `fields_captured` accepts `{}` as `[]` and a single entry as a one-item list | ACCEPTED | — |
+| [0076](0076-third-failed-gate-attempt-escalates-to-the-lead.md) | The third failed gate attempt escalates to the project lead; the case stays open | ACCEPTED | — |
+| [0077](0077-calculations-run-in-code-never-by-the-coach.md) | Calculations are run by code, never by the coach; the coach explains them | ACCEPTED | — |
 | [0078](0078-process-step-performance-stored-per-step.md) | The as-is process stores its performance per step, and the problem is located in it | ACCEPTED | — |
 | [0079](0079-coherence-reask-through-the-after-agent-hook.md) | A coherence rejection asks the coach again through layer 2a's after_agent hook | SUPERSEDED by 0083 | — |
 | [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | — |
@@ -125,5 +129,16 @@ Generated from each file's status line; never typed.
 | [0083](0083-retire-the-ai-coherence-judge.md) | The AI coherence judge (layer 2a) is retired | ACCEPTED | — |
 | [0084](0084-grader-v2-evaluator-with-reflection.md) | Grader v2 — the evaluator judges the reply the Belt sees, on four criteria, and the coach revises once | WITHDRAWN | — |
 | [0085](0085-an-upload-that-covers-the-element-is-read-back.md) | An upload that covers the current element is read back on its upload turn, and "use the file" confirms it | ACCEPTED | — |
-| [0086](0086-the-target-is-read-from-the-confirmed-goal.md) | The target value and date are read from the confirmed goal, for one Confirm | ACCEPTED | — |
+| [0086](0086-the-target-is-read-from-the-confirmed-goal.md) | The target value and date are read from the confirmed goal, for one Confirm | ACCEPTED | refined by 0088 |
+| [0087](0087-the-approval-node-writes-both-records.md) | The approval node writes both records — the Store's and the case's — and its error handler undoes both | PROPOSED | refines 0063 |
+| [0088](0088-element-values-parsed-and-checked-in-code.md) | Element values are parsed and checked in code by one parser per kind — lists, durations, dates — and an element's required parts are checked before its read-back and its Confirm | ACCEPTED | refines 0071, 0086 |
+| [0089](0089-case-location-country-and-site.md) | A case carries its location — country and site — chosen from lists the customer ships as configuration | PROPOSED | — |
+| [0090](0090-the-people-on-a-case.md) | One person record for everyone on a case, kept in the case record and written on every team change; Define's team element refers to it | PROPOSED | — |
+| [0091](0091-basic-access-check-by-registered-e-mail.md) | A basic access check — sign-in by a registered e-mail, a per-case session the server checks on every request, approval by the session's person | PROPOSED | — |
+| [0092](0092-unique-case-numbers-and-a-safe-case-list.md) | A case number is reserved by a create-only-if-absent write and retried on conflict; the case list is updated by a conditional write | PROPOSED | — |
+| [0093](0093-element-templates-and-the-gate-view.md) | Element templates and the Gate view — each element examined, shown and stored by its criteria; the read-back and the Gate rendered in code from the stored value | PROPOSED | — |
+| [0094](0094-a-partial-file-is-read-back-as-a-draft.md) | An upload that covers an element only partly is read back as a draft with its gaps; a message pointing at the file is never judged as a typed answer; an upload starts its own turn | PROPOSED | — |
+| [0095](0095-a-process-document-becomes-the-sipoc.md) | A process document or diagram becomes the SIPOC read-back — one interpretation call returns the SIPOC structure, with vision for images | PROPOSED | — |
+| [0096](0096-hard-and-soft-benefits.md) | The benefits analysis stores hard benefits, the expected saving apart from the cost of the gap, and soft benefits each with its indicator | PROPOSED | — |
+| [0097](0097-progress-shown-while-a-turn-runs.md) | Progress while a turn runs — the graph's nodes emit plain-words steps through LangGraph's custom stream; the route streams them to the browser | PROPOSED | — |
 <!-- END ADR INDEX -->

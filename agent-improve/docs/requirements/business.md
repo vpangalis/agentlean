@@ -262,7 +262,7 @@ Known input: realised savings are verified against Define's benefits estimate (C
 
 # Part 3 — The workspace
 
-**W1 Overview page — explain the method** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
+**W1 Overview page — explain the method** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · MoSCoW: Must · Design: none
 As a Belt or team member, I want an overview page that explains what Agent Improve is, the DMAIC
 method and each section of the workspace, with a tab per phase describing what the phase is for and
 what it must deliver, so that the team understands the journey before starting.
@@ -271,7 +271,7 @@ read from a "Team overview" section of that phase's skill file, served by the ba
 text is typed in the UI. English only. The texts are changed only by the founder, in the repo; the
 app offers no editing.
 
-**W2 Project status — where the project stands** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
+**W2 Project status — where the project stands** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · MoSCoW: Must · Design: none
 As a Belt, I want the overview page to show the project's current phase, the days from case creation
 to today, the target date and days remaining, days spent in each phase, and what is open or waiting
 for approval, so that the team always knows where it stands.
@@ -279,7 +279,7 @@ Acceptance: every figure is computed once, by the backend, from the case record 
 the overview, the navigation, the case list and the progress bar show the same figures from that one
 computation. Open elements are counted against the phase's element list.
 
-**W3 Coaching page welcome — summary so far** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
+**W3 Coaching page welcome — summary so far** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · MoSCoW: Must · Design: none
 As a Belt, I want the coaching page to greet me by name and summarise what has been achieved so far,
 so that I can resume without re-reading history.
 Acceptance: the summary is assembled in code, without a model call, from confirmed values in the
@@ -287,7 +287,7 @@ phase state only; it lists confirmed elements with their current values and the 
 replaces the browser-built recap, the stubbed welcome banner and the `/context` route, which are
 removed.
 
-**W4 Choose what to work on next** · ACCEPTED 2026-09-27 · open decision 1 · MoSCoW: Should · Design: none
+**W4 Choose what to work on next** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · open decision 1 · MoSCoW: Must · Design: none
 As a Belt, I want to either pick any unconfirmed element whose prerequisites are confirmed, or
 accept the coach's recommended next element, so that the team can work in the order that suits its
 information.
@@ -338,7 +338,7 @@ A message typed but not sent survives a reload. Every sent turn and every confir
 reload or a restart. A Belt returning after weeks finds the case exactly as left.
 Basis: HAX guideline 12.
 
-**W12 Show progress while waiting** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
+**W12 Show progress while waiting** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · MoSCoW: Must · Design: none
 While a turn runs, the screen says what is happening in plain words ("checking your answer against
 the criteria", "looking up the method") instead of a generic "thinking" indicator; the reply may
 appear as it is written.

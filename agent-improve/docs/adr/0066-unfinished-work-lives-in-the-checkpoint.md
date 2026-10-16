@@ -54,3 +54,12 @@ human-in-the-loop … and fault tolerance", and the Store as cross-thread data
 - An API test sends turns, simulates a reload, and sees every confirmed value and the conversation.
 - An approval writes the blob exactly once.
 - The existing development cases still reload.
+
+## Notes
+
+Note (founder, 2026-10-16): finding 27 of the founder's Define test ("every Confirm committed to the blob and the
+search index") is answered by keeping this decision. Every Confirm is saved in the checkpoint; the confirmation
+strip states the save from the actual write result; the Gate shows the stored rows (ADR-0093 "Element templates
+and the Gate view"). Only the people on a case (the team and access list) write the case blob on a change
+(ADR-0090 "The people on a case"). The /ask route runs LangGraph's default durability ("async"): every
+checkpoint write is awaited before the graph run returns, so the reply is sent only after the Confirm is saved.

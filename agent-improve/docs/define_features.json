@@ -3678,7 +3678,7 @@
     ]
    },
    "requirement": "C3",
-   "belt_impact": "none",
+   "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
