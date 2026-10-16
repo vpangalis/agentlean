@@ -2546,6 +2546,16 @@
     "tooling"
    ],
    "control": "Proposed: the Azure SDK loggers at WARNING; a favicon served with the UI."
+  },
+  {
+   "id": "G-229",
+   "symptom": "THE CLAUDE CODE HOOKS FAIL OPEN SILENTLY WHEN A DEPENDENCY IS MISSING (recovery of 2026-10-16, founder ruling 2026-10-16). The hooks in .claude/settings.json run as \"python\", the system Python, not agent-improve/.venv. On the fresh clone the system Python (3.14) had no pyyaml: .claude/hooks/pre-tool-use-drift-check.py printed \"pyyaml required — pip install pyyaml\" and exited 0, so every Write and Edit went through without the drift check; .claude/hooks/fact-ownership-guard.py fails open with no message at all (its import of _fact_owners, load_registry and main each swallow the exception and return 0). Nothing reported that two guards were off. D4 OCCURRENCE: a deliberate fail-soft on ImportError, and the hooks run with whatever \"python\" is on PATH. D4 ESCAPE: no check that the hooks' dependencies are importable by the interpreter that runs them; the notice goes to stderr, where it reads as a warning. Contained 2026-10-16: pyyaml 6.0.3 installed on C:\\Python314. NOT FIXED (founder: register, do not fix now).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: the hooks run with agent-improve/.venv's Python (the interpreter the project's requirements are installed in), and a hook whose dependency is missing refuses the tool call with the reason (exit 2) instead of exiting 0; the session-start hook reports a guard that cannot run. Rework risk: low — the hook entry points and their import blocks only; belt impact: none."
   }
  ]
 }
