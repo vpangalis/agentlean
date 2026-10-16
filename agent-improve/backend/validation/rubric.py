@@ -75,19 +75,10 @@ def _blank_keys(value: Any, keys: tuple[str, ...]) -> list[str]:
 
 
 def _parse_date(value: Any) -> Optional[dt.date]:
-    text = _text(value)
-    m = re.search(r"\d{4}-\d{2}-\d{2}", text)
-    if m:
-        try:
-            return dt.date.fromisoformat(m.group(0))
-        except ValueError:
-            return None
-    for fmt in ("%d %B %Y", "%B %d %Y", "%d %b %Y", "%d/%m/%Y"):
-        try:
-            return dt.datetime.strptime(text.replace(",", ""), fmt).date()
-        except ValueError:
-            continue
-    return None
+    """ADR-0088 decision 5: the one date parser (`define/parse.calendar_date`) — the rubric has no reader of its own."""
+    from backend.phases.define.parse import calendar_date
+    found = calendar_date(_text(value))
+    return dt.date.fromisoformat(found[0]) if found else None
 
 
 def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[CriterionVerdict]:

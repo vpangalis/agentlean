@@ -2084,7 +2084,8 @@ def _goal_target_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[Coa
     if "target_value" in store:
         lines.append(f"- {guard_messages.element_name(phase, 'target_value')}: {parse.metric_text(store['target_value'])}")
     if "target_date" in store:
-        lines.append(f"- {guard_messages.element_name(phase, 'target_date')}: {store['target_date']}")
+        shown = parse.date_shown(store["target_date"], pending.get("belt_words"))   # ADR-0088 decision 5
+        lines.append(f"- {guard_messages.element_name(phase, 'target_date')}: {shown}")
     if "target_value" in store and "target_date" not in store:
         lines.append(P.GOAL_TARGET_NEXT)
     return CoachingResponse(message=chr(10).join(lines) + chr(10) * 2 + P.GOAL_TARGET_ASK,
@@ -2980,6 +2981,11 @@ async def executor(
         asked = ctq_question((pending.get("store") or {}).get("critical_to_quality"), pending.get("belt_words"))
         if asked:
             new_messages = _with_code_line(new_messages, reply, asked)
+        # ADR-0088 decision 5: a target date is read back as the Belt wrote it and as the calendar date stored.
+        if "target_date" in (pending.get("store") or {}):
+            from backend.phases.define.parse import date_shown
+            new_messages = _with_code_line(new_messages, reply, "Read as a date: " + date_shown(
+                pending["store"]["target_date"], pending.get("belt_words")))
         # ADR-0088 decision 7: the seventh 5W2H answer is how the problem shows up, never a goal.
         asked = five_w_two_h_question(pending.get("store"))
         if asked:

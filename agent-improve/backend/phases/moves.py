@@ -662,6 +662,9 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
             # G-121 (DEF-158): the SIPOC from its labels, parsed in code — never the prose itself.
             from backend.phases.define.parse import parse_sipoc
             value = parse_sipoc(str(value or words)) or None
+        dated = parse.calendar_date(value) if phase == "define" and f == "target_date" and isinstance(value, str) else None
+        if dated:
+            value = dated[0]                               # ADR-0088 decision 5: stored as an ISO date
         if phase == "define" and f == "critical_to_quality" and isinstance(value, list):
             # ADR-0088 decision 2: the rows as the Belt stated them, never a cross product.
             value = parse.ctq_rows(value)

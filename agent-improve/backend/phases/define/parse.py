@@ -8,6 +8,8 @@ six columns `schema.SIPOC_KEYS`; a column without its label is left out, never g
 """
 from __future__ import annotations
 
+import calendar
+import datetime as dt
 import re
 from typing import Any, Optional
 
@@ -86,12 +88,69 @@ def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
         if mv["value"] is not None and mv["unit"] and (not base_unit or mv["unit"] == base_unit) \
                 and not (baseline and baseline.get("value") == mv["value"]):
             value = {**mv, "raw": text.strip()}
-    when = None
-    if date and date.group(2):
-        when = f"{_QUARTER_END[date.group(2)]} {date.group(3)} (end of Q{date.group(2)} {date.group(3)})"
-    elif date:
-        when = date.group(1).strip()
-    return {"target_value": value, "target_date": when}
+    # ADR-0088 decision 5 (the ADR-0086 note of 2026-10-16): the date is stored as an ISO calendar date.
+    found = calendar_date(date.group(0)) if date else None
+    return {"target_value": value, "target_date": found[0] if found else None}
+
+
+# ── ADR-0088 decision 5: one date parser ─────────────────────────────────────────────────────────────────
+
+_MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct",
+                                       "nov", "dec"), start=1)}
+
+
+def _month(word: str) -> int:
+    return _MONTHS[word.lower()[:3]]
+
+
+def _long(d: dt.date) -> str:
+    return f"{d.day} {calendar.month_name[d.month]} {d.year}"
+
+
+def calendar_date(text: Any) -> Optional[tuple[str, str]]:
+    """ADR-0088 decision 5 — THE date reader, for A8, element 9, the rubric's DEF-R09 and the report: the first
+    date in `text` as (ISO, shown). Reads 2027-03-31, 31.03.2027 and 31/03/2027 (day first), "31 March 2027",
+    "March 31, 2027", "March 2027" (the month's last day) and "Q1 2027" (the quarter's last day). `shown` is the
+    Belt's form beside the unambiguous one: "31.03.2027 = 31 March 2027", "31 March 2027 (end of Q1 2027)". A
+    year alone is no date: None."""
+    m = _GOAL_DATE.search(str(text or ""))
+    if not m:
+        return None
+    phrase = m.group(0).strip()
+    low = re.sub(r"(?i)^end of\s+", "", phrase).replace(",", " ")
+    try:
+        if m.group(2):                                                   # Q1 2027
+            year, q = int(m.group(3)), int(m.group(2))
+            d = dt.date(year, q * 3, calendar.monthrange(year, q * 3)[1])
+            return d.isoformat(), f"{_long(d)} (end of Q{q} {year})"
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", low):
+            d = dt.date.fromisoformat(low)
+        elif re.fullmatch(r"\d{1,2}[./]\d{1,2}[./]\d{4}", low):
+            day, month, year = (int(x) for x in re.split(r"[./]", low))
+            d = dt.date(year, month, day)
+        else:
+            words = re.findall(r"[A-Za-z]+|\d+", low)
+            nums = [int(w) for w in words if w.isdigit()]
+            month = next(_month(w) for w in words if not w.isdigit() and w.lower()[:3] in _MONTHS)
+            year = next(n for n in nums if n > 999)
+            days = [n for n in nums if n <= 31]
+            if not days:                                                 # March 2027
+                d = dt.date(year, month, calendar.monthrange(year, month)[1])
+                return d.isoformat(), f"{_long(d)} (end of {calendar.month_name[month]} {year})"
+            d = dt.date(year, month, days[0])
+    except (ValueError, StopIteration):
+        return None
+    return d.isoformat(), (_long(d) if phrase == _long(d) else f"{phrase} = {_long(d)}")
+
+
+def date_shown(stored: Any, words: Any = "") -> str:
+    """A stored target date as the read-back shows it: the Belt's form from `words` when it reads as the
+    same day, else the stored date written out."""
+    stored_date = calendar_date(stored)
+    said = calendar_date(words)
+    if said and stored_date and said[0] == stored_date[0]:
+        return said[1]
+    return _long(dt.date.fromisoformat(stored_date[0])) if stored_date else str(stored or "")
 
 
 # ── ADR-0088 "Element values parsed and checked in code" ─────────────────────────────────────────────────
@@ -197,6 +256,8 @@ def missing_parts(field: str, value: Any) -> list[str]:
         if not any(re.search(r"\d", text(r.get("requirement"))) for r in rows):
             out.append("at least one CTQ as a measurable requirement (with a number)")
         return out
+    if field == "target_date" and value and calendar_date(value) is None:
+        return ["a calendar date for the target (for example 31 March 2027)"]           # decision 5
     return []
 
 

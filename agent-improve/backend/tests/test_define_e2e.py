@@ -4719,7 +4719,7 @@ def test_a8_the_target_is_read_from_the_confirmed_goal_and_confirmed_once(env, m
     second = _askd(env, action="confirm", message="Confirm")
     define = _define(env)
     assert define["structured"]["target_value"]["value"] == 5.0 and define["structured"]["target_value"]["unit"] == "%"
-    assert define["structured"]["target_date"] == "31 March 2027"
+    assert define["structured"]["target_date"] == "2027-03-31"        # ADR-0086 note 2026-10-16: an ISO date
     assert second["move_field"] == "benefits_analysis", second["move_field"]
 
 
@@ -4749,8 +4749,9 @@ def test_a8_a_goal_with_no_date_reads_back_the_value_and_teaches_the_date(env, m
 def test_a8_a_relative_target_is_taught_and_dates_are_read_as_noted(env, monkeypatch) -> None:
     """ADR-0086 note (founder 2026-10-14): a relative target — "from 23% by 30%", "halve the rate", "reduce
     by 5 points" — is never read as the target value: through the routes and graph the target is taught.
-    Dates: "31.03.2027" is read as written; "Q1 2027" is read as its last day, the quarter shown beside it;
-    a year alone is no date (the date is taught)."""
+    Dates (the founder note of 2026-10-16 replaces "read as written"): every date is stored as an ISO
+    calendar date — "31.03.2027" and "Q1 2027" (its last day) both as 2027-03-31; a year alone is no date
+    (the date is taught)."""
     from backend.phases.define import parse
 
     _a8_at_goal_read_back(env, monkeypatch, "Reduce the late payment rate from 23% by 30% by 31 March 2027.")
@@ -4771,9 +4772,9 @@ def test_a8_a_relative_target_is_taught_and_dates_are_read_as_noted(env, monkeyp
                      "Reduce late payments by 5 points by 31 March 2027.",
                      "Reduce late payments by 5% by 31 March 2027."):
         assert read(relative)[0] is None, relative
-    assert read("Reduce the late payment rate from 23% to under 5% by 31.03.2027.") == (5.0, "31.03.2027")
-    assert read("Reduce the late payment rate to under 5% by Q1 2027.") == (5.0, "31 March 2027 (end of Q1 2027)")
-    assert read("A target of 5% late payments by end of Q4 2027") == (5.0, "31 December 2027 (end of Q4 2027)")
+    assert read("Reduce the late payment rate from 23% to under 5% by 31.03.2027.") == (5.0, "2027-03-31")
+    assert read("Reduce the late payment rate to under 5% by Q1 2027.") == (5.0, "2027-03-31")
+    assert read("A target of 5% late payments by end of Q4 2027") == (5.0, "2027-12-31")
     assert read("Reduce the late payment rate to under 5% by end of 2027.") == (5.0, None)
 
 
@@ -5019,9 +5020,48 @@ def test_the_5w2h_mind_map_shows_every_answer_in_full() -> None:
     _not_written('DEF-190')
 
 
-def test_a_dotted_date_passes_the_gate() -> None:
-    """DEF-191 — Every date is read by one parser and stored as a calendar date; a correct date never fails the gate (G-191; founder test findings 77, 80)"""
-    _not_written('DEF-191')
+def test_a_dotted_date_passes_the_gate(env, monkeypatch) -> None:
+    """DEF-191 — Every date is read by one parser and stored as a calendar date; a correct date never fails the gate (G-191; founder test findings 77, 80).
+    ADR-0088 decision 5, on the real routes and graph: the goal "… by 31.03.2027" is read back as
+    "31.03.2027 = 31 March 2027" and its Confirm stores 2027-03-31; a case whose target date was stored as
+    written ("31.03.2027", state schema 9) migrates to 2027-03-31 and passes the gate, DEF-R09 included; the
+    rubric, the chart and the report read the date by the one parser."""
+    import datetime as dt
+
+    from backend.core import migrations
+    from backend.phases import moves
+    from backend.phases.define import parse
+    from backend.storage.models import CaseDocument
+    from backend.tests.test_define_report import COMPLETE
+    from backend.validation import rubric
+
+    goal = "Reduce the late payment rate from 23% to under 5% by 31.03.2027."
+    _a8_at_goal_read_back(env, monkeypatch, goal)
+    first = _askd(env, action="confirm", message="Confirm")
+    assert "31.03.2027 = 31 March 2027" in first["answer"], first["answer"]
+    assert ((first.get("visualisation") or {}).get("target_date")) == "2027-03-31", first.get("visualisation")
+    _coach_saying(monkeypatch, "Next, the benefits.")
+    _askd(env, action="confirm", message="Confirm")
+    assert _define(env)["structured"]["target_date"] == "2027-03-31"
+
+    # A case saved under schema 9 with the date as written: migrated, then the gate passes on it.
+    v9 = {**env.case.model_dump(mode="json"), migrations.VERSION_KEY: 9}
+    v9["phases"]["define"]["structured"] = {**COMPLETE, "target_date": "31.03.2027"}
+    moved = CaseDocument.model_validate(migrations.migrate_case(v9, migrations.version_of(v9)))
+    assert (moved.phases["define"].structured or {})["target_date"] == "2027-03-31"
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    record = env.case.phases["define"]
+    record.structured = {**COMPLETE, "target_date": "31.03.2027"}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f, _ in moves.positions("define")}
+    body = _submit(env)
+    assert body["passed"] is True, body
+    gate_day = dt.date(2026, 10, 16)
+    dotted = rubric._code_half("DEF-R09", {"target_date": "31.03.2027"}, gate_day)
+    today = rubric._code_half("DEF-R09", {"target_date": "16.10.2026"}, gate_day)
+    assert dotted is not None and dotted.status == "pass", dotted
+    assert today is not None and today.status == "fail", "a date on the gate's day is not after the gate"
+    assert parse.calendar_date("by end of 2027") is None
 
 
 def test_escalation_counts_changed_submits_and_reaches_the_champion() -> None:

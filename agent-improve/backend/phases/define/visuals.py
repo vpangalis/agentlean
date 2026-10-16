@@ -72,11 +72,11 @@ def _benefit_timeline(values: dict[str, Any]) -> dict[str, Any]:
 
 
 def _date(value: Any) -> Optional[str]:
-    """The ISO date in the Belt's words when there is one (G-132), else the words."""
-    import re
+    """The ISO date in the Belt's words when there is one (G-132; ADR-0088 decision 5: the one parser), else the words."""
+    from backend.phases.define.parse import calendar_date
     text = str(value or "").strip()
-    m = re.search(r"\d{4}-\d{2}-\d{2}", text)
-    return m.group(0) if m else (text or None)
+    found = calendar_date(text)
+    return found[0] if found else (text or None)
 
 
 def draw(kind: str, values: dict[str, Any], *, confirmed: bool,

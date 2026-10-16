@@ -197,9 +197,12 @@ def _define_v10(define: Any) -> Any:
     if not isinstance(define, dict):
         return define
     out = dict(define)
+    from backend.phases.define import parse
     if isinstance(out.get("critical_to_quality"), list):
-        from backend.phases.define import parse
         out["critical_to_quality"] = parse.ctq_rows(out["critical_to_quality"])
+    found = parse.calendar_date(out["target_date"]) if isinstance(out.get("target_date"), str) else None
+    if found:
+        out["target_date"] = found[0]                     # decision 5; kept as written otherwise
     return out
 
 
