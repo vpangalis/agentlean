@@ -55,7 +55,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 |  | `orchestrate.py` | — | `VALID_ANALYSE_KEYS`, `ANALYSE_WORK_PRODUCTS`, `orchestrate_analyse` |
 |  | `schema.py` C | — | `AnalysePhaseInput`, `ANALYSE_TIER_1_FIELDS`, `ANALYSE_TIER_2_FIELDS`, `AnalyseOutput`, `assemble_analyse_gate_document` |
 |  | `validate.py` | Analyse phase gate validator — Layer 2b. | `ANALYSE_REQUIRED_FOR_GATE`, `acknowledged_gaps`, `validate_analyse` |
-| `phases/` | `calculations.py` | Calculations run in code, never by the coach — ADR-0077 (founder, 2026-10-11). | `ASKED`, `CALCULATIONS`, `calculation_for`, `missing_inputs`, `run`, `latest`, `how_it_was_calculated` |
+| `phases/` | `calculations.py` | Calculations run in code, never by the coach — ADR-0077 (founder, 2026-10-11). | `ASKED`, `CALCULATIONS`, `calculation_for`, `missing_inputs`, `run`, `latest`, `number_text`, `money_text`, `expected_saving_text`, `how_it_was_calculated` |
 | `phases/control/` | `analyse.py` | — | — |
 |  | `graph.py` | Control's phase subgraph. | `PHASE` |
 |  | `mappers.py` | Control's boundary mappers — procedure step 3.3. | `PHASE`, `PRIOR_PHASE`, `PHASE_CONTEXT_FIELDS`, `control_input_mapper`, `control_output_mapper` |

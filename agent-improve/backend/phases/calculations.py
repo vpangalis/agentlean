@@ -101,16 +101,67 @@ def latest(artifacts: dict[str, Any], phase: str, field: Optional[str]) -> Optio
     return rows[-1] if rows else None
 
 
-def how_it_was_calculated(row: Optional[dict[str, Any]]) -> str:
-    """The one line under a read-back (ADR-0077 point 4): the figure and the multiplication with
-    the Belt's own numbers, written in code. Empty when nothing was calculated."""
+def number_text(value: Any) -> str:
+    """A figure with thousands separators ('15120' -> '15,120', '12.5' -> '12.5'); the text as given
+    when it is no number."""
+    try:
+        n = float(str(value).replace(",", ""))
+    except ValueError:
+        return str(value)
+    return f"{n:,.0f}" if n == int(n) else f"{n:,.2f}"
+
+
+def money_text(amount: Any, currency: str = "") -> str:
+    """G-226 — a money figure as the Belt reads it: its currency and thousands separators
+    ('15120', '€' -> '€15,120'; 'CHF' -> '15,120 CHF'). Empty when there is no amount."""
+    if amount in (None, ""):
+        return ""
+    text = number_text(amount)
+    if not currency:
+        return text
+    return f"{currency}{text}" if len(currency) == 1 else f"{text} {currency}"
+
+
+def _result(row: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """The row's result; a row recorded before G-226 (no cost of the gap, no currency) is worked out
+    again from its own inputs by the same tool — a pure function, so the figures are the recorded ones."""
     result = (row or {}).get("result") or {}
     if not isinstance(result, dict) or not result.get("annual_savings"):
+        return {}
+    if "cost_of_gap" not in result and isinstance((row or {}).get("inputs"), dict):
+        try:
+            again = _tool(str((row or {}).get("tool"))).invoke((row or {})["inputs"])
+        except Exception:                           # noqa: BLE001 — inputs it cannot take: the row as recorded
+            again = None
+        if isinstance(again, dict) and again.get("annual_savings"):
+            return again
+    return result
+
+
+def expected_saving_text(row: Optional[dict[str, Any]]) -> Optional[str]:
+    """The recorded expected saving as money text, or None when nothing was calculated."""
+    result = _result(row)
+    if not result:
+        return None
+    return money_text(result["annual_savings"], str(result.get("currency") or ""))
+
+
+def how_it_was_calculated(row: Optional[dict[str, Any]]) -> str:
+    """The lines under a read-back (ADR-0077 point 4, G-226): the cost of the gap and the expected
+    saving, each labelled, with the multiplication in the Belt's own numbers, written in code.
+    Empty when nothing was calculated."""
+    result = _result(row)
+    if not result.get("cost_of_gap"):
         return ""
     from backend.core.prompts import CALCULATION_LINE
-    return CALCULATION_LINE.format(figure=result["annual_savings"],
-                                   how=str(result.get("calculation_note") or "").split(". Check")[0])
+    currency = str(result.get("currency") or "")
+    return CALCULATION_LINE.format(
+        cost_of_gap=money_text(result["cost_of_gap"], currency),
+        saving=money_text(result["annual_savings"], currency),
+        base=result.get("baseline_percent"), target=result.get("target_percent"),
+        volume=number_text(result.get("annual_volume")),
+        unit_cost=money_text(result.get("unit_cost"), currency))
 
 
 __all__ = ["ASKED", "CALCULATIONS", "calculation_for", "missing_inputs", "run", "latest",
-           "how_it_was_calculated"]
+           "number_text", "money_text", "expected_saving_text", "how_it_was_calculated"]

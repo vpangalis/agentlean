@@ -66,7 +66,8 @@ def _benefit_timeline(values: dict[str, Any]) -> dict[str, Any]:
     b = values["benefits_analysis"]
     rows = [r for r in (values.get("computation_results") or [])
             if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
-    saving = ((rows[-1].get("result") or {}).get("annual_savings")) if rows else None
+    from backend.phases.calculations import expected_saving_text
+    saving = expected_saving_text(rows[-1]) if rows else None     # G-226: with its currency and separators
     return {"type": "benefit_timeline", "cost_of_gap": b.get("cost_of_gap"), "impact_type": b.get("impact_type"),
             "expected_saving": saving, "realisation_schedule": b.get("realisation_schedule")}
 

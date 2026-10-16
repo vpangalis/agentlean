@@ -3563,9 +3563,11 @@ def test_the_savings_calculation_is_taught_and_reads_percent_once(env, monkeypat
 
     seen = _walk_the_benefits_analysis(env, monkeypatch, stub_planner)
     assert CALCULATION_TEACH in seen["teaching"], "the teaching turn does not teach the calculation"
-    assert "Calculated:" not in seen["teaching"], "a figure appeared before the calculation was taught"
-    assert "Calculated: about 68040 a year" in seen["read_back"], seen["read_back"][-300:]
-    assert "(23% baseline − 5% target) × 42000 units/year × 9 per unit" in seen["read_back"], seen["read_back"][-300:]
+    assert "Expected saving (reaching the target):" not in seen["teaching"], \
+        "a figure appeared before the calculation was taught"
+    # G-226: the figure and how it was calculated, labelled, with the currency and separators.
+    assert ("Expected saving (reaching the target): £68,040 a year — (23% − 5%) × 42,000 units × £9."
+            in seen["read_back"]), seen["read_back"][-400:]
     savings = [calculate_expected_savings.invoke({"baseline_value": b, "target_value": t, "unit_cost": "9",
                                                   "annual_volume": "42000"})["annual_savings"]
                for b, t in (("23%", "5%"), ("23", "5"), ("0.23", "0.05"))]
@@ -5387,9 +5389,61 @@ def test_the_same_answer_gets_the_same_verdict() -> None:
     _not_written('DEF-224')
 
 
-def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures() -> None:
-    """DEF-225 — The cost of the gap and the expected saving are two labelled figures, in €, with thousands separators (G-226; founder test findings 57, 72)"""
-    _not_written('DEF-225')
+def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures(env, monkeypatch, stub_planner) -> None:
+    """DEF-225 — The cost of the gap and the expected saving are two labelled figures, in €, with thousands separators (G-226; founder test findings 57, 72).
+    On the real routes and graph: the benefits read-back carries the cost of the gap today (baseline × volume
+    × unit cost) and the expected saving (baseline − target), each labelled, in the Belt's currency with
+    thousands separators; the coach is told to propose the cost of the gap as cost_of_gap and never to call
+    the saving that; the report's section 2 summary sets each value after its label (no capital mid-sentence,
+    no double stop) and the timeline shows the saving as money; the Define skill's TOOL step no longer calls
+    the saving the cost of the gap. The founder's case, in €: 38% → 10% on 1,200 units at €45."""
+    from typing import cast
+
+    from backend.knowledge.computation import calculate_expected_savings
+    from backend.middleware.skills import instructions
+    from backend.phases import calculations
+
+    seen = _walk_the_benefits_analysis(env, monkeypatch, stub_planner)
+    said = seen["read_back"]
+    assert "Cost of the gap today (at the baseline): £86,940 a year — 23% × 42,000 units × £9." in said, said[-400:]
+    assert "Expected saving (reaching the target): £68,040 a year — (23% − 5%) × 42,000 units × £9." in said, said[-400:]
+    assert "Calculated:" not in said, "the old unlabelled figure"
+
+    # The founder's case (finding 57): € with separators, the two figures apart.
+    row = {"tool": "calculate_expected_savings", "inputs": {}, "result": calculate_expected_savings.invoke(
+        {"baseline_value": "38%", "target_value": "10%", "unit_cost": "€45 per unit", "annual_volume": "1200"})}
+    lines = calculations.how_it_was_calculated(row)
+    assert "Cost of the gap today (at the baseline): €20,520 a year — 38% × 1,200 units × €45." in lines, lines
+    assert "Expected saving (reaching the target): €15,120 a year — (38% − 10%) × 1,200 units × €45." in lines, lines
+    # A row recorded before G-226 (no cost of the gap) is worked out again from its own inputs.
+    old = {"tool": "calculate_expected_savings", "inputs": {"baseline_value": "38%", "target_value": "10%",
+           "unit_cost": "€45", "annual_volume": "1200"}, "result": {"annual_savings": "15120"}}
+    assert calculations.how_it_was_calculated(old) == lines
+
+    # The report: section 2's summary and the timeline.
+    report = seen["review"]["report"]
+    two = report["sections"][1]["summary"]
+    assert "Cost of the gap today: about £68,000 a year." in two and "Expected saving at the target: £68,040 a year." in two, two
+    assert ".." not in two and "Checked by: Sam Reid." in two, two
+    assert report["visuals"]["benefit_timeline"]["expected_saving"] == "£68,040", report["visuals"]["benefit_timeline"]
+
+    # The coach is told which figure goes where.
+    from backend.core.substate import CoachingPlan
+    from backend.middleware.state_injection import BeforeModelStateInjection
+    from langchain_core.messages import HumanMessage
+    plan = CoachingPlan(focus_field="benefits_analysis", status="asked", move="teach")
+    state: Any = {"artifacts": {"computation_results": [row]}, "phase_context": "", "coaching_plan": plan,
+                  "messages": [HumanMessage(content="ok")]}
+    mw = BeforeModelStateInjection("define", cast(Any, state))
+    mw.before_agent(None, None)
+    assert "propose the cost of the gap (today, at the baseline) as benefits_analysis.cost_of_gap" in mw._block
+    assert "never call it the cost of the gap" in mw._block and "€20,520" in mw._block, mw._block[-600:]
+
+    # The skill's TOOL step: the saving is never called the cost of the gap.
+    script = instructions("define")
+    tool_step = script[script.index("[TOOL · calculate_expected_savings"):][:1600]
+    assert "the cost of the gap is what the problem costs today" in tool_step.lower(), tool_step
+    assert "The figure is proposed as the cost of the gap" not in tool_step, tool_step
 
 
 def test_confirm_and_change_appear_under_every_read_back() -> None:

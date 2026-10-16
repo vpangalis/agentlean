@@ -129,13 +129,20 @@ def _summaries(a: dict[str, Any], body: dict[int, dict[str, Any]]) -> dict[int, 
     one = (f"{s1.get('project_lead') or 'The project lead'} leads the project"
            + (f"; {champion} is the Champion, who decides" if champion else "")
            + f"; {len(team)} people are on the team." if team else _NOT_YET)
-    b = s2.get("benefits") or {}
-    two = (f"Closing the gap is worth {b.get('cost_of_gap')} ({b.get('impact_type')}); the saving is "
-           f"expected {b.get('realisation_schedule')}, checked by {b.get('finance_contact')}."
-           if b else _NOT_YET)
     def sentence(text: Any) -> str:
         t = str(text).strip()
         return t if t.endswith((".", "!", "?")) else f"{t}."
+    b = s2.get("benefits") or {}
+    # G-226 (finding 72): each value after its own label, as the Belt wrote it — never spliced
+    # mid-sentence (a capital inside, a double stop); the expected saving apart from the cost of the gap.
+    from backend.phases.calculations import expected_saving_text
+    saving = expected_saving_text(s2.get("savings"))
+    two = (" ".join(f"{label}: {sentence(v)}" for label, v in (
+               ("Cost of the gap today", b.get("cost_of_gap")), ("Impact", b.get("impact_type")),
+               ("Expected saving at the target", f"{saving} a year" if saving else None),
+               ("When it lands", b.get("realisation_schedule")), ("Checked by", b.get("finance_contact")))
+           if v and str(v).strip())
+           if b else _NOT_YET)
     three = (f"The problem: {sentence(s3['problem_statement'])}"
              + (f" Success: {sentence(s3['objective'])}" if s3.get("objective") else "")
              if s3.get("problem_statement") else _NOT_YET)

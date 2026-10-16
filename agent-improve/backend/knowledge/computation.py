@@ -182,6 +182,21 @@ def _fmt(x: float, places: int = 4) -> str:
     return f"{rounded:g}"
 
 
+#: G-226 — the currency of a money figure as the Belt wrote it: a sign, or a code read as its sign.
+_CURRENCY_CODES: dict[str, str] = {"EUR": "€", "GBP": "£", "USD": "$", "CHF": "CHF"}
+
+
+def _currency(text: str) -> str:
+    """The currency in a unit cost as written ('€45', '45 EUR', 'CHF 30'); empty when none is stated."""
+    for sign in ("€", "£", "$"):
+        if sign in text:
+            return sign
+    for code, sign in _CURRENCY_CODES.items():
+        if re.search(rf"\b{code}\b", text, re.IGNORECASE):
+            return sign
+    return ""
+
+
 def _asks(request: str) -> Result:
     """The B3 return shape: a reformatting request, not an exception.
 
@@ -213,14 +228,19 @@ def _as_fraction(y: float) -> float:
 def calculate_expected_savings(
     baseline_value: str, target_value: str, unit_cost: str, annual_volume: str
 ) -> Result:
-    """Expected savings — what closing the baseline-to-target gap is worth over a year, in money.
+    """Expected savings — what reaching the target removes over a year, in money, and the cost of the gap.
 
     Use this once the team has agreed where they are (baseline) and where they
     want to be (target), and knows roughly what one defect costs. It turns the
     improvement into the number a sponsor will actually ask for.
 
-    Returns the annual figure AND the multiplication used, because a Belt has to
-    be able to defend it at the gate — a savings number nobody can reconstruct
+    Two figures, never one for the other (G-226): the cost of the gap is what the
+    problem costs today, at the baseline (baseline × volume × unit cost); the
+    expected saving is what reaching the target removes ((baseline − target) ×
+    volume × unit cost).
+
+    Returns both annual figures AND the multiplications used, because a Belt has to
+    be able to defend them at the gate — a savings number nobody can reconstruct
     is a savings number nobody will approve.
 
     If the team has not worked out a cost basis yet, say so and ask for it. Do
@@ -244,7 +264,12 @@ def calculate_expected_savings(
     savings = gap * volume * cost
     return {
         "annual_savings": _fmt(savings, 2),
-        "currency": "as supplied in unit_cost",
+        "cost_of_gap": _fmt(base * volume * cost, 2),
+        "baseline_percent": _fmt(base * 100),
+        "target_percent": _fmt(target * 100),
+        "annual_volume": _fmt(volume),
+        "unit_cost": _fmt(cost, 2),
+        "currency": _currency(unit_cost),
         "calculation_note": (
             f"({_fmt(base * 100)}% baseline − {_fmt(target * 100)}% target) "
             f"× {_fmt(volume)} units/year × {_fmt(cost)} per unit "

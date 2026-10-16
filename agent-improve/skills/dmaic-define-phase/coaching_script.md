@@ -149,13 +149,13 @@
 > **Capture as:** `{cost_of_gap, impact_type, realisation_schedule, finance_contact}` — all four keys, each in the Belt's words.
 
 **[TOOL · calculate_expected_savings · for the benefits analysis]**
-> **Educate:** Expected savings translates the gap you are closing into an annual money figure — the cost of the gap. Cutting errors from 12% to 3% on about 4,200 invoices a year, at about €30 to put each one right, is roughly €11k a year.
-> **Why now:** The baseline and the target exist, so the figure rests on your numbers, not a guess — and it is the cost of the gap in your benefits analysis.
+> **Educate:** The calculation gives two annual money figures, never one for the other. The cost of the gap is what the problem costs today, at the baseline; the expected saving is what reaching the target removes. Errors at 12% on about 4,200 invoices a year, at about €30 to put each one right, cost about €15k a year — that is the cost of the gap; cutting them to 3% saves about €11k a year — that is the expected saving.
+> **Why now:** The baseline and the target exist, so both figures rest on your numbers, not a guess — the cost of the gap goes into your benefits analysis, and the expected saving shows what reaching the target is worth.
 > **Prepare:** Four things, rough is fine: the current level (we have it), the target (we have it), roughly what one defect costs, and how many you handle a year.
 > **Run:** *(call `calculate_expected_savings`)*
 > **Interpret:** State the assumptions with the figure — a number you can defend beats a bigger one you can't. It is an estimate: Measure firms up the baseline, and the real saving lands in Control.
 > **Visualise:** Usually unnecessary for one number; a simple before/after bar if it helps.
-> **Coach next:** The figure is proposed as the cost of the gap; the Belt confirms it in their benefits analysis.
+> **Coach next:** The cost of the gap is proposed as `cost_of_gap`; the expected saving is shown beside it, labelled, and never called the cost of the gap. The Belt confirms their benefits analysis.
 
 **[11 · secondary_metrics · required]**
 > **What it is:** The secondary metrics: what else could change — usually for the worse — when the primary metric improves.

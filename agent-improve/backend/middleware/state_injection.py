@@ -320,15 +320,19 @@ class BeforeModelStateInjection(AgentMiddleware):
                              + "; ".join(f"{k} = {_render_value(v, 600)}"
                                          for k, v in pending["store"].items()))
 
-        # R4 — the savings calculation FEEDS the benefits analysis: while that
-        # element is current, the figure is a fact the coach proposes as its
-        # `cost_of_gap`. Proposed, never stored — the Belt confirms it (§21).
+        # R4 — the calculation FEEDS the benefits analysis: while that element is
+        # current, its cost of the gap is a fact the coach proposes as `cost_of_gap`.
+        # G-226: the expected saving is the other figure, never the cost of the gap.
+        # Proposed, never stored — the Belt confirms it (§21).
         if self.phase == "define" and getattr(plan, "focus_field", None) == "benefits_analysis":
+            from backend.phases.calculations import how_it_was_calculated
             savings = [r for r in (artifacts.get("computation_results") or [])
                        if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
-            parts.append("\nEXPECTED SAVINGS — calculated this phase; propose the latest as "
-                         "benefits_analysis.cost_of_gap, with its assumptions")
-            parts += [f"  {_render_value(r.get('result'), 400)} — inputs "
+            parts.append("\nEXPECTED SAVINGS AND THE COST OF THE GAP — calculated this phase; propose the "
+                         "cost of the gap (today, at the baseline) as benefits_analysis.cost_of_gap, with its "
+                         "assumptions. The expected saving (reaching the target) is a separate figure: never "
+                         "call it the cost of the gap")
+            parts += [f"  {how_it_was_calculated(r) or _render_value(r.get('result'), 400)} — inputs "
                       f"{_render_value(r.get('inputs'), 200)}" for r in savings[-1:]] \
                 or ["  (not calculated yet — the calculation needs the baseline, the target, "
                     "the cost of one defect and the yearly volume)"]

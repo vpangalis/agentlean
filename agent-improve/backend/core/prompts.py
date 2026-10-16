@@ -1728,7 +1728,11 @@ CALCULATION_TEACH = (
 )
 
 #: ADR-0077 point 4 — the line under a read-back of an element with a calculation, written in code.
-CALCULATION_LINE = "Calculated: about {figure} a year — {how}."
+#: G-226 — two labelled figures, never one for the other: what the problem costs today, and what reaching
+#: the target removes; money with its currency and thousands separators.
+CALCULATION_LINE = ("Cost of the gap today (at the baseline): {cost_of_gap} a year — {base}% × {volume} units "
+                    "× {unit_cost}.\nExpected saving (reaching the target): {saving} a year — ({base}% − {target}%) "
+                    "× {volume} units × {unit_cost}.")
 
 #: DEF-018 (R2) — when the Belt's metric first comes up (the read-back of position 5), what it means,
 #: from the registry entry the Belt gave — never invented — why Define cares, and how to read it.
