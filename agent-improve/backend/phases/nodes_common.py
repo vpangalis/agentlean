@@ -3321,6 +3321,15 @@ def executor_timeout_handler(phase: str, goto: str = "planner") -> Any:
     return executor_timed_out
 
 
+def _criterion_element(criterion: str) -> str:
+    """G-194 — the Define element a rubric criterion judges, by its name (the criterion id when unknown)."""
+    from backend.core import guard_messages
+    from backend.validation.rubric import DEFINE_CRITERIA
+    field = next((f for cid, f, _ in DEFINE_CRITERIA if cid == criterion), "")
+    position = {f: pos for pos, fields in moves.positions("define") for f in fields}.get(field, field)
+    return guard_messages.element_name("define", position) if position else criterion
+
+
 async def validation_stack(
     phase: str,
     validate: V1Node,
@@ -3411,8 +3420,11 @@ async def validation_stack(
             "verdicts": [v.model_dump() for v in verdict.verdicts],
             "attempts": attempts, "escalated": escalated,
         })
-        logger.info("%s.validation_stack: layer 2d %s (%d of %d criteria failed)", phase,
-                    "PASSED" if passed else "FAILED", len(failed), len(verdict.verdicts))
+        logger.info("%s.validation_stack: layer 2d %s (%d of %d criteria failed)%s", phase,
+                    "PASSED" if passed else "FAILED", len(failed), len(verdict.verdicts),
+                    # G-194 (finding 75): which criterion, on which element, and why — never a count alone.
+                    "".join(f"; {f['criterion']} on {_criterion_element(f['criterion'])}: {f['feedback']}"
+                            for f in failed))
     # ADR-0076 (T65, G-150): the count is the phase record's, carried across turns; a pass resets it,
     # and the third failure escalates — the route tells the Belt and marks the case for the lead.
     if passed:

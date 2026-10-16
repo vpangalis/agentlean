@@ -5327,9 +5327,46 @@ process.stdout.write(JSON.stringify({html:els['gate-content'].innerHTML}));
         ("issues_and_barriers", "Not confirmed yet.")], body["failed_checks"]
 
 
-def test_a_failed_rubric_criterion_is_logged_by_id_element_and_reason() -> None:
-    """DEF-194 — A failed rubric criterion is logged and returned by id, element and reason; no serializer warning (G-194; founder test findings 75)"""
-    _not_written('DEF-194')
+def test_a_failed_rubric_criterion_is_logged_by_id_element_and_reason(env, caplog) -> None:
+    """DEF-194 — A failed rubric criterion is logged and returned by id, element and reason; no serializer warning (G-194; founder test findings 75).
+    Through POST /gate with the real graph: a case whose target date is not after the gate fails rubric DEF-R09;
+    the server log's layer 2d line names DEF-R09, its element and the reason, and the response returns the same
+    (G-193's failed_checks); no Pydantic serializer warning is raised on the way. The warning the founder saw
+    came from the live grader model's response, which a test cannot call — this covers the log and the reply."""
+    import logging
+    import warnings
+
+    from backend.core import guard_messages
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {**COMPLETE, "target_date": "2025-01-01"}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f, _ in moves.positions("define")}
+    caplog.set_level(logging.INFO, logger="backend.phases.nodes_common")
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always")
+        body = _submit(env)
+    assert body["passed"] is False, body
+    element = guard_messages.element_name("define", "target_date")
+    line = next((r.getMessage() for r in caplog.records if "layer 2d FAILED" in r.getMessage()), "")
+    assert f"DEF-R09 on {element}: The target date is not in the future." in line, line
+    assert [(c["criterion"], c["element"], c["reason"]) for c in body["failed_checks"]] == [
+        ("DEF-R09", "target_date", "The target date is not in the future.")], body["failed_checks"]
+    serializer = [str(w.message) for w in seen if "serializer" in str(w.message).lower()]
+    assert not serializer, serializer
+    # The live grader's warning (reproduced 2026-10-16 against the Azure deployment), filtered by core/llm.py.
+    from backend.core.llm import quiet_parsed_field_warning
+    live = ("Pydantic serializer warnings:\n  PydanticSerializationUnexpectedValue(Expected `none` - serialized "
+            "value may not be as expected [field_name='parsed', input_value=GraderVerdict(verdicts=[]), "
+            "input_type=GraderVerdict])")
+    other = live.replace("field_name='parsed'", "field_name='verdicts'")
+    with warnings.catch_warnings(record=True) as heard:
+        warnings.simplefilter("always")
+        quiet_parsed_field_warning()                  # as core/llm.py installs it at import
+        warnings.warn(live, UserWarning)
+        warnings.warn(other, UserWarning)
+    assert [str(w.message) for w in heard] == [other], "only the parsed-field warning is filtered"
 
 
 def test_the_read_back_is_the_exact_value_a_confirm_stores() -> None:

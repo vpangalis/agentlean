@@ -27,6 +27,23 @@ from backend.core.config import settings
 
 load_dotenv(override=True)  # MUST use override=True — project requirement
 
+# G-194 (finding 75): AzureChatOpenAI._create_chat_result (langchain-openai 1.1.11, chat_models/azure.py) dumps
+# the raw response to look for a content-filter stop, `parsed` included — and the SDK types that field None, so
+# every structured-output call (the rubric's GraderVerdict, the planner's judgment) warned "Expected `none`
+# … field_name='parsed'". The parsed object itself is untouched; only that dump warns. Exactly that warning is
+# filtered. Remove when the Azure class excludes `parsed` from its dump, as the base class already does.
+import warnings  # noqa: E402
+
+PARSED_FIELD_WARNING = r"(?s)Pydantic serializer warnings:.*field_name='parsed'"
+
+
+def quiet_parsed_field_warning() -> None:
+    """Filter exactly the `parsed` dump warning (G-194); every other warning stays."""
+    warnings.filterwarnings("ignore", message=PARSED_FIELD_WARNING, category=UserWarning)
+
+
+quiet_parsed_field_warning()
+
 
 # ── The two deployment tiers (§21) ────────────────────────────────────────
 #
