@@ -1,9 +1,9 @@
 {
- "source_hash": "3bd3b09266e4208b",
- "commit": "dde05eb",
+ "source_hash": "ec908b058180bb63",
+ "commit": "af18a2a",
  "commit_matches_source": false,
  "full_run_hash": "3bd3b09266e4208b",
- "recorded_at": "2026-10-16T15:28:27+00:00",
+ "recorded_at": "2026-10-16T15:36:50+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -440,7 +440,7 @@
   "backend/tests/test_define_e2e.py::test_baseline_and_target_are_stored_as_a_number_with_a_unit": "passed",
   "backend/tests/test_define_e2e.py::test_case_numbers_are_unique_and_the_case_list_keeps_every_case": "skipped",
   "backend/tests/test_define_e2e.py::test_checkpoint_weight_is_bounded": "skipped",
-  "backend/tests/test_define_e2e.py::test_confirm_and_change_appear_under_every_read_back": "skipped",
+  "backend/tests/test_define_e2e.py::test_confirm_and_change_appear_under_every_read_back": "passed",
   "backend/tests/test_define_e2e.py::test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures": "passed",
   "backend/tests/test_define_e2e.py::test_ctq_rows_are_the_rows_the_belt_stated": "passed",
   "backend/tests/test_define_e2e.py::test_define_gate_has_no_warning_path": "skipped",

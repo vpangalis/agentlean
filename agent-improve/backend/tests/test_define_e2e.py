@@ -5471,6 +5471,47 @@ def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures(env, monke
     assert "The figure is proposed as the cost of the gap" not in tool_step, tool_step
 
 
-def test_confirm_and_change_appear_under_every_read_back() -> None:
-    """DEF-226 — Confirm and Change appear under every read-back as soon as it is shown (to verify) (G-227; founder test findings 55)"""
-    _not_written('DEF-226')
+def test_confirm_and_change_appear_under_every_read_back(env, monkeypatch) -> None:
+    """DEF-226 — Confirm and Change appear under every read-back as soon as it is shown (to verify) (G-227; founder test findings 55).
+    Verified on the founder's case: the goal's Confirm whose reply reads the target back from the goal (A8, a
+    store turn) answers move read_back on the real routes and graph; the page's own sendMessage, run in node on
+    that response, draws the reply with Confirm and Change under it and hides "AI is thinking" before it is
+    drawn; a redraw of the chat (a tab switch) keeps them. A new send removes them while it runs — the
+    only path that shows a read-back without its buttons while "AI is thinking" runs — and the reply that
+    send gets carries its own."""
+    import json
+
+    _a8_at_goal_read_back(env, monkeypatch, "Reduce the late payment rate from 38% to under 10% by 31.03.2027.")
+    reply = _askd(env, action="confirm", message="Confirm")
+    assert reply["move"] == "read_back" and reply["move_field"] == "target_value", (reply["move"], reply["move_field"])
+
+    page = _run_page(("function renderTurn", "async function sendMessage", "function failureWords",
+                      "function failedTurnHtml"), """
+const dom=[];const typing=[];const removed=[];let rbOnScreen=true;
+const els={typing:{classList:{add(c){typing.push('show')},remove(c){typing.push('hide')}}},
+  'chat-input':{value:''}};
+const document={getElementById:id=>(els[id]=els[id]||{id,value:'',classList:{add(){},remove(){}}}),
+  querySelectorAll:sel=>sel==='.rb-actions'&&rbOnScreen?[{remove(){rbOnScreen=false;removed.push(typing.length)}}]:[]};
+const escapeHtml=s=>String(s);const API='';
+function appendMsgToDOM(h){dom.push({h,typing:typing[typing.length-1]});if(h.includes('rb-actions'))rbOnScreen=true}
+function clearDraft(){}function renderChips(){}function renderPhaseNav(){}function renderDiagram(){}
+function renderSteps(){}function renderLiveViz(){}function showSectionToast(){}function renderGate(){}
+const S={case:{case_id:'C1'},user:'Ana',phase:'define',localChat:[]};
+const answers=[""" + json.dumps(reply) + """,{answer:'Which benefits do you expect?',move:'teach'}];
+async function apiJSON(url,opts){return url.includes('/ask')?answers.shift():{}}
+(async()=>{
+  await sendMessage('confirm');
+  const shown=dom[dom.length-1];
+  const redraw=renderTurn(S.localChat[S.localChat.length-1]);
+  await sendMessage();                                   // nothing typed: no send
+  els['chat-input'].value='Something else';
+  await sendMessage();
+  process.stdout.write(JSON.stringify({shown,redraw,last:dom[dom.length-1].h,removed,typing}));
+})();
+""")
+    shown = page["shown"]
+    assert 'id="rb-confirm"' in shown["h"] and 'id="rb-change"' in shown["h"], shown["h"][-600:]
+    assert shown["typing"] == "hide", "the read-back was drawn while 'AI is thinking' still showed"
+    assert 'id="rb-confirm"' in page["redraw"], "a redraw of the chat lost the buttons"
+    assert page["removed"], "a new send left the old read-back's buttons on screen"
+    assert 'id="rb-confirm"' not in page["last"], "a teach reply carries no Confirm"
