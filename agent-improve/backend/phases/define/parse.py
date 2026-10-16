@@ -94,6 +94,77 @@ def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
     return {"target_value": value, "target_date": when}
 
 
+# ── ADR-0088 "Element values parsed and checked in code" ─────────────────────────────────────────────────
+
+#: Decision 1: an item marker the Belt writes — (1), 1., 1), a), "-", "•" — at a line start or after a space.
+_ITEM = re.compile(r"(?:(?<=^)|(?<=\s))(?:\(\d{1,2}\)|\d{1,2}[.)](?=\s)|\(?[a-h]\)(?=\s)|[-•*](?=\s))\s*", re.M)
+_NONE = re.compile(r"^\s*none(?: identified)?(?: at this stage)?\s*[.!]?\s*$", re.I)
+
+
+def list_items(text: Any, label: str = "") -> list[str]:
+    """ADR-0088 decision 1: the items of a list-shaped answer, as the Belt numbered them — split only at (1),
+    1., 1), a), "-" or "•", never inside an item at a ';', a ',' or 'and'; with no marker, at line breaks; else
+    one item. A leading `label` ("Issues and barriers:") is dropped; "none identified" is one item."""
+    t = str(text or "").strip()
+    if label:
+        t = re.sub(r"^\s*" + re.escape(label) + r"\s*:\s*", "", t, flags=re.I)
+    if not t:
+        return []
+    if _NONE.match(t):
+        return [t.rstrip(".! ")]
+    marks = list(_ITEM.finditer(t))
+    if len(marks) >= 2:
+        parts = [t[m.end():(marks[i + 1].start() if i + 1 < len(marks) else len(t))] for i, m in enumerate(marks)]
+        head = t[:marks[0].start()].strip(" :")
+        items = [p.strip(" ;,\n\t") for p in parts]
+        return [x for x in items if x] if not head else [head, *[x for x in items if x]]
+    lines = [x.strip(" -•\t") for x in t.split("\n") if x.strip()]
+    return lines if len(lines) > 1 else [t]
+
+
+def _same(a: Any, b: Any) -> bool:
+    return " ".join(str(a or "").lower().split()).rstrip(".") == " ".join(str(b or "").lower().split()).rstrip(".")
+
+
+def ctq_rows(rows: Any) -> list[dict[str, Any]]:
+    """ADR-0088 decision 2: CTQ rows as the Belt stated them — rows with the same need and requirement become one
+    row, their customers joined in the order given. A cross product of customers and needs collapses."""
+    out: list[dict[str, Any]] = []
+    for r in rows if isinstance(rows, list) else []:
+        if not isinstance(r, dict):
+            continue
+        hit = next((o for o in out if _same(o.get("need"), r.get("need"))
+                    and _same(o.get("requirement"), r.get("requirement"))), None)
+        if hit is None:
+            out.append(dict(r))
+        elif r.get("customer") and not any(_same(c, r.get("customer")) for c in str(hit.get("customer") or "").split("; ")):
+            hit["customer"] = "; ".join(x for x in (str(hit.get("customer") or ""), str(r["customer"])) if x)
+    return out
+
+
+def stated_ctqs(words: Any) -> list[str]:
+    """The CTQs the Belt listed after a "CTQs:" label (or as a numbered list after it), by the list parser."""
+    m = re.search(r"(?is)\bCTQs?\s*:\s*(.+)$", str(words or ""))
+    if not m:
+        return []
+    body = m.group(1).strip()
+    items = list_items(body)
+    if len(items) == 1 and ";" in body:
+        items = [x.strip() for x in body.split(";") if x.strip()]
+    return items
+
+
+def ctq_question(rows: Any, words: Any) -> str:
+    """ADR-0088 decision 2: when the rows do not match the CTQs the Belt listed, the question the read-back asks
+    before Confirm; empty when they match or the Belt listed none."""
+    stated = stated_ctqs(words)
+    rows = rows if isinstance(rows, list) else []
+    if not stated or len(stated) == len(rows):
+        return ""
+    return (f"You listed {len(stated)} CTQ{'s' if len(stated) != 1 else ''}; the table has {len(rows)} "
+            f"row{'s' if len(rows) != 1 else ''}. Which customer does each CTQ apply to?")
+
+
 def _is_year(m: "re.Match[str]") -> bool:
     """G-135 (2026-09-29): a four-digit 1900-2099 with no unit of its own is a year — "January
     to June 2026" — never a baseline or a target. The run-through read "2026" as the baseline

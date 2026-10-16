@@ -660,6 +660,9 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
             # G-121 (DEF-158): the SIPOC from its labels, parsed in code — never the prose itself.
             from backend.phases.define.parse import parse_sipoc
             value = parse_sipoc(str(value or words)) or None
+        if phase == "define" and f == "critical_to_quality" and isinstance(value, list):
+            # ADR-0088 decision 2: the rows as the Belt stated them, never a cross product.
+            value = parse.ctq_rows(value)
         if f == "process_map_sipoc" and isinstance(value, dict):
             # ADR-0078 (DEF-084): steps as entries with stable ids, their figures read in code.
             value = parse.sipoc_with_performance(value, (artifacts or {}).get("process_map_sipoc"))

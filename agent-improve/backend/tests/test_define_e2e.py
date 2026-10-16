@@ -4828,9 +4828,57 @@ def test_list_elements_are_split_as_the_belt_numbered_them() -> None:
     _not_written('DEF-183')
 
 
-def test_ctq_rows_are_the_rows_the_belt_stated() -> None:
-    """DEF-184 — CTQ rows are the rows the Belt stated, never a cross product (G-184; founder test findings 36)"""
-    _not_written('DEF-184')
+def test_ctq_rows_are_the_rows_the_belt_stated(env, monkeypatch) -> None:
+    """DEF-184 — CTQ rows are the rows the Belt stated, never a cross product (G-184; founder test findings 36).
+    ADR-0088 decision 2, on the real routes and graph: the Belt names two customers and two CTQs; the coach
+    proposes the cross product (four rows). The read-back asks, in code, which customer each CTQ applies to;
+    the Confirm stores two rows, the customers of each joined. A saved version-9 case with crossed rows
+    migrates to the collapsed rows (state schema 10)."""
+    from backend.core import migrations
+    from backend.phases import moves
+    from backend.phases.define import parse
+    from backend.storage.models import CaseDocument
+    from backend.tests.test_define_report import COMPLETE
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    crossed = [{"customer": c, "need": n, "requirement": q}
+               for c in ("Business customers", "Account managers")
+               for n, q in (("Closed quickly", "Closed within 5 working days, for at least 95%"),
+                            ("Told the next step", "Informed within 1 working day, for 100%"))]
+    record = env.case.phases["define"]
+    record.structured = {f: COMPLETE[f] for f in ("business_case", "team")}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in ("business_case", "team")}
+    record.field_status["voc_summary"] = {"status": moves.ASKED}
+    words = ("Customers: business customers (external), and account managers (internal).\n"
+             "CTQs: complaint closed within 5 working days of being logged, for at least 95%; customer "
+             "informed of the next step within 1 working day, for 100% of complaints.")
+    _coach_saying(monkeypatch, "Here is your VOC and the CTQs. Is this right?", captured=[
+        {"field_name": "voc_summary", "value": words, "source": "belt"},
+        {"field_name": "critical_to_quality", "value": crossed, "source": "belt"}])
+    answer = ask(message=words)["answer"]
+    assert "You listed 2 CTQs; the table has 2 rows" not in answer, answer
+    _coach_saying(monkeypatch, "Thank you. Next, the problem statement.")
+    ask(message="Confirm", action="confirm")
+    rows = _define(env)["structured"]["critical_to_quality"]
+    assert len(rows) == 2, rows
+    assert [r["customer"] for r in rows] == ["Business customers; Account managers"] * 2, rows
+    assert [r["need"] for r in rows] == ["Closed quickly", "Told the next step"], rows
+
+    # The read-back asks when the rows still disagree with the CTQs the Belt listed (three rows, two CTQs).
+    odd = [*parse.ctq_rows(crossed), {"customer": "Auditors", "need": "Traceable", "requirement": "Logged"}]
+    assert parse.ctq_question(odd, words).startswith("You listed 2 CTQs; the table has 3 rows."), odd
+    assert parse.ctq_question(parse.ctq_rows(crossed), words) == ""
+
+    # State schema 10: a saved version-9 case with crossed rows migrates to the rows as stated.
+    assert 9 in migrations.MIGRATIONS and migrations.current() >= 10
+    v9 = {**env.case.model_dump(mode="json"), migrations.VERSION_KEY: 9}
+    v9["phases"]["define"]["structured"] = {"voc_summary": words, "critical_to_quality": crossed}
+    moved = CaseDocument.model_validate(migrations.migrate_case(v9, migrations.version_of(v9)))
+    assert (moved.phases["define"].structured or {})["critical_to_quality"] == rows
 
 
 def test_a_read_back_never_loses_the_belts_words() -> None:

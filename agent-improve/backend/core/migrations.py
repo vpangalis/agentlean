@@ -192,9 +192,35 @@ def migrate_v8_to_v9(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+def _define_v10(define: Any) -> Any:
+    """A Define mapping in the version-10 shapes (ADR-0088): CTQ rows as the Belt stated them (decision 2)."""
+    if not isinstance(define, dict):
+        return define
+    out = dict(define)
+    if isinstance(out.get("critical_to_quality"), list):
+        from backend.phases.define import parse
+        out["critical_to_quality"] = parse.ctq_rows(out["critical_to_quality"])
+    return out
+
+
+def migrate_v9_to_v10(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0088 "Element values parsed and checked in code" decision 8 — the one migration of stage 1:
+    CTQ rows with the same need and requirement become one row, customers joined (DEF-184, G-184) —
+    wherever state carries Define values: `artifacts`, `final`, `draft`, `captured_by_phase`, and a
+    flat Define document. Nothing the Belt wrote is deleted."""
+    out = dict(values)
+    for key in ("artifacts", "final", "draft"):
+        if key in out:
+            out[key] = _define_v10(out[key])
+    captured = out.get("captured_by_phase")
+    if isinstance(captured, dict) and isinstance(captured.get("define"), dict):
+        out["captured_by_phase"] = {**captured, "define": _define_v10(captured["define"])}
+    return _define_v10(out)
+
+
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
                                     4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7,
-                                    7: migrate_v7_to_v8, 8: migrate_v8_to_v9}
+                                    7: migrate_v7_to_v8, 8: migrate_v8_to_v9, 9: migrate_v9_to_v10}
 
 
 def current() -> int:

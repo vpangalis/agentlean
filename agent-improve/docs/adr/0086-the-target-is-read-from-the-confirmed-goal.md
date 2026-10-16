@@ -49,3 +49,10 @@ limit such as "under" or "at most", "target of"); otherwise the target value is 
 "31.03.2027" (and 31/03/2027) is read as written; a quarter ("Q1 2027") is read as its last day and shown with
 the quarter it came from ("31 March 2027 (end of Q1 2027)") in the read-back the Belt confirms; a year alone
 ("by end of 2027") is no date, and the target date is taught.
+
+Note (founder, 2026-10-16): dates are no longer stored "as written". Every date the goal or element 9 gives
+is read by the one date parser (ADR-0088 "Element values parsed and checked in code", decision 5) and stored
+as an ISO calendar date. The read-back shows the Belt's form and the unambiguous one ("31.03.2027 = 31 March
+2027"). "March 2027" reads as the month's last day and "Q1 2027" as the quarter's last day, each shown beside
+its source; a year alone is no date. Reason: on IMPR-2026-A99 "31.03.2027", stored as written, failed rubric
+DEF-R09 three times (finding 77).
