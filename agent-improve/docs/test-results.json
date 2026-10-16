@@ -1,9 +1,9 @@
 {
- "source_hash": "df60027fb69f18c3",
- "commit": "4aa6765",
+ "source_hash": "3bd3b09266e4208b",
+ "commit": "dde05eb",
  "commit_matches_source": false,
- "full_run_hash": "df60027fb69f18c3",
- "recorded_at": "2026-10-16T14:50:18+00:00",
+ "full_run_hash": "3bd3b09266e4208b",
+ "recorded_at": "2026-10-16T15:28:27+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -477,6 +477,7 @@
   "backend/tests/test_define_e2e.py::test_g174_a_value_with_a_placeholder_is_challenged_never_offered_for_confirm": "passed",
   "backend/tests/test_define_e2e.py::test_g175_after_a_store_the_reply_teaches_the_next_element": "passed",
   "backend/tests/test_define_e2e.py::test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload": "passed",
+  "backend/tests/test_define_e2e.py::test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_sentence": "passed",
   "backend/tests/test_define_e2e.py::test_g3_never_fails_the_methods_own_material": "skipped",
   "backend/tests/test_define_e2e.py::test_gate_view_section_a_follows_the_mockup": "skipped",
   "backend/tests/test_define_e2e.py::test_gate_view_section_b_follows_the_mockup": "skipped",
@@ -1783,8 +1784,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "eb1d906412deb6d8",
-  "recorded_at": "2026-10-16T14:03:36+00:00",
+  "source_hash": "df60027fb69f18c3",
+  "recorded_at": "2026-10-16T14:50:18+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2394,7 +2395,7 @@
    "backend/tests/test_define_e2e.py::test_checkpoint_weight_is_bounded": "skipped",
    "backend/tests/test_define_e2e.py::test_coherence_judges_the_belts_words": "passed",
    "backend/tests/test_define_e2e.py::test_confirm_and_change_appear_under_every_read_back": "skipped",
-   "backend/tests/test_define_e2e.py::test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures": "skipped",
+   "backend/tests/test_define_e2e.py::test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures": "passed",
    "backend/tests/test_define_e2e.py::test_ctq_rows_are_the_rows_the_belt_stated": "passed",
    "backend/tests/test_define_e2e.py::test_define_gate_has_no_warning_path": "skipped",
    "backend/tests/test_define_e2e.py::test_define_is_done_within_forty_turns_none_over_45_seconds": "skipped",

@@ -2635,6 +2635,11 @@ async def executor(
         sent = result["structured_response"]
         rejected = {k: str(getattr(sent, k, "") or "")[:1500] for k in ("message", "explanation", "example", "prompt")}
         fallback = _fallback_reply(phase, plan)
+        if plan is not None and plan.move == moves.RESPOND:
+            # Founder ruling 2026-10-16 (2b): the Belt's question asked for a figure no calculation in code
+            # gives — say so, in code, before the ask, rather than answering with the ask alone.
+            from backend.core.prompts import CALCULATION_FALLBACK
+            fallback = fallback.model_copy(update={"message": f"{CALCULATION_FALLBACK}\n\n{fallback.message}"})
         fell_back = True
         logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s); the move's "
                        "reply is written in code", phase, ", ".join(unsourced[:5]))

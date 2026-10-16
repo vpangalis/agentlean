@@ -2437,6 +2437,31 @@ def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch) -> 
     assert said.startswith("£62,000 a year"), said
 
 
+def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_sentence(
+        env, monkeypatch, stub_planner) -> None:
+    """G-211, founder ruling 2026-10-16 (2b, calculation fallback), through the routes and graph: the Belt asks for
+    a figure no calculation in code gives and the coach works one out — G-173 rejects the reply, and the Belt
+    gets the fallback sentence, in code, before the move's ask; never the coach's figure. A rejection on any
+    other move (the coach volunteering a figure) carries no such sentence."""
+    from backend.core.prompts import CALCULATION_FALLBACK
+    from backend.core.substate import SufficiencyJudgment
+
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Here is what secondary metrics are.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks for a calculation")
+    _coach_saying(monkeypatch, "Multiply availability, performance and quality: your OEE is about 71.4%.")
+    r = _askd(env, message="What would our OEE be from the three figures?")
+    assert r["move"] == "respond", r["move"]
+    assert r["answer"].startswith(CALCULATION_FALLBACK) and "71.4" not in r["answer"], r["answer"]
+    assert r["answer"].count(CALCULATION_FALLBACK) == 1, r["answer"]
+    # Another move: the rejected reply is the move's code reply alone.
+    stub_planner.judgment = None
+    _coach_saying(monkeypatch, "A secondary metric could move by 12.5% as well.")
+    r = _askd(env, message="Next, please.")
+    assert r["move"] != "respond" and CALCULATION_FALLBACK not in r["answer"] and "12.5" not in r["answer"], r
+
+
 def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, monkeypatch) -> None:
     """G-176 (live run 152256, turn 31: GET /cases answered 500), through POST /ask and GET /cases with the
     real create_agent: the coach cites a file as it writes citations — its source and a quote, not a
