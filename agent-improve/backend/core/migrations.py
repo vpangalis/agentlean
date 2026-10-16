@@ -200,6 +200,15 @@ def _define_v10(define: Any) -> Any:
     from backend.phases.define import parse
     if isinstance(out.get("critical_to_quality"), list):
         out["critical_to_quality"] = parse.ctq_rows(out["critical_to_quality"])
+    sipoc = out.get("process_map_sipoc")
+    if isinstance(sipoc, dict) and isinstance(sipoc.get("process_steps"), list):
+        # Decision 4: every stored duration read again from the Belt's words ("working" → working days, same day → 0).
+        steps = [{**s, "duration": {k: parse.duration_value(v) for k, v in (s.get("duration") or {}).items()}}
+                 if isinstance(s, dict) else s for s in sipoc["process_steps"]]
+        perf = dict(sipoc.get("process_performance") or {})
+        if perf.get("lead_time"):
+            perf["lead_time"] = parse.duration_value(perf["lead_time"])
+        out["process_map_sipoc"] = {**sipoc, "process_steps": steps, **({"process_performance": perf} if perf else {})}
     found = parse.calendar_date(out["target_date"]) if isinstance(out.get("target_date"), str) else None
     if found:
         out["target_date"] = found[0]                     # decision 5; kept as written otherwise

@@ -4945,9 +4945,67 @@ def test_a_read_back_never_loses_the_belts_words() -> None:
     _not_written('DEF-185')
 
 
-def test_step_durations_are_read_with_their_units_and_checked() -> None:
-    """DEF-186 — Step durations are read with their units (working days, same day, ranges) and checked against each other (G-186; founder test findings 71)"""
-    _not_written('DEF-186')
+def test_step_durations_are_read_with_their_units_and_checked(env, monkeypatch) -> None:
+    """DEF-186 — Step durations are read with their units (working days, same day, ranges) and checked against each other (G-186; founder test findings 71).
+    ADR-0088 decision 4, on the real routes and graph, with the step times of IMPR-2026-A99's kind: "same day",
+    "2 working days" (1 to 6 working days), "1 working day", and an end-to-end lead time of 8 working days.
+    The read-back asks, in code, about the waiting time (the steps add up to 3 of the 8 days); Confirm stores
+    "working days" as the unit and "same day" as 0 days; the report shows "2 working days", never "2 working",
+    and what is measured on the outputs as words. A range "1–6 days" is the step's shortest and longest; a
+    shortest above the average is asked; a stored unit "working" migrates to "working days" (schema 10)."""
+    from backend.core import migrations
+    from backend.phases import moves
+    from backend.phases.define import parse
+    from backend.phases.define.report import define_report
+    from backend.storage.models import CaseDocument
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    _at_element(env, "process_map_sipoc")
+    env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.ASKED}
+    sipoc = {"suppliers": "business customers", "inputs": "a complaint", "outputs": "a closed complaint",
+             "customers": "business customers", "process_metrics": ["days to close", "share reopened"],
+             "process_steps": [
+                 {"name": "Log the complaint", "duration": {"avg": "same day"}, "runs_per_period": "40 a week"},
+                 {"name": "Investigate", "duration": {"avg": "2 working days", "min": "1 working day",
+                                                     "max": "6 working days"}, "runs_per_period": "40 a week"},
+                 {"name": "Close and inform", "duration": {"avg": "1 working day"}, "runs_per_period": "40 a week"}],
+             "process_performance": {"lead_time": "8 working days", "runs_per_period": "40 a week"}}
+    words = ("Log the complaint (same day) → Investigate (2 working days, 1 to 6) → Close and inform (1 working "
+             "day); 8 working days from start to end, about 40 a week.")
+    _coach_saying(monkeypatch, "Here is your process map. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": sipoc, "source": "belt"}])
+    read = ask(message=words)
+    reply = " ".join(str(read.get(k) or "") for k in ("answer", "explanation"))
+    assert read["move"] == moves.READ_BACK, read["move"]
+    assert "The steps add up to 3 working days, you said 8 working days" in reply, reply
+    _coach_saying(monkeypatch, "Thank you. Next, the issues and barriers.")
+    ask(message="Confirm", action="confirm")
+    stored = _define(env)["structured"]["process_map_sipoc"]
+    steps = stored["process_steps"]
+    assert (steps[0]["duration"]["avg"]["value"], steps[0]["duration"]["avg"]["unit"]) == (0.0, "days"), steps[0]
+    assert steps[1]["duration"]["avg"]["unit"] == "working days", steps[1]
+    assert stored["process_performance"]["lead_time"]["unit"] == "working days", stored["process_performance"]
+    section = {s["n"]: s for s in define_report(_define(env)["structured"])["sections"]}[6]
+    assert section["steps"][1]["duration"]["avg"] == "2 working days", section["steps"][1]
+    assert section["process_performance"]["lead_time"] == "8 working days", section["process_performance"]
+    assert section["sipoc"]["process_metrics"] == "days to close; share reopened", section["sipoc"]
+
+    # A range is the step's shortest and longest; times out of order are asked; a v9 "working" unit migrates.
+    ranged = parse.sipoc_with_performance({"process_steps": [{"name": "Investigate", "duration": {"avg": "1–6 days"}}]})
+    assert {k: v["value"] for k, v in ranged["process_steps"][0]["duration"].items()} == {"min": 1.0, "max": 6.0}
+    assert parse.duration_questions({"process_steps": [{"name": "A", "duration": {
+        "avg": "2 working days", "min": "3 working days"}}]})[0].startswith('For "A" the shortest')
+    old = {**stored, "process_steps": [{**steps[1], "duration": {"avg": {
+        "value": 2.0, "unit": "working", "direction": None, "is_estimate": False, "raw": "2 working days"}}}]}
+    v9 = {**env.case.model_dump(mode="json"), migrations.VERSION_KEY: 9}
+    v9["phases"]["define"]["structured"] = {"process_map_sipoc": old}
+    moved = CaseDocument.model_validate(migrations.migrate_case(v9, migrations.version_of(v9)))
+    got = (moved.phases["define"].structured or {})["process_map_sipoc"]["process_steps"][0]["duration"]["avg"]
+    assert got["unit"] == "working days", got
 
 
 def test_the_chat_renders_markdown_safely() -> None:

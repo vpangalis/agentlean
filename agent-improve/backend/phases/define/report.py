@@ -180,7 +180,10 @@ def _process_section(sipoc: Any) -> dict[str, Any]:
               "runs_per_period": text(s.get("runs_per_period")), "problems": s["problems"]}
              for s in parse.process_steps(sipoc.get("process_steps"))]
     perf: dict[str, Any] = sipoc["process_performance"] if isinstance(sipoc.get("process_performance"), dict) else {}
-    return {"sipoc": {**sipoc_columns(sipoc), "process_metrics": sipoc.get("process_metrics")},
+    measured = sipoc.get("process_metrics")
+    if isinstance(measured, list):              # G-186: what is measured on the outputs, as words, never raw JSON
+        measured = "; ".join(str(m.get("name") or m) if isinstance(m, dict) else str(m) for m in measured)
+    return {"sipoc": {**sipoc_columns(sipoc), "process_metrics": measured},
             "steps": steps,
             "process_performance": {k: text(perf.get(k)) for k in parse.PROCESS_PERFORMANCE_KEYS if perf.get(k)}}
 

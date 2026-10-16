@@ -468,11 +468,94 @@ def period_value(text: Any) -> dict[str, Any]:
     return mv
 
 
+#: ADR-0088 decision 4: the duration units, longest spelling first; "days" with no kind is asked in the read-back.
+_DURATION_UNITS: tuple[tuple[str, str], ...] = (
+    (r"working\s+days?|business\s+days?|work\s*days?|arbeitstage?n?|wd", "working days"),
+    (r"calendar\s+days?|kalendertage?n?", "calendar days"),
+    (r"minutes?|mins?|minuten", "minutes"), (r"hours?|hrs?|h|stunden?", "hours"),
+    (r"days?|tage?n?", "days"), (r"weeks?|wks?|wochen?", "weeks"), (r"months?|monate?n?", "months"))
+_DURATION = re.compile(r"(?i)" + _NUMBER + r"(?:\s*(?:–|-|to|bis)\s*" + _NUMBER + r")?\s*("
+                       + "|".join(p for p, _ in _DURATION_UNITS) + r")\b")
+_SAME_DAY = re.compile(r"(?i)\bsame[- ]day\b|\bam selben tag\b")
+
+
+def _duration_unit(word: str) -> str:
+    return next(u for p, u in _DURATION_UNITS if re.fullmatch(r"(?i)" + p, word.strip()))
+
+
+def duration_range(text: Any) -> Optional[tuple[dict[str, Any], dict[str, Any]]]:
+    """ADR-0088 decision 4: a range "1–6 days" as its (min, max) MetricValues; None when `text` is no range."""
+    raw = str(text or "").strip()
+    m = _DURATION.search(raw)
+    if not m or m.group(2) is None:
+        return None
+    unit = _duration_unit(m.group(3))
+    def mv(n: str) -> dict[str, Any]:
+        return {"value": float(n.replace(",", ".")), "unit": unit, "direction": None,
+                "is_estimate": is_estimate(raw), "raw": raw}
+    return mv(m.group(1)), mv(m.group(2))
+
+
 def duration_value(text: Any) -> dict[str, Any]:
-    """A duration as a MetricValue (minutes, hours, days, weeks — the parser's units)."""
+    """ADR-0088 decision 4 — THE duration reader: a duration as a MetricValue in minutes, hours, working days,
+    calendar days, days (kind not said), weeks or months; "same day" is 0 days. A stored MetricValue whose
+    unit is no duration unit ("working", G-186) is read again from its words."""
     if isinstance(text, dict) and "raw" in text and "value" in text:
-        return dict(text)
-    return metric_value(text)
+        if text.get("unit") in {u for _, u in _DURATION_UNITS} or not text.get("raw"):
+            return dict(text)
+        text = text["raw"]
+    raw = str(text or "").strip()
+    m = _DURATION.search(raw)
+    if m:
+        return {"value": float(m.group(1).replace(",", ".")), "unit": _duration_unit(m.group(3)),
+                "direction": None, "is_estimate": is_estimate(raw), "raw": raw}
+    if _SAME_DAY.search(raw):
+        return {"value": 0.0, "unit": "days", "direction": None, "is_estimate": is_estimate(raw), "raw": raw}
+    return metric_value(raw)
+
+
+#: Minutes per duration unit, to order a step's times written in different units (a working day as 8 hours).
+_MINUTES = {"minutes": 1, "hours": 60, "working days": 480, "days": 1440, "calendar days": 1440,
+            "weeks": 10080, "months": 43200}
+
+
+def _in_minutes(mv: Any) -> Optional[float]:
+    if not isinstance(mv, dict) or mv.get("value") is None or mv.get("unit") not in _MINUTES:
+        return None
+    return float(mv["value"]) * _MINUTES[mv["unit"]]
+
+
+def duration_questions(sipoc: Any) -> list[str]:
+    """ADR-0088 decision 4: what the read-back asks about the step times before Confirm — never an error:
+    a step's shortest above its average or its average above its longest; days with no kind ("working or
+    calendar days?"); working and calendar days mixed; the steps' averages against the stated end-to-end
+    lead time, when they differ by more than 25 %."""
+    if not isinstance(sipoc, dict):
+        return []
+    asks: list[str] = []
+    steps = process_steps(sipoc.get("process_steps"))
+    for s in steps:
+        d = s["duration"]
+        lo, avg, hi = (_in_minutes(d.get(k)) for k in ("min", "avg", "max"))
+        if (lo is not None and avg is not None and lo > avg) or (avg is not None and hi is not None and avg > hi) \
+                or (lo is not None and hi is not None and lo > hi):
+            asks.append(f"For \"{s['name']}\" the shortest, average and longest times are not in order — which is right?")
+    perf = process_performance(sipoc.get("process_performance"))
+    # "Same day" (0 days) has no kind of day; every other figure names its unit.
+    units = {v["unit"] for s in steps for v in s["duration"].values() if v.get("value")}
+    units |= {perf["lead_time"]["unit"]} if perf.get("lead_time", {}).get("value") else set()
+    if "days" in units:
+        asks.append("Are the days working days or calendar days?")
+    if {"working days", "calendar days"} <= units:
+        asks.append("Some times are in working days and some in calendar days — which should they all be in?")
+    averages = [s["duration"]["avg"] for s in steps if s["duration"].get("avg", {}).get("value") is not None]
+    lead = perf.get("lead_time")
+    if lead and lead.get("value") and averages and len({a["unit"] for a in averages if a["value"]} | {lead["unit"]}) == 1:
+        total = sum(a["value"] for a in averages)
+        if abs(total - lead["value"]) > 0.25 * lead["value"]:
+            asks.append(f"The steps add up to {total:g} {lead['unit']}, you said {lead['value']:g} {lead['unit']} "
+                        "from start to end — is there waiting time between the steps?")
+    return asks
 
 
 def _step_name(entry: Any) -> str:
@@ -557,6 +640,11 @@ def sipoc_with_performance(value: Any, prior: Any = None) -> Any:
     if not isinstance(before, list) and isinstance(prior, dict):
         before = process_steps(before)
     out["process_steps"] = process_steps(value.get("process_steps"), before)
+    for s in out["process_steps"]:
+        # ADR-0088 decision 4: a range given as the step's time ("1–6 days") is its shortest and longest.
+        found = duration_range((s["duration"].get("avg") or {}).get("raw"))
+        if found and not s["duration"].get("min") and not s["duration"].get("max"):
+            s["duration"] = {"min": found[0], "max": found[1]}
     perf = process_performance(value.get("process_performance"))
     if perf:
         out["process_performance"] = perf

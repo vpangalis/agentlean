@@ -2986,6 +2986,10 @@ async def executor(
             from backend.phases.define.parse import date_shown
             new_messages = _with_code_line(new_messages, reply, "Read as a date: " + date_shown(
                 pending["store"]["target_date"], pending.get("belt_words")))
+        # ADR-0088 decision 4 (G-186): the step times are asked about, never refused.
+        from backend.phases.define.parse import duration_questions
+        for question in duration_questions((pending.get("store") or {}).get("process_map_sipoc")):
+            new_messages = _with_code_line(new_messages, reply, question)
         # ADR-0088 decision 1 (G-183): a list-shaped answer is read back as the items the Belt numbered.
         from backend.phases.define.parse import list_items
         for f, label in (("secondary_metrics", "Secondary metrics"), ("issues_and_barriers", "Issues and barriers")):
