@@ -1733,6 +1733,10 @@ CALCULATION_TEACH = (
 CALCULATION_FALLBACK = ("I can't give you that figure: the platform has no calculation for it yet, and I don't work "
                         "figures out myself — every number in your case comes from you, your data or a calculation "
                         "run in code. If you work it out, tell me the result and how you got it.")
+#: The same, for a question about a calculation the catalogue has (this element's, ADR-0077) whose inputs are
+#: not all given yet: what it needs, in code.
+CALCULATION_NEEDS = ("The platform works this figure out for you, in code — I don't work figures out myself. It "
+                     "needs {needs}; tell me those and you'll see the figure with how it was calculated.")
 
 #: G-226 — two labelled figures, never one for the other: what the problem costs today, and what reaching
 #: the target removes; money with its currency and thousands separators.

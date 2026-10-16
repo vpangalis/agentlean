@@ -2661,8 +2661,16 @@ async def executor(
         if plan is not None and plan.move == moves.RESPOND:
             # Founder ruling 2026-10-16 (2b): the Belt's question asked for a figure no calculation in code
             # gives — say so, in code, before the ask, rather than answering with the ask alone.
-            from backend.core.prompts import CALCULATION_FALLBACK
-            fallback = fallback.model_copy(update={"message": f"{CALCULATION_FALLBACK}\n\n{fallback.message}"})
+            from backend.core.prompts import CALCULATION_FALLBACK, CALCULATION_NEEDS
+            from backend.phases import calculations
+            arts = dict(state.get("artifacts") or {})
+            needs = calculations.missing_inputs(phase, plan.focus_field, arts)
+            # In the catalogue (this element has a calculation in code): its own figures when it has run,
+            # else what it still needs; outside it, 2b.
+            said = (calculations.how_it_was_calculated(calculations.latest(arts, phase, plan.focus_field))
+                    or (CALCULATION_NEEDS.format(needs=" and ".join(needs.values())) if needs else "")
+                    or CALCULATION_FALLBACK)
+            fallback = fallback.model_copy(update={"message": f"{said}\n\n{fallback.message}"})
         fell_back = True
         logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s); the move's "
                        "reply is written in code", phase, ", ".join(unsourced[:5]))

@@ -2461,6 +2461,39 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     r = _askd(env, message="Next, please.")
     assert r["move"] != "respond" and CALCULATION_FALLBACK not in r["answer"] and "12.5" not in r["answer"], r
 
+    # In the catalogue (A99, the benefits analysis has its calculation in code): never "no calculation" —
+    # what it still needs, or, once it has run, its own labelled figures.
+    from backend.core.prompts import CALCULATION_NEEDS
+    from backend.knowledge.computation import calculate_expected_savings
+    from backend.phases.calculations import ASKED
+    env.holder["saver"]._container.blobs.clear()                 # a fresh conversation at the element
+    env.restart()
+    _at_element(env, "benefits_analysis")
+    env.case.phases["define"].structured.pop("computation_results", None)
+    stub_planner.judgment = None
+    _coach_saying(monkeypatch, "Here is what the benefits analysis is.")
+    _askd(env, message="Next, please.")                            # the element taught and asked first
+    stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks how to calculate")
+    _coach_saying(monkeypatch, "Multiply 1,800 late calls by £15: the gap costs about £27,000 a year.")
+    r = _askd(env, message="Before I answer: how do I calculate the cost of the gap for this project?")
+    needs = CALCULATION_NEEDS.format(needs=" and ".join((ASKED["unit_cost"], ASKED["annual_volume"])))
+    assert r["answer"].startswith(needs) and "27,000" not in r["answer"], r["answer"]
+    assert CALCULATION_FALLBACK not in r["answer"], "a catalogue calculation was called missing"
+    row = {"tool": "calculate_expected_savings", "inputs": {}, "turn": 1, "phase": "define",
+           "result": calculate_expected_savings.invoke({"baseline_value": "38%", "target_value": "10%",
+                                                        "unit_cost": "€45", "annual_volume": "1200"})}
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "benefits_analysis")
+    env.case.phases["define"].structured["computation_results"] = [row]
+    stub_planner.judgment = None
+    _coach_saying(monkeypatch, "Here is what the benefits analysis is.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks how to calculate")
+    _coach_saying(monkeypatch, "Multiply 1,800 late calls by £15: the gap costs about £27,000 a year.")
+    r = _askd(env, message="How do I calculate the cost of the gap?")
+    assert r["answer"].startswith("Cost of the gap today (at the baseline): €20,520 a year"), r["answer"]
+
 
 def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, monkeypatch) -> None:
     """G-176 (live run 152256, turn 31: GET /cases answered 500), through POST /ask and GET /cases with the

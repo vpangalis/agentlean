@@ -1,0 +1,32 @@
+{
+ "run": "20261016T162608",
+ "cases": [
+  {
+   "id": "A99-benefits",
+   "element": "benefits_analysis",
+   "question": "Before I answer: how do I calculate the cost of the gap for this project?",
+   "http": 200,
+   "earlier_coach_turn": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirtee",
+   "opens_with_welcome": false,
+   "verdict": "not_an_answer",
+   "move": "respond",
+   "answer": "To calculate the cost of the gap for this project, you need to quantify what the problem is costing today. This is based on your baseline data and the impact of the problem. Here's how you do it:\n\n1. **Start with the baseline**: Use the confirmed late payment rate of 23% from January to June 2026.\n2. **Estimate the financial impact of one defect**: Determine the cost of paying an invoice late — this includes late-payment interest and lost early-payment discounts. For this project, confirmed data shows that late payments cost your team £62,000 last year.\n3. **Annual volume**: Consider how many invoices are processed annually across your three hospital sites. If you don't have this figure, estimate it based on your team's workload.\n\nOnce you have these three pieces of information, the cost of the gap can be calculated as:\n\n**Cost of the gap = Baseline late payment rate × Annual invoice volume × Cost per late payment**\n\nThis gives you an estimate of what the problem costs today. If you'd like, I can help run the calculation using the numbers you provide.",
+   "prompt": "What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When would it start to show, period by period? Who in finance will validate it?",
+   "asks_again": true,
+   "repeats_only_the_ask": false,
+   "stored_nothing": true,
+   "rejected_numbers": null
+  }
+ ],
+ "model_calls": 6,
+ "cost": {
+  "usd": 0.0466,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0456,
+   "gpt-4o-mini-2024-07-18": 0.001
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ }
+}
