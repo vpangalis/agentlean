@@ -359,7 +359,7 @@ told who is working on it.
 **W16 Connection status** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
 Before the first message the screen shows whether the service is reachable and ready.
 
-**W17 The sign-in window explains itself** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
+**W17 The sign-in window explains itself** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0091
 When someone opens a case, the sign-in window says what it is, who may enter, and what to do if they
 cannot. It names the project lead. Example wording:
 
@@ -410,10 +410,20 @@ sent to their e-mail or handed over in person by the project lead). *Amendment (
 pilot):* a code is single-use and expires after 72 hours; each sign-in records who and when. E-mail
 delivery comes later, as an adapter for the customer's mail system.
 
-**R8b The project lead** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
+**R8b The project lead** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-17 · MoSCoW: Must · Design: ADR-0090
 The person who creates a case is its project lead. Only the project lead adds or removes team members
 and assigns their roles. The lead is shown on the create form ("You will be the project lead"), in the
 workspace header, in the case list and in the sign-in window (W17).
+
+*Amendment ACCEPTED 2026-10-17 (founder ruling 2026-10-15, accepted with ADR-0090's rulings a–b) — the people on a
+case (Design: ADR-0090):* until single sign-on (R8) supplies it, every person on the case — the project lead and
+each member — is entered with full name and role on the project (required), company e-mail (required before the
+person signs in, not at case creation), function or job title and department (optional), and location: country and site from W20's lists (required; defaults to the case's). The lead's
+details replace "You" in the form, header, case list, sign-in window (W17), Define report section A and the
+"who" of audit entries (R16); the team table in section A shows each member's role, department and site.
+A new person named in Define element 2 is stored as a proposed member; element 2 can still be confirmed; the
+lead confirms proposed members in the team panel, and a proposed member cannot sign in until confirmed with an
+e-mail. With single sign-on, name, e-mail, function and department come from the identity provider.
 
 **R8c Handing over the lead** · ACCEPTED 2026-09-27 · open decision 2 · MoSCoW: Should · Design: none
 The project lead can hand the role to another team member; the handover is recorded in the audit
