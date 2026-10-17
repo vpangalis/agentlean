@@ -2044,7 +2044,7 @@
      "G-108"
     ],
     "code": [
-     "agent-improve/backend/escalate.py",
+     "agent-improve/backend/phases/nodes_common.py::validation_stack",
      "agent-improve/backend/gateway/routes.py::submit_gate"
     ],
     "guidance": []

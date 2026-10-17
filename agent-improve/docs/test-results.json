@@ -1,9 +1,9 @@
 {
- "source_hash": "14e94f15a9f2803f",
- "commit": "d931846",
+ "source_hash": "78eae6e0f374d0af",
+ "commit": "ff34249",
  "commit_matches_source": false,
- "full_run_hash": "14e94f15a9f2803f",
- "recorded_at": "2026-10-17T12:50:37+00:00",
+ "full_run_hash": "78eae6e0f374d0af",
+ "recorded_at": "2026-10-17T13:03:57+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1788,8 +1788,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "78cb0b65b3c2143d",
-  "recorded_at": "2026-10-17T12:38:56+00:00",
+  "source_hash": "14e94f15a9f2803f",
+  "recorded_at": "2026-10-17T12:50:37+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2890,6 +2890,7 @@
    "backend/tests/test_gate_acceptance.py::test_a_rejection_names_an_element_and_a_reason": "passed",
    "backend/tests/test_gate_acceptance.py::test_a_rejection_reopens_the_named_elements_and_the_coach_guides_back": "passed",
    "backend/tests/test_gate_acceptance.py::test_a_validated_define_report_pauses_and_nothing_is_written": "passed",
+   "backend/tests/test_gate_acceptance.py::test_g232_the_run_records_time_every_storage_call": "passed",
    "backend/tests/test_gate_acceptance.py::test_pending_writes_round_trip_and_the_special_channels_overwrite": "passed",
    "backend/tests/test_gate_acceptance.py::test_the_complete_fixture_passes_the_gate_list": "passed",
    "backend/tests/test_gate_acceptance.py::test_the_pause_survives_a_restart_and_an_approval_writes_once": "passed",

@@ -42,6 +42,7 @@ ABSENT_BY_DESIGN: dict[str, str] = {
     "SkillsMiddleware": "deepagents, banned while pre-1.0 (4.4)",
     "compress_messages": "a banned custom compression function (8.4)",
     "calculate_sample_size": "the banned parameterised-tool form (5.2)",
+    "_reflect": "the banned private reflection function (3.4); its last copy went with the v1 orchestrate.py (2026-10-17)",
     "PostgresSaver": "a later stage's checkpointer, not installed",
     "PostgresStore": "a later stage's store, not installed",
     "ContextHubBackend": "deferred (8.3)",

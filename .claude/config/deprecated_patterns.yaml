@@ -96,7 +96,6 @@ patterns:
       # on create_agent does not apply (§32, §33, §37, §42, §48, §68).
       - 'agent-improve/*.md'
       - 'agent-improve/**/*.md'
-      - 'agent-improve/backend/phases/**/orchestrate.py'
       - 'agent-improve/backend/phases/**/validate.py'
       # ── The §4.6 scoping, added 2026-09-03 (procedure step 5.2) ─────────
       #
@@ -180,7 +179,6 @@ patterns:
       # Governance documentation — see header.
       - 'agent-improve/*.md'
       - 'agent-improve/**/*.md'
-      - 'agent-improve/backend/phases/**/orchestrate.py'
 
   - id: pattern-8-bind-tools-in-phase-executor
     regex: 'llm\.bind_tools\s*\('
@@ -191,7 +189,6 @@ patterns:
       # Governance documentation — see header.
       - 'agent-improve/*.md'
       - 'agent-improve/**/*.md'
-      - 'agent-improve/backend/phases/**/orchestrate.py'
 
   # ── Anti-reinvention patterns (added 2026-08-31, CLAUDE.md §0.24) ──────
   #

@@ -4,44 +4,6 @@ No prompt strings anywhere else in the codebase.
 """
 
 # ─────────────────────────────────────────────────────────────────
-# ORCHESTRATOR SYSTEM PROMPT — base, loaded for every phase
-# ─────────────────────────────────────────────────────────────────
-
-ORCHESTRATOR_SYSTEM_BASE = """You are an AI improvement guide helping a team \
-run a structured improvement project. Your job is to guide the team through \
-each phase of the project one step at a time, in plain language.
-
-CRITICAL RULES — never break these:
-- Never use technical methodology terms with the team: no "X variable", \
-"Y variable", "MSA", "Gage R&R", "Cpk", "stratification", "FMEA", \
-"hypothesis test", "null hypothesis", or any Six Sigma jargon
-- Always use plain language: "the thing you are measuring", \
-"factors that might be causing it", "checking your measurement tool is reliable"
-- Ask exactly ONE question per response — never two
-- Always explain WHY before asking for something
-- When the team gives data or a file, acknowledge what you received \
-before moving on
-- Address team members by name when you know it
-- When you use information from past cases or a knowledge source, \
-always say so explicitly with the source name
-- When you have results from the team's uploaded documents \
-(source: evidence), always cite them explicitly: \
-"Based on the process diagram your team uploaded..." or \
-"Your uploaded document shows..."
-- Never mix methodology knowledge citations with evidence citations. \
-Methodology comes from the knowledge base. Evidence comes from \
-what this team specifically uploaded. Keep these distinct.
-- Never assume the industry — the team works in {department} on {title}. \
-Use their context, not generic examples
-- If a team member seems confused, explain differently — never repeat \
-the same question in the same words
-- If a team member asks about a tool or methodology (e.g. "what is 5W2H",
-  "how does a fishbone work"), answer briefly in 2-3 plain sentences then
-  return to the current step — do NOT refuse or redirect back to the task
-- Keep responses concise — 3-5 sentences maximum per turn
-"""
-
-# ─────────────────────────────────────────────────────────────────
 # PHASE ORCHESTRATOR PROMPTS — one per phase, appended to base
 # ─────────────────────────────────────────────────────────────────
 
@@ -469,53 +431,6 @@ GATE STANDARD:
   team to maintain the improvement.
 """
 
-# ─────────────────────────────────────────────────────────────────
-# SIPOC PROMPTS — used by orchestrate_define to seed and announce
-# the SIPOC work product once the problem statement is complete
-# ─────────────────────────────────────────────────────────────────
-
-SIPOC_DRAFT_PROMPT = """You are helping a team map their process
-using a SIPOC diagram. Based on the problem context below, generate
-a plausible draft SIPOC as a JSON object.
-
-A SIPOC has exactly five keys:
-- suppliers: list of 2-4 people, teams, or systems that provide
-  inputs to the process
-- inputs: list of 2-4 things that enter the process (data, materials,
-  requests, information)
-- process_steps: list of 4-6 high-level steps the process follows,
-  written as verb phrases (e.g. "Receive customer call")
-- outputs: list of 2-3 things the process produces
-- customers: list of 1-3 people or teams who receive the outputs
-
-Problem context:
-- What: {what}
-- Where: {where}
-- Who affected: {who_affected}
-- Process owner: {process_owner}
-- Department: {department}
-
-Return ONLY a JSON object with exactly these five keys.
-Each value is a list of short strings (5 words max per item).
-No explanation. No markdown. No extra keys.
-"""
-
-SIPOC_TRANSITION_MESSAGE = """The team has just confirmed their
-problem statement. Write a short transition message (3-4 sentences)
-that:
-1. Acknowledges the problem is well framed
-2. Introduces the SIPOC diagram — explain in plain language what
-   it is (a map of the process from end to end showing who supplies
-   it, what goes in, the main steps, what comes out, and who
-   receives it) and why it matters at this stage
-3. Tells the team what they will do next — work through the five
-   columns together
-
-Plain language only. No jargon. No bullet points. No questions —
-this is a transition announcement, not a question.
-Maximum 4 sentences.
-"""
-
 # ─────────────────────────────────────────────
 # MEASURE PHASE PROMPTS
 # ─────────────────────────────────────────────
@@ -686,35 +601,6 @@ Conversation:
 Return JSON only. No explanation. No markdown.
 """
 
-
-MEASURE_GATE_FIELDS = [
-    "primary_metric_confirmed",
-    "secondary_metric_confirmed",
-    "data_collection_plan",
-    "msa_required",
-    "baseline_period",
-    "baseline_sample_size",
-    "baseline_mean",
-    "baseline_variation",
-    "baseline_summary",
-    "capability_method",
-    "current_sigma_level",
-    "capability_summary",
-]
-
-STATE_SUMMARY_TEMPLATE = """
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CURRENT PROJECT STATE — READ THIS FIRST
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-The following fields have already been captured and
-confirmed. Do NOT ask about these again. Pick up
-exactly where the team left off.
-
-{state_summary}
-
-NEXT ACTION: {next_action}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
 
 # ─────────────────────────────────────────────────────────────────
 # EXTRACTION PROMPTS — convert conversation to structured phase_inputs
@@ -1033,55 +919,6 @@ Conversation:
 """
 
 # ─────────────────────────────────────────────────────────────────
-# REFLECTION PROMPT — called by _reflect() in every orchestrate node
-# Checks the proposed Orchestrator response before it reaches the team
-# ─────────────────────────────────────────────────────────────────
-
-REFLECTION_CHECK = """Review the AI response below and check it against \
-these rules. Return a JSON object only.
-
-Rules to check:
-1. plain_language: no jargon (X variable, Y variable, MSA, Cpk, Gage R&R, \
-   stratification, FMEA, hypothesis, null hypothesis, Six Sigma)
-2. single_question: contains exactly one question (not zero, not two)
-3. explains_why: if asking for data or action, explains why first
-4. cites_sources: if information came from past cases or knowledge base, \
-   source is mentioned explicitly
-5. appropriate_length: 3-5 sentences maximum
-
-Response to review:
-{response}
-
-Return:
-{{
-  "passes": true/false,
-  "issues": ["list of specific issues found, empty if passes"],
-  "revised_response": "corrected response if passes=false, else null"
-}}
-
-Return JSON only. No explanation. No markdown.
-"""
-
-# ─────────────────────────────────────────────────────────────────
-# ESCALATION PROMPT — generates escalation report
-# ─────────────────────────────────────────────────────────────────
-
-ESCALATION_REPORT = """The team has attempted the {phase} phase gate \
-{attempts} times without passing. Generate a plain language escalation \
-summary for the team leader.
-
-Missing fields: {missing_fields}
-Last team submission summary: {last_submission}
-
-Write 3-5 sentences explaining:
-1. What phase is stuck and for how long
-2. Exactly what information is still missing
-3. What the team leader should do next
-
-Plain language only. No jargon. Address the team leader directly.
-"""
-
-# ─────────────────────────────────────────────────────────────────
 # VISION EXTRACTION PROMPT — used by Upload Intelligence agent to
 # extract text and structure from uploaded images (process maps,
 # SIPOC diagrams, flipcharts, whiteboard sketches, etc.)
@@ -1278,8 +1115,9 @@ Question: {query}"""
 # anti-hallucination guards MANDATORY on every coach prompt, so a placeholder
 # would have violated a constitutional rule rather than deferring one.
 #
-# **The v1 constants above are untouched.** Route A: `orchestrate.py` and
-# `EXTRACTION_{PHASE}` keep working until they are deleted at 11.1.
+# **The v1 orchestrators are gone** (founder ruling 2026-10-17, step 11.1 brought forward): the five
+# `orchestrate.py` and their prompts were deleted. `ORCHESTRATOR_{PHASE}_CONTEXT`, `EXTRACTION_{PHASE}` and
+# their two maps above are now read by nothing; their deletion is put to the founder.
 # ══════════════════════════════════════════════════════════════════════════
 
 #: CLAUDE.md §6.3 — verbatim, and mandatory on every coach prompt. Prompt-level
