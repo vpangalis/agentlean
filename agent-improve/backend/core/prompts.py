@@ -1737,6 +1737,9 @@ CALCULATION_FALLBACK = ("I can't give you that figure: the platform has no calcu
 #: not all given yet: what it needs, in code.
 CALCULATION_NEEDS = ("The platform works this figure out for you, in code — I don't work figures out myself. It "
                      "needs {needs}; tell me those and you'll see the figure with how it was calculated.")
+#: G-173, founder ruling 2026-10-17 (item 2) — the coach's reply kept without its sentences holding figures no
+#: source gives: one line, in code, saying they were left out.
+NUMBERS_LEFT_OUT = "I left out figures the platform did not calculate."
 
 #: G-226 — two labelled figures, never one for the other: what the problem costs today, and what reaching
 #: the target removes; money with its currency and thousands separators.

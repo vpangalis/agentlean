@@ -2390,12 +2390,16 @@ def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeyp
     assert "UK invoice generation" in body["example"] and "out of scope" in body["prompt"]
 
 
-def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch) -> None:
+def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch, caplog) -> None:
     """G-173 (founder ruling A4, 2026-10-13; ADR-0077; rows 132229#27, 134606#26, 140839#26), through
     POST /ask with the real create_agent: a reply holding a number that neither the Belt, the case, a
-    computation result nor the script gives (a cost the coach worked out) is rejected — the Belt gets the
-    move's reply written in code and step_log names the number; a reply that repeats the Belt's own
-    figure is kept."""
+    computation result nor the script gives (a cost the coach worked out) never shows it. Founder ruling
+    2026-10-17 (item 2): only the sentences holding such a number are left out, the rest is kept, and one
+    line written in code says so — no dangling list, no lead-in left over, no half sentence; when too little
+    remains the Belt gets the move's reply written in code, and the log names G-173 as the cause. step_log
+    names the number either way; a reply that repeats the Belt's own figure is kept whole."""
+    import logging
+
     from langchain_core.messages import AIMessage
 
     from backend.phases import nodes_common
@@ -2419,22 +2423,83 @@ def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch) -> 
             messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else planner(role, **kw))
         env.case.phases["define"].structured = {}
         env.case.phases["define"].field_status = {}
+        env.holder["saver"]._container.blobs.clear()             # each turn, a fresh conversation
+        env.restart()
         steps.clear()
         r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
                                           "message": "Late payments cost us about £62,000 a year."})
         assert r.status_code == 200, r.text
         return r.json()["answer"]
 
+    from backend.core.prompts import NUMBERS_LEFT_OUT
+
+    # Too little remains (one sentence, the figure in it): the move's reply, written in code.
+    caplog.set_level(logging.INFO, logger="backend.phases.nodes_common")
     said = turn("So the cost of the gap is about £68,040 a year — that is worth a project.")
-    assert "68,040" not in said, said
+    assert "68,040" not in said and NUMBERS_LEFT_OUT not in said, said
     hit = [e for e in steps if isinstance(e, dict) and e.get("unsourced_numbers")]
     assert hit and hit[-1]["unsourced_numbers"] == ["68,040"], [e.get("unsourced_numbers") for e in steps if isinstance(e, dict)]
     # Founder ruling 2026-10-13 (A-package review, item 2): the rejected reply's own words are kept.
     assert "about £68,040 a year" in hit[-1]["rejected_reply"]["message"], hit[-1].get("rejected_reply")
+    defect = [r.getMessage() for r in caplog.records if "DEFECT — the coach did not finish" in r.getMessage()]
+    assert defect and "a number no source gives (G-173)" in defect[-1], defect
+    assert "runaway loop backstop" not in defect[-1], "the log named the wrong cause"
     from backend.core.prompts import ANTI_HALLUCINATION
     assert "Write no number the Belt, the case or a computation did not give" in ANTI_HALLUCINATION
+
+    # Enough remains: the figures' sentences are left out, the rest kept, and one line says so.
+    caplog.clear()
+    said = turn("A business case says why the project is worth doing for the organisation.\n\n"
+                "Here is the arithmetic:\n\n"
+                "- 23% of 42,000 invoices is 9,660 late payments.\n"
+                "- At £9 each that is about £86,940 a year.\n\n"
+                "Your figure of £62,000 a year already makes the case. "
+                "With interest the cost is about £68,040 a year.\n\n"
+                "What else does the delay cost the business?")
+    for gone in ("86,940", "9,660", "68,040", "With interest", "Here is the arithmetic", "- "):
+        assert gone not in said, (gone, said)
+    kept = ("A business case says why the project is worth doing for the organisation.",
+            "Your figure of £62,000 a year already makes the case.", NUMBERS_LEFT_OUT,
+            "What else does the delay cost the business?")
+    assert all(k in said for k in kept), said
+    assert [said.index(k) for k in kept] == sorted(said.index(k) for k in kept), said   # the line before the question
+    assert said.count(NUMBERS_LEFT_OUT) == 1 and "\n\n\n" not in said, said
+    hit = [e for e in steps if isinstance(e, dict) and e.get("unsourced_numbers")]
+    assert hit and set(hit[-1]["unsourced_numbers"]) >= {"86,940", "68,040"}, hit[-1:]
+    assert "With interest the cost is about £68,040 a year." in hit[-1]["numbers_left_out"], hit[-1]
+    assert "Here is the arithmetic:" in hit[-1]["numbers_left_out"], "the lead-in of the emptied list"
+    assert not hit[-1]["fallback_used"], "a kept reply is the coach's, not code's"
+    assert not [r for r in caplog.records if "DEFECT — the coach did not finish" in r.getMessage()]
+
     said = turn("£62,000 a year is a cost worth a project.")
-    assert said.startswith("£62,000 a year"), said
+    assert said.startswith("£62,000 a year") and NUMBERS_LEFT_OUT not in said, said
+
+
+def test_g173_a_trimmed_block_never_leaves_a_dangling_list_or_half_a_sentence() -> None:
+    """G-173, founder ruling 2026-10-17 (item 2) — the trim itself: a sentence goes whole or not at all; a
+    list item left empty goes with its marker, a numbered list renumbers nothing it should not, a lead-in or
+    heading over an emptied list goes, a list with an item left keeps its lead-in; and too little left (or the
+    question block emptied) is None — the move's reply is written in code."""
+    from backend.core.substate import CoachingResponse
+    from backend.phases.nodes_common import _trim_block, _without_unsourced
+
+    sources = {62000.0, 62.0}
+    text = ("**The cost**\n1. Late fees are 4,100 a month.\n2. Interest adds 1,250.\n\n"
+            "Two parts make it up:\n- Fees, which you named. They are 62,000 in all.\n- Interest of 1,250.\n\n"
+            "Mr. Lee said 62,000. That is 5.1% more than last year!")
+    kept, went = _trim_block(text, sources)
+    assert kept == ("Two parts make it up:\n- Fees, which you named. They are 62,000 in all.\n\n"
+                    "Mr. Lee said 62,000."), kept
+    assert "**The cost**" in went and "Interest of 1,250." in went and "That is 5.1% more than last year!" in went
+    whole = CoachingResponse(message="Your 62,000 a year makes a strong case for the organisation. It grows by 7% "
+                             "a year.\n\nWhat else does it cost?", prompt="What else does it cost?")
+    out, _ = _without_unsourced(whole, sources)
+    assert out is not None and "7%" not in out.message and out.message.endswith("What else does it cost?"), out
+    little = CoachingResponse(message="That is 7% more. Fine.", prompt="")
+    assert _without_unsourced(little, sources)[0] is None
+    asked = CoachingResponse(message="Your 62,000 a year makes a strong case for the organisation, as it stands.",
+                             prompt="Is 7% the rate?")
+    assert _without_unsourced(asked, sources)[0] is None, "the question block emptied: the code reply"
 
 
 def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_sentence(

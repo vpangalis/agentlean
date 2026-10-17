@@ -2174,6 +2174,74 @@ def _unsourced_numbers(reply: CoachingResponse, sources: set[float]) -> list[str
     return [spelled for spelled, vals in _number_values(text) if not vals & sources]
 
 
+#: G-173, founder ruling 2026-10-17 (item 2) — a list item's marker; the space between two sentences; a line
+#: that introduces what follows it (a lead-in ending in a colon, a heading, a bold label).
+_LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
+_SENTENCE_GAP = re.compile(r"(?<=[.!?])[\"”’)]*\s+(?=[\"“‘(]?[A-Z0-9£€$])")
+_INTRODUCES = re.compile(r":\s*$|^\s*#{1,6}\s|^\s*\*\*[^*]+\*\*:?\s*$")
+
+
+def _trim_block(text: str, sources: set[float]) -> tuple[str, list[str]]:
+    """G-173 — `text` without its sentences holding a number no source gives. A list item left with no
+    sentence goes whole, and so does a lead-in or heading whose lines underneath all went — never a
+    dangling list or half a sentence. Returns the text kept and the sentences left out."""
+    removed: list[str] = []
+    lines: list[Optional[str]] = []                       # None: a line that went whole
+    for line in (text or "").split("\n"):
+        marker = _LIST_MARKER.match(line)
+        prefix = marker.group(0) if marker else ""
+        sentences = [s for s in _SENTENCE_GAP.split(line[len(prefix):]) if s.strip()]
+        kept = [s for s in sentences if all(vals & sources for _, vals in _number_values(s))]
+        if len(kept) == len(sentences):
+            lines.append(line)
+            continue
+        removed += [s.strip() for s in sentences if s not in kept]
+        lines.append(prefix + " ".join(s.strip() for s in kept) if kept else None)
+    out: list[str] = []
+    for i, left in enumerate(lines):
+        if left is None:
+            continue
+        if left.strip() and _INTRODUCES.search(left):
+            j = i + 1
+            while j < len(lines) and lines[j] is not None and not str(lines[j]).strip():
+                j += 1                                    # the blank lines after a lead-in
+            block = []
+            while j < len(lines) and (lines[j] is None or str(lines[j]).strip()):
+                block.append(lines[j])
+                j += 1
+            if block and all(b is None for b in block):
+                removed.append(left.strip())
+                continue
+        out.append(left)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip(), removed
+
+
+def _without_unsourced(reply: CoachingResponse, sources: set[float]) -> tuple[Optional[CoachingResponse], list[str]]:
+    """G-173, founder ruling 2026-10-17 (item 2): the coach's reply with only its sentences holding a number
+    no source gives left out, every block, and one line in code saying so (before the closing question).
+    None when too little remains — fewer than eight words or no whole sentence in the message, or the
+    question block emptied — and the move's reply is written in code instead."""
+    update: dict[str, str] = {}
+    removed: list[str] = []
+    for key in ("message", "explanation", "example", "prompt"):
+        text = str(getattr(reply, key, "") or "")
+        kept, went = _trim_block(text, sources)
+        if went:
+            update[key], removed = kept, removed + went
+    from backend.core.prompts import NUMBERS_LEFT_OUT
+    message = update.get("message", str(reply.message or ""))
+    whole = re.search(r"[A-Za-z][^.!?]*[.!?]", message)
+    if (not whole or len(re.findall(r"[A-Za-z']+", message)) < 8
+            or (str(reply.prompt or "").strip() and "prompt" in update and not update["prompt"])):
+        return None, removed
+    paragraphs = message.split("\n\n")
+    if len(paragraphs) > 1 and paragraphs[-1].rstrip().endswith("?"):
+        message = "\n\n".join([*paragraphs[:-1], NUMBERS_LEFT_OUT, paragraphs[-1]])
+    else:
+        message = f"{message}\n\n{NUMBERS_LEFT_OUT}"
+    return reply.model_copy(update={**update, "message": message}), removed
+
+
 #: G-174 (founder ruling A5, 2026-10-13) — a part of a value that is not filled in: a bracketed
 #: placeholder, "TBD", "to be confirmed", or the coach's own note that a part still needs something.
 _PLACEHOLDER = re.compile(r"\[[^\]\n]{3,80}\]|\b(TBD|TBC|to be (confirmed|defined|determined|decided|agreed))\b|"
@@ -2648,16 +2716,30 @@ async def executor(
         produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
         result = {**result, "messages": produced, "structured_response": fallback}
     # G-173 (founder ruling A4, 2026-10-13; ADR-0077) — every number in the coach's words comes from the
-    # Belt, the case, a computation result or the script; a reply with any other number is rejected and
-    # the move's reply is written in code.
+    # Belt, the case, a computation result or the script. Founder ruling 2026-10-17 (item 2): a reply with
+    # any other number keeps everything but the sentences holding one, and says so in a line written in
+    # code; only when too little remains is the move's reply written in code.
     unsourced: list[str] = []
     rejected: Optional[dict[str, str]] = None     # G-173: the rejected reply's own words, for step_log
+    left_out: list[str] = []                      # G-173: the sentences left out of a kept reply
+    numbers_rejected = False                      # G-173: the reply was replaced, not trimmed
+    sources: set[float] = set()
     if written is None and not fell_back and isinstance(result.get("structured_response"), CoachingResponse):
-        unsourced = _unsourced_numbers(result["structured_response"],
-                                       _number_sources(phase, state, produced[len(history):]))
+        sources = _number_sources(phase, state, produced[len(history):])
+        unsourced = _unsourced_numbers(result["structured_response"], sources)
+    trimmed: Optional[CoachingResponse] = None
     if unsourced:
         sent = result["structured_response"]
         rejected = {k: str(getattr(sent, k, "") or "")[:1500] for k in ("message", "explanation", "example", "prompt")}
+        trimmed, left_out = _without_unsourced(sent, sources)
+    if trimmed is not None:
+        logger.warning("%s.executor: G-173 — the coach's reply held numbers no source gives (%s); the %d "
+                       "sentence(s) holding them were left out and the rest kept", phase,
+                       ", ".join(unsourced[:5]), len(left_out))
+        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
+        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=trimmed.message)]
+        result = {**result, "messages": produced, "structured_response": trimmed}
+    elif unsourced:
         fallback = _fallback_reply(phase, plan)
         if plan is not None and plan.move == moves.RESPOND:
             # Founder ruling 2026-10-16 (2b): the Belt's question asked for a figure no calculation in code
@@ -2672,9 +2754,10 @@ async def executor(
                     or (CALCULATION_NEEDS.format(needs=" and ".join(needs.values())) if needs else "")
                     or CALCULATION_FALLBACK)
             fallback = fallback.model_copy(update={"message": f"{said}\n\n{fallback.message}"})
-        fell_back = True
-        logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s); the move's "
-                       "reply is written in code", phase, ", ".join(unsourced[:5]))
+        fell_back = numbers_rejected = True
+        logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s) and too "
+                       "little remains without them; the move's reply is written in code", phase,
+                       ", ".join(unsourced[:5]))
         ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
         produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
         result = {**result, "messages": produced, "structured_response": fallback}
@@ -3144,7 +3227,9 @@ async def executor(
             "%s.executor: DEFECT — the coach did not finish its %s move (%s); the "
             "reply was written by code (containment, not a fix).",
             phase, move, "timeout" if timed_out else "content filter" if filtered else level_4 if level_4 else
-            "call limit" if limited else "no structured reply" if unfinished else "runaway loop backstop")
+            "call limit" if limited else "no structured reply" if unfinished else
+            # G-173: a rejected reply named its own cause — it fell to "runaway loop backstop" before.
+            "a number no source gives (G-173)" if numbers_rejected else "runaway loop backstop")
         if record is not None:
             record["fallback"] = True
             if limit_diagnosis is not None:
@@ -3197,6 +3282,7 @@ async def executor(
             model_attempts=attempts or None,                     # T34 / ADR-0082 (§4.8)
             unsourced_numbers=unsourced or None,                 # G-173 (ADR-0077)
             rejected_reply=rejected,                             # G-173: what the coach wrote
+            numbers_left_out=left_out or None,                   # G-173: the sentences a kept reply lost
             fallback_used=fell_back,
             limit=limit_diagnosis,                                 # G-139
             resend=resend,                                         # G-140
