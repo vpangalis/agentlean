@@ -67,7 +67,6 @@ All other files contain module-level functions ONLY. Especially:
 - Retriever (`knowledge/retriever.py`)
 - Tool definitions (`knowledge/tools.py`, `knowledge/computation.py`)
 - Boundary mappers (`phases/{phase}/mappers.py`)
-- Escalation (`escalate.py`)
 - Routes (`gateway/routes.py`)
 
 **`DMAICGateValidator` is the one permitted exception to "no classes

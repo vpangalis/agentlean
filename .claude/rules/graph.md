@@ -13,7 +13,7 @@ paths:
 
 - One supervisor graph in `core/graph.py`
 - One subgraph per phase in `phases/{phase}/graph.py`
-- One escalation subgraph in `escalate.py`
+- One escalation node at Level 1 (`core/graph.py::escalate_node`; escalation itself is §3.5)
 - The supervisor compiles all subgraphs into a hierarchical compiled graph
 - The compiled graph is the ONLY runtime path. `/ask`, `/ask/stream`,
   and `/gate/*` all invoke the same compiled graph object.
@@ -82,11 +82,12 @@ For **invisible** retry use the retry middleware, not a reflection node:
 
 ### 3.5 — Escalation lives and runs
 
-`escalate.py` defines the escalation subgraph. It is reachable via
-conditional edge when the validation stack exhausts its shared cap of
-3 attempts (§9.2), and via the `request_human_approval` tool.
+Escalation is ADR-0076: `validation_stack` counts failed gate submissions
+(an unchanged one is not counted) and marks the third escalated; the route
+tells the Belt in code (`routes.py::_escalated_to`) and marks the registry
+row (`blob.py::set_escalation`). The case stays open; no model writes it.
 
-`gate_attempts` lives in the checkpointed state (§10.1).
+`gate_attempts` and `gate_fingerprint` live in the checkpointed state (§10.1).
 
 ### 3.6 — Reliability primitives are native, not hand-written
 
