@@ -232,28 +232,46 @@ async def get_session_context(request: ContextRequest) -> ContextResponse:
     )
 
 
+#: ADR-0092 decision 2: a clash draws a new number up to this many times; one more is a readable error (W10).
+CASE_NUMBER_REDRAWS = 5
+CASE_NUMBER_EXHAUSTED = ("The case could not be created: no free case number was found. Nothing was saved — "
+                         "please try again.")
+
+
 @router.post("/cases", response_model=CaseCreateResponse)
 async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
-    """Create a new improvement case and register it."""
-    import uuid
+    """Create a new improvement case and register it.
+
+    ADR-0092 "Unique case numbers and a safe case list": the number is reserved by a create-only-if-absent
+    write and redrawn on a clash, up to five times; a sixth clash is a readable error (W10). The case list
+    is then updated by a conditional write. Existing case numbers never change (ruling a)."""
     from datetime import datetime, timezone
 
-    # Generate case ID: IMPR-YYYY-NNN
-    year = datetime.now(timezone.utc).year
-    short = str(uuid.uuid4())[:3].upper()
-    case_id = f"IMPR-{year}-{short}"
+    from backend.core.errors import CaseNumberTaken
+
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
-    case = CaseDocument.new(
-        case_id=case_id,
-        title=request.title,
-        belt_level=request.belt_level,
-        leader=request.leader,
-        department=request.department,
-        target_date=request.target_date,
-        team=request.team,
-    )
-    await blob.create_case(case)
+    year = datetime.now(timezone.utc).year
+    case = None
+    for _ in range(1 + CASE_NUMBER_REDRAWS):
+        case = CaseDocument.new(
+            case_id=blob.new_case_number(year),
+            title=request.title,
+            belt_level=request.belt_level,
+            leader=request.leader,
+            department=request.department,
+            target_date=request.target_date,
+            team=request.team,
+        )
+        try:
+            await blob.create_case(case)
+            break
+        except CaseNumberTaken:
+            logger.warning("create_case: number %s already taken — drawing another (ADR-0092)", case.case_id)
+            case = None
+    if case is None:
+        raise HTTPException(503, CASE_NUMBER_EXHAUSTED)
+    case_id = case.case_id
     await blob.register_case(case)
     # WATCH 19's writer, at the site the watch names (step 6.8). §9: the Store's
     # `case` namespace is a session-start COPY so that boundary mappers depend

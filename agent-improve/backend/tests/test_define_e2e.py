@@ -22,6 +22,31 @@ def _not_written(fid: str) -> None:
     pytest.fail(f"{fid}: not written yet — the lane that takes this feature writes it")
 
 
+def _tagged(monkeypatch, blobs: dict) -> None:
+    """ADR-0092 — an in-memory `blobs` dict's tagged read and conditional write, as blob.py's helpers do
+    them: the ETag is the content's, so any write changes it."""
+    import hashlib
+
+    from azure.core.exceptions import ResourceModifiedError, ResourceNotFoundError
+
+    from backend.storage import blob
+
+    def tag(text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+    async def download_tagged(path):
+        if path not in blobs:
+            raise ResourceNotFoundError("missing")
+        return blobs[path], tag(blobs[path])
+
+    async def upload_conditional(path, data, etag):
+        if path not in blobs or tag(blobs[path]) != etag:
+            raise ResourceModifiedError("changed")
+        blobs[path] = data
+    monkeypatch.setattr(blob, "_download_tagged", download_tagged)
+    monkeypatch.setattr(blob, "_upload_conditional", upload_conditional)
+
+
 def test_a_new_case_opens_in_define(monkeypatch) -> None:
     """DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the
     case list shows it, and GET /cases/{id} opens it with current_phase 'define'. The real routes,
@@ -42,7 +67,8 @@ def test_a_new_case_opens_in_define(monkeypatch) -> None:
 
     async def upload(path, data, overwrite=True):
         if not overwrite and path in blobs:
-            raise ValueError(f"{path} exists")
+            from azure.core.exceptions import ResourceExistsError
+            raise ResourceExistsError(f"{path} exists")
         blobs[path] = data.decode() if isinstance(data, bytes) else data
 
     async def download(path):
@@ -50,13 +76,10 @@ def test_a_new_case_opens_in_define(monkeypatch) -> None:
             raise ResourceNotFoundError("missing")
         return blobs[path]
 
-    async def exists(path):
-        return path in blobs
-
     monkeypatch.setattr(blob, "storage_configured", lambda: True)
     monkeypatch.setattr(blob, "_upload", upload)
     monkeypatch.setattr(blob, "_download", download)
-    monkeypatch.setattr(blob, "_exists", exists)
+    _tagged(monkeypatch, blobs)                          # ADR-0092
     saver, store = InMemorySaver(), InMemoryStore()
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
@@ -72,7 +95,7 @@ def test_a_new_case_opens_in_define(monkeypatch) -> None:
                                         "target_date": "2027-03-31", "team": []})
         assert r.status_code == 200, r.text
         case_id = r.json()["case_id"]
-        assert re.fullmatch(r"IMPR-\d{4}-[0-9A-F]{3}", case_id), case_id
+        assert re.fullmatch(r"IMPR-\d{4}-[A-HJ-NP-Z2-9]{6}", case_id), case_id   # ADR-0092 decision 1
         listed = client.get("/registry")
         assert listed.status_code == 200, listed.text
         assert [e for e in listed.json() if e["case_id"] == case_id and e["current_phase"] == "define"]
@@ -446,7 +469,8 @@ initCreate();const before=document.getElementById('new-case-id').textContent;
 
     async def upload(path, data, overwrite=True):
         if not overwrite and path in blobs:
-            raise ValueError(f"{path} exists")
+            from azure.core.exceptions import ResourceExistsError
+            raise ResourceExistsError(f"{path} exists")
         blobs[path] = data.decode() if isinstance(data, bytes) else data
 
     async def download(path):
@@ -454,13 +478,10 @@ initCreate();const before=document.getElementById('new-case-id').textContent;
             raise ResourceNotFoundError("missing")
         return blobs[path]
 
-    async def exists(path):
-        return path in blobs
-
     monkeypatch.setattr(blob, "storage_configured", lambda: True)
     monkeypatch.setattr(blob, "_upload", upload)
     monkeypatch.setattr(blob, "_download", download)
-    monkeypatch.setattr(blob, "_exists", exists)
+    _tagged(monkeypatch, blobs)                          # ADR-0092
     saver, store = InMemorySaver(), InMemoryStore()
     monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
@@ -475,7 +496,7 @@ initCreate();const before=document.getElementById('new-case-id').textContent;
         assert r.status_code == 200, r.text
         answer = r.json()
         case_id = answer["case_id"]
-        assert re.fullmatch(r"IMPR-\d{4}-[0-9A-F]{3}", case_id), case_id
+        assert re.fullmatch(r"IMPR-\d{4}-[A-HJ-NP-Z2-9]{6}", case_id), case_id   # ADR-0092 decision 1
 
         # 3. The server's answer, back in the page: the id shown is the server's.
         import json
@@ -2007,6 +2028,7 @@ def test_t88_state_carries_a_schema_version_and_migrates(monkeypatch, stub_plann
     monkeypatch.setattr(blob, "storage_configured", lambda: True)
     monkeypatch.setattr(blob, "_upload", upload)
     monkeypatch.setattr(blob, "_download", download)
+    _tagged(monkeypatch, cases)                          # ADR-0092
     monkeypatch.setattr(routes, "_mirror_asks", lambda *a, **k: None)
     cid = "IMPR-TEST-T88"
     case = CaseDocument.new(case_id=cid, title="versions", belt_level="green", leader="Priya Shah",
@@ -5626,9 +5648,109 @@ def test_the_new_case_number_stays_until_the_lead_continues() -> None:
     _not_written('DEF-217')
 
 
-def test_case_numbers_are_unique_and_the_case_list_keeps_every_case() -> None:
-    """DEF-218 — Case numbers are unique under concurrent creation, and the case list keeps every case (G-219; founder test findings 7, 8)"""
-    _not_written('DEF-218')
+def test_case_numbers_are_unique_and_the_case_list_keeps_every_case(monkeypatch) -> None:
+    """DEF-218 — Case numbers are unique under concurrent creation, and the case list keeps every case (G-219; founder test findings 7, 8)
+    ADR-0092 "Unique case numbers and a safe case list", through POST /cases with the real route and blob functions
+    over an in-memory container that yields between every read and write, so creations interleave as they do on
+    Azure: twenty cases created at the same moment get twenty different numbers of the new form, and the case list
+    holds all twenty; a drawn number that is already a case is redrawn, never overwritten; six clashes in a row are
+    a readable error that writes nothing; a case with an old three-character number still opens (ruling a)."""
+    import asyncio
+    import hashlib
+    import re
+
+    import httpx
+    from azure.core.exceptions import ResourceExistsError, ResourceModifiedError, ResourceNotFoundError
+    from langgraph.store.memory import InMemoryStore
+
+    from backend.app import app
+    from backend.core import graph as graph_mod
+    from backend.gateway import routes
+    from backend.storage import blob
+    from backend.storage.models import CaseDocument
+
+    blobs: dict[str, str] = {}
+    conflicts: list[str] = []
+
+    def tag(text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+    async def upload(path, data, overwrite=True):
+        await asyncio.sleep(0)
+        if not overwrite and path in blobs:
+            conflicts.append(path)
+            raise ResourceExistsError(f"{path} exists")
+        blobs[path] = data.decode() if isinstance(data, bytes) else data
+
+    async def download(path):
+        await asyncio.sleep(0)
+        if path not in blobs:
+            raise ResourceNotFoundError("missing")
+        return blobs[path]
+
+    async def download_tagged(path):
+        text = await download(path)
+        return text, tag(text)
+
+    async def upload_conditional(path, data, etag):
+        await asyncio.sleep(0)
+        if path not in blobs or tag(blobs[path]) != etag:
+            conflicts.append(path)
+            raise ResourceModifiedError("changed")
+        blobs[path] = data
+
+    store = InMemoryStore()
+    monkeypatch.setattr(blob, "storage_configured", lambda: True)
+    for name, fake in (("_upload", upload), ("_download", download), ("_download_tagged", download_tagged),
+                       ("_upload_conditional", upload_conditional)):
+        monkeypatch.setattr(blob, name, fake)
+    monkeypatch.setattr(graph_mod, "get_store", lambda: store)
+    monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)
+    body = {"title": "Late supplier payments", "belt_level": "green", "leader": "Priya Shah",
+            "department": "Finance", "target_date": "2027-03-31", "team": []}
+
+    async def create_many(n: int) -> list:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as client:
+            return list(await asyncio.gather(*(client.post("/cases", json=body) for _ in range(n))))
+
+    async def one(path: str, method: str = "post") -> httpx.Response:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as client:
+            return await (client.post(path, json=body) if method == "post" else client.get(path))
+
+    # 1. Twenty at once: twenty numbers of the new form, all twenty in the list.
+    made = asyncio.run(create_many(20))
+    assert all(r.status_code == 200 for r in made), [r.text for r in made if r.status_code != 200]
+    ids = [r.json()["case_id"] for r in made]
+    assert len(set(ids)) == 20, ids
+    assert all(re.fullmatch(r"IMPR-\d{4}-[A-HJ-NP-Z2-9]{6}", i) for i in ids), ids
+    listed = {e["case_id"] for e in asyncio.run(one("/registry", "get")).json()}
+    assert set(ids) <= listed, sorted(set(ids) - listed)
+    assert any(c == blob.REGISTRY_BLOB_PATH for c in conflicts), "the creations never raced on the list"
+
+    # 2. A drawn number that is already a case is redrawn; the existing case is never overwritten.
+    taken = ids[0]
+    before = blobs[blob.case_path(taken)]
+    draws = iter([taken, taken, "IMPR-2026-FRESH2"])
+    monkeypatch.setattr(blob, "new_case_number", lambda year: next(draws))
+    r = asyncio.run(one("/cases"))
+    assert r.status_code == 200 and r.json()["case_id"] == "IMPR-2026-FRESH2", r.text
+    assert blobs[blob.case_path(taken)] == before, "an existing case was overwritten"
+
+    # 3. Six clashes in a row: a readable error, nothing new written, the list unchanged.
+    monkeypatch.setattr(blob, "new_case_number", lambda year: taken)
+    written, registry = set(blobs), blobs[blob.REGISTRY_BLOB_PATH]
+    r = asyncio.run(one("/cases"))
+    assert r.status_code == 503 and r.json()["detail"] == routes.CASE_NUMBER_EXHAUSTED, r.text
+    assert set(blobs) == written and blobs[blob.REGISTRY_BLOB_PATH] == registry
+    assert sum(1 for c in conflicts if c == blob.case_path(taken)) == 2 + 1 + routes.CASE_NUMBER_REDRAWS
+
+    # 4. Ruling a: an existing case keeps its three-character number and opens as before.
+    old = CaseDocument.new(case_id="IMPR-2026-E9D", title="An older case", belt_level="green",
+                           leader="Priya Shah", department="Finance", target_date="2027-03-31", team=[])
+    blobs[blob.case_path(old.case_id)] = old.model_dump_json()
+    opened = asyncio.run(one(f"/cases/{old.case_id}", "get"))
+    assert opened.status_code == 200 and opened.json()["case_id"] == "IMPR-2026-E9D", opened.text
 
 
 def test_checkpoint_weight_is_bounded() -> None:

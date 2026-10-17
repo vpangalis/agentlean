@@ -41,12 +41,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import secrets
 from contextlib import asynccontextmanager
 import logging
 from datetime import date, datetime, timezone
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Callable, Optional
 
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core import MatchConditions
+from azure.core.exceptions import ResourceExistsError, ResourceModifiedError, ResourceNotFoundError
 from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import (
     BlobServiceClient as AsyncBlobServiceClient,
@@ -54,6 +56,7 @@ from azure.storage.blob.aio import (
 )
 
 from backend.core.config import settings
+from backend.core.errors import CaseNumberTaken, RegistryChanged
 from backend.core.citations import CitationRecord, as_records
 from backend.core.substate import merge_field_log
 from backend.storage import layout
@@ -167,6 +170,19 @@ async def _upload(path: str, data: str | bytes, overwrite: bool = True) -> None:
     await _container().upload_blob(path, data, overwrite=overwrite)
 
 
+async def _download_tagged(path: str) -> tuple[str, str]:
+    """ADR-0092: a blob's text and the ETag it was read at."""
+    downloader = await _container().get_blob_client(path).download_blob()
+    raw = await downloader.readall()
+    return raw.decode("utf-8"), str(downloader.properties.etag)
+
+
+async def _upload_conditional(path: str, data: str, etag: str) -> None:
+    """ADR-0092: overwrite `path` only if it still has `etag` (`If-Match`); ResourceModifiedError otherwise."""
+    await _container().upload_blob(path, data, overwrite=True, etag=etag,
+                                   match_condition=MatchConditions.IfNotModified)
+
+
 async def _download(path: str) -> str:
     blob = _container().get_blob_client(path)
     downloader = await blob.download_blob()
@@ -186,14 +202,6 @@ async def download_bytes(path: str) -> bytes:
     blob = _container().get_blob_client(path)
     downloader = await blob.download_blob()
     return await downloader.readall()
-
-
-async def _exists(path: str) -> bool:
-    try:
-        await _container().get_blob_client(path).get_blob_properties()
-        return True
-    except ResourceNotFoundError:
-        return False
 
 
 # ── case CRUD ─────────────────────────────────────────────────────────────
@@ -277,12 +285,24 @@ async def save_case(case: CaseDocument) -> None:
     )
 
 
+#: ADR-0092 decision 1: a case number's suffix — 6 characters from letters and digits that cannot be misread
+#: (no 0/O, no 1/I): 32**6, about 10**9 numbers a year.
+CASE_NUMBER_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+CASE_NUMBER_LENGTH = 6
+
+
+def new_case_number(year: int) -> str:
+    """ADR-0092: `IMPR-<year>-` and a random 6-character suffix. Existing numbers never change (ruling a)."""
+    return f"IMPR-{year}-" + "".join(secrets.choice(CASE_NUMBER_ALPHABET) for _ in range(CASE_NUMBER_LENGTH))
+
+
 async def create_case(case: CaseDocument) -> None:
-    """Create new case — raises if already exists."""
-    path = case_path(case.case_id)
-    if await _exists(path):
-        raise ValueError(f"Case {case.case_id} already exists")
-    await _upload(path, case.model_dump_json(indent=2), overwrite=False)
+    """ADR-0092 decision 2: the number is reserved by writing the case only if no blob has that name
+    (Blob `If-None-Match: *`) — one write, no check-then-write window. `CaseNumberTaken` on a clash."""
+    try:
+        await _upload(case_path(case.case_id), case.model_dump_json(indent=2), overwrite=False)
+    except ResourceExistsError as e:
+        raise CaseNumberTaken(case.case_id) from e
 
 
 # ── phase gate operations ─────────────────────────────────────────────────
@@ -418,23 +438,59 @@ async def append_turn(case_id: str, turn: dict) -> None:
 
 # ── registry operations ───────────────────────────────────────────────────
 
+#: ADR-0092 decision 3: how often a change to the case list is re-read and retried before it is an error, and
+#: the most a retry waits — jittered (rule §4.8, shared resources), so writers that collided do not collide again.
+REGISTRY_RETRIES = 30
+REGISTRY_RETRY_MAX_S = 0.2
+
+
 async def load_registry() -> CaseRegistry:
-    """Load registry. Returns empty registry if not found."""
+    """Load registry. Returns empty registry if not found. The ETag it was read at rides on it (ADR-0092)."""
     try:
-        raw = await _download(REGISTRY_BLOB_PATH)
-        return CaseRegistry.model_validate_json(raw)
+        raw, etag = await _download_tagged(REGISTRY_BLOB_PATH)
     except ResourceNotFoundError:
-        return CaseRegistry()
+        registry = CaseRegistry()
+        registry._etag = ""                       # read, and there was none: created only if still absent
+        return registry
+    registry = CaseRegistry.model_validate_json(raw)
+    registry._etag = etag
+    return registry
 
 
 async def save_registry(registry: CaseRegistry) -> None:
+    """ADR-0092 decision 3: a registry read from storage is written only if nobody changed it since
+    (`If-Match: <ETag>`; a new one only if still absent) — `RegistryChanged` otherwise."""
     registry.last_updated = datetime.now(timezone.utc).isoformat()
-    await _upload(REGISTRY_BLOB_PATH, registry.model_dump_json(indent=2))
+    body = registry.model_dump_json(indent=2)
+    etag = registry._etag
+    try:
+        if etag:
+            await _upload_conditional(REGISTRY_BLOB_PATH, body, etag)
+        else:
+            await _upload(REGISTRY_BLOB_PATH, body, overwrite=etag is None)
+    except (ResourceModifiedError, ResourceExistsError) as e:
+        raise RegistryChanged(REGISTRY_BLOB_PATH) from e
+
+
+async def _change_registry(change: Callable[[CaseRegistry], bool]) -> None:
+    """ADR-0092 decision 3: read the case list, apply `change` (False: nothing to write), write it
+    conditionally; on a concurrent change read it again and retry — never a lost entry."""
+    for attempt in range(REGISTRY_RETRIES):
+        if attempt:
+            await asyncio.sleep(secrets.SystemRandom().uniform(0, REGISTRY_RETRY_MAX_S * min(attempt, 5) / 5))
+        registry = await load_registry()
+        if change(registry) is False:
+            return
+        try:
+            await save_registry(registry)
+            return
+        except RegistryChanged:
+            logger.info("registry changed since it was read — read again and retried (ADR-0092)")
+    raise RegistryChanged(f"{REGISTRY_BLOB_PATH}: still changing after {REGISTRY_RETRIES} reads")
 
 
 async def register_case(case: CaseDocument) -> None:
-    """Add new case to registry."""
-    registry = await load_registry()
+    """Add new case to registry — by a conditional write, retried on a concurrent change (ADR-0092)."""
     entry = RegistryEntry(
         case_id=case.case_id,
         title=case.title,
@@ -446,30 +502,43 @@ async def register_case(case: CaseDocument) -> None:
         current_phase=case.current_phase,
         phase_started_at=datetime.now(timezone.utc).isoformat(),
     )
-    registry.cases.append(entry)
-    await save_registry(registry)
+
+    def add(registry: CaseRegistry) -> bool:
+        if any(e.case_id == entry.case_id for e in registry.cases):
+            return False                          # already listed
+        registry.cases.append(entry)
+        return True
+    await _change_registry(add)
 
 
 async def set_escalation(case_id: str, escalation: Optional[dict]) -> None:
     """ADR-0076 (T65): mark the case's registry row escalated — `{at, criteria}`, status
     "escalated" — or clear it (None, status back to "active"). The registry, not the case blob:
     nothing about the case blob changes mid-conversation (ADR-0066)."""
-    registry = await load_registry()
-    for entry in registry.cases:
-        if entry.case_id == case_id:
-            if escalation is None and entry.escalation is None:
-                return
-            entry.escalation = escalation
-            entry.status = "escalated" if escalation else "active"
-            await save_registry(registry)
-            return
+    def mark(registry: CaseRegistry) -> bool:
+        for entry in registry.cases:
+            if entry.case_id == case_id:
+                if escalation is None and entry.escalation is None:
+                    return False
+                entry.escalation = escalation
+                entry.status = "escalated" if escalation else "active"
+                return True
+        return False
+    await _change_registry(mark)
 
 
 async def _update_registry_entry(
     case: CaseDocument, phase: str, summary: str, now: str
 ) -> None:
-    """Update registry entry after gate pass."""
-    registry = await load_registry()
+    """Update registry entry after gate pass — a conditional write, retried (ADR-0092)."""
+    def update(registry: CaseRegistry) -> bool:
+        _gate_passed_entry(registry, case, phase, summary, now)
+        return True
+    await _change_registry(update)
+
+
+def _gate_passed_entry(registry: CaseRegistry, case: CaseDocument, phase: str, summary: str, now: str) -> None:
+    """The registry row after a gate pass: phase, status, summary and the RAG status."""
     for entry in registry.cases:
         if entry.case_id == case.case_id:
             entry.current_phase = case.current_phase
@@ -492,7 +561,6 @@ async def _update_registry_entry(
             except Exception:
                 entry.rag_status = "green"
             break
-    await save_registry(registry)
 
 
 # ── upload files ──────────────────────────────────────────────────────────

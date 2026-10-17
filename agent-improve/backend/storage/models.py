@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from backend.core.citations import CitationRecord
 
@@ -336,3 +336,6 @@ class CaseRegistry(BaseModel):
 
     cases: list[RegistryEntry] = []
     last_updated: str = ""
+    #: ADR-0092 decision 3: the ETag the registry was read at ("" when there was none yet), so the save is
+    #: conditional — never serialised. None for a registry not read from storage.
+    _etag: Optional[str] = PrivateAttr(default=None)

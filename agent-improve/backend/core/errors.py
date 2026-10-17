@@ -79,3 +79,11 @@ class CaseBusyError(Exception):
 class ShieldTransientError(Exception):
     """G-154: Prompt Shields failed transiently (connection, timeout, 5xx) on the input guard's
     first attempt. The node's retry policy runs the guard once more; the last attempt fails closed."""
+
+
+class CaseNumberTaken(Exception):
+    """ADR-0092 decision 2: the drawn case number is already a case; the route draws another."""
+
+
+class RegistryChanged(Exception):
+    """ADR-0092 decision 3: the case list changed since it was read; it is read again and the change retried."""
