@@ -5781,9 +5781,134 @@ process.stdout.write(JSON.stringify(out));
     assert 'id="tp-confirm-1"' not in panel["Lena"] and "the lead confirms" in panel["Lena"]
 
 
-def test_only_registered_people_open_a_case_and_the_lead_approves() -> None:
-    """DEF-216 — Only registered people open a case (by e-mail, checked by the server); the lead approves as a person, not by typed name (G-217; founder test findings 5)"""
-    _not_written('DEF-216')
+def test_only_registered_people_open_a_case_and_the_lead_approves(env, monkeypatch) -> None:
+    """DEF-216 — Only registered people open a case (by e-mail, checked by the server); the lead approves as a person, not by typed name (G-217; founder test findings 5)
+    ADR-0091 "Basic access check by registered e-mail" (rulings a-c), on the real routes and graph:
+    (1) a case whose e-mails are not complete opens as today (ruling b);
+    (2) once they are, a request without the case's session is refused (401) in W17's words naming the lead, on
+        every route that reads or changes the case, and changes nothing;
+    (3) sign-in by the registered e-mail, capital letters ignored, sets an HTTP-only session for this case;
+        an unregistered e-mail gets "Not on the team? Ask <lead> to add you."; a proposed member cannot sign in;
+    (4) approval checks the session's person: a member who types the lead's name is refused, the lead's session
+        approves, and the record says the lead approved; the session's person is the "who" of a turn;
+    (5) a session is for one case only, and a forged one is refused; every sign-in and refusal is in the trail;
+    (6) creating a case with the lead's e-mail signs the lead in; (7) the page: a 401 opens the sign-in window,
+        which names the lead and asks for the e-mail; no request goes without credentials."""
+    from backend.core.store import get_store
+    from backend.gateway import access
+    from backend.storage.models import PersonRecord
+
+    lead_mail, lena_mail = "priya.shah@example.com", "lena@example.com"
+    env.case.people = [PersonRecord(full_name=ACTOR, role="project lead"),
+                       PersonRecord(full_name="Lena", role="Process owner"),
+                       PersonRecord(full_name="Tom", role="Champion", status="proposed")]
+    # (1) e-mails not complete: opens as today, no session asked.
+    info = env.client.get(f"/cases/{CASE_ID}/sign-in").json()
+    assert info["required"] is False and info["lead"] == ACTOR, info
+    assert env.client.get(f"/cases/{CASE_ID}").status_code == 200
+
+    # (2) the lead completes the e-mails: the case asks for sign-in.
+    env.case.people[0].email, env.case.people[1].email = lead_mail, lena_mail
+    info = env.client.get(f"/cases/{CASE_ID}/sign-in").json()
+    assert info["required"] is True and f"Project lead: {ACTOR}" in info["message"], info
+    assert info["not_on_team"] == f"Not on the team? Ask {ACTOR} to add you."
+    before = env.case.model_dump()
+    refused = {
+        "open": env.client.get(f"/cases/{CASE_ID}"),
+        "ask": env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": ACTOR, "message": "Hi"}),
+        "review": env.client.get(f"/gate/review/{CASE_ID}/define"),
+        "people": env.client.get(f"/cases/{CASE_ID}/people"),
+        "submit": env.client.post("/gate", json={"case_id": CASE_ID, "submitted_by": ACTOR, "phase": "define"}),
+        "decide": env.client.post("/gate/decision", json={"case_id": CASE_ID, "phase": "define", "actor": ACTOR,
+                                                          "decision": "approve"}),
+        "add": env.client.post(f"/cases/{CASE_ID}/people", json={"actor": ACTOR,
+                                                                 "person": {"full_name": "Max", "role": "Analyst"}}),
+    }
+    assert {k: r.status_code for k, r in refused.items()} == {k: 401 for k in refused}, \
+        {k: (r.status_code, r.text[:120]) for k, r in refused.items()}
+    assert all(f"Project lead: {ACTOR}" in r.json()["detail"] for r in refused.values())
+    assert env.case.model_dump() == before and not env.written, "a refused request changed the case"
+
+    # (3) sign-in.
+    wrong = env.client.post(f"/cases/{CASE_ID}/session", json={"email": "someone@example.com"})
+    assert wrong.status_code == 403 and wrong.json()["detail"].endswith(f"Not on the team? Ask {ACTOR} to add you.")
+    proposed = env.client.post(f"/cases/{CASE_ID}/session", json={"email": "tom"})
+    assert proposed.status_code == 403, proposed.text
+    env.case.people[2].email = "tom@example.com"
+    proposed = env.client.post(f"/cases/{CASE_ID}/session", json={"email": "tom@example.com"})
+    assert proposed.status_code == 403 and "proposed member" in proposed.json()["detail"], proposed.text
+    lena = env.client.post(f"/cases/{CASE_ID}/session", json={"email": "  LENA@Example.com "})
+    assert lena.status_code == 200 and lena.json()["full_name"] == "Lena", lena.text
+    cookie = lena.headers.get("set-cookie", "")
+    assert access.cookie_name(CASE_ID) in cookie and "httponly" in cookie.lower(), cookie
+    assert env.client.get(f"/cases/{CASE_ID}").status_code == 200
+
+    # (4) the session's person, never a typed name.
+    _coach_saying(monkeypatch, "Let's look at the business case.")
+    turn = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": ACTOR,
+                                         "message": "Where do we stand?"})
+    assert turn.status_code == 200, turn.text
+    body = _submit(env)
+    assert body["awaiting_acceptance"] is True, body
+    typed = env.client.post("/gate/decision", json={"case_id": CASE_ID, "phase": "define", "actor": ACTOR,
+                                                    "decision": "approve"})
+    assert typed.status_code == 403 and "Only the project lead" in typed.json()["detail"], typed.text
+    assert not env.written, "a member who typed the lead's name approved"
+    env.client.cookies.clear()
+    assert env.client.post(f"/cases/{CASE_ID}/session", json={"email": lead_mail}).status_code == 200
+    ok = env.client.post("/gate/decision", json={"case_id": CASE_ID, "phase": "define", "actor": "anyone",
+                                                 "decision": "approve"})
+    assert ok.status_code == 200, ok.text
+    assert env.written[-1]["submitted_by"] == ACTOR, env.written[-1]["submitted_by"]
+
+    # (5) one case only; a forged session; the trail.
+    other = access.token("IMPR-2026-OTHER1", lead_mail)
+    env.client.cookies.clear()
+    env.client.cookies.set(access.cookie_name(CASE_ID), other)
+    assert env.client.get(f"/cases/{CASE_ID}").status_code == 401, "a session for another case opened this one"
+    forged = access.token(CASE_ID, lead_mail)[:-4] + "0000"
+    env.client.cookies.set(access.cookie_name(CASE_ID), forged)
+    assert env.client.get(f"/cases/{CASE_ID}").status_code == 401, "a forged session was accepted"
+    trail = [i.value for i in get_store().search(("projects", CASE_ID, "step_log"), limit=500)
+             if i.value.get("layer") == "access"]
+    assert {t["status"] for t in trail} == {"signed_in", "refused"} and all(t.get("at") for t in trail), trail
+    assert any(t["status"] == "signed_in" and t["email"] == lena_mail for t in trail)
+    assert any(t["status"] == "refused" and t["email"] == "someone@example.com" for t in trail)
+
+    # (6) creating a case with the lead's e-mail signs the lead in.
+    from backend.gateway import routes
+
+    async def stored(case):
+        return None
+    with monkeypatch.context() as scoped:
+        scoped.setattr(routes.blob, "create_case", stored)
+        scoped.setattr(routes.blob, "register_case", stored)
+        scoped.setattr(routes, "_ensure_case_record", lambda case: None)
+        made = env.client.post("/cases", json={"title": "New", "belt_level": "green", "department": "Finance",
+                                               "target_date": "2027-03-31",
+                                               "lead": {"full_name": ACTOR, "email": lead_mail}})
+    assert made.status_code == 200, made.text
+    assert access.cookie_name(made.json()["case_id"]) in made.headers.get("set-cookie", "")
+
+    # (7) the page: a 401 opens the sign-in window naming the lead; apiJSON sends credentials.
+    import json
+    page = _run_page(("async function apiJSON", "async function signInInfo", "async function showSignIn",
+                      "async function openWorkspace"), _PAGE_STUBS.replace("async function openWorkspace(id){opened.push(id)}", "") + f"""
+const S={{user:''}};const calls=[];
+document.createElement=()=>({{setAttribute(){{}},innerHTML:''}});document.body={{appendChild(){{}}}};
+els['sign-in-window']={{setAttribute(){{}},innerHTML:''}};
+globalThis.fetch=async(url,opts)=>{{calls.push({{url,credentials:(opts||{{}}).credentials}});
+  if(url.endsWith('/sign-in'))return {{ok:true,json:async()=>({json.dumps(info)})}};
+  return {{ok:false,status:401,statusText:'Unauthorized',json:async()=>({{detail:'Only team members…'}})}};}};
+(async()=>{{await openWorkspace({json.dumps(CASE_ID)});
+  process.stdout.write(JSON.stringify({{html:els['sign-in-window'].innerHTML,calls,toasts}}))}})();
+""")
+    assert f"Sign in to {CASE_ID}" in page["html"] and ACTOR in page["html"], page["html"]
+    assert 'id="sign-in-email"' in page["html"] and "Not on the team?" in page["html"], page["html"]
+    assert page["calls"] and all(c["credentials"] == "include" for c in page["calls"]), page["calls"]
+    import pathlib
+    ui = (pathlib.Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    assert "||'Leader'" not in ui, "decision 6: no silent fallback name"
 
 
 def test_the_new_case_number_stays_until_the_lead_continues() -> None:

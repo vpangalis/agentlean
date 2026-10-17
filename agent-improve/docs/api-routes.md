@@ -14,6 +14,8 @@ hook, `--stage`); never edited by hand. Linked from [ARCHITECTURE.md §3.9](../A
 | POST | `/context` | `get_session_context` | `ContextResponse` | Generate a re-entry greeting based on current gate status. |
 | POST | `/cases` | `create_case` | `CaseCreateResponse` | Create a new improvement case and register it. |
 | POST | `/ask` | `ask` | `AskResponse` | One coaching turn, through the compiled graph. |
+| GET | `/cases/{case_id}/sign-in` | `sign_in_info` | `SignInInfo` | W17 — what the sign-in window says: the case, who may enter, the lead. Whether the case asks for sign-in |
+| POST | `/cases/{case_id}/session` | `sign_in` | `SessionOut` | ADR-0091 decision 2: sign in with the company e-mail the lead registered; the session is this case's. |
 | GET | `/cases/{case_id}/people` | `get_people` | `PeopleResponse` | ADR-0090: the team panel — everyone on the case, the lead first, proposed members marked. |
 | POST | `/cases/{case_id}/people` | `add_person` | `PeopleResponse` | ADR-0090 / R8b: the lead adds a member — full name and role; the e-mail before they sign in. |
 | POST | `/cases/{case_id}/people/{who}` | `change_person` | `PeopleResponse` | ADR-0090: the lead completes a person's details; with `confirm`, confirms a proposed member — only with |

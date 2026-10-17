@@ -137,6 +137,33 @@ class CaseCreateResponse(BaseModel):
     message: str = "Case created. Define phase is now active."
 
 
+class SignInInfo(BaseModel):
+    """ADR-0091 / W17: what the sign-in window says, and whether this case asks for sign-in yet (ruling b)."""
+
+    case_id: str
+    title: str
+    lead: str
+    required: bool
+    message: str
+    not_on_team: str
+
+
+class SignInIn(BaseModel):
+    """ADR-0091 decision 2: the company e-mail the lead registered."""
+
+    email: str
+
+
+class SessionOut(BaseModel):
+    """ADR-0091: who the session is for."""
+
+    case_id: str
+    full_name: str
+    email: str
+    role: str = ""
+    is_lead: bool = False
+
+
 class PersonOut(BaseModel):
     """ADR-0090: a person on the case as the team panel shows them."""
 

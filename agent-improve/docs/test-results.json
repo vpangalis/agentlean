@@ -1,9 +1,9 @@
 {
- "source_hash": "92646bcb7640ff48",
- "commit": "ceb9afa",
+ "source_hash": "f514d1b96585c287",
+ "commit": "61d8d04",
  "commit_matches_source": false,
- "full_run_hash": "92646bcb7640ff48",
- "recorded_at": "2026-10-17T13:46:28+00:00",
+ "full_run_hash": "f514d1b96585c287",
+ "recorded_at": "2026-10-17T14:01:58+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -496,7 +496,7 @@
   "backend/tests/test_define_e2e.py::test_nothing_typed_or_sent_is_lost_on_reload": "passed",
   "backend/tests/test_define_e2e.py::test_one_numbering_and_per_element_status_everywhere": "skipped",
   "backend/tests/test_define_e2e.py::test_one_progress_figure_everywhere": "skipped",
-  "backend/tests/test_define_e2e.py::test_only_registered_people_open_a_case_and_the_lead_approves": "skipped",
+  "backend/tests/test_define_e2e.py::test_only_registered_people_open_a_case_and_the_lead_approves": "passed",
   "backend/tests/test_define_e2e.py::test_practice_lookup_returns_only_the_cases_industry_and_licensed_content": "skipped",
   "backend/tests/test_define_e2e.py::test_practice_options_follow_the_teams_own_ideas_with_their_source": "skipped",
   "backend/tests/test_define_e2e.py::test_progress_steps_are_shown_while_a_turn_runs": "skipped",
@@ -1788,8 +1788,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "4f977d3724a46a86",
-  "recorded_at": "2026-10-17T13:22:43+00:00",
+  "source_hash": "92646bcb7640ff48",
+  "recorded_at": "2026-10-17T13:46:28+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2528,7 +2528,7 @@
    "backend/tests/test_define_e2e.py::test_the_gate_screen_shows_the_document_and_acts_on_the_pause": "passed",
    "backend/tests/test_define_e2e.py::test_the_gate_view_follows_the_approved_mockup": "skipped",
    "backend/tests/test_define_e2e.py::test_the_gate_write_keeps_the_change_log_and_uploads": "passed",
-   "backend/tests/test_define_e2e.py::test_the_lead_and_members_are_stored_with_their_details": "skipped",
+   "backend/tests/test_define_e2e.py::test_the_lead_and_members_are_stored_with_their_details": "passed",
    "backend/tests/test_define_e2e.py::test_the_lead_role_can_be_handed_over_and_is_recorded": "skipped",
    "backend/tests/test_define_e2e.py::test_the_metric_entry_mirrors_the_confirmed_scalars": "passed",
    "backend/tests/test_define_e2e.py::test_the_new_case_number_stays_until_the_lead_continues": "skipped",

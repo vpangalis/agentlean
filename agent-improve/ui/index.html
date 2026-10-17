@@ -674,8 +674,9 @@ function escapeHtml(v) {
 // Throws on a non-2xx, carrying the server's own `detail` so the message a
 // Belt sees is the one the backend wrote. `status` is on the error for the
 // callers that need to treat 404 as a distinct case rather than a failure.
+// ADR-0091: every request carries this case's session cookie (HTTP-only — no script here reads it).
 async function apiJSON(url, opts) {
-  const r = await fetch(url, opts);
+  const r = await fetch(url, {credentials: 'include', ...(opts || {})});
   let body = null;
   try { body = await r.json(); } catch (e) { body = null; }
   if (!r.ok) {
@@ -992,10 +993,47 @@ async function loadRegistry(){
 }
 
 async function quickOpenCase(caseId){
+  // ADR-0091: a case that asks for sign-in opens through the sign-in window (by e-mail); one that does not yet
+  // (its e-mails are not complete — ruling b) opens as today, with the name typed.
+  const info=await signInInfo(caseId);
+  if(info&&info.required){await openWorkspace(caseId);return;}
   const name=prompt('Enter your name to join this case:');
   if(!name||!name.trim())return;
   S.user=name.trim();
   await openWorkspace(caseId);
+}
+
+async function signInInfo(caseId){
+  try{return await apiJSON(`${API}/cases/${caseId}/sign-in`);}catch(e){return null;}
+}
+
+// ADR-0091 / W17 — the sign-in window: what the case is, who may enter, the lead, and what to do if you cannot.
+async function showSignIn(caseId){
+  const info=await signInInfo(caseId);
+  if(!info){toast('Case '+caseId+' was not found on the server.',5000);return;}
+  let w=document.getElementById('sign-in-window');
+  if(!w){w=document.createElement('div');w.id='sign-in-window';document.body.appendChild(w);}
+  w.setAttribute('style','position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:60');
+  w.innerHTML=`<div class="card" style="max-width:460px;width:92%">
+    <div class="card-title"><i class="ti ti-lock"></i> Sign in to ${escapeHtml(info.case_id)} — "${escapeHtml(info.title)}"</div>
+    <div style="font-size:12px;line-height:1.6;margin-bottom:8px">Only team members added by the project lead can open this project.<br>
+      Project lead: <b>${escapeHtml(info.lead)}</b><br>Enter your company e-mail as the project lead registered it.</div>
+    <div class="join-row"><input type="email" id="sign-in-email" placeholder="name@company.com">
+      <button class="btn-primary" id="sign-in-go" style="padding:8px 14px;width:auto" onclick="submitSignIn('${escapeHtml(info.case_id)}')">Sign in</button></div>
+    <div id="sign-in-error" style="font-size:11px;color:var(--red,#b91c1c);margin-top:6px"></div>
+    <div style="font-size:11px;color:var(--text2);margin-top:6px">${escapeHtml(info.not_on_team)}</div></div>`;
+}
+
+async function submitSignIn(caseId){
+  const email=document.getElementById('sign-in-email').value.trim();
+  if(!email){document.getElementById('sign-in-error').textContent='Please enter your company e-mail.';return;}
+  try{
+    const who=await apiJSON(`${API}/cases/${caseId}/session`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email})});
+    S.user=who.full_name;
+    const w=document.getElementById('sign-in-window');if(w)w.remove();
+    await openWorkspace(caseId);
+  }catch(e){document.getElementById('sign-in-error').textContent=(e&&e.message)||String(e);}
 }
 
 // ─── CREATE ───────────────────────────────────────────────────────
@@ -1086,9 +1124,11 @@ async function doSearch(){
 }
 
 async function joinCase(){
+  if(!S.foundCase){return;}
+  const info=await signInInfo(S.foundCase.case_id);
+  if(info&&info.required){await openWorkspace(S.foundCase.case_id);return;}   // ADR-0091: by e-mail
   const name=document.getElementById('join-name').value.trim();
   if(!name){toast('Please enter your name');return;}
-  if(!S.foundCase){return;}
   S.user=name;
   await openWorkspace(S.foundCase.case_id);
 }
@@ -1124,6 +1164,8 @@ async function openWorkspace(caseId){
     selectPhase(S.phase);
     restoreDraft();   // W11 (DEF-091): a message typed and not sent is back in the box
   }catch(e){
+    // ADR-0091: a case that asks for sign-in answers 401 without a session — the sign-in window, never a dead end.
+    if(e&&e.status===401){await showSignIn(caseId);return;}
     // Stay on the landing screen. Half-opening a workspace is worse than not
     // opening one, because the Belt cannot tell which case they are looking at.
     toast((e&&e.status===404)?('Case '+caseId+' was not found on the server.')
@@ -1734,7 +1776,7 @@ function selectTab(tab){
       try {
         const caseId = S.case?.case_id || S.caseId;
         if (caseId) {
-          const r = await fetch(`${API}/cases/${caseId}`);
+          const r = await fetch(`${API}/cases/${caseId}`, {credentials: 'include'});
           if (r.ok) {
             const fresh = await r.json();
             S.case = fresh;
@@ -3378,7 +3420,7 @@ async function renderGateReview() {
 
   let d;
   try {
-    const r = await fetch(`${API}/gate/review/${caseId}/${phase}`);
+    const r = await fetch(`${API}/gate/review/${caseId}/${phase}`, {credentials: 'include'});
     if (!r.ok) { host.innerHTML = ''; return; }
     d = await r.json();
   } catch (e) { host.innerHTML = ''; return; }
@@ -4727,7 +4769,7 @@ async function renderDefineReport(isPassed) {
   }
   let d;
   try {
-    const r = await fetch(`${API}/gate/review/${caseId}/define`);
+    const r = await fetch(`${API}/gate/review/${caseId}/define`, {credentials: 'include'});
     if (!r.ok) throw new Error(`the server answered ${r.status}`);
     d = await r.json();
   } catch (e) {

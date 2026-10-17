@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Request, Response, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import conversation, pii
@@ -31,7 +31,8 @@ from backend.gateway.schemas import (
     UploadMetaRequest,
 )
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
-from backend.gateway.schemas import PeopleResponse, PersonChange, PersonOut
+from backend.gateway import access
+from backend.gateway.schemas import PeopleResponse, PersonChange, PersonOut, SessionOut, SignInIn, SignInInfo
 from backend.gateway.schemas import GateDecisionRequest, GateDecisionResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
@@ -144,7 +145,7 @@ async def summarise_session(request: SummariseRequest) -> SummariseResponse:
 
 
 @router.post("/context", response_model=ContextResponse)
-async def get_session_context(request: ContextRequest) -> ContextResponse:
+async def get_session_context(request: ContextRequest, http: Request) -> ContextResponse:
     """Generate a re-entry greeting based on current gate status.
     Called when user opens the AI guide tab after a break."""
     _bind(request.case_id, getattr(request, "phase", None))   # T43 (DEF-129): every log line of the request names them
@@ -153,6 +154,7 @@ async def get_session_context(request: ContextRequest) -> ContextResponse:
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
+    who = access.person(http, case, 'context')          # ADR-0091 decision 3
     case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
 
     # Get structured inputs for the phase.
@@ -245,7 +247,7 @@ CASE_NUMBER_EXHAUSTED = ("The case could not be created: no free case number was
 
 
 @router.post("/cases", response_model=CaseCreateResponse)
-async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
+async def create_case(request: CaseCreateRequest, response: Response) -> CaseCreateResponse:
     """Create a new improvement case and register it.
 
     ADR-0092 "Unique case numbers and a safe case list": the number is reserved by a create-only-if-absent
@@ -281,6 +283,9 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
         raise HTTPException(503, CASE_NUMBER_EXHAUSTED)
     case_id = case.case_id
     await blob.register_case(case)
+    head = case.people[0]
+    if head.email:                    # ADR-0091 decision 1: the creator is not asked again on this browser
+        access.set_session(response, case_id, head.email)
     # WATCH 19's writer, at the site the watch names (step 6.8). §9: the Store's
     # `case` namespace is a session-start COPY so that boundary mappers depend
     # on `BaseStore` alone; the blob above stays the system of record.
@@ -832,6 +837,9 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
+    who = access.person(http, case, 'ask')          # ADR-0091 decision 3
+    if who is not None:                              # the session names the person, never a typed name
+        request = request.model_copy(update={"user": who.full_name})
     # WATCH 19's lazy half — every case in the registry predates the writer. From the blob
     # only: the Store's case copy never carries unfinished work (ADR-0066).
     _ensure_case_record(case)
@@ -1001,35 +1009,66 @@ def _people_out(case: CaseDocument) -> PeopleResponse:
                                             status=p.status, is_lead=p is head) for p in ordered])
 
 
-async def _as_lead(case_id: str, actor: str) -> CaseDocument:
-    """R8b / ADR-0090: only the project lead changes the team. The lead is named by e-mail or full name (until
-    ADR-0091's session names the person)."""
+async def _as_lead(case_id: str, actor: str, http: Optional[Request] = None) -> CaseDocument:
+    """R8b / ADR-0090: only the project lead changes the team. With ADR-0091's session the person is the
+    session's; on a case that does not ask for sign-in yet, the lead is named by e-mail or full name."""
     from backend.storage import people as people_mod
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    who = access.person(http, case, "team change")
+    if who is not None:
+        actor = who.email
     head = people_mod.lead(case.people)
     if head is None or people_mod.find([head], actor) is None:
         raise HTTPException(403, TEAM_LEAD_ONLY.format(lead=head.full_name if head else case.leader))
     return case
 
 
+@router.get("/cases/{case_id}/sign-in", response_model=SignInInfo)
+async def sign_in_info(case_id: str) -> SignInInfo:
+    """W17 — what the sign-in window says: the case, who may enter, the lead. Whether the case asks for sign-in
+    (ruling b). Nothing else of the case."""
+    _bind(case_id, None)
+    case = await blob.load_case(case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {case_id} not found")
+    lead = access.lead_name(case)
+    return SignInInfo(case_id=case.case_id, title=case.title, lead=lead, required=access.required(case),
+                      message=access.SIGN_IN_NEEDED.format(lead=lead),
+                      not_on_team=f"Not on the team? Ask {lead} to add you.")
+
+
+@router.post("/cases/{case_id}/session", response_model=SessionOut)
+async def sign_in(case_id: str, body: SignInIn, response: Response) -> SessionOut:
+    """ADR-0091 decision 2: sign in with the company e-mail the lead registered; the session is this case's."""
+    _bind(case_id, None)
+    case = await blob.load_case(case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {case_id} not found")
+    who = access.sign_in(case, body.email, response)
+    head = access.lead_name(case)
+    return SessionOut(case_id=case.case_id, full_name=who.full_name, email=who.email, role=who.role,
+                      is_lead=who.full_name == head)
+
+
 @router.get("/cases/{case_id}/people", response_model=PeopleResponse)
-async def get_people(case_id: str) -> PeopleResponse:
+async def get_people(case_id: str, http: Request) -> PeopleResponse:
     """ADR-0090: the team panel — everyone on the case, the lead first, proposed members marked."""
     _bind(case_id, None)
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    who = access.person(http, case, 'team panel')          # ADR-0091 decision 3
     return _people_out(case)
 
 
 @router.post("/cases/{case_id}/people", response_model=PeopleResponse)
-async def add_person(case_id: str, change: PersonChange) -> PeopleResponse:
+async def add_person(case_id: str, change: PersonChange, http: Request) -> PeopleResponse:
     """ADR-0090 / R8b: the lead adds a member — full name and role; the e-mail before they sign in."""
     from backend.storage import people as people_mod
     _bind(case_id, None)
-    await _as_lead(case_id, change.actor)
+    await _as_lead(case_id, change.actor, http)
     try:
         case = await blob.update_people(case_id, lambda ps: people_mod.add(ps, _person(change.person, by=change.actor)))
     except ValueError as e:
@@ -1039,12 +1078,13 @@ async def add_person(case_id: str, change: PersonChange) -> PeopleResponse:
 
 
 @router.post("/cases/{case_id}/people/{who}", response_model=PeopleResponse)
-async def change_person(case_id: str, who: str, change: PersonChange, confirm: bool = False) -> PeopleResponse:
+async def change_person(case_id: str, who: str, change: PersonChange, http: Request,
+                        confirm: bool = False) -> PeopleResponse:
     """ADR-0090: the lead completes a person's details; with `confirm`, confirms a proposed member — only with
     an e-mail (ruling b). `who` is the person's e-mail or full name."""
     from backend.storage import people as people_mod
     _bind(case_id, None)
-    await _as_lead(case_id, change.actor)
+    await _as_lead(case_id, change.actor, http)
     details = change.person.model_dump()
 
     def apply(ps: list) -> list:
@@ -1061,7 +1101,7 @@ async def change_person(case_id: str, who: str, change: PersonChange, confirm: b
 
 
 @router.get("/gate/review/{case_id}/{phase}", response_model=GateReviewResponse)
-async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
+async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResponse:
     """The assembled gate document, shown to the Belt BEFORE approval.
 
     §9.1 steps 3-4 of the nine-step HITL gate: the Belt sees validated output
@@ -1083,6 +1123,7 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    who = access.person(http, case, 'gate review')          # ADR-0091 decision 3
     case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
 
     record = case.phases.get(phase)
@@ -1201,6 +1242,7 @@ def _purpose_from_classification(classification: str, fallback_filename: str) ->
 
 @router.post("/upload")
 async def upload_file(
+    http: Request,
     case_id: str = Form(...),
     uploaded_by: str = Form(...),
     phase: str = Form(...),
@@ -1248,6 +1290,9 @@ async def upload_file(
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    who = access.person(http, case, 'upload')          # ADR-0091 decision 3
+    if who is not None:
+        uploaded_by = who.full_name
     # T59 (DEF-134): the upload's phase is the case's, set here — the client's field is not trusted
     # (its `uploaded_at` is the server's clock too: `process_upload`'s timestamp).
     if phase != case.current_phase:
@@ -1504,7 +1549,7 @@ async def upload_file(
 
 
 @router.delete("/files/{case_id}/{file_id}")
-async def delete_case_file(case_id: str, file_id: str):
+async def delete_case_file(case_id: str, file_id: str, http: Request):
     """Remove a file record from the case.
 
     The upload record is removed from the case; **the blob itself is left
@@ -1521,6 +1566,7 @@ async def delete_case_file(case_id: str, file_id: str):
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, "Case not found")
+    who = access.person(http, case, 'delete file')          # ADR-0091 decision 3
 
     # Find and remove the upload from whichever phase contains it
     removed_blob_path = None
@@ -1764,6 +1810,9 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
+    who = access.person(http, case, 'gate decision')          # ADR-0091 decision 3
+    if who is not None:                              # decision 4: the session's person, never a typed name
+        request = request.model_copy(update={"actor": who.full_name})
     _ensure_case_record(case)
     case = await _with_unfinished_work(case)   # ADR-0066
     graph, config, pending = await _pending_interrupts(case, request.phase, request.actor)
@@ -1858,6 +1907,9 @@ async def submit_gate(request: GateSubmitRequest,
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
+    who = access.person(http, case, 'gate submission')          # ADR-0091 decision 3
+    if who is not None:
+        request = request.model_copy(update={"submitted_by": who.full_name})
     # WATCH 19's lazy half — /gate enters a phase subgraph too, so the input
     # mapper runs here as well and needs the same record.
     _ensure_case_record(case)
@@ -2076,7 +2128,7 @@ async def get_registry() -> list[RegistryEntryOut]:
 
 
 @router.get("/cases/{case_id}")
-async def get_case(case_id: str):
+async def get_case(case_id: str, http: Request):
     """Load full case document. Also projects every per-phase upload
     into a flat ``files`` array in CaseFile shape so the UI can render
     a single grouped files panel without walking each phase record."""
@@ -2086,6 +2138,7 @@ async def get_case(case_id: str):
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    who = access.person(http, case, 'open case')          # ADR-0091 decision 3
     case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
 
     payload = case.model_dump()

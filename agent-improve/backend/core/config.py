@@ -122,6 +122,12 @@ class Settings(BaseSettings):
         env="GATE_MAX_ATTEMPTS",
         description="Maximum gate validation attempts before escalation.",
     )
+    SESSION_SECRET: str = Field(
+        "",
+        env="SESSION_SECRET",
+        description=("ADR-0091: the key that signs each case's session cookie. Empty: a key for the running "
+                     "process only, so every session ends when the server restarts."),
+    )
     LOG_LEVEL: str = Field(
         "INFO",
         env="LOG_LEVEL",
@@ -202,6 +208,7 @@ settings = Settings(
     AZURE_BLOB_CONTAINER_IMPROVE=os.getenv("AZURE_BLOB_CONTAINER_IMPROVE", "agent-improve-cases"),
     AGENT_IMPROVE_PORT=int(os.getenv("AGENT_IMPROVE_PORT", "8020")),
     GATE_MAX_ATTEMPTS=int(os.getenv("GATE_MAX_ATTEMPTS", "3")),
+    SESSION_SECRET=os.getenv("SESSION_SECRET", ""),
     LOG_LEVEL=os.getenv("LOG_LEVEL", "INFO"),
     LANGSMITH_API_KEY=os.getenv("LANGSMITH_API_KEY"),
     LANGSMITH_PROJECT=os.getenv("LANGSMITH_PROJECT"),
