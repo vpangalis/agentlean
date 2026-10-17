@@ -1,9 +1,9 @@
 {
- "source_hash": "f514d1b96585c287",
- "commit": "61d8d04",
+ "source_hash": "35d0900386d32a24",
+ "commit": "b06ce8c",
  "commit_matches_source": false,
- "full_run_hash": "f514d1b96585c287",
- "recorded_at": "2026-10-17T14:01:58+00:00",
+ "full_run_hash": "35d0900386d32a24",
+ "recorded_at": "2026-10-17T14:26:52+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1558,6 +1558,14 @@
   "backend/tests/test_size_budget.py::test_the_guard_passes_a_staged_document_inside_its_bound": "passed",
   "backend/tests/test_size_budget.py::test_the_guard_refuses_a_staged_document_over_its_bound": "passed",
   "backend/tests/test_size_budget.py::test_the_section_index_gives_each_heading_its_range_and_skips_code": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_q1_after_a_failed_approval_is_the_decision_still_pending": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_q2_if_the_handler_re_raises_is_the_decision_still_pending": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_q3_no_handler_what_the_checkpoint_holds_and_whether_a_retry_completes": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_t1_failure_after_the_store_write": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_t2_failure_at_the_case_write": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_t2b_failure_after_the_case_write": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_t3_the_success_path": "passed",
+  "backend/tests/test_spike_adr_0087.py::test_t5_a_killed_process_between_the_two_writes": "passed",
   "backend/tests/test_staged_tree.py::test_a_later_sync_follows_the_index_and_drops_what_it_no_longer_carries": "passed",
   "backend/tests/test_staged_tree.py::test_item_9_a_commit_runs_the_fast_tests_and_the_package_the_full_suite": "passed",
   "backend/tests/test_staged_tree.py::test_item_9_a_fast_run_carries_the_unreached_outcomes_forward": "passed",
@@ -1788,8 +1796,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "92646bcb7640ff48",
-  "recorded_at": "2026-10-17T13:46:28+00:00",
+  "source_hash": "f514d1b96585c287",
+  "recorded_at": "2026-10-17T14:01:58+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2457,7 +2465,7 @@
    "backend/tests/test_define_e2e.py::test_nothing_typed_or_sent_is_lost_on_reload": "passed",
    "backend/tests/test_define_e2e.py::test_one_numbering_and_per_element_status_everywhere": "skipped",
    "backend/tests/test_define_e2e.py::test_one_progress_figure_everywhere": "skipped",
-   "backend/tests/test_define_e2e.py::test_only_registered_people_open_a_case_and_the_lead_approves": "skipped",
+   "backend/tests/test_define_e2e.py::test_only_registered_people_open_a_case_and_the_lead_approves": "passed",
    "backend/tests/test_define_e2e.py::test_practice_lookup_returns_only_the_cases_industry_and_licensed_content": "skipped",
    "backend/tests/test_define_e2e.py::test_practice_options_follow_the_teams_own_ideas_with_their_source": "skipped",
    "backend/tests/test_define_e2e.py::test_progress_steps_are_shown_while_a_turn_runs": "skipped",

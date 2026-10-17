@@ -76,6 +76,12 @@ RECURSION_LIMIT = 50
 #: so it is part of the contract between the two levels, not a local label.
 ESCALATE_NODE = "escalate"
 
+#: SPIKE ADR-0087 (branch spike/adr-0087-approval-writes-both, founder 2026-10-17 item 4): when True, Define's
+#: approval node writes the Store record AND the case record, undoes both and re-raises on failure, and has no
+#: error handler (a handler uses up the pending decision — spike Q1, Q2); the route writes neither. Off: the
+#: behaviour on main. Only the spike's tests switch it on.
+SPIKE_APPROVAL_WRITES_BOTH = False
+
 #: Every phase has a compiled subgraph as of procedure step 4.4 — this closed
 #: WATCH 17. Kept as a named constant rather than inlined to `PHASE_ORDER`
 #: because it answers a different question: `PHASE_ORDER` is the DMAIC sequence,
@@ -268,7 +274,23 @@ def phase_node(phase: str) -> Callable[..., Any]:
         }
         # ADR-0063 — the subgraph returns `final` only from gate_apply after approval: the
         # output mapper writes the approved record to the Store and advances the phase.
-        if result.get("final"):
+        if result.get("final") and SPIKE_APPROVAL_WRITES_BOTH:
+            # SPIKE ADR-0087 decision 1: this node writes both records — the Store's (the output mapper) and
+            # the case's — and decision 2: on any failure it undoes both, then re-raises (Q3: a handler on the
+            # node would use up the pending decision; with none, the task stays pending, decision and all).
+            from backend.storage import blob as _blob
+            case_id = str(state["case_id"])
+            before = await _blob.load_case(case_id)
+            before = before.model_copy(deep=True) if before is not None else None
+            try:
+                advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
+                await _write_case_record(store, case_id, phase, result)
+            except Exception:
+                _undo_gate_write(store, case_id, phase, dict(result["final"]))
+                await _undo_case_write(case_id, phase, before)
+                raise
+            update.update(advanced)
+        elif result.get("final"):
             try:
                 advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
             except Exception:
@@ -419,6 +441,38 @@ DEGRADED_REPLY = ("Something went wrong on our side and this step did not go thr
                   "changed. Please send it again in a moment.")
 
 
+async def _write_case_record(store: Any, case_id: str, phase: str, result: dict[str, Any]) -> dict[str, Any]:
+    """SPIKE ADR-0087 decision 1: the case record gets the approved document the output mapper put in the Store,
+    with its evidence (citations, uploads, field log) from the subgraph's own state. Returns what it wrote."""
+    from backend.phases.mappers_common import read_gate_document
+    from backend.storage import blob as _blob
+    approved = dict(read_gate_document(store, case_id, phase) or {})
+    actor = str((approved.pop("_approved", None) or {}).get("actor") or "")
+    await _blob.write_phase_gate(
+        case_id=case_id, phase=phase, structured=approved, submitted_by=actor,
+        summary=f"Define report approved by {actor}, project lead, on behalf of the team (R6)",
+        citations=[dict(c) for c in result.get("citations") or []],
+        uploads=[dict(u) for u in result.get("uploads") or []],
+        field_log=[dict(e) for e in result.get("field_log") or []])
+    return approved
+
+
+async def _undo_case_write(case_id: str, phase: str, before: Any) -> None:
+    """SPIKE ADR-0087 decision 2: the case record back to what it held before this run — only if it now holds
+    this run's approval (the phase passed here; it had not before), whatever step after the write failed."""
+    if before is None or before.phases[phase].gate_passed:
+        return
+    from backend.storage import blob as _blob
+    try:
+        now = await _blob.load_case(case_id)
+        if now is not None and now.phases[phase].gate_passed:
+            await _blob.save_case(before)
+            logger.warning("%s: ADR-0087 — the approval failed after its case write; the case record was restored",
+                           phase)
+    except Exception as exc:  # noqa: BLE001 — the original failure is what the Belt must hear about
+        logger.error("%s: ADR-0087 — the case record could not be restored after a failed approval: %s", phase, exc)
+
+
 def _undo_gate_write(store: Any, case_id: str, phase: str, written: dict[str, Any]) -> None:
     """T29: remove the approved record this run put, and only that — a record the Store held from an
     earlier approval (a different value) is left alone."""
@@ -462,7 +516,10 @@ def graph_builder() -> StateGraph:
     topology can be asserted on the builder itself."""
     builder = StateGraph(SupervisorState)
     for phase in PHASE_ORDER:
-        builder.add_node(f"{phase}_phase", phase_node(phase), error_handler=degraded_handler(f"{phase}_phase"))
+        # SPIKE ADR-0087 (Q3): with the spike on, Define's node has no error handler — a failed approval stays pending.
+        builder.add_node(f"{phase}_phase", phase_node(phase),
+                         error_handler=(None if phase == "define" and SPIKE_APPROVAL_WRITES_BOTH
+                                        else degraded_handler(f"{phase}_phase")))
         builder.add_edge(f"{phase}_phase", END)
     builder.add_node(ESCALATE_NODE, escalate_node)
     builder.add_edge(ESCALATE_NODE, END)

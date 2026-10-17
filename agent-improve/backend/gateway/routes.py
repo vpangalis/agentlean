@@ -1843,11 +1843,18 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     except StateSchemaVersionError as e:            # ADR-0065 (T88)
         raise HTTPException(409, str(e))
     except Exception as e:
+        from backend.core import graph as _graph
+        if _graph.SPIKE_APPROVAL_WRITES_BOTH:
+            # SPIKE ADR-0087 decision 3: the approval node undid both writes and re-raised; nothing was committed
+            # and the report still awaits the decision — the degraded reply, and the lead approves again.
+            logger.error("decide_gate() error: %s — the approval did not go through; nothing changed", e)
+            raise HTTPException(503, _graph.DEGRADED_REPLY)
         logger.error("decide_gate() error: %s", e)
         raise HTTPException(500, f"Graph error: {str(e)}")
 
     _refuse_degraded(result)                                   # T29 (DEF-122)
-    if request.decision == "approve":
+    from backend.core import graph as _graph
+    if request.decision == "approve" and not _graph.SPIKE_APPROVAL_WRITES_BOTH:
         # ADR-0063: the approved record is the graph's — the output mapper wrote it to the
         # Store in this run. The case blob gets that same document, written once, here.
         from backend.core.store import get_store
@@ -1865,6 +1872,8 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
             citations=evidence["citations"], uploads=evidence["uploads"],
             field_log=evidence["field_log"],                    # G-147 (DEF-061)
         )
+    if request.decision == "approve":
+        # SPIKE ADR-0087 decision 4 (spike on): the approval node wrote both records; the route writes neither.
         idx = PHASE_ORDER.index(request.phase)
         next_phase = PHASE_ORDER[idx + 1] if idx < len(PHASE_ORDER) - 1 else None
         return GateDecisionResponse(
