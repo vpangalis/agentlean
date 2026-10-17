@@ -62,6 +62,69 @@ class CapReached(RuntimeError):
 
 CALLS: list[dict[str, Any]] = []
 COACH_INPUTS: list[list[dict[str, Any]]] = []
+#: G-232 (owner G-220 "Checkpoint weight") — every storage call a run makes: {"kind", "op", "seconds"}.
+STORAGE: list[dict[str, Any]] = []
+
+
+def _time_storage() -> None:
+    """G-232 — each checkpoint, Store and case-file call timed, so a run record carries storage time per turn
+    (`storage_since`). The calls are the product's own; only their wall time is recorded."""
+    import functools
+    import inspect
+
+    from backend.core.checkpointer import AzureBlobCheckpointSaver
+    from backend.core.store import AzureBlobStore
+    from backend.storage import blob
+
+    def timed(kind: str, op: str, fn: Any) -> Any:
+        if inspect.iscoroutinefunction(fn):
+            @functools.wraps(fn)
+            async def run_async(*a: Any, **k: Any) -> Any:
+                t0 = time.perf_counter()
+                try:
+                    return await fn(*a, **k)
+                finally:
+                    STORAGE.append({"kind": kind, "op": op, "seconds": time.perf_counter() - t0})
+            return run_async
+        if inspect.isgeneratorfunction(fn):
+            @functools.wraps(fn)
+            def run_gen(*a: Any, **k: Any) -> Any:
+                t0 = time.perf_counter()
+                try:
+                    yield from fn(*a, **k)
+                finally:
+                    STORAGE.append({"kind": kind, "op": op, "seconds": time.perf_counter() - t0})
+            return run_gen
+
+        @functools.wraps(fn)
+        def run(*a: Any, **k: Any) -> Any:
+            t0 = time.perf_counter()
+            try:
+                return fn(*a, **k)
+            finally:
+                STORAGE.append({"kind": kind, "op": op, "seconds": time.perf_counter() - t0})
+        return run
+
+    for op in ("put", "put_writes", "get_tuple", "list"):
+        setattr(AzureBlobCheckpointSaver, op, timed("checkpoint", op, getattr(AzureBlobCheckpointSaver, op)))
+    for op in ("batch", "abatch"):
+        setattr(AzureBlobStore, op, timed("store", op, getattr(AzureBlobStore, op)))
+    for op in ("load_case", "save_case"):
+        setattr(blob, op, timed("case", op, getattr(blob, op)))
+
+
+def storage_since(start: int) -> dict[str, Any]:
+    """G-232 — the storage calls since `start` (an index into STORAGE): seconds and calls per kind, and in all."""
+    out: dict[str, Any] = {"seconds": 0.0, "calls": 0}
+    for c in STORAGE[start:]:
+        k = out.setdefault(c["kind"], {"seconds": 0.0, "calls": 0})
+        k["seconds"] += c["seconds"]
+        k["calls"] += 1
+        out["seconds"] += c["seconds"]
+        out["calls"] += 1
+    for v in [out, *(v for v in out.values() if isinstance(v, dict))]:
+        v["seconds"] = round(v["seconds"], 2)
+    return out
 
 
 def _serialise(message: Any) -> dict[str, Any]:

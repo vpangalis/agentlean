@@ -7739,7 +7739,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-220"
+     "G-220",
+     "G-232"
     ]
    },
    "requirement": "R13",

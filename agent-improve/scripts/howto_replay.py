@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,7 @@ def _case_at(element: str, title: str) -> str:
 def run(client: Any, only: str = "") -> list[dict[str, Any]]:
     from backend.middleware.skills import teaching_blocks
     from scripts.coaching_proof_656 import _latest_final
+    from scripts.move_proof_661 import STORAGE, storage_since
     out = []
     for c in json.loads(SET.read_text(encoding="utf-8"))["cases"]:
         if only and c["id"] != only:
@@ -58,8 +60,10 @@ def run(client: Any, only: str = "") -> list[dict[str, Any]]:
                                          "message": "Next, please."})
         earlier = (warm.json() if warm.status_code == 200 else {}).get("answer") or ""
         before = (client.get(f"/cases/{case_id}").json().get("phases") or {}).get("define", {}).get("structured") or {}
+        s0, t0 = len(STORAGE), time.time()
         r = client.post("/ask", json={"case_id": case_id, "phase": "define", "user": "howto-eval",
                                       "message": c["question"]})
+        seconds, storage = round(time.time() - t0, 1), storage_since(s0)
         body = r.json() if r.status_code == 200 else {"detail": r.text[:300]}
         after = (client.get(f"/cases/{case_id}").json().get("phases") or {}).get("define", {}).get("structured") or {}
         final = _latest_final(case_id)
@@ -68,6 +72,7 @@ def run(client: Any, only: str = "") -> list[dict[str, Any]]:
         ask = teaching_blocks("define", c["element"]).get("prompt", "")
         reply = " ".join(str(body.get(k) or "") for k in ("answer", "explanation", "prompt"))
         out.append({"id": c["id"], "element": c["element"], "question": c["question"], "http": r.status_code,
+                    "seconds": seconds, "storage": storage,               # G-232: the question turn's time
                     "earlier_coach_turn": earlier[:600], "opens_with_welcome": "welcome" in str(body.get("answer") or "")[:200].lower(),
                     "verdict": (planner.get("judgment") or {}).get("verdict"), "move": body.get("move"),
                     "answer": body.get("answer"), "prompt": body.get("prompt"),
@@ -90,9 +95,10 @@ def main() -> int:
     from backend.app import app
     from scripts.coaching_proof_656 import _tracing_off
     from scripts.define_runthrough import _cost
-    from scripts.move_proof_661 import CALLS, _count_model_calls, token_totals
+    from scripts.move_proof_661 import CALLS, _count_model_calls, _time_storage, token_totals
     _tracing_off()
     _count_model_calls(90)                     # two turns per case
+    _time_storage()                            # G-232: storage time per turn in the record
     with TestClient(app) as client:
         results = run(client, args.only)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")

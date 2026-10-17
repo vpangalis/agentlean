@@ -1,9 +1,9 @@
 {
- "source_hash": "78cb0b65b3c2143d",
- "commit": "6f1c7b1",
+ "source_hash": "14e94f15a9f2803f",
+ "commit": "d931846",
  "commit_matches_source": false,
- "full_run_hash": "78cb0b65b3c2143d",
- "recorded_at": "2026-10-17T12:38:56+00:00",
+ "full_run_hash": "14e94f15a9f2803f",
+ "recorded_at": "2026-10-17T12:50:37+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -909,6 +909,7 @@
   "backend/tests/test_gate_acceptance.py::test_a_rejection_names_an_element_and_a_reason": "passed",
   "backend/tests/test_gate_acceptance.py::test_a_rejection_reopens_the_named_elements_and_the_coach_guides_back": "passed",
   "backend/tests/test_gate_acceptance.py::test_a_validated_define_report_pauses_and_nothing_is_written": "passed",
+  "backend/tests/test_gate_acceptance.py::test_g232_the_run_records_time_every_storage_call": "passed",
   "backend/tests/test_gate_acceptance.py::test_pending_writes_round_trip_and_the_special_channels_overwrite": "passed",
   "backend/tests/test_gate_acceptance.py::test_the_complete_fixture_passes_the_gate_list": "passed",
   "backend/tests/test_gate_acceptance.py::test_the_pause_survives_a_restart_and_an_approval_writes_once": "passed",
@@ -1787,8 +1788,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "27d4ba35499b6534",
-  "recorded_at": "2026-10-17T11:37:25+00:00",
+  "source_hash": "78cb0b65b3c2143d",
+  "recorded_at": "2026-10-17T12:38:56+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2457,6 +2458,8 @@
    "backend/tests/test_define_e2e.py::test_one_numbering_and_per_element_status_everywhere": "skipped",
    "backend/tests/test_define_e2e.py::test_one_progress_figure_everywhere": "skipped",
    "backend/tests/test_define_e2e.py::test_only_registered_people_open_a_case_and_the_lead_approves": "skipped",
+   "backend/tests/test_define_e2e.py::test_practice_lookup_returns_only_the_cases_industry_and_licensed_content": "skipped",
+   "backend/tests/test_define_e2e.py::test_practice_options_follow_the_teams_own_ideas_with_their_source": "skipped",
    "backend/tests/test_define_e2e.py::test_progress_steps_are_shown_while_a_turn_runs": "skipped",
    "backend/tests/test_define_e2e.py::test_project_status_figures_are_computed_once_by_the_backend": "skipped",
    "backend/tests/test_define_e2e.py::test_r20_a_blocked_message_is_explained_with_the_element_and_its_sample": "passed",

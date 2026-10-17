@@ -102,6 +102,35 @@ def test_pending_writes_round_trip_and_the_special_channels_overwrite() -> None:
     assert got == {("task-1", "__interrupt__"): {"kind": "b"}, ("task-1", "x"): 1}
 
 
+def test_g232_the_run_records_time_every_storage_call(monkeypatch) -> None:
+    """G-232 (owner G-220 "Checkpoint weight"): the run scripts time each checkpoint, Store and case-file call,
+    and `storage_since` sums a turn's — so a run record says how much of a turn was storage. Timing changes
+    nothing the saver does: the checkpoint written through the timed methods reads back."""
+    from langgraph.checkpoint.base import empty_checkpoint
+
+    from backend.core.store import AzureBlobStore
+    from backend.storage import blob
+    from scripts import move_proof_661 as proof
+
+    for owner, names in ((AzureBlobCheckpointSaver, ("put", "put_writes", "get_tuple", "list")),
+                         (AzureBlobStore, ("batch", "abatch")), (blob, ("load_case", "save_case"))):
+        for name in names:                      # restored after the test: the timing patches the classes
+            monkeypatch.setattr(owner, name, getattr(owner, name))
+    monkeypatch.setattr(proof, "STORAGE", [])
+    proof._time_storage()
+    saver = AzureBlobCheckpointSaver(container_client=_Container())  # type: ignore[arg-type]
+    metadata: Any = {"source": "input", "step": -1, "parents": {}}
+    start = len(proof.STORAGE)
+    cfg = saver.put({"configurable": {"thread_id": "T", "checkpoint_ns": ""}}, empty_checkpoint(), metadata, {})
+    saver.put_writes(cfg, [("x", 1)], "task-1")
+    assert saver.get_tuple({"configurable": {"thread_id": "T", "checkpoint_ns": ""}}) is not None
+    assert len(list(saver.list({"configurable": {"thread_id": "T", "checkpoint_ns": ""}}))) == 1
+    got = proof.storage_since(start)
+    assert got["calls"] == 4 and got["checkpoint"]["calls"] == 4, got
+    assert [c["op"] for c in proof.STORAGE[start:]] == ["put", "put_writes", "get_tuple", "list"]
+    assert got["seconds"] >= 0 and set(got) == {"seconds", "calls", "checkpoint"}, got
+
+
 # ── the route, the graph, the saver ───────────────────────────────────────
 
 

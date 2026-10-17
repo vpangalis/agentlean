@@ -42,7 +42,8 @@ from pathlib import Path
 from typing import Any
 
 from scripts.coaching_proof_656 import ANSWERS, SAVINGS, SENDS, WEAK_4, _tracing_off
-from scripts.move_proof_661 import CALLS, COACH_INPUTS, CapReached, _count_model_calls, token_totals
+from scripts.move_proof_661 import (CALLS, COACH_INPUTS, STORAGE, CapReached, _count_model_calls, _time_storage,
+                                    storage_since, token_totals)
 
 CASE_TITLE = "DEFINE RUN-THROUGH — step 6.66, do not use for other proofs"
 USER = "define-runthrough-6.66"
@@ -226,7 +227,7 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
         if walk_field := getattr(walk, "_field", None):
             if walk_field == "process_map_sipoc" and not uploaded:
                 uploaded = True
-                c0, t0 = len(CALLS), time.time()
+                c0, t0, s0 = len(CALLS), time.time(), len(STORAGE)
                 try:
                     up = client.post("/upload", data={"case_id": case_id, "uploaded_by": USER,
                                                       "phase": "define", "kind": "evidence"},
@@ -239,8 +240,9 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
                     up_body, up_http = f"{exc.__class__.__name__}: {exc}"[:300], None
                 _write(rec, {"kind": "upload", "http": up_http,
                              "seconds": round(time.time() - t0, 1),
-                             "model_calls": [c["kind"] for c in CALLS[c0:]], "body": up_body})
-        c0, i0, t0 = len(CALLS), len(COACH_INPUTS), time.time()
+                             "model_calls": [c["kind"] for c in CALLS[c0:]], "body": up_body,
+                             "storage": storage_since(s0)})                # G-232
+        c0, i0, t0, s0 = len(CALLS), len(COACH_INPUTS), time.time(), len(STORAGE)
         body: dict[str, Any] = {"case_id": case_id, "phase": "define", "message": message, "user": USER}
         if action:
             body["action"] = action
@@ -252,6 +254,7 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
                          "http": None, "stopped": out["stopped"]})
             break
         seconds = round(time.time() - t0, 1)
+        storage = storage_since(s0)            # G-232: the turn's own storage time, before the reads below
         case = client.get(f"/cases/{case_id}").json()
         history = case.get("conversation_history") or []
         ai = [t for t in history if t.get("role") == "ai"]
@@ -264,6 +267,7 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             "http": resp.status_code, "seconds": seconds,
             "model_calls": [c["kind"] for c in CALLS[c0:]],
             "tokens": token_totals(CALLS[c0:])["total"],          # item 4 (2026-09-30)
+            "storage": storage,                                    # G-232 (owner G-220 "Checkpoint weight")
             "move": mrec.get("move"), "field": mrec.get("field"), "status": mrec.get("status"),
             "verdict": judgment.get("verdict") if isinstance(judgment, dict) else None,
             "stored_field": (mrec.get("stored") or {}).get("field") if isinstance(mrec.get("stored"), dict) else mrec.get("stored_field"),
@@ -345,12 +349,13 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
     # Founder ruling 3, 2026-09-28 — the last two steps (stop condition 7's evidence): approve the
     # Define report, then one turn that enters Measure. Only after a submission that passed.
     if sb.status_code == 200 and isinstance(submit, dict) and (submit.get("awaiting_acceptance") or submit.get("passed")):
-        c0, t0 = len(CALLS), time.time()
+        c0, t0, s0 = len(CALLS), time.time(), len(STORAGE)
         dc = client.post("/gate/decision", json={"case_id": case_id, "phase": "define", "decision": "approve",
                                                  "actor": "Priya Shah"})
         decided = dc.json() if dc.headers.get("content-type", "").startswith("application/json") else {"text": dc.text[:400]}
         _write(rec, {"kind": "gate_decision", "http": dc.status_code, "seconds": round(time.time() - t0, 1),
-                     "model_calls": [c["kind"] for c in CALLS[c0:]], "body": decided})
+                     "model_calls": [c["kind"] for c in CALLS[c0:]], "body": decided,
+                     "storage": storage_since(s0)})
         print(f"gate decision {dc.status_code}")
         if dc.status_code == 200:
             # T23, live (founder 2026-10-14): the approval wrote the gate document once — the Store's
@@ -358,13 +363,14 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             out["t23"] = t23_check(client, case_id)
             _write(rec, {"kind": "t23_check", **out["t23"]})
             print(f"T23 live check: {out['t23']}")
-            c0, t0 = len(CALLS), time.time()
+            c0, t0, s0 = len(CALLS), time.time(), len(STORAGE)
             ms = client.post("/ask", json={"case_id": case_id, "phase": "measure", "user": USER,
                                            "message": "We're ready for Measure. Where do we start?"})
             mb = ms.json() if ms.status_code == 200 else {"error": ms.text[:400]}
+            ms_storage = storage_since(s0)
             after = client.get(f"/cases/{case_id}").json()
             _write(rec, {"kind": "measure_turn", "http": ms.status_code, "seconds": round(time.time() - t0, 1),
-                         "model_calls": [c["kind"] for c in CALLS[c0:]], "phase": mb.get("phase"),
+                         "model_calls": [c["kind"] for c in CALLS[c0:]], "phase": mb.get("phase"), "storage": ms_storage,
                          "current_phase": after.get("current_phase"),
                          "reply": {k: mb.get(k) for k in ("answer", "prompt", "progress", "move", "move_field")}})
             print(f"measure turn {ms.status_code} · phase now {after.get('current_phase')}")
@@ -395,6 +401,7 @@ def main() -> int:
     # The walk stops itself at --max-calls (`run` checks it); the hard cap at the model boundary leaves the
     # hard-path scenarios their own allowance — they ran into the walk's cap on 2026-10-13 (run 074320).
     _count_model_calls(args.max_calls + SCENARIO_CALLS)
+    _time_storage()                            # G-232: storage time per turn in the record
     if args.scenarios_only:
         return _scenarios_only(Path(args.scratch))
     if args.slices or args.slice:

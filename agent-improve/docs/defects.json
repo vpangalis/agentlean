@@ -2576,6 +2576,29 @@
     "tooling"
    ],
    "control": "Proposed: the summary is the last line matching pytest's result pattern (\"N passed\" / \"N failed\" ... \" in Ns\"), not the last line; and the unclosed client is found and closed at test teardown. Rework risk: low — one grep in .githooks/pre-commit, and a fixture's teardown; belt impact: none."
+  },
+  {
+   "id": "G-232",
+   "symptom": "A HOW-TO QUESTION TURN RAN PAST THE 45 S DEADLINE ON STORAGE, NOT ON THE MODEL (founder ruling 2026-10-17, item 7). How-to eval run 20261016T162217, case sipoc-detail (IMPR-HOWTO-37FBF8), \"How detailed should the SIPOC be?\": the Belt got ADR-0080's resend reply. Its checkpoints show the turn reached define:1:planner at 40.6 s (16:22:13.6) and the deadline (turn start + 45 s - 3 s reserve, about 16:22:15) fell before validation_stack, gate_review, gate_apply and the parent's writes. Against the turn before it on the same case (19 s): each checkpoint step with no model call took 1.3-1.9 s instead of about 0.3 s, though this turn's checkpoints were smaller (executor 4-17 KB against up to 25 KB); the planner, coach and grader calls took 5.7 / 7.8 / 4.3 s against 1.9 / 5.5 / 2.2 s. D4 OCCURRENCE: a turn makes about 70 Blob round trips one after another, and that minute they were about six times slower (about 360 ms against 60 ms each). Two design causes amplify it: (1) core/checkpointer.py aput and aput_writes call the synchronous Blob client inside the event loop (\"For now delegate to sync … Step 6 may replace with truly async azure-storage-blob.aio calls\"), so every write blocks the turn: put = history upload, properties read, latest upload; put_writes = download and upload per task; (2) the coach's inner create_agent is built without a checkpointer setting, so it inherits the parent's and writes its ~10 internal steps per turn to Blob in its own |executor: namespace. D4 ESCAPE: the run records carry each turn's seconds and model calls, never its storage time, so a turn lost to storage reads as a slow turn; tests run on an in-memory container whose writes cost nothing. Contained: no change; ADR-0080's deadline answered the Belt. Fix: an ADR drafted (inner agent compiled with checkpointer=False; truly async Blob writes), shown to the founder before building; storage time per turn added to the run records (scripts/move_proof_661.py _time_storage, storage_since).",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-219"
+   ],
+   "lane": [
+    "integrator"
+   ]
+  },
+  {
+   "id": "G-233",
+   "symptom": "TEST T67 FAILS UNLESS THE SHELL'S STDIO IS UTF-8 (founder ruling 2026-10-17, item 8). test_define_e2e.py::test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing starts the app in a child process and reads its stderr with encoding=\"utf-8\". The child writes its refusal (\"Agent Improve cannot start — required credential(s) missing …\") in the console's code page, so the em dash is not UTF-8; on Windows the decode error kills subprocess's reader thread, stderr comes back None, and the test fails with \"argument of type 'NoneType' is not iterable\". With PYTHONIOENCODING=utf-8 set in the shell it passes. Seen 2026-10-17 in a serial run from Claude Code's shell; the hook's runs set UTF-8 and pass. D4 OCCURRENCE: the child's stdio encoding is inherited from the environment, the reader's is fixed. D4 ESCAPE: every recorded run had UTF-8 stdio. NOT FIXED (founder: register).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: the test sets PYTHONIOENCODING=utf-8 (or PYTHONUTF8=1) in the child's environment, so the encoding the child writes is the one the test reads, whatever the shell. Rework risk: low — one test's subprocess env; belt impact: none."
   }
  ]
 }
