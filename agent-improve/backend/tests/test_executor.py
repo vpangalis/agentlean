@@ -56,7 +56,7 @@ def _state(**overrides: Any) -> PhaseState:
         "field_index": 0, "draft": {}, "artifacts": {},
         "step_log": [], "field_log": [], "field_status": {},
         "belt_edits": {}, "turn_count": 0, "final": {},
-        "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
+        "gate_attempts": 0, "gate_fingerprint": "", "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,
     }

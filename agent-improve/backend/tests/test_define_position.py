@@ -107,7 +107,7 @@ def _state(artifacts: dict) -> PhaseState:
         "history": [], "phase_context": "framing", "coaching_plan": None,
         "field_index": 0, "draft": {}, "artifacts": artifacts, "step_log": [],
         "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0, "final": {},
-        "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
+        "gate_attempts": 0, "gate_fingerprint": "", "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,
     }

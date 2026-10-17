@@ -41,13 +41,13 @@ SUPERVISOR_EXPECTED = [
     "gate_passed", "final_output",
 ]
 
-# ── S-C02, transcribed: 2 identity + 3 plumbing + 18 content ──────────────
+# ── S-C02, transcribed: 2 identity + 3 plumbing + 19 content ──────────────
 PHASE_IDENTITY = ["case_id", "current_phase"]
 PHASE_PLUMBING = ["messages", "history", "phase_context"]
 PHASE_CONTENT = [
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
     "field_log", "field_status",
-    "belt_edits", "turn_count", "final", "gate_attempts",
+    "belt_edits", "turn_count", "final", "gate_attempts", "gate_fingerprint",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
     "asks",
     "hop_results", "synthesis_output",
@@ -149,9 +149,14 @@ def test_artifacts_and_gate_documents_are_not_on_supervisor_state() -> None:
 
 # ── PhaseState — §6 / S-C02 ───────────────────────────────────────────────
 
-def test_phase_state_has_exactly_twenty_four_declared_fields() -> None:
-    """S-C02: twenty-three author-populated (2 identity, 3 plumbing, 18 content)
-    plus one engine-managed value — twenty-four declared.
+def test_phase_state_has_exactly_twenty_five_declared_fields() -> None:
+    """S-C02: twenty-four author-populated (2 identity, 3 plumbing, 19 content)
+    plus one engine-managed value — twenty-five declared.
+
+    **`gate_fingerprint` joined at G-192** (ADR-0076 "Third failed gate attempt escalates to
+    the lead", founder ruling 2026-10-17): what the last failed gate submission submitted, so
+    the same submission again is not counted. The ARCHITECTURE.md amendment is owed (docs
+    are updated after Define).
 
     **`field_status` joined at step 6.61** (ARCHITECTURE.md v1.77, ruling R5):
     where each field stands — not taught, asked, answered, confirmed — STORED
@@ -177,9 +182,9 @@ def test_phase_state_has_exactly_twenty_four_declared_fields() -> None:
     """
     assert len(PHASE_IDENTITY) == 2
     assert len(PHASE_PLUMBING) == 3
-    assert len(PHASE_CONTENT) == 18
-    assert len(PHASE_AUTHOR_POPULATED) == 23
-    assert len(PHASE_EXPECTED) == 24
+    assert len(PHASE_CONTENT) == 19
+    assert len(PHASE_AUTHOR_POPULATED) == 24
+    assert len(PHASE_EXPECTED) == 25
     assert list(PhaseState.__annotations__) == PHASE_EXPECTED
 
 

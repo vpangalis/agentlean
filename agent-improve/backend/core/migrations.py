@@ -230,9 +230,17 @@ def migrate_v9_to_v10(values: Mapping[str, Any]) -> dict[str, Any]:
     return _define_v10(out)
 
 
+def migrate_v10_to_v11(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0076 "Third failed gate attempt escalates to the lead" (G-192, DEF-192): `PhaseState` and the
+    phase record gain `gate_fingerprint`, what the last failed gate submission submitted. A no-op: a record
+    without it reads "" — no failed submission to compare with, so the next failure is counted."""
+    return dict(values)
+
+
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
                                     4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7,
-                                    7: migrate_v7_to_v8, 8: migrate_v8_to_v9, 9: migrate_v9_to_v10}
+                                    7: migrate_v7_to_v8, 8: migrate_v8_to_v9, 9: migrate_v9_to_v10,
+                                    10: migrate_v10_to_v11}
 
 
 def current() -> int:

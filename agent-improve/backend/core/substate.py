@@ -754,6 +754,11 @@ class PhaseState(TypedDict):
     # This placement is the fix for that specific defect (§6).
     gate_attempts:      int
 
+    # G-192 (ADR-0076): what the last FAILED gate submission submitted — `submission_fingerprint`
+    # in `phases/nodes_common.py`. The same submission again is not counted against the cap of 3;
+    # "" when none failed since the last pass.
+    gate_fingerprint:   str
+
     # Accumulated per-attempt validation failures. Accumulation is the entire
     # point: the shared cap of 3 is defensible only because each attempt is
     # better informed than the last, and this field carries the memory.
@@ -847,7 +852,7 @@ PHASE_STATE_PLUMBING_FIELDS = ("messages", "history", "phase_context")
 PHASE_STATE_CONTENT_FIELDS = (
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
     "field_log", "field_status",
-    "belt_edits", "turn_count", "final", "gate_attempts",
+    "belt_edits", "turn_count", "final", "gate_attempts", "gate_fingerprint",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
     "asks", "hop_results", "synthesis_output",
 )

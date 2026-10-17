@@ -2934,6 +2934,31 @@ def _revise_goal(env, monkeypatch) -> dict:
     return define
 
 
+def _change_through_coaching(env, monkeypatch, field: str, value: str, user: str = "ana") -> None:
+    """G-192 — a confirmed element changed as the Belt changes it: revise, the new value read back,
+    Confirm. A gate submission sees the change only this way; the case blob seeds the first turn alone."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    def ask(**body) -> None:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": user, **body})
+        assert r.status_code == 200, r.text
+
+    _coach_saying(monkeypatch, "What should it say now?")
+    ask(action="revise", element=field, message="This needs to change.")
+    reply = {**REPLY, "message": f'You wrote: "{value}" Is this right?',
+             "fields_captured": [{"field_name": field, "value": value, "source": "belt"}]}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "c192"}])]))
+        if role == "coach" else planner(role, **kw))
+    ask(message=value)
+    _coach_saying(monkeypatch, "Thank you.")
+    ask(action="confirm", message="Confirm")
+
+
 def _goal_change(define: dict) -> dict:
     changes = [e for e in define.get("field_log") or [] if e.get("field") == "goal_statement"]
     assert changes, f"no change log entry for the goal: {define.get('field_log')}"
@@ -3293,11 +3318,17 @@ def test_three_failed_gate_attempts_escalate(env, monkeypatch) -> None:
         return rubric.GraderVerdict(verdicts=out)
     monkeypatch.setattr(rubric, "_llm_verdicts", one_fails)
 
-    first, second = _submit(env), _submit(env)
+    def changed_submit(n: int) -> dict:
+        # G-192 (founder 2026-10-17): only a submission that changed something counts — each one here does.
+        if n > 1:
+            _change_through_coaching(env, monkeypatch, "business_case", f"Version {n}: late payments cost money.")
+        return _submit(env)
+
+    first, second = changed_submit(1), changed_submit(2)
     assert not first["passed"] and not second["passed"]
     assert "project lead" not in first["message"] and "project lead" not in second["message"]
     assert rows[CASE_ID].status == "active", "escalated before the third attempt"
-    third = _submit(env)
+    third = changed_submit(3)
     assert third["passed"] is False and third.get("escalated") is True, third
     # G-192: the lead (ACTOR) submitted, so the Champion is told — never the person submitting.
     assert "the Champion, Tom" in third["message"] and "For your information" in third["message"], third["message"]
@@ -5277,9 +5308,13 @@ def test_escalation_counts_changed_submits_and_reaches_the_champion(env, monkeyp
         return rubric.GraderVerdict(verdicts=out)
     monkeypatch.setattr(rubric, "_llm_verdicts", one_fails)
 
+    last: dict = {}
+
     def submit(by: str, business_case: str) -> dict:
-        env.case.phases["define"].structured = {**(env.case.phases["define"].structured or {}),
-                                                "business_case": business_case}
+        # The value changes as the Belt changes it (revise, read-back, Confirm) — and only when it differs.
+        if last.get("business_case") != business_case:
+            _change_through_coaching(env, monkeypatch, "business_case", business_case, user=by)
+            last["business_case"] = business_case
         r = env.client.post("/gate", json={"case_id": CASE_ID, "submitted_by": by, "phase": "define"})
         assert r.status_code == 200, r.text
         return r.json()
@@ -5308,6 +5343,15 @@ def test_escalation_counts_changed_submits_and_reaches_the_champion(env, monkeyp
     env.restart()
     same = [submit(ACTOR, "Unchanged: late payments cost about £62k a year.") for _ in range(3)]
     assert not any(s["escalated"] for s in same), [s["escalated"] for s in same]
+
+    # T88 (ADR-0065): the fingerprint is a state change — version 11, a no-op migration from 10; a phase
+    # record written under version 10 has none and reads "", so its next failure is counted.
+    from backend.core import migrations
+    from backend.phases import record as phase_record
+    assert 10 in migrations.MIGRATIONS and migrations.current() >= 11
+    v10 = {"phase": "define", "structured": {}, "field_status": {}, "field_log": [], "gate_attempts": 2}
+    assert migrations.MIGRATIONS[10](v10) == v10
+    assert phase_record.merge(v10, {}, "define")["gate_fingerprint"] == ""
 
 
 def test_the_gate_result_shows_the_servers_failing_checks(env) -> None:

@@ -8,7 +8,7 @@ differs from a fresh generation. Founder ruling 6, 2026-09-29: moved out of ARCH
 
 ### 4.2 Declarations
 
-**State schema version 10** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
+**State schema version 11** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
 
 #### `SupervisorState` — `core/state.py`
 
@@ -43,6 +43,7 @@ class PhaseState(TypedDict):
     turn_count:         int
     final:              dict[str, Any]
     gate_attempts:      int
+    gate_fingerprint:   str
     validator_feedback: list[dict]
     rejection_feedback: list[dict]
     citations:          list[dict]

@@ -178,7 +178,10 @@ def phase_node(phase: str) -> Callable[..., Any]:
         # ADR-0066: the record this turn merges into — what the input mapper seeded from.
         prior = {"structured": dict(child.get("artifacts") or {}),
                  "field_status": {f: dict(v) for f, v in (child.get("field_status") or {}).items()},
-                 "field_log": [dict(e) for e in (child.get("field_log") or [])]}
+                 "field_log": [dict(e) for e in (child.get("field_log") or [])],
+                 # G-192: the gate count and fingerprint survive a coaching turn between two submissions.
+                 "gate_attempts": int(child.get("gate_attempts") or 0),
+                 "gate_fingerprint": str(child.get("gate_fingerprint") or "")}
         carried = phase_record.latest(state.get("messages") or [], phase)
 
         # ── the WATCH 7 seam, seeded at the boundary ──────────────────
@@ -236,6 +239,7 @@ def phase_node(phase: str) -> Callable[..., Any]:
         # ADR-0076 (G-150): a gate submission's attempt count, kept by the record across turns.
         if verdict:
             payload["gate_attempts"] = int(verdict.get("gate_attempts") or verdict.get("attempts") or 0)
+            payload["gate_fingerprint"] = str(verdict.get("gate_fingerprint") or "")
         # ADR-0066: the merged record travels on the reply, so the checkpoint is its home.
         payload[phase_record.KEY] = phase_record.merge(prior, payload, phase)
         if new_messages:
@@ -356,6 +360,7 @@ def _verdict(result: dict[str, Any]) -> dict[str, Any]:
         return {}
     latest = dict(feedback[-1])
     latest["gate_attempts"] = result.get("gate_attempts", 0)
+    latest["gate_fingerprint"] = result.get("gate_fingerprint", "")
     return latest
 
 

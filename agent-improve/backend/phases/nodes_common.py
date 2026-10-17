@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import hashlib
 import json
 import logging
 import re
@@ -3338,6 +3339,15 @@ def _criterion_element(criterion: str) -> str:
     return guard_messages.element_name("define", position) if position else criterion
 
 
+def submission_fingerprint(state: PhaseState) -> str:
+    """G-192 (ADR-0076) — what a gate submission submitted: the phase's captured values and where
+    each element stands. Two submissions with the same fingerprint changed nothing between them."""
+    statuses = {f: (v or {}).get("status") for f, v in (state.get("field_status") or {}).items()}
+    body = json.dumps({"artifacts": state.get("artifacts") or {}, "status": statuses},
+                      sort_keys=True, default=str)
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
 async def validation_stack(
     phase: str,
     validate: V1Node,
@@ -3435,15 +3445,23 @@ async def validation_stack(
                             for f in failed))
     # ADR-0076 (T65, G-150): the count is the phase record's, carried across turns; a pass resets it,
     # and the third failure escalates — the route tells the Belt and marks the case for the lead.
+    # G-192: only a submission that changed something counts — the same one again keeps the count.
+    fingerprint = submission_fingerprint(state)
     if passed:
-        attempts, escalated = 0, False
+        attempts, escalated, fingerprint = 0, False, ""
+    elif fingerprint == (state.get("gate_fingerprint") or ""):
+        attempts, escalated = int(state.get("gate_attempts") or 0), False
+        logger.info("%s.validation_stack: unchanged since the last failed submission — not counted "
+                    "(attempts=%d)", phase, attempts)
     else:
         escalated = attempts >= settings.GATE_MAX_ATTEMPTS
-    feedback[-1] = {**feedback[-1], "attempts": attempts, "escalated": escalated}
+    feedback[-1] = {**feedback[-1], "attempts": attempts, "escalated": escalated,
+                    "gate_fingerprint": fingerprint}
     return Command(
         goto="gate_review",
         update={
             "gate_attempts": attempts,
+            "gate_fingerprint": fingerprint,
             # Accumulation is the point (§6): the shared cap of 3 is defensible
             # only because each attempt is better informed than the last.
             "validator_feedback": feedback,
