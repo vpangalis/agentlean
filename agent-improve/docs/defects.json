@@ -2556,6 +2556,26 @@
     "tooling"
    ],
    "control": "Proposed: the hooks run with agent-improve/.venv's Python (the interpreter the project's requirements are installed in), and a hook whose dependency is missing refuses the tool call with the reason (exit 2) instead of exiting 0; the session-start hook reports a guard that cannot run. Rework risk: low — the hook entry points and their import blocks only; belt impact: none."
+  },
+  {
+   "id": "G-230",
+   "symptom": "THE PRE-COMMIT HOOK RUNS THE TESTS BEFORE IT REGENERATES THE GENERATED DOCUMENTS (founder ruling 2026-10-17, item 4). .githooks/pre-commit runs the staged-tree tests (lines 55-77) and only afterwards regenerates docs/data-models.md (generate_models.py, line 103) and docs/code-layout.md with the other generated documents (generate_layout and its siblings, lines 112-124). A commit that changes a state class or adds a module-level function therefore fails test_generate_models.py::test_the_declarations_live_in_their_own_file_linked_from_section_4_2 and test_generated_docs.py::test_the_generated_document_is_current[code layout] on the first attempt, with documents the same hook regenerates and stages seconds later; the second attempt passes. Seen 2026-10-17 on G-192's commit (d1b2eac). D4 OCCURRENCE: the generators were added below the test block. D4 ESCAPE: the failure clears itself on a retry, so it reads as a flaky test, not an ordering defect. NOT FIXED (founder: register, no feature).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: the generators run before the test block, against the staged tree, and stage their output, so the tests read the documents the commit will carry; until then, running each generator with --stage after staging and before committing avoids the failed first attempt. Rework risk: low — the order of blocks in .githooks/pre-commit; belt impact: none."
+  },
+  {
+   "id": "G-231",
+   "symptom": "THE FAST-RUN SUMMARY PRINTS \"Arguments: ()\" INSTEAD OF THE PYTEST RESULT (founder ruling 2026-10-17, item 4). .githooks/pre-commit takes the summary as the last line of the staged-tree run's whole output (SUMMARY=$(printf '%s\n' \"$OUT\" | tail -1)). After pytest prints its result, aiohttp's TCPConnector.__del__ logs \"Unclosed connector\" at interpreter exit through a logging handler whose stream is already closed, and Python prints its \"--- Logging error ---\" block, which ends in \"Arguments: ()\" — so the [tests] line, and the timing it is read into, shows that instead of the counts. Reproduced 2026-10-17 by a serial pytest run of the gate and state areas. D4 OCCURRENCE: an unclosed aiohttp session (a storage or model client left open by a test) and a summary read by position, not by pattern. D4 ESCAPE: rule 4 reads the recorded outcomes, not this line, so nothing fails; the line is only read by people. NOT FIXED (founder: register, no feature).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: the summary is the last line matching pytest's result pattern (\"N passed\" / \"N failed\" ... \" in Ns\"), not the last line; and the unclosed client is found and closed at test teardown. Rework risk: low — one grep in .githooks/pre-commit, and a fixture's teardown; belt impact: none."
   }
  ]
 }
