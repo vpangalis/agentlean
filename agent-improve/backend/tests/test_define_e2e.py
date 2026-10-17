@@ -449,7 +449,7 @@ def test_the_create_form_shows_no_case_id_the_server_did_not_assign(monkeypatch)
     form = """
 const S={user:'Priya Shah',beltLevel:'green',teamMembers:[]};
 els['create-title']={value:'Late supplier payments'};els['create-dept']={value:'Finance'};
-els['create-date']={value:'2027-03-31'};
+els['create-date']={value:'2027-03-31'};els['create-lead-name']={value:'Priya Shah'};
 """
     # 1. The form before the server answers, and the request the page builds.
     first = _run_page(create, _PAGE_STUBS + form + """
@@ -1558,11 +1558,17 @@ def test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque(
 def test_t13_the_case_blob_is_never_written_mid_conversation_only_at_gate_appro(env) -> None:
     """DEF-117 — T13, ADR-0066's verification, through the API: /ask writes no case blob; a
     reload (GET /cases/{id}) shows every confirmed value and the conversation — read from the
-    checkpoint through the compiled graph, not from the blob; an approval writes the blob once."""
+    checkpoint through the compiled graph, not from the blob; an approval writes the blob once.
+    T13 as amended by ADR-0090 "The people on a case" (founder 2026-10-17): the one write /ask may make is a change
+    of the people on the case (element 2 confirmed, naming someone new) — and it changes nothing else."""
+    people_only = {"people", "leader", "state_schema_version"}
+    before = env.case.model_dump(exclude=people_only)
     for text in ("Our lead time is eleven days.", "The target is five days by March."):
         r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "belt", "message": text})
         assert r.status_code == 200, r.text
-    assert env.saved == [], f"/ask wrote the case blob {len(env.saved)} time(s)"
+    assert all(c.model_dump(exclude=people_only) == before for c in env.saved), "/ask wrote more than the people"
+    assert len(env.saved) <= 1, f"/ask wrote the case blob {len(env.saved)} time(s)"
+    env.saved.clear()
     confirmed = dict(env.case.phases["define"].structured)
     env.case.phases["define"].structured = {}                 # the blob forgets: the reload must not
     env.case.conversation_history = []
@@ -5633,9 +5639,146 @@ def test_the_overview_is_served_from_the_skill() -> None:
     _not_written('DEF-214')
 
 
-def test_the_lead_and_members_are_stored_with_their_details() -> None:
-    """DEF-215 — The project lead and the members are stored with their details, one name for the lead everywhere (G-216; founder test findings 2, 4, 29)"""
-    _not_written('DEF-215')
+def test_the_lead_and_members_are_stored_with_their_details(env, monkeypatch) -> None:
+    """DEF-215 — The project lead and the members are stored with their details, one name for the lead everywhere (G-216; founder test findings 2, 4, 29)
+    ADR-0090 "The people on a case" (rulings a-b), on the real routes and graph:
+    (1) POST /cases with the form's lead and members stores one person record each — the creator as project lead,
+        a member without an e-mail (ruling a) — and the lead's full name is the one name: the case's leader, the
+        registry row, the people list's lead; the old form (leader, team) still creates the same people;
+    (2) the team panel: only the lead adds a person; a non-lead is refused in plain words;
+    (3) a confirmed element 2 naming someone not on the case adds them as a proposed member — element 2 stays
+        confirmed, the lead named by first name is not duplicated; the lead confirms them only with an e-mail;
+        a proposed member cannot sign in until then;
+    (4) the Define report's section A lists the people with role, department and site;
+    (5) a version-11 case record (typed leader, team entries) migrates to people, the lead without an e-mail
+        (T88), and loads;
+    (6) the page: the create form sends the lead and members with their details; the team panel shows Confirm
+        to the lead only."""
+    import json
+
+    from backend.core import migrations
+    from backend.phases import moves
+    from backend.storage import people as people_mod
+    from backend.storage.models import CaseDocument
+    from backend.tests.test_define_report import COMPLETE
+
+    # (1) through the real create route, over the blob fakes of the gate env (load/save the one case object).
+    from backend.gateway import routes
+    created: dict = {}
+
+    async def create(case):
+        created[case.case_id] = case
+
+    async def register(case):
+        created.setdefault("registered", []).append(case.leader)
+    with monkeypatch.context() as scoped:                # the creation fakes, for part (1) only
+        scoped.setattr(routes.blob, "create_case", create)
+        scoped.setattr(routes.blob, "register_case", register)
+        scoped.setattr(routes, "_ensure_case_record", lambda case: None)
+        form = {"title": "Late supplier payments", "belt_level": "green", "department": "Finance",
+                "target_date": "2027-03-31",
+                "lead": {"full_name": "Priya Shah", "email": "priya.shah@example.com", "function": "AP manager",
+                         "department": "Finance"},
+                "people": [{"full_name": "Tom Reed", "role": "Champion", "department": "Operations",
+                            "location": {"country": "AT", "site": "Vienna"}}]}
+        r = env.client.post("/cases", json=form)
+        assert r.status_code == 200, r.text
+        case = created[r.json()["case_id"]]
+        lead = people_mod.lead(case.people)
+        assert lead is not None and lead.full_name == "Priya Shah" and lead.email == "priya.shah@example.com"
+        assert case.leader == "Priya Shah" and created["registered"] == ["Priya Shah"], "two names for the lead"
+        tom = people_mod.find(case.people, "Tom Reed")
+        assert tom is not None and tom.email == "" and tom.status == "member", "ruling a: no e-mail needed at creation"
+        assert tom.location.site == "Vienna" and tom.department == "Operations"
+        old = env.client.post("/cases", json={"title": "Old form", "belt_level": "green", "leader": "Ana Lima",
+                                              "department": "Finance", "target_date": "2027-03-31",
+                                              "team": [{"name": "Tom Reed", "role": "Champion"}]})
+        assert old.status_code == 200, old.text
+        assert [(p.full_name, p.role) for p in created[old.json()["case_id"]].people] == [
+            ("Ana Lima", "project lead"), ("Tom Reed", "Champion")]
+        nameless = env.client.post("/cases", json={**form, "lead": {"full_name": "  "}})
+        assert nameless.status_code == 422 and "full name" in nameless.json()["detail"], nameless.text
+
+    # (2) the team panel, on the gate env's case (lead ACTOR).
+    env.case.people = CaseDocument.new(case_id=CASE_ID, title="t", belt_level="green", leader=ACTOR,
+                                       department="Finance", target_date="2027-03-31", team=[]).people
+    listed = env.client.get(f"/cases/{CASE_ID}/people").json()
+    assert listed["lead"] == ACTOR and listed["people"][0]["is_lead"], listed
+    refused = env.client.post(f"/cases/{CASE_ID}/people",
+                              json={"actor": "Lena", "person": {"full_name": "Max Berg", "role": "Analyst"}})
+    assert refused.status_code == 403 and f"Only the project lead, {ACTOR}" in refused.json()["detail"], refused.text
+    added = env.client.post(f"/cases/{CASE_ID}/people",
+                            json={"actor": ACTOR, "person": {"full_name": "Max Berg", "role": "Analyst"}})
+    assert added.status_code == 200 and [p["full_name"] for p in added.json()["people"]] == [ACTOR, "Max Berg"]
+
+    # (3) element 2 confirmed (the gate env's case has every element confirmed): one coaching turn reconciles.
+    _coach_saying(monkeypatch, "Let's look at the business case.")
+    turn = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": ACTOR,
+                                         "message": "Where do we stand?"})
+    assert turn.status_code == 200, turn.text
+    people = {p.full_name: p for p in env.case.people}
+    assert people["Tom"].status == "proposed" and people["Lena"].status == "proposed", sorted(people)
+    assert "Priya" not in people, "the lead, named by first name in element 2, was added a second time"
+    assert env.case.phases["define"].field_status["team"]["status"] == moves.CONFIRMED
+    assert not people_mod.may_sign_in(people["Lena"]), "ruling b: a proposed member cannot sign in"
+    no_mail = env.client.post(f"/cases/{CASE_ID}/people/Lena?confirm=true",
+                               json={"actor": ACTOR, "person": {"full_name": "Lena", "role": "Process owner"}})
+    assert no_mail.status_code == 422 and "e-mail" in no_mail.json()["detail"], no_mail.text
+    confirmed = env.client.post(f"/cases/{CASE_ID}/people/Lena?confirm=true",
+                                 json={"actor": ACTOR, "person": {"full_name": "Lena", "role": "Process owner",
+                                                                  "email": "lena@example.com"}})
+    assert confirmed.status_code == 200, confirmed.text
+    lena = next(p for p in confirmed.json()["people"] if p["full_name"] == "Lena")
+    assert lena["status"] == "member" and lena["email"] == "lena@example.com"
+    assert people_mod.may_sign_in(people_mod.find(env.case.people, "lena@example.com"))
+
+    # (4) section A lists the people, with role, department and site.
+    from backend.phases.define.report import define_report
+    rep = define_report(COMPLETE, {"leader": ACTOR, "people": [p.model_dump() for p in env.case.people]}, [])
+    rows = rep["sections"][0]["people"]
+    assert rows[0]["name"] == ACTOR and rep["sections"][0]["project_lead"] == ACTOR, rows
+    assert {r["name"]: (r["role"], r["status"]) for r in rows}["Tom"] == ("Champion", "proposed"), rows
+    assert {"name", "role", "department", "site", "status"} <= set(rows[0]), rows[0]
+
+    # (5) a version-11 case record migrates (T88).
+    v11 = {**json.loads(env.case.model_dump_json()), migrations.VERSION_KEY: 11, "leader": "Ana Lima",
+           "team": [{"name": "Tom Reed", "role": "Champion"}, {"name": "Ana Lima", "role": "Leader"}]}
+    v11.pop("people")
+    assert 11 in migrations.MIGRATIONS and migrations.current() >= 12
+    moved = CaseDocument.model_validate(migrations.migrate_case(v11, 11))
+    assert [(p.full_name, p.role, p.email) for p in moved.people] == [("Ana Lima", "project lead", ""),
+                                                                    ("Tom Reed", "Champion", "")]
+    assert migrations.MIGRATIONS[11]({"artifacts": {}}) == {"artifacts": {}}
+
+    # (6) the page: the create form's request, and the team panel's Confirm for the lead only.
+    page = _run_page(("function initCreate", "async function submitCreateCase", "function addTeamMember",
+                      "function initials"), _PAGE_STUBS + """
+const S={beltLevel:'green',teamMembers:[]};
+els['create-title']={value:'Late supplier payments'};els['create-dept']={value:'Finance'};
+els['create-date']={value:'2027-03-31'};els['create-lead-name']={value:'Priya Shah'};
+els['create-lead-email']={value:'priya.shah@example.com'};
+els['new-member-name']={value:'Tom Reed'};els['new-member-role']={value:'Champion'};
+els['add-member-form']={classList:{remove(){}}};
+async function apiJSON(url,opts){posted.push({url,body:JSON.parse(opts.body)});return null}
+addTeamMember();
+(async()=>{await submitCreateCase();process.stdout.write(JSON.stringify({posted,toasts}))})();
+""")
+    [req] = page["posted"]
+    assert req["body"]["lead"]["full_name"] == "Priya Shah" and req["body"]["lead"]["email"] == "priya.shah@example.com"
+    assert [m["full_name"] for m in req["body"]["people"]] == ["Tom Reed"] and "leader" not in req["body"], req
+    data = {"case_id": CASE_ID, "lead": ACTOR, "people": [
+        {"full_name": ACTOR, "role": "project lead", "status": "member", "is_lead": True, "email": "p@x.com"},
+        {"full_name": "Lena", "role": "Process owner", "status": "proposed", "is_lead": False}]}
+    panel = _run_page(("function renderTeamPanel",), _PAGE_STUBS + f"""
+const out={{}};
+for (const who of [{json.dumps(ACTOR)},'Lena']){{
+  globalThis.S={{user:who}};els['team-panel']={{setAttribute(){{}},innerHTML:''}};
+  renderTeamPanel({json.dumps(data)});
+  out[who]=els['team-panel'].innerHTML;}}
+process.stdout.write(JSON.stringify(out));
+""")
+    assert 'id="tp-confirm-1"' in panel[ACTOR] and "Lena" in panel[ACTOR], panel[ACTOR][-400:]
+    assert 'id="tp-confirm-1"' not in panel["Lena"] and "the lead confirms" in panel["Lena"]
 
 
 def test_only_registered_people_open_a_case_and_the_lead_approves() -> None:

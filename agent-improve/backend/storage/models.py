@@ -8,8 +8,35 @@ from backend.core.citations import CitationRecord
 
 
 class TeamMemberRecord(BaseModel):
+    """Version 11 and before: a create-form team entry. Read by the schema-12 migration only (ADR-0090)."""
     name: str
     role: str
+
+
+#: ADR-0090 "The people on a case": the role the case's creator holds.
+PROJECT_LEAD = "project lead"
+
+
+class PersonLocation(BaseModel):
+    """ADR-0090 decision 1: country and site, as ADR-0089 "Case location: country and site" will list them;
+    empty is "not set" (W20)."""
+    country: str = ""
+    site: str = ""
+
+
+class PersonRecord(BaseModel):
+    """ADR-0090 "The people on a case": one record per person, kept on the case and written on every team
+    change. The e-mail is required only before the person signs in (ruling a). A person named in Define's
+    element 2 who was not on the case is `proposed` until the lead confirms them with an e-mail (ruling b)."""
+    full_name: str
+    email: str = ""
+    role: str = ""
+    function: str = ""
+    department: str = ""
+    location: PersonLocation = Field(default_factory=PersonLocation)
+    status: Literal["member", "proposed"] = "member"
+    added_by: str = ""
+    added_at: str = ""
 
 
 class CriterionCheck(BaseModel):
@@ -257,9 +284,11 @@ class CaseDocument(BaseModel):
     case_id: str
     title: str
     belt_level: str                   # yellow | green | black
+    #: The project lead's display name — always the lead's `PersonRecord.full_name` (ADR-0090 decision 4).
     leader: str
     department: str
-    team: list[TeamMemberRecord] = []
+    #: ADR-0090: everyone on the case; the lead is the one whose role is PROJECT_LEAD.
+    people: list[PersonRecord] = []
     created_at: str
     target_date: str
     current_phase: str = "define"
@@ -291,8 +320,10 @@ class CaseDocument(BaseModel):
         department: str,
         target_date: str,
         team: list[dict],
+        people: Optional[list["PersonRecord"]] = None,
     ) -> "CaseDocument":
-        """Factory for creating a new case."""
+        """Factory for creating a new case. ADR-0090: `people` (the lead first) when the form gives them;
+        else the lead from `leader` and the members from `team` ({name, role}), as before."""
         from datetime import datetime, timezone
 
         from backend.core.state import STATE_SCHEMA_VERSION
@@ -305,7 +336,10 @@ class CaseDocument(BaseModel):
             department=department,
             target_date=target_date,
             created_at=datetime.now(timezone.utc).isoformat(),
-            team=[TeamMemberRecord(**m) for m in team],
+            people=list(people) if people is not None else [
+                PersonRecord(full_name=leader, role=PROJECT_LEAD),
+                *(PersonRecord(full_name=str(m.get("name") or ""), role=str(m.get("role") or ""))
+                  for m in team if str(m.get("name") or "").strip())],
         )
 
 

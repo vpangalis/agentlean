@@ -14,6 +14,9 @@ hook, `--stage`); never edited by hand. Linked from [ARCHITECTURE.md §3.9](../A
 | POST | `/context` | `get_session_context` | `ContextResponse` | Generate a re-entry greeting based on current gate status. |
 | POST | `/cases` | `create_case` | `CaseCreateResponse` | Create a new improvement case and register it. |
 | POST | `/ask` | `ask` | `AskResponse` | One coaching turn, through the compiled graph. |
+| GET | `/cases/{case_id}/people` | `get_people` | `PeopleResponse` | ADR-0090: the team panel — everyone on the case, the lead first, proposed members marked. |
+| POST | `/cases/{case_id}/people` | `add_person` | `PeopleResponse` | ADR-0090 / R8b: the lead adds a member — full name and role; the e-mail before they sign in. |
+| POST | `/cases/{case_id}/people/{who}` | `change_person` | `PeopleResponse` | ADR-0090: the lead completes a person's details; with `confirm`, confirms a proposed member — only with |
 | GET | `/gate/review/{case_id}/{phase}` | `gate_review` | `GateReviewResponse` | The assembled gate document, shown to the Belt BEFORE approval. |
 | POST | `/upload` | `upload_file` | — | §29.1's external-data channel — procedure step 6.11. |
 | DELETE | `/files/{case_id}/{file_id}` | `delete_case_file` | — | Remove a file record from the case. |

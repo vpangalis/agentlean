@@ -31,6 +31,7 @@ from backend.gateway.schemas import (
     UploadMetaRequest,
 )
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
+from backend.gateway.schemas import PeopleResponse, PersonChange, PersonOut
 from backend.gateway.schemas import GateDecisionRequest, GateDecisionResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
@@ -232,6 +233,11 @@ async def get_session_context(request: ContextRequest) -> ContextResponse:
     )
 
 
+#: ADR-0090: said when a person is given without a full name.
+PERSON_NEEDS_NAME = "Please give {who}'s full name — the case needs it to show who is on the team."
+#: ADR-0090 / R8b: only the project lead changes the team.
+TEAM_LEAD_ONLY = "Only the project lead, {lead}, can change the team."
+
 #: ADR-0092 decision 2: a clash draws a new number up to this many times; one more is a readable error (W10).
 CASE_NUMBER_REDRAWS = 5
 CASE_NUMBER_EXHAUSTED = ("The case could not be created: no free case number was found. Nothing was saved — "
@@ -252,16 +258,18 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     year = datetime.now(timezone.utc).year
+    people = _people_from_request(request)
     case = None
     for _ in range(1 + CASE_NUMBER_REDRAWS):
         case = CaseDocument.new(
             case_id=blob.new_case_number(year),
             title=request.title,
             belt_level=request.belt_level,
-            leader=request.leader,
+            leader=people[0].full_name,                      # ADR-0090 decision 4: the lead's one name
             department=request.department,
             target_date=request.target_date,
-            team=request.team,
+            team=[],
+            people=people,
         )
         try:
             await blob.create_case(case)
@@ -278,6 +286,42 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
     # on `BaseStore` alone; the blob above stays the system of record.
     _ensure_case_record(case)
     return CaseCreateResponse(case_id=case_id, title=request.title)
+
+
+def _person(p: Any, *, role: str = "", status: str = "member", by: str = "") -> Any:
+    """ADR-0090: a PersonRecord from the form's or the panel's PersonIn; the location defaults to "not set"."""
+    from datetime import datetime, timezone
+
+    from backend.storage.models import PersonLocation, PersonRecord
+    loc = dict(p.location or {})
+    return PersonRecord(full_name=p.full_name.strip(), email=p.email.strip(), role=(role or p.role).strip(),
+                        function=p.function.strip(), department=p.department.strip(),
+                        location=PersonLocation(country=str(loc.get("country") or ""), site=str(loc.get("site") or "")),
+                        status=status, added_by=by,
+                        added_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
+
+def _people_from_request(request: CaseCreateRequest) -> list:
+    """ADR-0090 decision 1: the creator is the project lead (from `lead`, else the typed `leader`), then the
+    members (from `people`, else `team`). Full name required for everyone, a role for every member; the e-mail
+    is not required at creation (ruling a). Refused in plain words, nothing created."""
+    from backend.gateway.schemas import PersonIn as _In
+    from backend.storage import people as people_mod
+    from backend.storage.models import PROJECT_LEAD
+    lead_in = request.lead or _In(full_name=request.leader)
+    if not lead_in.full_name.strip():
+        raise HTTPException(422, PERSON_NEEDS_NAME.format(who="the project lead"))
+    out = [_person(lead_in, role=PROJECT_LEAD, by=lead_in.full_name)]
+    members = request.people or [_In(full_name=str(m.get("name") or ""), role=str(m.get("role") or ""))
+                                 for m in request.team]
+    for m in members:
+        if not m.full_name.strip() and not m.role.strip():
+            continue
+        try:
+            out = people_mod.add(out, _person(m, by=lead_in.full_name))
+        except ValueError as e:
+            raise HTTPException(422, f"{m.full_name or 'A team member'}: {e}.")
+    return out
 
 
 def _ensure_case_record(case: CaseDocument) -> None:
@@ -866,6 +910,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     phase_data = dict(payload.get("v1_draft") or {})
     verdict = dict(payload.get("gate_verdict") or {})
     extra = dict(getattr(reply, "additional_kwargs", None) or {}) if reply else {}
+    await _reconcile_team(request.case_id, phase, extra.get("phase_record"), request.user)
 
     # ── envelope marshalling from here down ───────────────────────────
     # ADR-0066 / T13: no case-blob write. The turn — the Belt's message, the reply and the
@@ -914,6 +959,105 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         blocked=((extra.get("input_guard") or {}).get("threat")
                  if (extra.get("input_guard") or {}).get("status") == "blocked" else None),
     )
+
+
+async def _reconcile_team(case_id: str, phase: str, record: Any, by: str) -> None:
+    """ADR-0090 decision 3, ruling b: once Define's element 2 (the team) is confirmed, every person its rows name
+    who is not on the case is added as a proposed member — the team panel lists them for the lead to confirm.
+    Element 2 stays confirmed. A failure here never fails the turn: it is logged, and the next turn retries."""
+    from datetime import datetime, timezone
+
+    from backend.phases import moves
+    from backend.storage import people as people_mod
+    if phase != "define" or not isinstance(record, dict):
+        return
+    if ((record.get("field_status") or {}).get("team") or {}).get("status") != moves.CONFIRMED:
+        return
+    rows = (record.get("structured") or {}).get("team")
+    at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    added: list[str] = []
+
+    def change(current: list) -> list:
+        out, new = people_mod.reconcile_team(current, rows, by, at)
+        added.extend(new)
+        return out
+    try:
+        await blob.update_people(case_id, change)
+    except Exception as exc:  # noqa: BLE001 — the turn has answered; the next confirmed turn retries
+        logger.error("element 2's people were not reconciled for %s: %s", case_id, exc)
+        return
+    if added:
+        logger.info("element 2 named %d person(s) not on the case — proposed members: %s",
+                    len(added), ", ".join(added))
+
+
+def _people_out(case: CaseDocument) -> PeopleResponse:
+    from backend.storage import people as people_mod
+    head = people_mod.lead(case.people)
+    ordered = ([head] if head else []) + [p for p in case.people if p is not head]
+    return PeopleResponse(case_id=case.case_id, lead=head.full_name if head else case.leader,
+                          people=[PersonOut(full_name=p.full_name, email=p.email, role=p.role, function=p.function,
+                                            department=p.department, location=p.location.model_dump(),
+                                            status=p.status, is_lead=p is head) for p in ordered])
+
+
+async def _as_lead(case_id: str, actor: str) -> CaseDocument:
+    """R8b / ADR-0090: only the project lead changes the team. The lead is named by e-mail or full name (until
+    ADR-0091's session names the person)."""
+    from backend.storage import people as people_mod
+    case = await blob.load_case(case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {case_id} not found")
+    head = people_mod.lead(case.people)
+    if head is None or people_mod.find([head], actor) is None:
+        raise HTTPException(403, TEAM_LEAD_ONLY.format(lead=head.full_name if head else case.leader))
+    return case
+
+
+@router.get("/cases/{case_id}/people", response_model=PeopleResponse)
+async def get_people(case_id: str) -> PeopleResponse:
+    """ADR-0090: the team panel — everyone on the case, the lead first, proposed members marked."""
+    _bind(case_id, None)
+    case = await blob.load_case(case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {case_id} not found")
+    return _people_out(case)
+
+
+@router.post("/cases/{case_id}/people", response_model=PeopleResponse)
+async def add_person(case_id: str, change: PersonChange) -> PeopleResponse:
+    """ADR-0090 / R8b: the lead adds a member — full name and role; the e-mail before they sign in."""
+    from backend.storage import people as people_mod
+    _bind(case_id, None)
+    await _as_lead(case_id, change.actor)
+    try:
+        case = await blob.update_people(case_id, lambda ps: people_mod.add(ps, _person(change.person, by=change.actor)))
+    except ValueError as e:
+        raise HTTPException(422, f"{e}.")
+    assert case is not None
+    return _people_out(case)
+
+
+@router.post("/cases/{case_id}/people/{who}", response_model=PeopleResponse)
+async def change_person(case_id: str, who: str, change: PersonChange, confirm: bool = False) -> PeopleResponse:
+    """ADR-0090: the lead completes a person's details; with `confirm`, confirms a proposed member — only with
+    an e-mail (ruling b). `who` is the person's e-mail or full name."""
+    from backend.storage import people as people_mod
+    _bind(case_id, None)
+    await _as_lead(case_id, change.actor)
+    details = change.person.model_dump()
+
+    def apply(ps: list) -> list:
+        ps = people_mod.complete(ps, who, details)
+        return people_mod.confirm(ps, details.get("full_name") or who, change.person.email) if confirm else ps
+    try:
+        case = await blob.update_people(case_id, apply)
+    except LookupError:
+        raise HTTPException(404, f"{who} is not on this case.")
+    except ValueError as e:
+        raise HTTPException(422, f"{e}.")
+    assert case is not None
+    return _people_out(case)
 
 
 @router.get("/gate/review/{case_id}/{phase}", response_model=GateReviewResponse)
@@ -975,7 +1119,8 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
             artifacts,
             case={"case_id": case.case_id, "title": case.title, "leader": case.leader,
                   "belt_level": case.belt_level, "department": case.department,
-                  "target_date": case.target_date},
+                  "target_date": case.target_date,
+                  "people": [p.model_dump() for p in case.people]},           # ADR-0090
             field_log=list(getattr(record, "field_log", []) or []))
 
     return GateReviewResponse(

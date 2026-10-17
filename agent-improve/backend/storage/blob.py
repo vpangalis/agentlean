@@ -305,6 +305,25 @@ async def create_case(case: CaseDocument) -> None:
         raise CaseNumberTaken(case.case_id) from e
 
 
+async def update_people(case_id: str, change: Callable[[list], list]) -> Optional[CaseDocument]:
+    """ADR-0090 decision 2 (rule §10.4, T13): a change of the people on the case is written to the case record —
+    the record as stored, re-read here, with only `people` changed, so unfinished work in the checkpoint never
+    reaches the blob. None when the case does not exist."""
+    case = await load_case(case_id)
+    if case is None:
+        return None
+    people = change(list(case.people))
+    if people == case.people:
+        return case
+    from backend.storage.people import lead
+    case.people = people
+    head = lead(people)
+    if head is not None:
+        case.leader = head.full_name                 # decision 4: the lead's one display name
+    await save_case(case)
+    return case
+
+
 # ── phase gate operations ─────────────────────────────────────────────────
 
 async def write_phase_gate(

@@ -237,10 +237,38 @@ def migrate_v10_to_v11(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+def migrate_v11_to_v12(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0090 "The people on a case" (G-216, DEF-215): the people are case-level data, not state. A no-op
+    on a checkpoint or a Store record; a case record changes in `migrate_case` (`case_people_v12`)."""
+    return dict(values)
+
+
+def case_people_v12(case: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0090 decision 6: a version-11 case record's typed `leader` becomes the lead's person record and each
+    `team` entry ({name, role}) a member's, all without an e-mail — the lead completes them on the next open.
+    Nothing is dropped: an entry with no name is kept under its role."""
+    out = dict(case)
+    if isinstance(out.get("people"), list) and out["people"]:
+        out.pop("team", None)
+        return out
+    lead = str(out.get("leader") or "").strip()
+    people: list[dict[str, Any]] = []
+    if lead:
+        people.append({"full_name": lead, "role": "project lead"})
+    for member in out.pop("team", None) or []:
+        if not isinstance(member, dict):
+            continue
+        name = str(member.get("name") or "").strip() or str(member.get("role") or "").strip()
+        if name and name.lower() != lead.lower():
+            people.append({"full_name": name, "role": str(member.get("role") or "")})
+    out["people"] = people
+    return out
+
+
 MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3: migrate_v3_to_v4,
                                     4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7,
                                     7: migrate_v7_to_v8, 8: migrate_v8_to_v9, 9: migrate_v9_to_v10,
-                                    10: migrate_v10_to_v11}
+                                    10: migrate_v10_to_v11, 11: migrate_v11_to_v12}
 
 
 def current() -> int:
@@ -322,6 +350,8 @@ def migrate_case(data: Mapping[str, Any], found: int) -> dict[str, Any]:
             rec["field_log"] = moved["field_log"]
         phases[name] = rec
     out["phases"] = phases
+    if found < 12:
+        out = case_people_v12(out)                                   # ADR-0090: the case's own fields
     out[VERSION_KEY] = current()
     return out
 

@@ -1,9 +1,9 @@
 {
- "source_hash": "4f977d3724a46a86",
- "commit": "f491eeb",
+ "source_hash": "92646bcb7640ff48",
+ "commit": "ceb9afa",
  "commit_matches_source": false,
- "full_run_hash": "4f977d3724a46a86",
- "recorded_at": "2026-10-17T13:22:43+00:00",
+ "full_run_hash": "92646bcb7640ff48",
+ "recorded_at": "2026-10-17T13:46:28+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -567,7 +567,7 @@
   "backend/tests/test_define_e2e.py::test_the_gate_screen_shows_the_document_and_acts_on_the_pause": "passed",
   "backend/tests/test_define_e2e.py::test_the_gate_view_follows_the_approved_mockup": "skipped",
   "backend/tests/test_define_e2e.py::test_the_gate_write_keeps_the_change_log_and_uploads": "passed",
-  "backend/tests/test_define_e2e.py::test_the_lead_and_members_are_stored_with_their_details": "skipped",
+  "backend/tests/test_define_e2e.py::test_the_lead_and_members_are_stored_with_their_details": "passed",
   "backend/tests/test_define_e2e.py::test_the_lead_role_can_be_handed_over_and_is_recorded": "skipped",
   "backend/tests/test_define_e2e.py::test_the_metric_entry_mirrors_the_confirmed_scalars": "passed",
   "backend/tests/test_define_e2e.py::test_the_new_case_number_stays_until_the_lead_continues": "skipped",
@@ -1788,8 +1788,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "78eae6e0f374d0af",
-  "recorded_at": "2026-10-17T13:03:57+00:00",
+  "source_hash": "4f977d3724a46a86",
+  "recorded_at": "2026-10-17T13:22:43+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2395,7 +2395,7 @@
    "backend/tests/test_define_e2e.py::test_an_upload_that_covers_the_element_is_read_back_and_use_the_file_confirms": "passed",
    "backend/tests/test_define_e2e.py::test_approved_values_later_phases_need_are_stored_structured": "passed",
    "backend/tests/test_define_e2e.py::test_baseline_and_target_are_stored_as_a_number_with_a_unit": "passed",
-   "backend/tests/test_define_e2e.py::test_case_numbers_are_unique_and_the_case_list_keeps_every_case": "skipped",
+   "backend/tests/test_define_e2e.py::test_case_numbers_are_unique_and_the_case_list_keeps_every_case": "passed",
    "backend/tests/test_define_e2e.py::test_checkpoint_weight_is_bounded": "skipped",
    "backend/tests/test_define_e2e.py::test_coherence_judges_the_belts_words": "passed",
    "backend/tests/test_define_e2e.py::test_confirm_and_change_appear_under_every_read_back": "passed",

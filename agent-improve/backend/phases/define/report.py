@@ -229,8 +229,14 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
 
     team = _value(a, "team") or []
     champion = champion_of(team)
+    # ADR-0090 decision 4: the people on the case — the team table shows each one's role, department and site;
+    # a proposed member (named in element 2, not yet confirmed by the lead) is marked as such.
+    people = [{"name": p.get("full_name"), "role": p.get("role"), "department": p.get("department"),
+               "site": ((p.get("location") or {}).get("site") or ""), "status": p.get("status") or "member"}
+              for p in (case or {}).get("people") or [] if isinstance(p, dict)]
     body: dict[int, dict[str, Any]] = {
-        1: {"project": frame, "team": team, "project_lead": frame.get("leader"), "champion": champion},
+        1: {"project": frame, "team": team, "people": people, "project_lead": frame.get("leader"),
+            "champion": champion},
         2: {"business_case": _value(a, "business_case"),
             "benefits": _value(a, "benefits_analysis"),
             "savings": _savings(a)},

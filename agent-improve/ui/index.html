@@ -462,12 +462,22 @@ a{text-decoration:none;color:inherit}
 
       <div class="card">
         <div class="card-title"><i class="ti ti-users"></i> Project team</div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Add everyone who will work on this case. They join using the case number — no passwords needed.</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">You will be the project lead. Add everyone who will work on this case with their full name and role; each person's company e-mail is needed before they sign in, and you can add it later in the team panel.</div>
+        <div class="field-row">
+          <div class="field"><label>Your full name (project lead)</label><input type="text" id="create-lead-name" placeholder="e.g. Priya Shah"></div>
+          <div class="field"><label>Your company e-mail</label><input type="email" id="create-lead-email" placeholder="name@company.com"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Your function or job title</label><input type="text" id="create-lead-function" placeholder="e.g. Finance operations manager"></div>
+          <div class="field"><label>Your department</label><input type="text" id="create-lead-dept" placeholder="e.g. Finance"></div>
+        </div>
         <div class="team-list" id="team-list"></div>
         <button class="add-member-btn" onclick="toggleAddMember()"><i class="ti ti-plus" style="font-size:13px"></i> Add team member</button>
         <div class="add-member-form" id="add-member-form">
-          <div class="field" style="flex:1"><input type="text" id="new-member-name" placeholder="Name"></div>
-          <div class="field" style="flex:1"><input type="text" id="new-member-role" placeholder="Role"></div>
+          <div class="field" style="flex:1"><input type="text" id="new-member-name" placeholder="Full name"></div>
+          <div class="field" style="flex:1"><input type="text" id="new-member-role" placeholder="Role on the project"></div>
+          <div class="field" style="flex:1"><input type="email" id="new-member-email" placeholder="Company e-mail (optional now)"></div>
+          <div class="field" style="flex:1"><input type="text" id="new-member-dept" placeholder="Department"></div>
           <button class="btn-secondary" onclick="addTeamMember()" style="height:34px">Add</button>
         </div>
       </div>
@@ -1010,24 +1020,26 @@ function toggleAddMember(){
 }
 
 function addTeamMember(){
-  const name=document.getElementById('new-member-name').value.trim();
-  const role=document.getElementById('new-member-role').value.trim();
-  if(!name)return;
-  S.teamMembers.push({name,role:role||'Team member'});
-  document.getElementById('new-member-name').value='';
-  document.getElementById('new-member-role').value='';
+  // ADR-0090: a member is a person with a full name and a role; the e-mail is needed only before they sign in.
+  const v=id=>document.getElementById(id).value.trim();
+  const full_name=v('new-member-name'), role=v('new-member-role');
+  if(!full_name||!role){toast('Please give the member\'s full name and role.');return;}
+  S.teamMembers.push({full_name,role,email:v('new-member-email'),department:v('new-member-dept')});
+  ['new-member-name','new-member-role','new-member-email','new-member-dept'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('add-member-form').classList.remove('show');
   renderTeamList();
 }
 
+function initials(name){return String(name||'?').split(' ').map(w=>w[0]||'').join('').substr(0,2).toUpperCase();}
+
 function renderTeamList(){
-  const user=S.user||'You';
-  const all=[{name:user,role:'Project leader',leader:true},...S.teamMembers];
+  const lead=(document.getElementById('create-lead-name')||{}).value||S.user||'You';
+  const all=[{full_name:lead,role:'Project lead',leader:true},...S.teamMembers];
   document.getElementById('team-list').innerHTML=all.map(m=>`
     <div class="team-row">
-      <div class="av av-p">${m.name.split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase()}</div>
-      <div style="flex:1"><div class="tr-name">${m.name}</div><div class="tr-role">${m.role}</div></div>
-      ${m.leader?'<span class="tr-badge">leader</span>':''}
+      <div class="av av-p">${escapeHtml(initials(m.full_name))}</div>
+      <div style="flex:1"><div class="tr-name">${escapeHtml(m.full_name)}</div><div class="tr-role">${escapeHtml(m.role)}${m.email?' · '+escapeHtml(m.email):''}</div></div>
+      ${m.leader?'<span class="tr-badge">lead</span>':''}
     </div>`).join('');
 }
 
@@ -1036,12 +1048,17 @@ async function submitCreateCase(){
   const dept=document.getElementById('create-dept').value.trim();
   const date=document.getElementById('create-date').value;
   if(!title){toast('Please enter a project title');return;}
-  if(!S.user){S.user=prompt('Enter your name (you are the project leader):')||'Leader';}
-  const team=[...S.teamMembers];
+  // ADR-0090: the creator is the project lead, from the form's own details — never a prompt, never a default name.
+  const v=id=>(document.getElementById(id)||{value:''}).value.trim();
+  const lead={full_name:v('create-lead-name'),email:v('create-lead-email'),function:v('create-lead-function'),
+              department:v('create-lead-dept')||dept};
+  if(!lead.full_name){toast('Please give your full name — you will be the project lead.');return;}
+  S.user=lead.full_name;
+  const people=[...S.teamMembers];
   try{
     const data=await apiJSON(`${API}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({title,belt_level:S.beltLevel,leader:S.user,department:dept||'General',
-        target_date:date||new Date().toISOString().split('T')[0],team})});
+      body:JSON.stringify({title,belt_level:S.beltLevel,department:dept||'General',
+        target_date:date||new Date().toISOString().split('T')[0],lead,people})});
     if(data&&data.case_id){document.getElementById('new-case-id').textContent=data.case_id;await openWorkspace(data.case_id);}
     else{toast('The server created no case id — nothing was saved.',5000);}
   }catch(e){toast('Could not create case: '+(e.message||e),5000);}
@@ -1101,7 +1118,7 @@ async function openWorkspace(caseId){
     S.phase=caseData.current_phase||'define';
     // Build workspace
     document.getElementById('ws-case-badge').innerHTML=`<i class="ti ti-folder" style="font-size:11px;vertical-align:-1px;margin-right:4px"></i>${caseId} · ${caseData.title}`;
-    document.getElementById('ws-team').innerHTML=`<span style="font-size:11px;color:var(--text2)">${S.user}</span><div class="av av-p">${S.user.split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase()}</div>`;
+    renderWorkspaceTeam();
     showScreen('scr-workspace');
     renderPhaseNav();
     selectPhase(S.phase);
@@ -1112,6 +1129,79 @@ async function openWorkspace(caseId){
     toast((e&&e.status===404)?('Case '+caseId+' was not found on the server.')
                              :('Could not open case: '+(e.message||e)),5000);
   }
+}
+
+// ADR-0090 — the header names the project lead (one name everywhere) and opens the team panel.
+function renderWorkspaceTeam(){
+  const lead=(S.case&&S.case.leader)||'';
+  const n=((S.case&&S.case.people)||[]).length;
+  const proposed=((S.case&&S.case.people)||[]).filter(p=>p.status==='proposed').length;
+  document.getElementById('ws-team').innerHTML=
+    `<span style="font-size:11px;color:var(--text2)">Lead: ${escapeHtml(lead)}</span>`+
+    `<button class="btn-secondary" id="team-panel-open" onclick="openTeamPanel()" style="height:26px;font-size:11px;margin-left:8px">`+
+    `<i class="ti ti-users"></i> Team (${n})${proposed?` · ${proposed} to confirm`:''}</button>`+
+    `<div class="av av-p" style="margin-left:8px">${escapeHtml(initials(S.user||lead))}</div>`;
+}
+
+// ADR-0090 — the team panel: everyone on the case, proposed members marked; the lead adds people and
+// confirms a proposed member with their company e-mail (a proposed member cannot sign in until then).
+async function openTeamPanel(){
+  try{
+    const data=await apiJSON(`${API}/cases/${S.case.case_id}/people`);
+    renderTeamPanel(data);
+  }catch(e){toast('Could not load the team: '+(e.message||e),5000);}
+}
+
+function renderTeamPanel(data){
+  S.people=data;
+  const isLead=!!(S.user&&String(S.user).trim().toLowerCase()===String(data.lead||'').trim().toLowerCase());
+  const rows=(data.people||[]).map((p,i)=>`
+    <tr class="tp-row${p.status==='proposed'?' tp-proposed':''}">
+      <td>${escapeHtml(p.full_name)}${p.is_lead?' <span class="tr-badge">lead</span>':''}</td>
+      <td>${escapeHtml(p.role||'')}</td><td>${escapeHtml(p.department||'')}</td>
+      <td>${p.email?escapeHtml(p.email):'<span style="color:var(--text2)">no e-mail yet</span>'}</td>
+      <td>${p.status==='proposed'?(isLead?`<input type="email" id="tp-email-${i}" placeholder="Company e-mail" style="width:150px">
+        <button class="btn-secondary" id="tp-confirm-${i}" onclick="teamConfirm(${i})">Confirm</button>`:'proposed — the lead confirms')
+        :'member'}</td>
+    </tr>`).join('');
+  const add=isLead?`<div class="add-member-form show" style="margin-top:10px">
+      <div class="field" style="flex:1"><input type="text" id="tp-new-name" placeholder="Full name"></div>
+      <div class="field" style="flex:1"><input type="text" id="tp-new-role" placeholder="Role on the project"></div>
+      <div class="field" style="flex:1"><input type="email" id="tp-new-email" placeholder="Company e-mail"></div>
+      <button class="btn-secondary" id="tp-add" onclick="teamAdd()">Add</button></div>`:'';
+  let panel=document.getElementById('team-panel');
+  if(!panel){panel=document.createElement('div');panel.id='team-panel';document.body.appendChild(panel);}
+  panel.setAttribute('style','position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:50');
+  panel.innerHTML=`<div class="card" style="max-width:760px;width:92%;max-height:80vh;overflow:auto">
+    <div class="card-title"><i class="ti ti-users"></i> The people on ${escapeHtml(data.case_id)}
+      <button class="btn-secondary" onclick="closeTeamPanel()" style="float:right;height:26px">Close</button></div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px">A person named in Define's team element who is not on the case yet is listed as proposed; only the project lead, ${escapeHtml(data.lead)}, confirms them, with their company e-mail.</div>
+    <table class="tp-table" style="width:100%;font-size:12px"><tr><th>Name</th><th>Role</th><th>Department</th><th>E-mail</th><th></th></tr>${rows}</table>${add}</div>`;
+}
+
+function closeTeamPanel(){const p=document.getElementById('team-panel');if(p)p.remove();}
+
+async function teamAdd(){
+  const v=id=>document.getElementById(id).value.trim();
+  const person={full_name:v('tp-new-name'),role:v('tp-new-role'),email:v('tp-new-email')};
+  if(!person.full_name||!person.role){toast('Please give the full name and role.');return;}
+  await teamSend('POST',`${API}/cases/${S.case.case_id}/people`,person);
+}
+
+async function teamConfirm(i){
+  const p=S.people.people[i];
+  const email=document.getElementById(`tp-email-${i}`).value.trim();
+  if(!email){toast(`${p.full_name} needs a company e-mail to be confirmed.`);return;}
+  await teamSend('POST',`${API}/cases/${S.case.case_id}/people/${encodeURIComponent(p.full_name)}?confirm=true`,
+                 {full_name:p.full_name,role:p.role,email});
+}
+
+async function teamSend(method,url,person){
+  try{
+    const data=await apiJSON(url,{method,headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({actor:S.user,person})});
+    S.case.people=data.people;renderTeamPanel(data);renderWorkspaceTeam();
+  }catch(e){toast((e&&e.message)||String(e),5000);}
 }
 
 const PHASE_NAV_SUBTITLES = {
@@ -4565,7 +4655,9 @@ function defineReportHtml(rep, isPassed) {
       line('Champion', s1.champion ? s1.champion.name : 'not named in the team yet', 'champion') +
       line('Belt level', p.belt_level) +
       line('Department', p.department) +
-      table(s1.team, [['name', 'Name'], ['role', 'Role'], ['function', 'Function']]) + why('team')),
+      table(s1.team, [['name', 'Name'], ['role', 'Role'], ['function', 'Function']]) + why('team') +
+      ((s1.people || []).length ? `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin:6px 0 2px">The people on the case</div>` +
+        table(s1.people, [['name', 'Name'], ['role', 'Role'], ['department', 'Department'], ['site', 'Site'], ['status', 'Status']]) : '')),
     card(s2, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s2.business_case)}</div>` + why('business_case') +
       line('Cost of the gap', b.cost_of_gap, 'cost_of_gap') + line('Impact', b.impact_type, 'impact_type') +
       line('Realisation schedule', b.realisation_schedule, 'realisation_schedule') +

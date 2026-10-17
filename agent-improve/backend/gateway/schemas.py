@@ -8,15 +8,38 @@ from pydantic import BaseModel
 # ── inbound ───────────────────────────────────────────────────────────────
 
 
+class PersonIn(BaseModel):
+    """ADR-0090 "The people on a case": a person as the create form or the team panel gives them. Full name and
+    role are required; the e-mail only before the person signs in (ruling a); location as ADR-0089 lists it."""
+
+    full_name: str
+    email: str = ""
+    role: str = ""
+    function: str = ""
+    department: str = ""
+    location: dict[str, str] = {}
+
+
 class CaseCreateRequest(BaseModel):
     """Create a new improvement case."""
 
     title: str
     belt_level: str              # yellow | green | black
-    leader: str                  # team leader name
+    leader: str = ""             # the lead's name — read when `lead` is not given (before ADR-0090)
     department: str
     target_date: str             # ISO date string
-    team: list[dict[str, str]]   # [{name, role}]
+    team: list[dict[str, str]] = []   # [{name, role}] — read when `people` is not given (before ADR-0090)
+    #: ADR-0090: the creator, who becomes the project lead, and the other members, with their details.
+    lead: Optional[PersonIn] = None
+    people: list[PersonIn] = []
+
+
+class PersonChange(BaseModel):
+    """ADR-0090 team panel: the lead (`actor`) adds a person, completes one's details, or confirms a proposed
+    member — with an e-mail (ruling b)."""
+
+    actor: str
+    person: PersonIn
 
 
 class AskRequest(BaseModel):
@@ -112,6 +135,27 @@ class CaseCreateResponse(BaseModel):
     title: str
     current_phase: str = "define"
     message: str = "Case created. Define phase is now active."
+
+
+class PersonOut(BaseModel):
+    """ADR-0090: a person on the case as the team panel shows them."""
+
+    full_name: str
+    email: str = ""
+    role: str = ""
+    function: str = ""
+    department: str = ""
+    location: dict[str, str] = {}
+    status: str = "member"
+    is_lead: bool = False
+
+
+class PeopleResponse(BaseModel):
+    """ADR-0090: everyone on the case, the lead first; `lead` is the one display name of the lead."""
+
+    case_id: str
+    lead: str
+    people: list[PersonOut]
 
 
 class GateSubmitResponse(BaseModel):
