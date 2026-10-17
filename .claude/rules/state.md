@@ -108,7 +108,7 @@ Tuples are BANNED. The validation layers (§9.2), each grader iteration
 The paths and their owners are generated from `storage/layout.py::BLOB_PATHS` into
 [docs/data-models.md](../../agent-improve/docs/data-models.md) (Blob layout). Two concerns: checkpoints,
 written after every graph node by `AzureBlobCheckpointSaver`; and case records (the system of record:
-the case, the registry, uploads), written at case create, gate pass and file upload — **never
+the case, the registry, uploads), written at case create, gate pass, file upload and a change of the people on the case (ADR-0090) — **never
 mid-conversation**.
 
 The gate-pass case write and registry update are two writes, both covered by
