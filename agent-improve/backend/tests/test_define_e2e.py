@@ -5661,6 +5661,20 @@ def test_the_same_answer_gets_the_same_verdict() -> None:
     _not_written('DEF-224')
 
 
+def test_practice_lookup_returns_only_the_cases_industry_and_licensed_content() -> None:
+    """DEF-227 — R22 "Practice intelligence for Analyse and Improve" acceptance 1-4 (ADR-0098, ADR-0099): the case's
+    industry and cross-industry content only, never another customer's; every chunk with its licence; one switch removes
+    prototype-only content; the eval set passes before the coach uses the index. Scheduled after Define."""
+    _not_written('DEF-227')
+
+
+def test_practice_options_follow_the_teams_own_ideas_with_their_source() -> None:
+    """DEF-228 — R22 (ADR-0100 "How Analyse and Improve use practice"): practice options only after the team's own
+    ideas, one lookup run by code per turn, each with source and section, labelled "practice option"; never in
+    Define. Scheduled after Define."""
+    _not_written('DEF-228')
+
+
 def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures(env, monkeypatch, stub_planner) -> None:
     """DEF-225 — The cost of the gap and the expected saving are two labelled figures, in €, with thousands separators (G-226; founder test findings 57, 72).
     On the real routes and graph: the benefits read-back carries the cost of the gap today (baseline × volume

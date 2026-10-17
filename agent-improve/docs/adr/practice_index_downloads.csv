@@ -1,0 +1,21 @@
+wave,industry,source,document,licence_status,url_or_how_to_find
+1,rail,EUR-Lex,"TSI LOC&PAS, Regulation (EU) 1302/2014, consolidated","open (EU law, attribution)",https://eur-lex.europa.eu/eli/reg/2014/1302/2025-04-27/eng/pdf
+1,rail,EUR-Lex,TSI Operation and traffic management; TSI PRM (accessibility); maintenance (ECM) regulation,"open (EU law, attribution)",EUR-Lex search by TSI name
+1,rail,ERA,Guide for the application of the LOC&PAS TSI,to check (ERA reuse notice),https://www.era.europa.eu/system/files/2022-11/Guide%20for%20the%20application%20of%20the%20LOC%20%26%20PAS%20TSI%20%28EN%20Version%202.0%20-%2001_01_2015%29.pdf.pdf
+1,rail,Europe's Rail JU,Public deliverables on rolling stock and maintenance (e.g. IAM4RAIL),prototype_only until checked,https://rail-research.europa.eu/pages/fp3-iam4rail/expected-results
+1,rail,US FTA,Best Practices Procurement & Lessons Learned Manual (2026),"open, likely (US government work)",https://www.transit.dot.gov/sites/fta.dot.gov/files/2026-07/fta-best-practices-procurement-and-lessons-learned-manual-2026.pdf
+1,rail,TRB / TCRP,"Light-rail vehicle specification, procurement and maintenance reports",prototype_only (free to read),https://nap.nationalacademies.org/read/14000
+1,rail,OCORA,"Public releases, on-board CCS reference architecture",prototype_only until checked,ERA / OCORA public release pages
+1,cross_industry,NASA,Systems Engineering Handbook SP-2016-6105,"open, likely (US government work)","nasa.gov, search SP-2016-6105"
+1,cross_industry,US DoD,MIL-HDBK-61B Configuration Management Guidance,"open, likely (US government work)",search MIL-HDBK-61B
+1,cross_industry,APQC,"Process Classification Framework, cross-industry + aerospace & defense versions",to check (licence file in download),https://www.apqc.org/pcf-excel-utilities
+1,cross_industry,ASCM,SCOR Digital Standard,prototype_only (CC BY-NC-ND),https://www.ascm.org/corporate-solutions/standards-tools/scor-ds/open-access-guidance/
+1,cross_industry,US EPA,Lean manufacturing toolkits,"open, likely (US government work)","epa.gov, search Lean toolkit"
+1,cross_industry,Founder,Own process write-ups (process cards),open (own content),to be written
+later,telecom,ITU-T,M.3050.0–M.3050.4 (eTOM as ITU recommendation),prototype_only (ITU copyright),https://www.itu.int/rec/T-REC-M.3050.0-200703-I/en
+later,telecom,TM Forum,Open APIs (Apache 2.0 parts),partly open,https://tmforum.org/collaboration/api-apache-2-0-project
+later,telecom,3GPP / ETSI,Selected operations and management specifications,to check,3gpp.org / etsi.org
+later,banking,EDM Council,FIBO ontology,open (MIT),https://github.com/edmcouncil/fibo
+later,banking,BIAN,Service Landscape,to check,https://bian.org/deliverables/service-landscape/bian-service-landscape-11-0/
+later,banking,BCBS / EBA,"Guidelines on operational risk, outsourcing, KYC","open, likely (regulatory texts)","bis.org, eba.europa.eu"
+later,banking,ISO 20022,Message catalogue (payments processes),to check,iso20022.org

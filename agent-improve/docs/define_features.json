@@ -7981,6 +7981,76 @@
    "stage": "coached",
    "layer": "screen",
    "pilot": true
+  },
+  {
+   "id": "DEF-227",
+   "description": "The practice index returns, for a case, only its own industry's and cross-industry content — never another customer's — each chunk with its licence status, and one switch removes all prototype-only content; the practice eval set passes its agreed hit rate before the coach uses it (R22 acceptance 1-4; ADR-0098, ADR-0099)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_practice_lookup_returns_only_the_cases_industry_and_licensed_content",
+   "sources": {
+    "architecture": [
+     "ADR-0098 A fourth index: industry practice",
+     "ADR-0099 Practice content: sources, licence gate and waves",
+     "ADR-0100 How Analyse and Improve use practice"
+    ],
+    "procedure": [
+     "docs/founder-inputs/PRACTICE_INDEX_DRAFT.md (founder ruling 2026-10-17, item 6; scheduled after Define)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R22",
+   "belt_impact": "wrong_data",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null,
+   "phase": "analyse",
+   "stage": "coached",
+   "layer": "platform",
+   "pilot": false
+  },
+  {
+   "id": "DEF-228",
+   "description": "In Analyse and Improve the coach adds practice options only after the team's own ideas, from one lookup run by code per turn, each with its source and section and labelled \"practice option\"; never in Define (R22; ADR-0100)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-227"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_practice_options_follow_the_teams_own_ideas_with_their_source",
+   "sources": {
+    "architecture": [
+     "ADR-0098 A fourth index: industry practice",
+     "ADR-0099 Practice content: sources, licence gate and waves",
+     "ADR-0100 How Analyse and Improve use practice"
+    ],
+    "procedure": [
+     "docs/founder-inputs/PRACTICE_INDEX_DRAFT.md (founder ruling 2026-10-17, item 6; scheduled after Define)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R22",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null,
+   "phase": "analyse",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": false
   }
  ]
 }

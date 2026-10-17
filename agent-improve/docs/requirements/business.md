@@ -252,6 +252,20 @@ Measure turns need calculations: they run in code before the coach (T54), and T6
 reviewed per turn type in the Measure review.
 
 ## 2.3 Analyse · TO WRITE
+
+**R22 Practice intelligence for Analyse and Improve** · ACCEPTED 2026-10-17 · MoSCoW: Should · Design: ADR-0098
+MoSCoW: Should for the pilot; Must before Analyse is released to a customer. Scheduled after Define (founder,
+2026-10-17); its decisions are ADR-0098 "A fourth index: industry practice", ADR-0099 "Practice content:
+sources, licence gate and waves" and ADR-0100 "How Analyse and Improve use practice".
+The coach can draw on industry practice — how a process normally runs, where it typically fails, how it is
+measured and what has worked — in Analyse (candidate causes) and Improve (solution options). Every suggestion
+names its source and is labelled as an option for the team to test, never as the answer. Practice content comes
+from public sources, the founder's own write-ups and, after a signed contract, the customer's own documents,
+which only that customer ever sees. Acceptance: (1) a rail case's lookup returns rail and cross-industry content
+only; (2) no customer's private content is returned for another customer; (3) every chunk carries a licence
+status, and one switch removes all prototype-only content; (4) the practice eval set passes its agreed hit rate
+before the coach uses the index.
+
 ## 2.4 Improve · TO WRITE
 Known input: the to-be process is compared with Define's as-is process and performance, step by step
 (C6).

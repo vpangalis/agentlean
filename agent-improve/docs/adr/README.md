@@ -141,4 +141,7 @@ Generated from each file's status line; never typed.
 | [0095](0095-a-process-document-becomes-the-sipoc.md) | A process document or diagram becomes the SIPOC read-back — one interpretation call returns the SIPOC structure, with vision for images | PROPOSED | — |
 | [0096](0096-hard-and-soft-benefits.md) | The benefits analysis stores hard benefits, the expected saving apart from the cost of the gap, and soft benefits each with its indicator | PROPOSED | — |
 | [0097](0097-progress-shown-while-a-turn-runs.md) | Progress while a turn runs — the graph's nodes emit plain-words steps through LangGraph's custom stream; the route streams them to the browser | PROPOSED | — |
+| [0098](0098-a-fourth-index-industry-practice.md) | A fourth index: industry practice | ACCEPTED | — |
+| [0099](0099-practice-content-sources-licence-gate-and-waves.md) | Practice content: sources, licence gate and waves | ACCEPTED | — |
+| [0100](0100-how-analyse-and-improve-use-practice.md) | How Analyse and Improve use practice | ACCEPTED | — |
 <!-- END ADR INDEX -->
