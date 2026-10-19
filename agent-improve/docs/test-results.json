@@ -1,9 +1,9 @@
 {
- "source_hash": "17924ec22091f18e",
- "commit": "ec4b349",
+ "source_hash": "0536eecbde83d856",
+ "commit": "ed39440",
  "commit_matches_source": false,
- "full_run_hash": "17924ec22091f18e",
- "recorded_at": "2026-10-19T14:06:15+00:00",
+ "full_run_hash": "0536eecbde83d856",
+ "recorded_at": "2026-10-19T16:00:18+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -80,7 +80,10 @@
   "backend/tests/test_capability_rows.py::test_row_12_vague_answers_are_caught_inside_the_turn": "skipped",
   "backend/tests/test_capability_rows.py::test_row_13_the_coaching_rubric_scores_the_turn": "passed",
   "backend/tests/test_capability_rows.py::test_row_17_required_fields_are_checked_before_the_gate": "passed",
+  "backend/tests/test_capability_rows.py::test_row_18_captured_values_carry_their_declared_type": "passed",
   "backend/tests/test_capability_rows.py::test_row_1_a_case_can_be_created_and_opened": "passed",
+  "backend/tests/test_capability_rows.py::test_row_20_the_document_is_written_and_safe_to_write_twice": "passed",
+  "backend/tests/test_capability_rows.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads": "passed",
   "backend/tests/test_capability_rows.py::test_row_2_a_turn_returns_a_coached_reply": "skipped",
   "backend/tests/test_capability_rows.py::test_row_33_a_checkpoint_is_written_after_every_node": "passed",
   "backend/tests/test_capability_rows.py::test_row_35_every_define_turn_leaves_a_langsmith_trace": "skipped",
@@ -394,7 +397,6 @@
   "backend/tests/test_declared_types.py::test_each_structured_field_rejects_prose[target_value]": "passed",
   "backend/tests/test_declared_types.py::test_each_structured_field_rejects_prose[team]": "passed",
   "backend/tests/test_declared_types.py::test_prose_never_reaches_the_case_record_either": "passed",
-  "backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type": "skipped",
   "backend/tests/test_declared_types.py::test_the_declared_type_comes_from_the_schema_not_a_list": "passed",
   "backend/tests/test_declared_types.py::test_the_refusal_is_reported_by_field_and_by_type": "passed",
   "backend/tests/test_declared_types.py::test_the_str_field_in_the_same_turn_is_untouched": "passed",
@@ -1000,8 +1002,6 @@
   "backend/tests/test_gate_documents.py::test_validators_are_async_nodes[measure]": "passed",
   "backend/tests/test_gate_documents.py::test_whitespace_only_value_is_not_captured": "passed",
   "backend/tests/test_gate_write.py::test_a_reopened_gate_is_stamped_again": "passed",
-  "backend/tests/test_gate_write.py::test_row_20_the_document_is_written_and_safe_to_write_twice": "skipped",
-  "backend/tests/test_gate_write.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads": "skipped",
   "backend/tests/test_gate_write.py::test_supplied_uploads_replace_rather_than_being_ignored": "passed",
   "backend/tests/test_gate_write.py::test_the_analyst_output_argument_is_actually_written": "passed",
   "backend/tests/test_gate_write.py::test_the_change_log_survives_the_gate": "passed",
@@ -1791,8 +1791,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "40fde63a5c7bb227",
-  "recorded_at": "2026-10-19T13:55:58+00:00",
+  "source_hash": "17924ec22091f18e",
+  "recorded_at": "2026-10-19T14:06:15+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

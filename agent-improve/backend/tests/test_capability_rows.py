@@ -949,3 +949,160 @@ def test_mutation_row_35_tracing_off_or_stripped_is_red() -> None:
     assert _row_35([], set(), None)
     assert _row_35([r for r in good if r["type"] != "tool"], {"load_skill"}, None)
     assert _row_35([r for r in good if MIDDLEWARE_MARK not in r["name"]], set(), None)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# CAPABILITY ROWS 18, 20 AND 21 — moved here 2026-10-19 (founder ruling 2026-10-19 (2), item 2)
+# ══════════════════════════════════════════════════════════════════════════
+#
+# They read the live cases by design. Until G-234 ("Tests read live storage") they did so from
+# test_declared_types.py and test_gate_write.py, quietly, past the network block; now this file —
+# the one allowed to reach the live case (`enable_socket`) — holds them, and every other file stays
+# off live storage.
+
+GATE_PHASE = "define"
+
+#: **The gate-proof case, and it is a SECOND case on purpose** — founder
+#: ruling 2026-09-23, option B. Submitting a gate ADVANCES the case out of
+#: Define, so proving the write on `IMPR-2026-0E5` would have ended the Define
+#: proofs still owed: the ten checks, 6.46, 10.3 and 6.44 all need a live
+#: define case. `IMPR-2026-0E5` therefore stays in define, and this case
+#: carries the gate.
+#:
+#: It was coached to 13 of 13 through **real turns with the real model** —
+#: nothing constructed — and its gate was submitted ONCE. Its title says so:
+#: *"GATE PROOF — step 6.42, do not use for Define coaching proofs."*
+#:
+#: **A submitted case has advanced and cannot carry the next gate proof**, so
+#: 7.3 will need a fresh one. Overridable by `CAPABILITY_GATE_CASE_ID`.
+GATE_PROOF_CASE_ID = "IMPR-2026-1FF"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# CAPABILITY ROWS 20 AND 21 — on the case the system wrote
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _live_record():
+    """The live case's define record, or a skip explaining which row cannot
+    be evaluated. **Never constructs one.**"""
+    from backend.storage import blob
+    case_id = os.environ.get("CAPABILITY_GATE_CASE_ID", GATE_PROOF_CASE_ID)
+    if not blob.storage_configured():
+        pytest.skip("no storage configured — the row cannot be evaluated")
+    case = asyncio.run(blob.load_case(case_id))
+    if case is None:
+        pytest.skip(f"{case_id} not found — the row cannot be evaluated")
+    record = case.phases.get(GATE_PHASE)
+    if record is None or not record.gate_passed:
+        pytest.skip(
+            f"{case_id}'s {GATE_PHASE} gate has not been submitted, so no document "
+            "has been written. The row asks about a WRITTEN document and there "
+            "is none to ask of — this is NOT a pass."
+        )
+    return case, record
+
+
+#: The Define fields R4 and R5 added on 2026-09-26 (the benefits analysis, the CTQs, the 5W2H).
+ADDED_2026_09_26 = ("benefits_analysis", "critical_to_quality", "problem_5w2h")
+
+
+def test_row_20_the_document_is_written_and_safe_to_write_twice() -> None:
+    """**Capability row 20**, read from `IMPR-2026-1FF` — the gate-proof case.
+
+    Two halves, both checkable without writing anything:
+
+    1. what was WRITTEN is a complete gate document — every field the schema
+       declares, not the captured subset and not an empty dict;
+    2. it is **exactly what assembly produces from the same artifacts, and
+       assembly is deterministic** — which is why a second write cannot produce
+       a different record. `write_phase_gate` stamps the approval on the
+       TRANSITION only, so the second write is a no-op on the stamp as well.
+    """
+    from backend.phases.gate_registry import GATE_SPECS
+    case, record = _live_record()
+    written = dict(record.structured or {})
+    declared = set(GATE_SPECS[GATE_PHASE].model.model_fields)
+    # R4/R5 (founder, 2026-09-26) added three fields. A document WRITTEN before
+    # that date was complete under the schema of its day, and is read as such;
+    # one written after it must carry them. Named, never a blanket allowance.
+    if str(record.submitted_at or "") < "2026-09-26":
+        declared -= set(ADDED_2026_09_26)
+
+    assert set(written) == declared, (
+        "what was written is not a complete gate document: missing "
+        f"{sorted(declared - set(written))}, unexpected "
+        f"{sorted(set(written) - declared)}"
+    )
+
+    # Determinism, from the case's own captured values — the property that
+    # makes a repeated write harmless.
+    artifacts = {k: v for k, v in written.items()
+                 if k in set(GATE_SPECS[GATE_PHASE].tier_1)}
+    # A pre-R4 document has no value for the three added fields; determinism is
+    # a property of assembly, so named stand-ins serve both runs equally.
+    stand_in = {"benefits_analysis": {"cost_of_gap": "-", "impact_type": "-",
+                                      "realisation_schedule": "-", "finance_contact": "-"},
+                "critical_to_quality": [{"customer": "-", "need": "-", "requirement": "-"}],
+                "problem_5w2h": {k: "-" for k in ("what", "where", "when", "who", "why",
+                                                  "how", "how_much")}}
+    artifacts = {**{f: stand_in[f] for f in ADDED_2026_09_26 if f not in artifacts}, **artifacts}
+    once = GATE_SPECS[GATE_PHASE].assemble(artifacts, [], [], []).model_dump()
+    twice = GATE_SPECS[GATE_PHASE].assemble(artifacts, [], [], []).model_dump()
+    assert once == twice, "assembly is not deterministic"
+    assert record.submitted_at, "a passed gate carries no approval stamp"
+
+
+def test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads() -> None:
+    """**Capability row 21**, read from `IMPR-2026-1FF` — the gate-proof case.
+
+    The record that survived the gate still holds what the gate did not write.
+    `field_log` is step 6.33's, and by the time a gate is approved the Belt has
+    captured twelve fields, so it cannot legitimately be empty.
+    """
+    case, record = _live_record()
+    assert record.field_log, (
+        "the gate write dropped `field_log` — the change log 6.33 built is "
+        "gone from the record the gate approved"
+    )
+    assert record.submitted_by, "the approval stamp lost its actor"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_row_18_captured_values_carry_their_declared_type() -> None:
+    """**Row 18 · container 4.** Team, scope, the SIPOC map and the registry
+    arrive structured, not as prose.
+
+    Reads the case the system actually wrote. **Nothing here constructs a
+    captured value** — that is the whole design of this check, because a seeded
+    version of it would have been green while `IMPR-2026-0E5` held four
+    structured fields as prose.
+    """
+    from backend.phases.gate_registry import split_by_declared_type
+    from backend.storage import blob
+    case_id = os.environ.get("CAPABILITY_CASE_ID", "IMPR-2026-0E5")
+
+    if not blob.storage_configured():
+        pytest.skip(
+            "no storage configured, so row 18 CANNOT BE EVALUATED. A skipped "
+            "row is not a green row (Appendix H) — run against a real case."
+        )
+
+    case = asyncio.run(blob.load_case(case_id))
+    if case is None:
+        pytest.skip(f"{case_id} not found — row 18 cannot be evaluated")
+
+    record = case.phases.get("define")
+    captured = dict((record.structured or {}) if record else {})
+    if not captured:
+        pytest.skip(f"{case_id} has captured nothing — row 18 has no subject")
+
+    _, malformed = split_by_declared_type("define", captured)
+    assert not malformed, (
+        "captured values that do not carry their declared type: "
+        + json.dumps(malformed)
+        + f" — of {len(captured)} captured field(s). A gate document cannot "
+          "be assembled from these."
+    )

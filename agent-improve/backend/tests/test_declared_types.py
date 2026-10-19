@@ -15,7 +15,7 @@ So a row check that seeds its own artifacts would have been **green throughout
 the entire life of the defect**. That is the escape cause, and a check that
 would not have caught the thing it is written for is not a check.
 
-`test_row_18_captured_values_carry_their_declared_type` therefore reads the
+`test_capability_rows.py::test_row_18_captured_values_carry_their_declared_type` therefore reads the
 case record the system actually wrote and asserts against that. **It SKIPS
 rather than passes when there is no case to read**: by Appendix H's rules a row
 is green or red, and a check that did not run is not green.
@@ -29,8 +29,6 @@ they are why the row check is not asked to do both jobs.
 from __future__ import annotations
 
 import asyncio
-import json
-import os
 from typing import Any
 
 import pytest
@@ -68,47 +66,6 @@ def _state(**overrides: Any) -> PhaseState:
     }
     base.update(overrides)  # type: ignore[typeddict-item]
     return base
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# CAPABILITY ROW 18 — the persistent check, on real data
-# ══════════════════════════════════════════════════════════════════════════
-
-
-def test_row_18_captured_values_carry_their_declared_type() -> None:
-    """**Row 18 · container 4.** Team, scope, the SIPOC map and the registry
-    arrive structured, not as prose.
-
-    Reads the case the system actually wrote. **Nothing here constructs a
-    captured value** — that is the whole design of this check, because a seeded
-    version of it would have been green while `IMPR-2026-0E5` held four
-    structured fields as prose.
-    """
-    case_id = os.environ.get("CAPABILITY_CASE_ID", "IMPR-2026-0E5")
-    from backend.storage import blob
-
-    if not blob.storage_configured():
-        pytest.skip(
-            "no storage configured, so row 18 CANNOT BE EVALUATED. A skipped "
-            "row is not a green row (Appendix H) — run against a real case."
-        )
-
-    case = asyncio.run(blob.load_case(case_id))
-    if case is None:
-        pytest.skip(f"{case_id} not found — row 18 cannot be evaluated")
-
-    record = case.phases.get("define")
-    captured = dict((record.structured or {}) if record else {})
-    if not captured:
-        pytest.skip(f"{case_id} has captured nothing — row 18 has no subject")
-
-    _, malformed = split_by_declared_type("define", captured)
-    assert not malformed, (
-        "captured values that do not carry their declared type: "
-        + json.dumps(malformed)
-        + f" — of {len(captured)} captured field(s). A gate document cannot "
-          "be assembled from these."
-    )
 
 
 # ══════════════════════════════════════════════════════════════════════════

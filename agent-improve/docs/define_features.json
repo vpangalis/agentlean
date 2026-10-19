@@ -1130,7 +1130,7 @@
     ],
     "code": [
      "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_18_captured_values_carry_their_declared_type"
     ],
     "guidance": []
    },
@@ -1256,7 +1256,7 @@
     ],
     "code": [
      "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_18_captured_values_carry_their_declared_type",
      "agent-improve/backend/phases/define/schema.py::_CAPTURED_INSIDE"
     ],
     "guidance": []
@@ -1305,7 +1305,7 @@
     ],
     "code": [
      "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_18_captured_values_carry_their_declared_type"
     ],
     "guidance": []
    },
@@ -1520,7 +1520,7 @@
     ],
     "code": [
      "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_18_captured_values_carry_their_declared_type"
     ],
     "guidance": []
    },
@@ -2677,7 +2677,7 @@
      "agent-improve/backend/gateway/routes.py::submit_gate",
      "agent-improve/backend/phases/mappers_common.py::write_gate_document",
      "agent-improve/backend/storage/blob.py::write_phase_gate",
-     "agent-improve/backend/tests/test_gate_write.py::test_row_20_the_document_is_written_and_safe_to_write_twice"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_20_the_document_is_written_and_safe_to_write_twice"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts"
@@ -2772,7 +2772,7 @@
     "code": [
      "agent-improve/backend/phases/record.py::merge",
      "agent-improve/backend/storage/blob.py::write_phase_gate",
-     "agent-improve/backend/tests/test_gate_write.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads"
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads"
     ],
     "guidance": []
    },
