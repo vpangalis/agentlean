@@ -226,6 +226,7 @@ def test_the_four_blocks_reach_the_screen() -> None:
 #: The page functions another one calls — brought along whenever it is run (ADR-0093: renderTurn draws the card).
 _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
     "function renderTurn": ("function elementValueHtml", "function elementRowsHtml", "function readbackCardHtml"),
+    "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml"),
 }
 
 
@@ -253,7 +254,8 @@ def _run_page(functions: tuple[str, ...], script: str) -> dict:
         m = re.search(r"^" + re.escape(name) + r"\(.*?^\}", src, re.M | re.S)
         assert m, f"{name} not found in ui/index.html"
         funcs.append(m.group(0))
-    out = subprocess.run([node, "-e", chr(10).join(funcs) + chr(10) + script],
+    # The script on stdin, never `-e`: a report (ADR-0093's Gate view) outgrows Windows' 32K command line.
+    out = subprocess.run([node], input=chr(10).join(funcs) + chr(10) + script,
                          capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
     return json.loads(out.stdout)
@@ -966,8 +968,9 @@ def test_the_define_report_has_the_visual_of_every_section(env) -> None:
     assert review.status_code == 200, review.text
     report = review.json()["report"]
     html = _render(report)
-    cards = re.split(r">(?=\d · )", html)
-    card = {int(c[0]): c for c in cards[1:] if c[:1].isdigit()}
+    # ADR-0093 decision 4: the sections are lettered A–G; card[n] is R5's section n.
+    cards = re.split(r">(?=[A-G] · )", html)
+    card = {"ABCDEFG".index(c[0]) + 1: c for c in cards[1:] if c[:1] in "ABCDEFG"}
     assert sorted(card) == list(range(1, 8)), sorted(card)
     # 1 — the team table with roles; the lead and the Champion named
     assert ">Role</th>" in card[1] and ">Function</th>" in card[1], "section 1: the team table"
@@ -978,10 +981,10 @@ def test_the_define_report_has_the_visual_of_every_section(env) -> None:
     assert 'id="report-mindmap"' in card[3] and "mindmap_5w2h" in report["visuals"], "section 3: the 5W2H mind map"
     assert "In scope:" in card[3] and "Out of scope:" in card[3] and "display:flex" in card[3]
     # 4 — customer need → CTQ
-    assert ">Need</th>" in card[4] and ">Requirement (measurable)</th>" in card[4], "section 4: the CTQ table"
+    assert ">Need</th>" in card[4] and ">CTQ (measurable)</th>" in card[4], "section 4: the CTQ table"
     # 5 — the baseline → target chart; the secondaries listed
     assert 'id="report-target"' in card[5] and "baseline_target" in report["visuals"], "section 5: the chart"
-    assert "Secondary metrics:" in card[5]
+    assert "Secondary metrics" in card[5] and "Element 11" in card[5]
     # 6 — the SIPOC, with step times and frequency, the problem steps marked
     assert 'id="report-sipoc"' in card[6] and "sipoc" in report["visuals"], "section 6: the SIPOC"
     assert ">Time (range)</th>" in card[6] and ">How often</th>" in card[6] and ">Problems seen</th>" in card[6]
@@ -4038,7 +4041,8 @@ def test_e2e_the_gate_screen_draws_the_report_the_server_sent(env) -> None:
     review = env.client.get(f"/gate/review/{CASE_ID}/define")
     assert review.status_code == 200, review.text
     html = _render(review.json()["report"])
-    assert all(f">{n} · " in html for n in range(1, 8)), "a section is missing from the screen"
+    # ADR-0093 decision 4: R5's seven sections, lettered A–G (gate_view_mockup.html).
+    assert all(f">{x} · " in html for x in "ABCDEFG"), "a section is missing from the screen"
     assert "How does it show up?" in html and "how_much answer" in html, "the 5W2H diagram"
     assert 'id="report-sipoc"' in html, "the SIPOC diagram's host"
     assert "paid within 30 days" in html, "the CTQ table"
@@ -4623,7 +4627,12 @@ def _page(names: tuple[str, ...], script: str) -> dict:
         pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
     parts = []
-    for n in names:
+    wanted: list[str] = []
+    for name in names:
+        for n in (*_PAGE_NEEDS.get(f"function {name}", ()), f"function {name}"):
+            if n not in wanted:
+                wanted.append(n)
+    for n in (w.removeprefix("function ") for w in wanted):
         m = re.search(r"^(?:async )?function " + re.escape(n) + r"\(.*?^\}", src, re.M | re.S)
         assert m, f"{n} not found in ui/index.html"
         parts.append(m.group(0))
@@ -4670,7 +4679,7 @@ process.stdout.write(JSON.stringify({{html:defineReportHtml({json.dumps(rep)}, f
     assert s2["summary"] == "Not confirmed yet." and "benefit_timeline" not in rep["visuals"]
     got = _page(("benefitTimelineHtml", "defineReportHtml"), _DOM + f"""
 process.stdout.write(JSON.stringify({{html:defineReportHtml({json.dumps(rep)}, false)}}));""")
-    assert "£68k" not in got["html"] and "Sam" not in got["html"].split("2 · ")[1].split("3 · ")[0]
+    assert "£68k" not in got["html"] and "Sam" not in got["html"].split("B · ")[1].split("C · ")[0]
 
 
 def test_the_gate_screen_shows_the_document_and_acts_on_the_pause(env) -> None:
@@ -5674,7 +5683,7 @@ def test_the_read_back_is_the_exact_value_a_confirm_stores(env, monkeypatch, stu
     assert "not stored" in said and "in and out of scope" in said, refused.json()["answer"]
     again = refused.json()["readback_card"]
     assert again["confirm"] is False and again["missing"] == ["In and out of scope"], again
-    assert again["rows"][0]["value"]["rows"][0] == ["In scope", "PO invoices from receipt to payment"], again["rows"][0]
+    assert again["rows"][0]["value"]["boxes"][0] == ["In scope", "PO invoices from receipt to payment"], again["rows"][0]
 
 
 def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip(env, monkeypatch, stub_planner) -> None:
@@ -5725,14 +5734,114 @@ def test_the_gate_view_follows_the_approved_mockup() -> None:
     _not_written('DEF-197')
 
 
-def test_one_numbering_and_per_element_status_everywhere() -> None:
-    """DEF-198 — One numbering scheme across sidebar, chat and Gate; each report section shows the status of each element in it (G-199; founder test findings 32, 35)"""
-    _not_written('DEF-198')
+def _confirm_business_case(env, coach_says, stub_planner, answer: str, spans: dict | None = None,
+                           reason: str = "") -> dict:
+    """Element 1 answered, read back and confirmed through the real /ask; returns the read-back's card."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="complete", criterion_spans=spans)
+    capture = {"field_name": "business_case", "value": answer, "source": "belt", **({"reason": reason} if reason else {})}
+    coach_says(f'Your business case: "{answer}" Is this right?', captured=[capture])
+    read = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": answer})
+    assert read.status_code == 200 and read.json()["move"] == moves.READ_BACK, read.text
+    coach_says("Next, the team.")
+    done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Confirm",
+                                         "action": "confirm"})
+    assert done.status_code == 200 and done.json()["confirmed_strip"], done.text
+    return read.json()["readback_card"]
 
 
-def test_the_report_shows_history_behind_a_link_never_json() -> None:
-    """DEF-199 — The report shows each element's history behind a History link, as sentences, never raw JSON (G-200; founder test findings 48)"""
-    _not_written('DEF-199')
+def test_one_numbering_and_per_element_status_everywhere(env, monkeypatch, stub_planner) -> None:
+    """DEF-198 — One numbering scheme across sidebar, chat and Gate; each report section shows the status of each element in it (G-199; founder test findings 32, 35)
+
+    ADR-0093 decision 4, on the real routes and graph and the page's own functions: element 1 confirmed through
+    the chat; the progress view (GET /cases), the chat's head and the Gate (GET /gate/review) number and name all
+    thirteen elements the same way; the Gate's sections A–G show each element in them with its status; the
+    confirmed element's card carries the SAME rows as its read-back card (the verified span kept by the Confirm);
+    "Still to confirm" lists the others by number; the page draws it all."""
+    import json
+
+    coach_says = _adr0093_coach(monkeypatch)
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {"business_case": {"status": "asked"}}
+    answer = "Since January 2026, 23% of invoices are paid late; about £62k a year in late fees."
+    read_card = _confirm_business_case(env, coach_says, stub_planner, answer,
+                                       spans={"where-when": "Since January 2026"})
+
+    case = env.client.get(f"/cases/{CASE_ID}").json()
+    sidebar = {e["field"]: (e["n"], e["name"]) for e in case["define_elements"]}
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    gate = report["gate"]
+    cards = {c["field"]: c for sec in gate["sections"] for c in sec["elements"]}
+    assert len(cards) == 13 and {f: (c["n"], c["name"]) for f, c in cards.items()} == sidebar, (cards, sidebar)
+    hist = case["conversation_history"]
+    assert (hist[-1]["reply_element"]["n"], hist[-1]["reply_element"]["name"]) == sidebar["team"]
+    # Each section shows each element in it with its status.
+    assert [sec["letter"] for sec in gate["sections"]] == list("ABCDEFG")
+    b = next(sec for sec in gate["sections"] if sec["letter"] == "B")
+    assert [(c["n"], c["status"]) for c in b["elements"]] == [(1, "confirmed"), (10, "open")], b["elements"]
+    assert b["status"] == "1 of 2 confirmed" and cards["team"]["status"] == "open"
+    # The Gate's rows are the read-back's rows.
+    gate_rows = [{k: v for k, v in r.items() if k != "why"} for r in cards["business_case"]["rows"]]
+    assert gate_rows == read_card["rows"], (gate_rows, read_card["rows"])
+    assert next(r for r in gate_rows if r["id"] == "where-when")["value"] == "Since January 2026"
+    assert cards["business_case"]["answer"] == answer
+    assert [e["n"] for e in gate["still_to_confirm"]] == list(range(2, 14))
+    assert "Benefits analysis" not in json.dumps(cards["business_case"])
+
+    page = _run_page(("function buildNavDefineElements", "function defineReportHtml", "function benefitTimelineHtml"),
+                     _PAGE_STUBS + f"""
+const S={{case:{{case_id:'C1',define_elements:{json.dumps(case['define_elements'])}}},user:'Ana',phase:'define'}};
+function buildNavDefineStatus(){{return ''}}
+process.stdout.write(JSON.stringify({{nav:buildNavDefineElements(),gate:defineReportHtml({json.dumps(report)},false)}}));
+""")
+    assert "1. Business case" in page["nav"] and "2. Team" in page["nav"]
+    html = page["gate"]
+    assert "B · Business case and benefits" in html and 'data-element="1" data-status="confirmed"' in html
+    assert 'data-element="10" data-status="open"' in html and "Element 10</span> · <strong>Benefits analysis" in html
+    assert "Still to confirm:" in html and "2 Team · 3 " in html
+    assert "Since January 2026" in html and "In your answer" in html
+
+
+def test_the_report_shows_history_behind_a_link_never_json(env, monkeypatch, stub_planner) -> None:
+    """DEF-199 — The report shows each element's history behind a History link, as sentences, never raw JSON (G-200; founder test findings 48)
+
+    ADR-0093 decision 4 and R16, on the real routes and graph and the page's own defineReportHtml: element 1
+    confirmed, then changed through coaching with a reason; the Gate's card for it carries its history as two
+    sentences — when, who, where the value came from, and for the change what it was before and why — behind a
+    History link (a <details> the Belt opens); an element never changed has none; no history line is JSON."""
+    import json
+
+    from backend.phases import moves
+
+    coach_says = _adr0093_coach(monkeypatch)
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {"business_case": {"status": moves.ASKED}}
+    first = "Since January 2026, 23% of invoices are paid late; about £62k a year in late fees."
+    _confirm_business_case(env, coach_says, stub_planner, first)
+    coach_says("What would you like to change in the business case?")
+    pick = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Change",
+                                         "action": "revise", "element": "business_case"})
+    assert pick.status_code == 200 and pick.json()["move"] == moves.CHALLENGE, pick.text
+    second = first + " Finance now puts it at about £70k a year."
+    _confirm_business_case(env, coach_says, stub_planner, second, reason="finance's new figure")
+
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    cards = {c["field"]: c for sec in report["gate"]["sections"] for c in sec["elements"]}
+    lines = cards["business_case"]["history"]
+    assert len(lines) == 2, lines
+    assert " — confirmed by ana: “" in lines[0] and first in lines[0], lines[0]
+    assert " — changed by ana from “" in lines[1] and f"“{first}” to “{second}”" in lines[1], lines[1]
+    assert "Reason: finance's new figure." in lines[1], lines[1]
+    assert not any(line.lstrip().startswith(("{", "[")) or '{"' in line for line in lines)
+    assert cards["team"]["history"] == [], "an element never confirmed has no history"
+
+    html = _page(("benefitTimelineHtml", "defineReportHtml"), _DOM + f"""
+process.stdout.write(JSON.stringify({{html:defineReportHtml({json.dumps(report)}, false)}}));""")["html"]
+    block = html.split('data-element="1"')[1].split('class="el-card gate-el"')[0]
+    assert '<details class="el-history"' in block and ">History</summary>" in block, block[:400]
+    assert "finance&#39;s new figure" in block or "finance's new figure" in block
+    assert '{&quot;' not in html and '{"' not in html.split("define-report-actions")[0], "raw JSON on the report"
 
 
 def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, monkeypatch, stub_planner) -> None:

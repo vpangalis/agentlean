@@ -1165,7 +1165,8 @@ async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResp
                   "belt_level": case.belt_level, "department": case.department,
                   "target_date": case.target_date,
                   "people": [p.model_dump() for p in case.people]},           # ADR-0090
-            field_log=list(getattr(record, "field_log", []) or []))
+            field_log=list(getattr(record, "field_log", []) or []),
+            field_status=dict(getattr(record, "field_status", {}) or {}))          # ADR-0093: the Gate's rows
 
     return GateReviewResponse(
         phase=phase,

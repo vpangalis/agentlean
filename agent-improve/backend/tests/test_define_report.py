@@ -213,16 +213,19 @@ def _render(report: dict, passed: bool = False) -> str:
     if node is None:
         pytest.skip("node is not installed — the report cannot be rendered; this is NOT a pass")
     src = UI.read_text(encoding="utf-8")
-    js = (_fn(src, "escapeHtml") + "\n" + _fn(src, "benefitTimelineHtml") + "\n" + _fn(src, "defineReportHtml")
+    js = (_fn(src, "escapeHtml") + "\n" + _fn(src, "benefitTimelineHtml") + "\n" + _fn(src, "elementValueHtml")
+          + "\n" + _fn(src, "elementRowsHtml") + "\n" + _fn(src, "defineReportHtml")
           + f"\nprocess.stdout.write(defineReportHtml({json.dumps(report)}, {json.dumps(passed)}));")
-    out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
+    # The script on stdin, never `-e`: a report (ADR-0093's Gate view) outgrows Windows' 32K command line.
+    out = subprocess.run([node], input=js, capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
     return out.stdout
 
 
 def test_the_gate_screen_draws_the_seven_sections_and_both_diagrams() -> None:
     html = _render(define_report(COMPLETE, {"title": "AP"}, []))
-    assert all(f">{n} · " in html for n in range(1, 8)), "a section is missing from the screen"
+    # ADR-0093 decision 4: R5's seven sections, lettered A–G (gate_view_mockup.html).
+    assert all(f">{x} · " in html for x in "ABCDEFG"), "a section is missing from the screen"
     assert "How does it show up?" in html and "how_much answer" in html, "the 5W2H diagram"
     assert 'id="report-sipoc"' in html, "the SIPOC diagram's host"
     assert "paid within 30 days" in html, "the CTQ table"

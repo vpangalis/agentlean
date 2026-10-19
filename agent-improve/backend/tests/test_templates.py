@@ -128,15 +128,15 @@ def test_the_structured_elements_show_the_values_that_go_into_the_gate() -> None
     assert problem["located"]["value"].startswith("Austrian field service · step")
     assert templates.card("problem_statement", A99)["statement"] == A99["problem_statement"]
     metric = {r["id"]: r for r in templates.rows("baseline_estimate", A99)}
-    assert metric["one-primary"]["value"] == "Late-closure rate" and metric["quantified"]["value"] == "38%"
+    assert metric["one-primary"]["value"] == "Late-closure rate (%)" and metric["quantified"]["value"] == "38%"
     target = {r["id"]: r for r in templates.rows("target_value", A99)}
     assert target["number-and-unit"]["value"] == "at most 10%"
-    assert target["direction"]["value"] == "from 38% to at most 10%"
+    assert target["direction"]["value"] == "38% → at most 10%"
     assert templates.rows("target_date", A99)[0]["value"] == "31 March 2027"
     sipoc = {r["id"]: r for r in templates.rows("process_map_sipoc", A99)}
     assert sipoc["start-to-end"]["value"] == "4 steps: Log complaint → Inform customer"
     assert sipoc["all-six"]["value"] == "all six filled"
-    assert sipoc["performance"]["value"]["rows"][0][:2] == ["Log complaint", "15 minutes (5 minutes – 40 minutes)"]
+    assert sipoc["performance"]["value"]["rows"][0][:2] == ["S1 · Log complaint", "15 minutes (5 minutes to 40 minutes)"]
     assert sipoc["performance"]["value"]["rows"][-1][0] == "Whole process"
     assert templates.rows("issues_and_barriers", A99)[0]["value"] == [
         "Month-end peak in the service desk", "Ticket system change freeze until January"]

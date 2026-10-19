@@ -4673,31 +4673,41 @@ function defineReportHtml(rep, isPassed) {
   const read = kind => (rep.read || {})[kind]
     ? `<div class="visual-read" style="font-size:9.5px;color:#5B6B7C;font-style:italic;margin:2px 0 6px">How to read it: ${escapeHtml(rep.read[kind])}</div>` : '';
   const vis = rep.visuals || {};
-  const hist = rep.history || {};
-  const changed = fields => fields.filter(f => hist[f]).map(f => {
-    const h = hist[f];
-    return `<div style="font-size:10px;color:#7A6E52;margin-top:4px">
-      ${escapeHtml(f.replace(/_/g, ' '))} changed ${h.changes - 1}×: first confirmed
-      ${escapeHtml(String(h.first.at || '').slice(0, 10))} as "${t(h.first.value)}"; current since
-      ${escapeHtml(String(h.current.at || '').slice(0, 10))}</div>`;
-  }).join('');
   const sec = n => (rep.sections || []).find(s => s.n === n) || {};
-  const card = (s, body) => `
-    <div style="background:#fff;border:0.5px solid #E4E2DC;border-radius:8px;
+  // ADR-0093 decision 4 (gate_view_mockup.html): sections A–G; each element its own card — "Element n · name", its
+  // status, a History link — its rows drawn by elementRowsHtml, the same code as the read-back card.
+  const gate = rep.gate || {sections: [], still_to_confirm: []};
+  const chip = st => `<span class="el-chip ${st === 'confirmed' ? 'ok' : 'open'}">${escapeHtml(st)}</span>`;
+  const elCard = c => {
+    const hist = (c.history || []).length ? `<details class="el-history" style="font-size:11px;margin-top:4px">
+        <summary class="hist" style="cursor:pointer;color:#0070BA">History</summary>${c.history.map(h =>
+        `<div class="hist-line" style="color:#5C5A55;margin:2px 0">${escapeHtml(h)}</div>`).join('')}</details>` : '';
+    const body = c.status === 'confirmed'
+      ? (c.statement ? `<div class="el-statement" style="font-size:11px;line-height:1.6;background:#F4F8FC;
+          border-left:3px solid #0070BA;padding:6px 8px;margin:6px 0">${escapeHtml(c.statement)}</div>` +
+          (c.statement_why ? `<div class="field-why" style="font-size:9.5px;color:#8A93A0;margin:-1px 0 3px">${escapeHtml(c.statement_why)}</div>` : '') : '') +
+        elementRowsHtml(c.rows) +
+        (c.answer ? `<div class="el-answer"><b>In your answer</b> — ${escapeHtml(c.answer)}</div>` : '')
+      : `<div class="el-pending" style="font-size:11px;color:#9A6B12;margin-top:4px">${escapeHtml(c.status)} — ${escapeHtml((c.needs || []).join(', ').toLowerCase())}</div>`;
+    return `<div class="el-card gate-el" data-element="${c.n}" data-status="${escapeHtml(c.status)}">
+      <div class="el-head"><span><span class="el-num">Element ${c.n}</span> · <strong>${escapeHtml(c.name)}</strong></span>${chip(c.status)}</div>${hist}${body}</div>`;
+  };
+  const section = (i, extra) => {
+    const g = (gate.sections || [])[i] || {letter: '', title: '', elements: [], status: 'open'};
+    const s = sec(i + 1);
+    return `
+    <div class="gate-sec" data-letter="${g.letter}" style="background:#fff;border:0.5px solid #E4E2DC;border-radius:8px;
       padding:12px 14px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:600;color:#2C3E50">${s.n} · ${escapeHtml(s.title || '')}</span>
-        <span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:8px;
-          background:${s.complete ? '#E8F4EC' : '#FDECEC'};color:${s.complete ? '#1E6B3A' : '#B3261E'}">
-          ${s.complete ? 'confirmed' : 'incomplete'}</span>
+        <span style="font-size:12px;font-weight:600;color:#2C3E50">${g.letter} · ${escapeHtml(g.title || s.title || '')}</span>
+        ${chip(g.status)}
       </div>${s.summary ? `<div class="sec-summary" style="font-size:11px;color:#2C3E50;line-height:1.5;
-        margin:0 0 8px;padding:6px 8px;background:#F7F9FB;border-radius:6px">${escapeHtml(s.summary)}</div>` : ''}${body}${changed(s.fields || [])}</div>`;
+        margin:0 0 8px;padding:6px 8px;background:#F7F9FB;border-radius:6px">${escapeHtml(s.summary)}</div>` : ''}${extra}${
+        (g.elements || []).map(elCard).join('')}</div>`;
+  };
 
   const s1 = sec(1), p = s1.project || {};
-  const s2 = sec(2), b = s2.benefits || {}, sv = s2.savings;
-  const s3 = sec(3), scope = s3.scope || {};
-  const s4 = sec(4), s5 = sec(5), s6 = sec(6), s7 = sec(7);
-  const prim = s5.primary || {};
+  const s6 = sec(6);
   const sipoc = s6.sipoc || {};
 
   // DEF-058 — one progress bar for Define: the elements confirmed of the thirteen.
@@ -4713,67 +4723,25 @@ function defineReportHtml(rep, isPassed) {
        Define report${p.title ? ' — ' + escapeHtml(p.title) : ''}</div>
      <div style="font-size:10px;color:#6B7A8D;margin-bottom:12px">Phase 1 of 5 ·
        assembled from the values you confirmed — nothing here is proposed by the coach</div>` + progress,
-    card(s1, line('Project', p.title) + line('Project lead', s1.project_lead || p.leader, 'project_lead') +
+    section(0, line('Project', p.title) + line('Project lead', s1.project_lead || p.leader, 'project_lead') +
       line('Champion', s1.champion ? s1.champion.name : 'not named in the team yet', 'champion') +
       line('Belt level', p.belt_level) +
       line('Department', p.department) +
-      table(s1.team, [['name', 'Name'], ['role', 'Role'], ['function', 'Function']]) + why('team') +
       ((s1.people || []).length ? `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin:6px 0 2px">The people on the case</div>` +
         table(s1.people, [['name', 'Name'], ['role', 'Role'], ['department', 'Department'], ['site', 'Site'], ['status', 'Status']]) : '')),
-    card(s2, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s2.business_case)}</div>` + why('business_case') +
-      line('Cost of the gap', b.cost_of_gap, 'cost_of_gap') + line('Impact', b.impact_type, 'impact_type') +
-      line('Realisation schedule', b.realisation_schedule, 'realisation_schedule') +
-      line('Finance contact', b.finance_contact, 'finance_contact') +
-      (sv ? line('Expected-savings calculation', ((sv.result || {}).calculation_note) ||
-                                                  ((sv.result || {}).annual_savings)) : '') +
-      (vis.benefit_timeline ? benefitTimelineHtml(vis.benefit_timeline) + read('benefit_timeline') : '')),
-    card(s3, `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin:2px 0">5W2H</div>` + why('five_w_two_h') +
-      (vis.mindmap_5w2h ? `<div id="report-mindmap"></div>` + read('mindmap_5w2h') : '') +
-      table(s3.five_w_two_h, [['question', 'Question'], ['answer', 'Answer']]) +
-      `<div style="font-size:11px;line-height:1.6;background:#F4F8FC;border-left:3px solid #0070BA;
-        padding:6px 8px;margin:6px 0"><strong>Problem.</strong> ${t(s3.problem_statement)}</div>` + why('problem_statement') +
-      line('Objective', s3.objective, 'objective') +
-      `<div style="display:flex;gap:10px;margin-top:4px">
-        <div style="flex:1">${line('In scope', scope.in_scope)}</div>
-        <div style="flex:1">${line('Out of scope', scope.out_scope)}</div></div>` + why('scope')),
-    card(s4, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s4.voc_summary)}</div>` + why('voc_summary') +
-      `<div style="font-size:10px;font-weight:600;color:#5B6B7C">Critical to quality (CTQs)</div>` + why('ctqs') +
-      table(s4.ctqs, [['customer', 'Customer'], ['need', 'Need'], ['requirement', 'Requirement (measurable)']])),
-    card(s5, line('Primary metric', prim.name ? `${prim.name} (${prim.unit || ''}) — ${prim.meaning || ''}` : null, 'primary') +
-      line('Baseline → target', (s5.baseline || s5.target) ? `${s5.baseline || '—'} → ${s5.target || '—'}` : null, 'baseline_target') +
-      (vis.baseline_target ? `<div id="report-target"></div>` + read('baseline_target') : '') +
-      line('By', s5.target_date, 'target_date') +
-      // ADR-0088 decision 1 (G-183): the secondary metrics as the Belt numbered them, one per line.
-      ((s5.secondary_metric_items || []).length > 1
-        ? `<div style="font-size:11px;line-height:1.6;margin:2px 0"><span style="color:#5B6B7C;font-weight:600">Secondary metrics:</span></div>${why('secondary_metrics')}` +
-          `<ul style="font-size:11px;line-height:1.6;margin:0 0 0 16px;padding:0">${s5.secondary_metric_items.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
-        : line('Secondary metrics', (s5.secondary_metric_items || [])[0] || s5.secondary_metrics, 'secondary_metrics')) +
-      ((s5.other_registered || []).length
-        ? line('Also registered', s5.other_registered.map(m => m.name).join(', ')) : '')),
-    card(s6, why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +
-      line('Measured on the outputs', sipoc.process_metrics, 'process_metrics') +
-      // ADR-0078 (DEF-084, R5 section 6): how each step performs today, the problem steps marked, and the
-      // whole process.
-      ((s6.steps || []).length
-        ? `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin-top:6px">How the process performs today</div>` +
-          table(s6.steps.map(st => ({
-            step: `${(st.problems || []).length ? '⚠ ' : ''}${st.id} · ${st.name}`,
-            time: st.duration && st.duration.avg
-              ? `${st.duration.avg}${st.duration.min || st.duration.max ? ` (${st.duration.min || '?'} to ${st.duration.max || '?'})` : ''}` : null,
-            runs: st.runs_per_period,
-            problems: (st.problems || []).map(p => p.said_by ? `${p.note} (${p.said_by})` : p.note).join('; ') || null})),
-            [['step', 'Step'], ['time', 'Time (range)'], ['runs', 'How often'], ['problems', 'Problems seen']]) +
-          line('End-to-end lead time', (s6.process_performance || {}).lead_time) +
-          line('Runs', (s6.process_performance || {}).runs_per_period)
-        : '')),
-    card(s7, ((s7.issues || []).length
-        ? `<ul style="font-size:11px;line-height:1.6;margin:0 0 0 16px;padding:0">${s7.issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
-        : `<div style="font-size:11px;line-height:1.6">${t(s7.issues_and_barriers)}</div>`) + why('issues')),
+    section(1, vis.benefit_timeline ? benefitTimelineHtml(vis.benefit_timeline) + read('benefit_timeline') : ''),
+    section(2, vis.mindmap_5w2h ? `<div id="report-mindmap"></div>` + read('mindmap_5w2h') : ''),
+    section(3, ''),
+    section(4, vis.baseline_target ? `<div id="report-target"></div>` + read('baseline_target') : ''),
+    section(5, why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +
+      line('Measured on the outputs', sipoc.process_metrics, 'process_metrics')),
+    section(6, ''),
   ];
-  const missing = rep.missing || [];
-  if (missing.length && !isPassed) {
-    html.push(`<div style="font-size:11px;color:#B3261E;padding:8px 0">Still to confirm:
-      ${missing.map(m => escapeHtml(m.replace(/_/g, ' '))).join(', ')}</div>`);
+  // "Still to confirm", with the element numbers (ADR-0093 decision 4).
+  const still = gate.still_to_confirm || [];
+  if (still.length && !isPassed) {
+    html.push(`<div class="still-to-confirm" style="font-size:11px;color:#B3261E;padding:8px 0">Still to confirm:
+      ${still.map(e => `${e.n} ${escapeHtml(e.name)}`).join(' · ')}</div>`);
   }
   html.push(`<div id="define-report-actions"></div>`);
   return html.join('');
@@ -6191,7 +6159,9 @@ function renderLiveViz() {
 // "in your answer"). The read-back card and the Gate's element card draw the SAME rows with this function.
 function elementValueHtml(v){
   if(v===null||v===undefined||v==='')return '<span style="color:var(--text3)">—</span>';
-  if(Array.isArray(v))return v.length>1?'<ol style="margin:0;padding-left:18px">'+v.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ol>':escapeHtml(v[0]);
+  if(Array.isArray(v))return '<ul style="margin:0;padding-left:18px">'+v.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul>';
+  if(typeof v==='object'&&Array.isArray(v.boxes))return '<div style="display:flex;gap:10px;flex-wrap:wrap">'+v.boxes.map(b=>
+    '<div style="flex:1;min-width:140px;padding:6px 8px;background:var(--surface2);border-radius:var(--radius-sm)"><b>'+escapeHtml(b[0])+':</b> '+escapeHtml(b[1])+'</div>').join('')+'</div>';
   if(typeof v==='object'&&Array.isArray(v.rows)){
     const head=(v.columns||[]).some(c=>c)?'<tr>'+(v.columns||[]).map(c=>'<th>'+escapeHtml(c)+'</th>').join('')+'</tr>':'';
     return '<div class="el-scroll"><table class="sub">'+head+v.rows.map(r=>'<tr>'+r.map(c=>'<td>'+escapeHtml(c)+'</td>').join('')+'</tr>').join('')+'</table></div>';
@@ -6203,7 +6173,8 @@ function elementRowsHtml(rows){
     const src=r.source==='calculated'?'<span class="el-chip calc">calculated</span>':escapeHtml(r.source||'');
     const formula=r.formula?'<span class="formula">'+escapeHtml(r.formula)+'</span>':'';
     return `<tr data-criterion="${escapeHtml(r.id)}"><td class="st ${r.met?'y':'n'}">${r.met?'✓':'○'}</td>`
-      +`<td class="lbl">${escapeHtml(r.label)}</td><td>${elementValueHtml(r.value)}${formula}</td><td class="src">${src}</td></tr>`;
+      +`<td class="lbl">${escapeHtml(r.label)}${r.why?`<div class="field-why" style="font-size:9.5px;color:#8A93A0">${escapeHtml(r.why)}</div>`:''}</td>`
+      +`<td>${elementValueHtml(r.value)}${formula}</td><td class="src">${src}</td></tr>`;
   }).join('')+'</table></div>';
 }
 // The read-back card (readback_card_mockup.html): "Element n of 13 · name", "k of m criteria met", the rows, the

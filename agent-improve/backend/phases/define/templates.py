@@ -124,7 +124,9 @@ def _primary(values: dict[str, Any]) -> dict[str, Any]:
 
 
 def _primary_name(values: dict[str, Any]) -> Read:
-    return (str(_primary(values).get("name") or "").strip() or None), None
+    p = _primary(values)
+    name, unit = str(p.get("name") or "").strip(), str(p.get("unit") or "").strip()
+    return (f"{name} ({unit})" if name and unit else name or None), None
 
 
 def _defined(values: dict[str, Any]) -> Read:
@@ -147,7 +149,7 @@ def _direction(values: dict[str, Any]) -> Read:
     base, target = values.get("baseline_estimate"), values.get("target_value")
     if is_empty_capture(base) or is_empty_capture(target):
         return None, None
-    return f"from {parse.metric_text(base)} to {parse.metric_text(target)}", None
+    return f"{parse.metric_text(base)} → {parse.metric_text(target)}", None
 
 
 def _date(values: dict[str, Any]) -> Read:
@@ -162,8 +164,7 @@ def _scope(values: dict[str, Any]) -> Read:
     if not isinstance(s, dict):
         return None, None
     inside, outside = _text(s.get("in_scope")), _text(s.get("out_scope"))
-    rows = [[label, text or "—"] for label, text in (("In scope", inside), ("Out of scope", outside))]
-    return {"columns": ["", ""], "rows": rows}, bool(inside and outside)
+    return {"boxes": [["In scope", inside or "—"], ["Out of scope", outside or "—"]]}, bool(inside and outside)
 
 
 def _benefit(key: str) -> Callable[[dict[str, Any]], Read]:
@@ -212,15 +213,19 @@ def _performance(values: dict[str, Any]) -> Read:
     rows = []
     for st in steps:
         d = st.get("duration") or {}
-        rng = " – ".join(text(d[k]) for k in ("min", "max") if d.get(k))
-        rows.append([str(st["name"]), (text(d["avg"]) if d.get("avg") else "—") + (f" ({rng})" if rng else ""),
-                     text(st.get("runs_per_period")) if st.get("runs_per_period") else "—"])
+        rng = (f" ({text(d['min']) if d.get('min') else '?'} to {text(d['max']) if d.get('max') else '?'})"
+               if d.get("min") or d.get("max") else "")
+        seen = "; ".join(f"{p['note']} ({p['said_by']})" if p.get("said_by") else str(p.get("note") or "")
+                         for p in st.get("problems") or [] if isinstance(p, dict)) or "—"
+        rows.append([f"{'⚠ ' if st.get('problems') else ''}{st['id']} · {st['name']}",
+                     (text(d["avg"]) if d.get("avg") else "—") + rng,
+                     text(st.get("runs_per_period")) if st.get("runs_per_period") else "—", seen])
     raw_perf = s.get("process_performance")
     perf: dict[str, Any] = raw_perf if isinstance(raw_perf, dict) else {}
     if perf.get("lead_time") or perf.get("runs_per_period"):
         rows.append(["Whole process", text(perf.get("lead_time")) if perf.get("lead_time") else "—",
-                     text(perf.get("runs_per_period")) if perf.get("runs_per_period") else "—"])
-    return {"columns": ["Step", "Time · average (range)", "How often"], "rows": rows}, None
+                     text(perf.get("runs_per_period")) if perf.get("runs_per_period") else "—", "—"])
+    return {"columns": ["Step", "Time (range)", "How often", "Problems seen"], "rows": rows}, None
 
 
 def _stated(statement: str) -> Callable[[dict[str, Any]], Read]:
@@ -448,6 +453,118 @@ def open_required(field: str, values: dict[str, Any], *, spans: Optional[dict[st
     return [r["id"] for r in rows(field, values, spans=spans, judged=judged) if r["required"] and not r["met"]]
 
 
+#: Each row's one-line explanation in the Gate (C1, DEF-086): criterion id -> the report's FIELD_EXPLAIN key.
+_WHY: dict[str, dict[str, str]] = {
+    "business_case": {"what": "business_case"},
+    "team": {"champion": "champion", "people": "team"},
+    "voc_summary": {"customers": "voc_summary", "ctq": "ctqs"},
+    "problem_statement": {"5w2h": "five_w_two_h"},
+    "baseline_estimate": {"one-primary": "primary", "quantified": "baseline_target"},
+    "project_scope": {"in-and-out": "scope"},
+    "goal_statement": {"how-much": "objective"},
+    "target_date": {"a-date": "target_date"},
+    "benefits_analysis": {"cost-of-gap": "cost_of_gap", "impact-type": "impact_type",
+                          "realisation": "realisation_schedule", "finance-contact": "finance_contact"},
+    "secondary_metrics": {"side-effect": "secondary_metrics"},
+    "process_map_sipoc": {"all-six": "sipoc"},
+    "issues_and_barriers": {"specific": "issues"},
+}
+
+#: R16's sources, as the History link says them.
+_SOURCE_WORDS = {"typed": "typed by the team", "upload": "read from a file",
+                 "coach_proposed": "proposed by the coach and confirmed"}
+
+
+def _element_fields(field: str) -> tuple[str, ...]:
+    from backend.phases.define.schema import _CAPTURED_INSIDE
+    return (field, *_CAPTURED_INSIDE.get(field, ()))
+
+
+def _status(field: str, artifacts: dict[str, Any], field_status: dict[str, Any]) -> str:
+    """The element's status in the Gate: confirmed (every value it holds is stored — only a Confirm stores), parked,
+    awaiting your Confirm (a read-back is pending), or open."""
+    if all(not is_empty_capture(artifacts.get(f)) for f in _element_fields(field)):
+        return "confirmed"
+    entry = field_status.get(field) or {}
+    if entry.get("status") == "parked":
+        return "parked"
+    if entry.get("status") == "answered" and entry.get("pending"):
+        return "awaiting your Confirm"
+    return "open"
+
+
+def history(field: str, field_log: list[dict[str, Any]] | None) -> list[str]:
+    """DEF-199 (R16): the element's history as sentences, oldest first — when, who, where the value came from,
+    and for a change what it was before and why. Never raw JSON."""
+    fields = _element_fields(field)
+    entries = sorted((e for e in field_log or [] if isinstance(e, dict) and e.get("field") in fields
+                      and e.get("phase", "define") == "define"),
+                     key=lambda e: (str(e.get("timestamp") or ""), int(e.get("turn") or 0)))
+    out = []
+    for e in entries:
+        when = str(e.get("timestamp") or "")[:10] or "undated"
+        who = f" by {e['by']}" if e.get("by") else ""
+        part = "" if e.get("field") == field else f" ({str(e['field']).replace('_', ' ')})"
+        source = _SOURCE_WORDS.get(str(e.get("source") or ""), "")
+        value = plain(e.get("value"))
+        if e.get("prior_value") in (None, "", [], {}):
+            out.append(f"{when} — confirmed{who}{part}: “{value}”" + (f", {source}." if source else "."))
+        else:
+            why = f" Reason: {e['reason']}." if e.get("reason") else ""
+            out.append(f"{when} — changed{who}{part} from “{plain(e.get('prior_value'))}” to “{value}”"
+                       + (f", {source}." if source else ".") + why)
+    return out
+
+
+def gate_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any],
+              field_log: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """ADR-0093 decision 4: the element's card in the Gate — "Element n · name", its status, its History, and for a
+    confirmed element the SAME rows as its read-back card (`rows`, with the spans and the file its Confirm kept);
+    for one not confirmed, what it still needs (its criteria by label), never a value."""
+    from backend.phases.define.report import FIELD_EXPLAIN
+    status = _status(field, artifacts, field_status)
+    entry = field_status.get(field) or {}
+    out: dict[str, Any] = {"field": field, "n": number_of(field), "name": name_of(field), "status": status,
+                           "history": history(field, field_log)}
+    if status != "confirmed":
+        out["needs"] = [label for cid, (label, _read) in TEMPLATES[field].items()]
+        return out
+    rs = rows(field, artifacts, spans=entry.get("spans"), upload=entry.get("upload"))
+    why = _WHY.get(field, {})
+    out["rows"] = [{**r, **({"why": FIELD_EXPLAIN[why[r["id"]]]} if r["id"] in why else {})} for r in rs]
+    if field in ("problem_statement", "goal_statement", "voc_summary") and isinstance(artifacts.get(field), str):
+        out["statement"] = artifacts[field]
+        if field != "voc_summary":
+            out["statement_why"] = FIELD_EXPLAIN["problem_statement" if field == "problem_statement" else "objective"]
+    if any(r["source"] == IN_ANSWER for r in rs):
+        out["answer"] = answer_text(field, artifacts)
+    return out
+
+
+def gate_view(artifacts: dict[str, Any], field_status: dict[str, Any] | None = None,
+              field_log: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """ADR-0093 decision 4 (gate_view_mockup.html): sections A–G (R5's seven, in order), each with its elements'
+    cards in the report's order and a status ("confirmed", "k of m confirmed", "open"); "Still to confirm" at the
+    end with the element numbers. One numbering with the chat and the progress view (the coached order)."""
+    from backend.phases.define.report import element_of
+    field_status = dict(field_status or {})
+    sections = []
+    for i, (_n, title, fields) in enumerate(REPORT_SECTIONS):
+        elements: list[str] = []
+        for f in fields:
+            e = element_of(f)
+            if e in TEMPLATES and e not in elements:
+                elements.append(e)
+        cards = [gate_card(e, artifacts, field_status, field_log) for e in elements]
+        done = sum(1 for c in cards if c["status"] == "confirmed")
+        sections.append({"letter": SECTION_LETTERS[i], "title": title, "elements": cards,
+                         "status": ("confirmed" if done == len(cards) else "open" if not done
+                                    else f"{done} of {len(cards)} confirmed")})
+    still = [{"n": number_of(f), "name": name_of(f), "field": f} for f in DEFINE_FIELD_ORDER
+             if _status(f, artifacts, field_status) != "confirmed"]
+    return {"sections": sections, "still_to_confirm": still}
+
+
 def strip(field: str) -> dict[str, Any]:
     """After a Confirm (ADR-0093 decision 3): "✓ Element n · name confirmed — the Gate document is updated
     (section X)"."""
@@ -457,5 +574,5 @@ def strip(field: str) -> dict[str, Any]:
 
 
 __all__ = ["TEMPLATES", "SECTION_LETTERS", "YOUR_ANSWER", "FROM_FILE", "CALCULATED", "IN_ANSWER", "criteria",
-           "verbatim_spans", "rows", "plain", "answer_text", "number_of", "section_of", "name_of", "card", "open_required",
+           "verbatim_spans", "rows", "plain", "answer_text", "history", "gate_card", "gate_view", "number_of", "section_of", "name_of", "card", "open_required",
            "strip"]
