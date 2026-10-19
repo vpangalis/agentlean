@@ -223,6 +223,12 @@ def test_the_four_blocks_reach_the_screen() -> None:
 
 
 
+#: The page functions another one calls — brought along whenever it is run (ADR-0093: renderTurn draws the card).
+_PAGE_NEEDS: dict[str, tuple[str, ...]] = {
+    "function renderTurn": ("function elementValueHtml", "function elementRowsHtml", "function readbackCardHtml"),
+}
+
+
 def _run_page(functions: tuple[str, ...], script: str) -> dict:
     """The page's own functions (ui/index.html), run in node against stubs of the DOM, with
     `script` driving them; returns what the script writes to stdout as JSON. Skips (never
@@ -238,7 +244,12 @@ def _run_page(functions: tuple[str, ...], script: str) -> dict:
         pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
     funcs = []
+    wanted: list[str] = []
     for name in functions:
+        for n in (*_PAGE_NEEDS.get(name, ()), name):
+            if n not in wanted:
+                wanted.append(n)
+    for name in wanted:
         m = re.search(r"^" + re.escape(name) + r"\(.*?^\}", src, re.M | re.S)
         assert m, f"{name} not found in ui/index.html"
         funcs.append(m.group(0))
@@ -5560,14 +5571,153 @@ def test_a_failed_rubric_criterion_is_logged_by_id_element_and_reason(env, caplo
     assert [str(w.message) for w in heard] == [other], "only the parsed-field warning is filtered"
 
 
-def test_the_read_back_is_the_exact_value_a_confirm_stores() -> None:
-    """DEF-195 — The read-back is rendered in code from the exact value a Confirm will store, as a criteria card (G-195; founder test findings 17, 60, 64, 73)"""
-    _not_written('DEF-195')
+def _adr0093_coach(monkeypatch):
+    """The coach's reply for the ADR-0093 tests: the real executor, a stubbed model call."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+    real_llm = nodes_common.get_llm
+
+    def coach_says(message: str, captured: list | None = None) -> None:
+        call = {"name": "CoachingResponse", "id": "call_adr0093",
+                "args": {**REPLY, "message": message, "fields_captured": captured or []}}
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
+            messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else real_llm(role, **kw))
+    return coach_says
 
 
-def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip() -> None:
-    """DEF-196 — Every reply names its element ('Element n of 13 · name'); a Confirm shows its own confirmation strip; the next element its own card (G-197; founder test findings 19, 30, 40, 44, 46, 51, 58)"""
-    _not_written('DEF-196')
+def _draw_turn(turn: dict) -> str:
+    """The page's own renderTurn, in node, for `turn` as the latest turn."""
+    import json
+    return _run_page(("function renderTurn",), _PAGE_STUBS + f"""
+const turn={json.dumps(turn)};
+const S={{case:{{case_id:'C1',conversation_history:[turn]}},user:'Ana',phase:'define',localChat:[turn]}};
+function failedTurnHtml(){{return ''}}
+process.stdout.write(JSON.stringify({{html:renderTurn(turn)}}));
+""")["html"]
+
+
+def test_the_read_back_is_the_exact_value_a_confirm_stores(env, monkeypatch, stub_planner) -> None:
+    """DEF-195 — The read-back is rendered in code from the exact value a Confirm will store, as a criteria card (G-195; founder test findings 17, 60, 64, 73)
+
+    ADR-0093 decision 2, on the real routes and graph and the page's own renderTurn: the team's read-back answers
+    with its card — "Element 2 of 13 · Team", "4 of 4 criteria met", one row per script criterion, each value read
+    in code from the pending store; the page draws the rows and an open Confirm; the Confirm stores exactly that
+    value. The scope's read-back without its out-of-scope half: the card shows the open row, the page draws
+    Confirm disabled, and a Confirm sent anyway is refused by the server — nothing stored."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    coach_says = _adr0093_coach(monkeypatch)
+    record = env.case.phases["define"]
+    record.structured = {"business_case": COMPLETE["business_case"]}
+    record.field_status = {"business_case": {"status": moves.CONFIRMED}, "team": {"status": moves.ASKED}}
+    team = [{"name": "Katharina Huber", "role": "Champion", "function": "Head of Field Service", "training": "none"},
+            {"name": "Markus Steiner", "role": "Process owner", "function": "Service Desk Lead",
+             "training": "half-day data collection"}]
+    words = ("Katharina Huber is our champion, Markus Steiner the process owner (Service Desk Lead); he needs a "
+             "half-day on data collection, Katharina none.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all four criteria met")
+    coach_says("Here is your team. Is this right?", captured=[{"field_name": "team", "value": team, "source": "belt"}])
+    ask = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": words})
+    assert ask.status_code == 200 and ask.json()["move"] == moves.READ_BACK, ask.text
+    card = ask.json()["readback_card"]
+    pending = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["field_status"]["team"]["pending"]
+    stored_team = pending["store"]["team"]
+    rows = {r["id"]: r for r in card["rows"]}
+    assert [r["id"] for r in card["rows"]] == ["champion", "process-owner", "people", "training"]
+    assert (card["n"], card["of"], card["name"], card["met"], card["total"], card["confirm"]) == (
+        2, 13, "Team", 4, 4, True), card
+    assert rows["people"]["value"]["rows"] == [[m["name"], m["role"], m["function"]] for m in stored_team]
+    assert rows["champion"]["value"] == "Katharina Huber" and rows["process-owner"]["value"] == "Markus Steiner"
+    html = _draw_turn({"role": "ai", "text": "Here is your team. Is this right?", "move": "read_back",
+                       "readback_card": card})
+    assert "Element 2 of 13" in html and "4 of 4 criteria met" in html and "Katharina Huber" in html
+    assert 'id="rb-confirm"' in html and "disabled" not in html.split('id="rb-confirm"')[1].split(">")[0]
+
+    coach_says("Stored.")
+    done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Confirm",
+                                         "action": "confirm"})
+    assert done.status_code == 200, done.text
+    case = env.client.get(f"/cases/{CASE_ID}").json()
+    assert case["phases"]["define"]["structured"]["team"] == stored_team, "the Confirm stored what the card showed"
+
+    # A required criterion open: the card shows it, the page closes Confirm, the server refuses one sent anyway.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    order = [f for f, _ in moves.positions("define")]
+    record.structured = {k: COMPLETE[k] for k in ("business_case", "team", "voc_summary", "critical_to_quality",
+                                                  "problem_statement", "problem_5w2h", "metric_definitions",
+                                                  "baseline_estimate")}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:5]}
+    record.field_status["project_scope"] = {"status": moves.ASKED}
+    coach_says("Here is your scope. Is this right?", captured=[
+        {"field_name": "project_scope", "value": {"in_scope": "PO invoices from receipt to payment"}, "source": "belt"}])
+    ask = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                        "message": "In scope: PO invoices from receipt to payment."})
+    assert ask.status_code == 200 and ask.json()["move"] == moves.READ_BACK, ask.text
+    card = ask.json()["readback_card"]
+    assert card["confirm"] is False and card["missing"] == ["In and out of scope"], card
+    html = _draw_turn({"role": "ai", "text": "Here is your scope.", "move": "read_back", "readback_card": card})
+    assert 'disabled title="Confirm opens when every criterion is met"' in html, html
+    assert "Still needed before you can confirm: in and out of scope." in html
+    coach_says("Noted.")
+    refused = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                            "message": "Confirm", "action": "confirm"})
+    assert refused.status_code == 200, refused.text
+    after = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert "project_scope" not in (after.get("structured") or {}), "a Confirm with a criterion open stored a value"
+    assert after["field_status"]["project_scope"]["status"] != moves.CONFIRMED
+    said = refused.json()["answer"].lower()
+    assert "not stored" in said and "in and out of scope" in said, refused.json()["answer"]
+    again = refused.json()["readback_card"]
+    assert again["confirm"] is False and again["missing"] == ["In and out of scope"], again
+    assert again["rows"][0]["value"]["rows"][0] == ["In scope", "PO invoices from receipt to payment"], again["rows"][0]
+
+
+def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip(env, monkeypatch, stub_planner) -> None:
+    """DEF-196 — Every reply names its element ('Element n of 13 · name'); a Confirm shows its own confirmation strip; the next element its own card (G-197; founder test findings 19, 30, 40, 44, 46, 51, 58)
+
+    ADR-0093 decision 3, on the real routes and graph and the page's own renderTurn: the teaching reply, the
+    read-back and the reply after the Confirm each name their element; the Confirm's reply carries the green strip
+    "✓ Element 1 · Business case confirmed — the Gate document is updated (section B)." and is headed by the next
+    element, "Element 2 of 13 · Team"; a page rebuilt from the reloaded history draws them again."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    coach_says = _adr0093_coach(monkeypatch)
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {}
+    coach_says("Let us start with the business case.")
+    teach = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Hello"})
+    assert teach.status_code == 200 and teach.json()["move"] == moves.TEACH, teach.text
+    assert teach.json()["reply_element"] == {"field": "business_case", "n": 1, "of": 13, "name": "Business case"}
+
+    answer = "Since January 2026, 23% of invoices are paid late; about £62k a year in late fees."
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="complete")
+    coach_says(f'Your business case: "{answer}" Is this right?',
+               captured=[{"field_name": "business_case", "value": answer, "source": "belt"}])
+    read = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": answer})
+    assert read.json()["move"] == moves.READ_BACK and read.json()["reply_element"]["n"] == 1, read.text
+    assert read.json()["confirmed_strip"] is None
+
+    coach_says("Next, the team.")
+    done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Confirm",
+                                         "action": "confirm"})
+    body = done.json()
+    assert body["confirmed_strip"]["text"] == (
+        "✓ Element 1 · Business case confirmed — the Gate document is updated (section B).")
+    assert body["reply_element"] == {"field": "team", "n": 2, "of": 13, "name": "Team"}, body["reply_element"]
+    assert body["readback_card"] is None, "the next element starts in its own card, not under the strip"
+
+    hist = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
+    last = hist[-1]
+    html = _draw_turn(last)
+    assert html.index("rb-strip") < html.index("Element 2 of 13 · Team"), html
+    assert "Business case confirmed — the Gate document is updated (section B)." in html
+    assert "Define · Step" not in html, "one numbering: the element, never the step label"
 
 
 def test_the_gate_view_follows_the_approved_mockup() -> None:

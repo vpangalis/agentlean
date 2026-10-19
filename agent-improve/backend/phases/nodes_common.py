@@ -73,7 +73,7 @@ from backend.core import content_safety, guard, guard_messages, pii
 from backend.middleware import fallback as model_fallback
 from backend.middleware import turn_tools
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S, settings
-from backend.core.conversation import CARD_KEY, STRIP_KEY, message_to_turn  # ADR-0093: the card and the strip
+from backend.core.conversation import CARD_KEY, ELEMENT_KEY, STRIP_KEY, message_to_turn  # ADR-0093
 from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
 from backend.core.prompts import (
@@ -1579,19 +1579,31 @@ def _short_card(phase: str, field: Optional[str], pending: dict | None, artifact
     from backend.phases.define import templates
     if field not in templates.TEMPLATES:
         return None
-    card = templates.card(field, {**artifacts, **dict(pending.get("store") or {})}, spans=pending.get("spans"),
-                          upload=pending.get("upload"), belt_words=str(pending.get("belt_words") or ""))
+    # A read-back made again after a refused Confirm carries the refused value under `earlier`.
+    values = {**artifacts, **dict(pending.get("earlier") or {}), **dict(pending.get("store") or {})}
+    card = templates.card(field, values, spans=pending.get("spans"), upload=pending.get("upload"),
+                          belt_words=str(pending.get("belt_words") or ""))
     return {**card, "confirm": False}
 
 
-def _attach_card(messages: list, card: dict | None, strip: dict | None) -> None:
-    """Put the card and the strip on the reply — the last AI message. Mutates in place."""
+def _reply_element(phase: str, record: dict | None) -> dict | None:
+    """ADR-0093 (DEF-196): the element this reply works on — "Element n of 13 · name", one numbering for the
+    chat, the progress view and the Gate (the coached order). None outside Define or with no element."""
+    field = str((record or {}).get("field") or "")
+    if phase != "define" or field not in DEFINE_FIELD_ORDER:
+        return None
+    from backend.phases.define import templates
+    return {"field": field, "n": templates.number_of(field), "of": len(DEFINE_FIELD_ORDER),
+            "name": templates.name_of(field)}
+
+
+def _attach_card(messages: list, card: dict | None, strip: dict | None, element: dict | None = None) -> None:
+    """Put the card, the strip and the reply's element on the reply — the last AI message. Mutates in place."""
     for msg in reversed(messages):
         if isinstance(msg, AIMessage):
-            if card is not None:
-                msg.additional_kwargs[CARD_KEY] = card
-            if strip is not None:
-                msg.additional_kwargs[STRIP_KEY] = strip
+            for key, value in ((CARD_KEY, card), (STRIP_KEY, strip), (ELEMENT_KEY, element)):
+                if value is not None:
+                    msg.additional_kwargs[key] = value
             return
 
 
@@ -1916,9 +1928,22 @@ def _missing_words(phase: str, missing: list[str], artifacts: dict[str, Any],
             cols = [c.replace("_", " ") for c in missing_columns(store.get(f))]
             named = " and ".join([", ".join(cols[:-1]), cols[-1]] if len(cols) > 1 else cols)
             parts.append(f"the {named} column{'s' if len(cols) != 1 else ''} of the process map")
+        elif phase == "define" and f == pending.get("field") and _open_rows(f, store, pending):
+            parts.extend(_open_rows(f, store, pending))                                  # ADR-0093 decision 2
         else:
             parts.append(f"the {guard_messages.element_name(phase, f).lower() if f == pending.get('field') else f.replace('_', ' ')}")
     return " and ".join(parts)
+
+
+def _open_rows(field: str, values: dict[str, Any], pending: dict[str, Any]) -> list[str]:
+    """ADR-0093: the element's required criteria still open, by their labels — what a refused Confirm names. A
+    read-back made again after a refused Confirm carries the refused value under `earlier`."""
+    from backend.phases.define import templates
+    if field not in templates.TEMPLATES:
+        return []
+    values = {**{k: v for k, v in (pending.get("earlier") or {}).items()}, **values}
+    return [r["label"].lower() for r in templates.rows(field, values, spans=pending.get("spans"))
+            if r["required"] and not r["met"]]
 
 
 def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
@@ -3302,7 +3327,7 @@ async def executor(
     card, strip = _element_card(phase, record, artifacts, plan)
     if card is None and sample_challenge and short and plan is not None:
         card = _short_card(phase, plan.focus_field, pending, artifacts)
-    _attach_card(new_messages, card, strip)
+    _attach_card(new_messages, card, strip, _reply_element(phase, record))
 
     # **The count that used to disagree with the write, reconciled.** This
     # line logged `len(captured)` — the KEYS the coach named — while the write

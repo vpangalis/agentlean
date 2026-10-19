@@ -966,6 +966,9 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         move_field=(extra.get("coaching_move") or {}).get("field"),
         blocked=((extra.get("input_guard") or {}).get("threat")
                  if (extra.get("input_guard") or {}).get("status") == "blocked" else None),
+        readback_card=extra.get(conversation.CARD_KEY),
+        confirmed_strip=extra.get(conversation.STRIP_KEY),
+        reply_element=extra.get(conversation.ELEMENT_KEY),
     )
 
 
