@@ -1,0 +1,214 @@
+{
+ "run": "20261019T135052",
+ "cases": [
+  {
+   "id": "A99-benefits",
+   "element": "benefits_analysis",
+   "question": "Before I answer: how do I calculate the cost of the gap for this project?",
+   "http": 200,
+   "seconds": 13.7,
+   "storage": {
+    "seconds": 10.45,
+    "calls": 30,
+    "case": {
+     "seconds": 0.04,
+     "calls": 1
+    },
+    "store": {
+     "seconds": 0.15,
+     "calls": 3
+    },
+    "checkpoint": {
+     "seconds": 10.26,
+     "calls": 26
+    }
+   },
+   "earlier_coach_turn": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirtee",
+   "opens_with_welcome": false,
+   "verdict": "not_an_answer",
+   "move": "respond",
+   "answer": "The cost of the gap is calculated based on the current baseline data and represents what the problem costs today. For your project, this involves quantifying the financial impact of late payments to suppliers. Here's how you can calculate it:\n\n1. **Identify the baseline:** You already know the late payment rate is 23% of supplier invoices for January–June 2026.\n2. **Volume of invoices:** Determine how many invoices are processed annually. If you don't have this number yet, estimate it based on monthly or quarterly figures.\n3. **Cost per defect:** Calculate the financial impact of each late payment. This could include late-payment interest, lost early-payment discounts, and any supplier penalties.\n4. **Multiply:** Combine these: (volume of invoices × 23% late payment rate × cost per defect) to get the annual cost of the gap.\n\nThe result will give you the cost of poor quality (COPQ) for late payments in financial terms. If you're unsure about any of these inputs, let me know, and we can refine them.",
+   "prompt": "What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When would it start to show, period by period? Who in finance will validate it?",
+   "asks_again": true,
+   "repeats_only_the_ask": false,
+   "stored_nothing": true,
+   "rejected_numbers": null
+  },
+  {
+   "id": "baseline-how",
+   "element": "baseline_estimate",
+   "question": "How do I find the baseline if we have no report for it yet?",
+   "http": 200,
+   "seconds": 12.7,
+   "storage": {
+    "seconds": 12.35,
+    "calls": 30,
+    "case": {
+     "seconds": 0.04,
+     "calls": 1
+    },
+    "store": {
+     "seconds": 0.23,
+     "calls": 3
+    },
+    "checkpoint": {
+     "seconds": 12.08,
+     "calls": 26
+    }
+   },
+   "earlier_coach_turn": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together: • Define — pin down the problem and who's solving it • Measure — get the real numbers • Analyse — find the true root cause • Improve — test and apply the fix • Control — make the gains stick Right now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirtee",
+   "opens_with_welcome": false,
+   "verdict": "not_an_answer",
+   "move": "respond",
+   "answer": "To find the baseline when no report exists yet, you can use other reliable sources of data that reflect the defect you are measuring. For example, you might gather data from logs, invoices, or emails that indicate the defect rate. Sampling is another option: you could review a representative set of records from the timeframe in question to calculate an estimate. The goal is to ensure the baseline is based on real and verifiable data, not a guess. Once you have identified the data source, calculate the defect rate or measure using consistent criteria. For example, if your defect is 'late payments,' you could count the share of invoices paid after their terms from January to June 2026 by reviewing invoice logs or payment records. The result should include the number, the unit, the timeframe, and the source of the data.",
+   "prompt": "What is the one measure of the defect that will say whether the project succeeded? What unit is it in, what exactly does it count, and which business KPI does it feed? Where does it stand today — and which data is that number from?",
+   "asks_again": true,
+   "repeats_only_the_ask": false,
+   "stored_nothing": true,
+   "rejected_numbers": null
+  },
+  {
+   "id": "ctq-what",
+   "element": "voc_summary",
+   "question": "What makes a good CTQ?",
+   "http": 200,
+   "seconds": 10.0,
+   "storage": {
+    "seconds": 10.29,
+    "calls": 30,
+    "case": {
+     "seconds": 0.06,
+     "calls": 1
+    },
+    "store": {
+     "seconds": 0.15,
+     "calls": 3
+    },
+    "checkpoint": {
+     "seconds": 10.08,
+     "calls": 26
+    }
+   },
+   "earlier_coach_turn": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in **Define** — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for",
+   "opens_with_welcome": false,
+   "verdict": "not_an_answer",
+   "move": "respond",
+   "answer": "A good CTQ (Critical-to-Quality requirement) turns a customer need into something measurable and specific. It should reflect what the customer values most and be stated in terms that you can objectively check, like \"100% of invoices match the agreed price\" or \"delivery within 2 working days.\" This ensures the project focuses on improvements that matter to the customer and can be tracked reliably.",
+   "prompt": "Who are the customers of your process, and what do they need or complain about most? For each need, how would you measure that it is met?",
+   "asks_again": true,
+   "repeats_only_the_ask": false,
+   "stored_nothing": true,
+   "rejected_numbers": null
+  },
+  {
+   "id": "problem-vs-goal",
+   "element": "problem_statement",
+   "question": "What is the difference between the problem statement and the goal?",
+   "http": 200,
+   "seconds": 12.5,
+   "storage": {
+    "seconds": 11.65,
+    "calls": 30,
+    "case": {
+     "seconds": 0.05,
+     "calls": 1
+    },
+    "store": {
+     "seconds": 0.17,
+     "calls": 3
+    },
+    "checkpoint": {
+     "seconds": 11.43,
+     "calls": 26
+    }
+   },
+   "earlier_coach_turn": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirtee",
+   "opens_with_welcome": false,
+   "verdict": "not_an_answer",
+   "move": "respond",
+   "answer": "The goal statement, on the other hand, describes where you want the process to be after improvement. It is future-focused and defines success in measurable terms. For example, 'Reduce the returned invoice rate for UK billing to 3% by March 2027.'\n\nThe difference is that the problem statement is about the current pain, while the goal statement is about the desired outcome.",
+   "prompt": "Let's answer the seven questions for your project: What is going wrong? Where — and at which step(s) of the process does it show? When, or since when? Who is affected? Why does it matter to them? How does it show up? How much — a rough number?",
+   "asks_again": true,
+   "repeats_only_the_ask": false,
+   "stored_nothing": true,
+   "rejected_numbers": null
+  },
+  {
+   "id": "scope-out",
+   "element": "project_scope",
+   "question": "How do I decide what to leave out of scope?",
+   "http": 200,
+   "seconds": 11.6,
+   "storage": {
+    "seconds": 10.72,
+    "calls": 30,
+    "case": {
+     "seconds": 0.04,
+     "calls": 1
+    },
+    "store": {
+     "seconds": 0.14,
+     "calls": 3
+    },
+    "checkpoint": {
+     "seconds": 10.53,
+     "calls": 26
+    }
+   },
+   "earlier_coach_turn": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirtee",
+   "opens_with_welcome": false,
+   "verdict": "not_an_answer",
+   "move": "respond",
+   "answer": "Deciding what to leave out of scope is about focusing your project on the specific problem you're solving and avoiding areas that would dilute your team's efforts or stretch resources too thin. Begin by pinpointing the exact process where the problem occurs and identifying its boundaries—where it starts and ends. Then, ask yourself: What parts of the broader system or related processes do not directly contribute to solving this problem? For example, if late supplier payments are the issue, payment collection might be out of scope because it happens after the invoices are paid. Similarly, processes in unrelated departments or regions can usually be excluded unless they directly affect the problem. Once you've identified what's out, check that what's left is manageable and focused enough for your team to tackle effectively.",
+   "prompt": "Where does your process start and end? What is deliberately out of scope?",
+   "asks_again": true,
+   "repeats_only_the_ask": false,
+   "stored_nothing": true,
+   "rejected_numbers": null
+  },
+  {
+   "id": "sipoc-detail",
+   "element": "process_map_sipoc",
+   "question": "How detailed should the SIPOC be?",
+   "http": 200,
+   "seconds": 15.2,
+   "storage": {
+    "seconds": 10.65,
+    "calls": 30,
+    "case": {
+     "seconds": 0.04,
+     "calls": 1
+    },
+    "store": {
+     "seconds": 0.15,
+     "calls": 3
+    },
+    "checkpoint": {
+     "seconds": 10.46,
+     "calls": 26
+    }
+   },
+   "earlier_coach_turn": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together: • Define — pin down the problem and who's solving it • Measure — get the real numbers • Analyse — find the true root cause • Improve — test and apply the fix • Control — make the gains stick Right now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirtee",
+   "opens_with_welcome": false,
+   "verdict": "not_an_answer",
+   "move": "respond",
+   "answer": "For performance details, include estimates for each step's time (average, shortest, and longest), how often it runs, and the problems the team sees there, along with who reported those problems. For the whole process, provide the end-to-end lead time and how often it runs. This level of detail is sufficient for Define phase, as Measure will validate and refine it later.",
+   "prompt": "Let's build your SIPOC: What are the main steps from start to end? Who supplies what goes in, what comes out, and who receives it? What do you measure on those outputs? For each step, roughly how long does it take, how often does it run, and what problems does the team see there? Lastly, what is the lead time for the whole process, and how often does it run? You can also upload a map if you have one.",
+   "asks_again": false,
+   "repeats_only_the_ask": false,
+   "stored_nothing": true,
+   "rejected_numbers": null
+  }
+ ],
+ "model_calls": 36,
+ "cost": {
+  "usd": 0.2802,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.2749,
+   "gpt-4o-mini-2024-07-18": 0.0053
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ }
+}

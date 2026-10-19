@@ -118,6 +118,10 @@ async def shutdown():
     # coaching turns via `RunControl.request_drain()` and stays gated. Closing
     # an HTTP session is a separate, ungated concern.
     await blob.aclose()
+    # ADR-0101: the checkpointer's async Blob client, closed the same way.
+    from backend.core.checkpointer import _singleton as _saver
+    if _saver is not None:
+        await _saver.aclose()
     # 6.54 — the per-index search clients built at startup, closed the same way.
     retriever.close_clients()
     logger.info("Agent Improve shutting down")

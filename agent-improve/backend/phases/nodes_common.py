@@ -1106,6 +1106,10 @@ def _build_executor(
     # verdict reaches `step_log` the way the grader's does.
     plan = state.get("coaching_plan")
     agent = create_agent(
+        # ADR-0101 decision 1: the coach's inner agent is not checkpointed — None would inherit the parent's
+        # saver and write its ~10 internal steps a turn to Blob, read by nothing; no interrupt lives inside it
+        # (DEF-040 pauses in a node of its own), and a crashed turn is abandoned (ADR-0080).
+        checkpointer=False,
         model=get_llm("coach", max_tokens=1500),
         tools=_executor_tools(phase, hop_budget, hops_spent),
         response_format=CoachingResponse,   # §20 — never a {Phase}Output

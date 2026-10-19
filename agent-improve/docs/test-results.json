@@ -1,9 +1,9 @@
 {
- "source_hash": "9a2d8976341332d3",
- "commit": "8e2763b",
+ "source_hash": "17924ec22091f18e",
+ "commit": "ec4b349",
  "commit_matches_source": false,
- "full_run_hash": "9a2d8976341332d3",
- "recorded_at": "2026-10-19T13:32:07+00:00",
+ "full_run_hash": "17924ec22091f18e",
+ "recorded_at": "2026-10-19T14:06:15+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -909,6 +909,8 @@
   "backend/tests/test_gate_acceptance.py::test_a_rejection_names_an_element_and_a_reason": "passed",
   "backend/tests/test_gate_acceptance.py::test_a_rejection_reopens_the_named_elements_and_the_coach_guides_back": "passed",
   "backend/tests/test_gate_acceptance.py::test_a_validated_define_report_pauses_and_nothing_is_written": "passed",
+  "backend/tests/test_gate_acceptance.py::test_adr_0101_a_coaching_turn_writes_no_checkpoint_of_the_inner_agent": "passed",
+  "backend/tests/test_gate_acceptance.py::test_adr_0101_the_async_saver_round_trips_on_the_aio_client": "passed",
   "backend/tests/test_gate_acceptance.py::test_g232_the_run_records_time_every_storage_call": "passed",
   "backend/tests/test_gate_acceptance.py::test_pending_writes_round_trip_and_the_special_channels_overwrite": "passed",
   "backend/tests/test_gate_acceptance.py::test_the_complete_fixture_passes_the_gate_list": "passed",
@@ -1789,8 +1791,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "d6daf4b841bb3005",
-  "recorded_at": "2026-10-19T13:23:16+00:00",
+  "source_hash": "40fde63a5c7bb227",
+  "recorded_at": "2026-10-19T13:55:58+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2891,6 +2893,8 @@
    "backend/tests/test_gate_acceptance.py::test_a_rejection_names_an_element_and_a_reason": "passed",
    "backend/tests/test_gate_acceptance.py::test_a_rejection_reopens_the_named_elements_and_the_coach_guides_back": "passed",
    "backend/tests/test_gate_acceptance.py::test_a_validated_define_report_pauses_and_nothing_is_written": "passed",
+   "backend/tests/test_gate_acceptance.py::test_adr_0101_a_coaching_turn_writes_no_checkpoint_of_the_inner_agent": "passed",
+   "backend/tests/test_gate_acceptance.py::test_adr_0101_the_async_saver_round_trips_on_the_aio_client": "passed",
    "backend/tests/test_gate_acceptance.py::test_g232_the_run_records_time_every_storage_call": "passed",
    "backend/tests/test_gate_acceptance.py::test_pending_writes_round_trip_and_the_special_channels_overwrite": "passed",
    "backend/tests/test_gate_acceptance.py::test_the_complete_fixture_passes_the_gate_list": "passed",
