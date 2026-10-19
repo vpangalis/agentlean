@@ -171,10 +171,23 @@ def env(monkeypatch, stub_planner):
         i = order.index(kw["phase"])
         case.current_phase = order[i + 1] if i + 1 < len(order) else "complete"
 
+    # G-234 (founder 2026-10-19): the case list in memory too — a passed gate clears the escalation, which
+    # read the live registry.json before this fake existed.
+    from backend.storage.models import CaseRegistry
+    registry = {"held": CaseRegistry()}
+
+    async def load_registry():
+        return registry["held"].model_copy(deep=True)
+
+    async def save_registry(r):
+        registry["held"] = r.model_copy(deep=True)
+
     monkeypatch.setattr(routes.blob, "storage_configured", lambda: True)
     monkeypatch.setattr(routes.blob, "load_case", load)
     monkeypatch.setattr(routes.blob, "save_case", save)
     monkeypatch.setattr(routes.blob, "write_phase_gate", write_phase_gate)
+    monkeypatch.setattr(routes.blob, "load_registry", load_registry)
+    monkeypatch.setattr(routes.blob, "save_registry", save_registry)
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
     monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)  # the routes' own name (controls review, item 2)
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)

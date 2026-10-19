@@ -476,6 +476,35 @@ def _no_async_network(request, monkeypatch):
         return await real(self, req)
     monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", local_only)
 
+    # G-234 (founder 2026-10-19): aiohttp — the Azure SDK's async transport — connects the same way and
+    # read the live registry.json past the socket block. Every aiohttp request beyond this machine is
+    # refused here too, loudly.
+    import aiohttp
+    from yarl import URL
+    real_aio = aiohttp.ClientSession._request
+
+    async def aio_local_only(self, method, str_or_url, *args, **kwargs):
+        host = URL(str(str_or_url)).host or ""
+        if host not in LOCAL_HOSTS.split(","):
+            raise SocketConnectBlockedError(LOCAL_HOSTS.split(","), host)
+        return await real_aio(self, method, str_or_url, *args, **kwargs)
+    monkeypatch.setattr(aiohttp.ClientSession, "_request", aio_local_only)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_storage(request, monkeypatch):
+    """G-234 (founder 2026-10-19): the live Blob connection string never reaches a test. `.env` puts it in
+    the settings; here it is blanked — the setting and the environment variable — and any cached client is
+    dropped, so a storage call no test faked fails (no client can be built) instead of reaching Azure."""
+    if _network_allowed(request):
+        return
+    from backend.core.config import settings
+    from backend.storage import blob
+    monkeypatch.setattr(settings, "AZURE_BLOB_CONNECTION_STRING", "")
+    monkeypatch.delenv("AZURE_BLOB_CONNECTION_STRING", raising=False)
+    monkeypatch.setattr(blob, "_client", None)
+    monkeypatch.setattr(blob, "_client_loop", None)
+
 
 @pytest.fixture(autouse=True)
 def _clean_content_safety(request, monkeypatch):
