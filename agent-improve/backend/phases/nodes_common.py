@@ -486,6 +486,15 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
     judge = get_llm("planner").with_structured_output(SufficiencyJudgment)
     verdict = await judge.ainvoke(_judgment_prompt(
         phase, state, field, previous, latest, reading_back == "yes"))
+    if verdict is None:
+        # G-235: a model that answers without the structured verdict returns None here; validating it raised,
+        # and the whole turn became the degraded reply. Decided in code instead: not an answer — the coach
+        # responds and asks again, and nothing is stored.
+        logger.warning("%s.planner: the judgment of `%s` came back empty — taken as not an answer, in code "
+                       "(G-235)", phase, field)
+        return SufficiencyJudgment(verdict="not_an_answer", reason=(
+            "decided in code (G-235): the judgment came back empty; the coach responds and asks again, "
+            "and nothing is stored"))
     return _number_required(phase, field, previous, latest,
                             _checked_criterion(phase, field, SufficiencyJudgment.model_validate(verdict)))
 

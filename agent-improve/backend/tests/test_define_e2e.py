@@ -2536,8 +2536,17 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     a figure no calculation in code gives and the coach works one out — G-173 rejects the reply, and the Belt
     gets the fallback sentence, in code, before the move's ask; never the coach's figure. A rejection on any
     other move (the coach volunteering a figure) carries no such sentence."""
+    from backend.core.graph import DEGRADED_REPLY
+    from backend.tests.conftest import DEFAULT_JUDGMENT
     from backend.core.prompts import CALCULATION_FALLBACK
     from backend.core.substate import SufficiencyJudgment
+
+    def _askd(env, **body) -> dict:
+        # G-235 (founder 2026-10-19): every turn's answer is checked — the error handler's degraded reply hid an
+        # exception in an earlier turn of this test, which still passed.
+        r = _askd_any(env, **body)
+        assert r["answer"].strip() and r["answer"] != DEGRADED_REPLY, ("a turn degraded", body, r["answer"])
+        return r
 
     _at_element(env, "secondary_metrics")
     _coach_saying(monkeypatch, "Here is what secondary metrics are.")
@@ -2549,7 +2558,7 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     assert r["answer"].startswith(CALCULATION_FALLBACK) and "71.4" not in r["answer"], r["answer"]
     assert r["answer"].count(CALCULATION_FALLBACK) == 1, r["answer"]
     # Another move: the rejected reply is the move's code reply alone.
-    stub_planner.judgment = None
+    stub_planner.judgment = DEFAULT_JUDGMENT                    # G-235: the default, never None
     _coach_saying(monkeypatch, "A secondary metric could move by 12.5% as well.")
     r = _askd(env, message="Next, please.")
     assert r["move"] != "respond" and CALCULATION_FALLBACK not in r["answer"] and "12.5" not in r["answer"], r
@@ -2563,7 +2572,7 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     env.restart()
     _at_element(env, "benefits_analysis")
     env.case.phases["define"].structured.pop("computation_results", None)
-    stub_planner.judgment = None
+    stub_planner.judgment = DEFAULT_JUDGMENT                    # G-235: the default, never None
     _coach_saying(monkeypatch, "Here is what the benefits analysis is.")
     _askd(env, message="Next, please.")                            # the element taught and asked first
     stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks how to calculate")
@@ -2579,7 +2588,7 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     env.restart()
     _at_element(env, "benefits_analysis")
     env.case.phases["define"].structured["computation_results"] = [row]
-    stub_planner.judgment = None
+    stub_planner.judgment = DEFAULT_JUDGMENT                    # G-235: the default, never None
     _coach_saying(monkeypatch, "Here is what the benefits analysis is.")
     _askd(env, message="Next, please.")
     stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks how to calculate")
@@ -2587,6 +2596,14 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     r = _askd(env, message="How do I calculate the cost of the gap?")
     assert r["answer"].startswith("Cost of the gap today (at the baseline): €20,520 a year"), r["answer"]
 
+    # G-235, the cause: a planner model that returns no verdict (None) is answered in code — not an answer, the
+    # coach responds and asks again, nothing stored — never the degraded reply.
+    stored = dict(env.case.phases["define"].structured or {})
+    stub_planner.judgment = None
+    _coach_saying(monkeypatch, "Let's look at the benefits analysis together.")
+    r = _askd(env, message="We save about a third of the late fees.")
+    assert r["move"] == "respond", r["move"]
+    assert dict(env.case.phases["define"].structured or {}) == stored, "an empty judgment stored something"
 
 def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, monkeypatch) -> None:
     """G-176 (live run 152256, turn 31: GET /cases answered 500), through POST /ask and GET /cases with the
@@ -3886,6 +3903,10 @@ def _at_the_sipoc(env, problem_steps: list[str]) -> None:
 
 
 def _askd(env, **body) -> dict:
+    return _askd_any(env, **body)
+
+
+def _askd_any(env, **body) -> dict:
     r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
     assert r.status_code == 200, r.text
     return r.json()

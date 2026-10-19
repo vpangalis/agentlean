@@ -7449,7 +7449,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-211"
+     "G-211",
+     "G-235"
     ]
    },
    "requirement": "R1",
