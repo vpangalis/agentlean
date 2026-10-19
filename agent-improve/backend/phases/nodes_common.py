@@ -486,6 +486,15 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
     judge = get_llm("planner").with_structured_output(SufficiencyJudgment)
     verdict = await judge.ainvoke(_judgment_prompt(
         phase, state, field, previous, latest, reading_back == "yes"))
+    if verdict is None:
+        # G-235: a model that answers without the structured verdict returns None here; validating it raised,
+        # and the whole turn became the degraded reply. Decided in code instead: not an answer — the coach
+        # responds and asks again, and nothing is stored.
+        logger.warning("%s.planner: the judgment of `%s` came back empty — taken as not an answer, in code "
+                       "(G-235)", phase, field)
+        return SufficiencyJudgment(verdict="not_an_answer", reason=(
+            "decided in code (G-235): the judgment came back empty; the coach responds and asks again, "
+            "and nothing is stored"))
     return _number_required(phase, field, previous, latest,
                             _checked_criterion(phase, field, SufficiencyJudgment.model_validate(verdict)))
 
@@ -1097,6 +1106,10 @@ def _build_executor(
     # verdict reaches `step_log` the way the grader's does.
     plan = state.get("coaching_plan")
     agent = create_agent(
+        # ADR-0101 decision 1: the coach's inner agent is not checkpointed — None would inherit the parent's
+        # saver and write its ~10 internal steps a turn to Blob, read by nothing; no interrupt lives inside it
+        # (DEF-040 pauses in a node of its own), and a crashed turn is abandoned (ADR-0080).
+        checkpointer=False,
         model=get_llm("coach", max_tokens=1500),
         tools=_executor_tools(phase, hop_budget, hops_spent),
         response_format=CoachingResponse,   # §20 — never a {Phase}Output

@@ -42,13 +42,15 @@ approval against the installed langgraph-checkpoint 4.1.0):
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
 import threading
 from urllib.parse import quote
-from typing import Any, AsyncIterator, Iterator, List, Optional, Sequence, Tuple, cast
+from typing import Any, AsyncIterator, Callable, Iterator, List, Optional, Sequence, Tuple, cast
 
+from azure.core import MatchConditions
 from azure.core.exceptions import (
     ResourceExistsError,
     ResourceModifiedError,
@@ -110,10 +112,17 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         self,
         container_client: ContainerClient,
         async_container_client: Optional[AsyncContainerClient] = None,
+        async_container_factory: Optional[Callable[[], AsyncContainerClient]] = None,
     ) -> None:
         super().__init__()
         self._container = container_client
         self._async_container = async_container_client
+        # ADR-0101 decision 2: the async methods use azure.storage.blob.aio. An aio client owns an aiohttp
+        # session bound to the loop that made it, so one is built per running loop from this factory and closed
+        # by `aclose` at shutdown. Without a factory or a client (the tests' in-memory container) the async
+        # methods use the sync path, as before.
+        self._async_factory = async_container_factory
+        self._aio: Optional[Tuple[asyncio.AbstractEventLoop, AsyncContainerClient, asyncio.Lock]] = None
         # Per-thread (case) lock to serialize put() on this process.
         # Cross-process safety relies on ETag conditional writes.
         self._lock = threading.Lock()
@@ -385,7 +394,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         limit: Optional[int] = None,
     ) -> Iterator[CheckpointTuple]:
         if config is None:
-            return iter([])
+            return
         thread_id = self._thread_id(config)
         checkpoint_ns = self._checkpoint_ns(config)
         prefix = f"{self._prefix(thread_id, checkpoint_ns)}/history/"
@@ -507,7 +516,34 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
                 out.append((envelope.get("task_id", ""), write["channel"], value))
         return out
 
-    # ───────────────── Async variants (thin wrappers) ─────────────────
+    # ───────────────── Async variants — ADR-0101 decision 2 ─────────────────
+    #
+    # The same blob semantics as the sync methods above, on azure.storage.blob.aio, so a write never stops the
+    # event loop: the history blob written once (ResourceExistsError ignored), `latest.json` by ETag with one
+    # retry, pending writes keyed as the reference saver keys them. Without an async client (the tests'
+    # in-memory container) each delegates to its sync twin, as before.
+
+    def _aio_parts(self) -> Optional[Tuple[AsyncContainerClient, asyncio.Lock]]:
+        """The async container and the write lock for the running loop — built once per loop."""
+        loop = asyncio.get_running_loop()
+        if self._aio is not None and self._aio[0] is loop:
+            return self._aio[1], self._aio[2]
+        if self._async_container is not None:
+            container = self._async_container
+        elif self._async_factory is not None:
+            container = self._async_factory()
+        else:
+            return None
+        self._aio = (loop, container, asyncio.Lock())
+        return container, self._aio[2]
+
+    async def aclose(self) -> None:
+        """Close the async client of the running loop (the shutdown hook). Idempotent."""
+        if self._aio is None or self._async_container is not None:
+            return
+        _loop, container, _lock = self._aio
+        self._aio = None
+        await container.close()
 
     async def aput(
         self,
@@ -515,14 +551,93 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         checkpoint: Checkpoint,
         metadata: CheckpointMetadata,
         new_versions: dict,
-    ) -> dict:
-        # For now delegate to sync — Azure blob sync calls are
-        # fast enough at low concurrency. Step 6 may replace with
-        # truly async azure-storage-blob.aio calls.
-        return self.put(config, checkpoint, metadata, new_versions)
+    ) -> Any:
+        parts = self._aio_parts()
+        if parts is None:
+            return self.put(config, checkpoint, metadata, new_versions)
+        container, lock = parts
+        thread_id = self._thread_id(config)
+        checkpoint_ns = self._checkpoint_ns(config)
+        parent_id = config.get("configurable", {}).get("checkpoint_id")
+        envelope = self._envelope(checkpoint, cast(CheckpointMetadata, migrations.stamp_metadata(metadata)),
+                                  parent_id)
+        body = json.dumps(envelope).encode("utf-8")
+        async with lock:
+            try:
+                await container.get_blob_client(
+                    self._history_path(thread_id, checkpoint["id"], checkpoint_ns)).upload_blob(body, overwrite=False)
+            except ResourceExistsError:
+                logger.debug("Checkpoint %s already exists for %s, skipping history write", checkpoint["id"], thread_id)
+            await self._aupdate_latest(container, thread_id, body, retry=True, checkpoint_ns=checkpoint_ns)
+        return {"configurable": {"thread_id": thread_id, "checkpoint_ns": checkpoint_ns,
+                                 "checkpoint_id": checkpoint["id"]}}
+
+    async def _aupdate_latest(self, container: AsyncContainerClient, thread_id: str, body: bytes, retry: bool,
+                              checkpoint_ns: str = "") -> None:
+        latest_blob = container.get_blob_client(self._latest_path(thread_id, checkpoint_ns))
+        try:
+            etag = (await latest_blob.get_blob_properties()).etag
+        except ResourceNotFoundError:
+            etag = None
+        try:
+            if etag:
+                await latest_blob.upload_blob(body, overwrite=True, etag=etag,
+                                              match_condition=MatchConditions.IfNotModified)
+            else:
+                await latest_blob.upload_blob(body, overwrite=True)
+        except ResourceModifiedError:
+            if retry:
+                logger.warning("ETag mismatch updating latest for %s, retrying once", thread_id)
+                await self._aupdate_latest(container, thread_id, body, retry=False, checkpoint_ns=checkpoint_ns)
+                return
+            raise ConcurrentTurnError(
+                f"Concurrent turn detected for case {thread_id} — "
+                f"latest checkpoint was modified during this save."
+            )
 
     async def aget_tuple(self, config: dict) -> Optional[CheckpointTuple]:
-        return self.get_tuple(config)
+        parts = self._aio_parts()
+        if parts is None:
+            return self.get_tuple(config)
+        container, _lock = parts
+        thread_id = self._thread_id(config)
+        checkpoint_ns = self._checkpoint_ns(config)
+        checkpoint_id = config.get("configurable", {}).get("checkpoint_id")
+        path = (self._history_path(thread_id, checkpoint_id, checkpoint_ns) if checkpoint_id
+                else self._latest_path(thread_id, checkpoint_ns))
+        try:
+            data = await (await container.get_blob_client(path).download_blob()).readall()
+        except ResourceNotFoundError:
+            return None
+        checkpoint, metadata, parent_id = self._restore(json.loads(data.decode("utf-8")))
+        pending = await self._apending_writes(container, thread_id, checkpoint["id"], checkpoint_ns)
+        return self._tuple(thread_id, checkpoint_ns, checkpoint, metadata, parent_id, pending)
+
+    def _tuple(self, thread_id: str, checkpoint_ns: str, checkpoint: Checkpoint, metadata: CheckpointMetadata,
+               parent_id: Optional[str], pending: Optional[List[Tuple[str, str, Any]]]) -> CheckpointTuple:
+        def cfg(cid: Optional[str]) -> Any:
+            return {"configurable": {"thread_id": thread_id, "checkpoint_ns": checkpoint_ns, "checkpoint_id": cid}}
+        return CheckpointTuple(config=cfg(checkpoint["id"]), checkpoint=checkpoint, metadata=metadata,
+                               pending_writes=pending, parent_config=cfg(parent_id) if parent_id else None)
+
+    async def _apending_writes(self, container: AsyncContainerClient, thread_id: str, checkpoint_id: str,
+                               checkpoint_ns: str = "") -> List[Tuple[str, str, Any]]:
+        prefix = self._writes_prefix(thread_id, checkpoint_id, checkpoint_ns)
+        out: List[Tuple[str, str, Any]] = []
+        async for item in container.list_blobs(name_starts_with=prefix):
+            try:
+                raw = await (await container.get_blob_client(item.name).download_blob()).readall()
+            except ResourceNotFoundError:
+                continue
+            envelope = json.loads(raw.decode("utf-8"))
+            found = migrations.version_of(envelope)
+            for write in (envelope.get("writes") or {}).values():
+                value = self.serde.loads_typed((write["type"], base64.b64decode(write["data"])))
+                if found != migrations.current():
+                    value = migrations.migrate({write["channel"]: value}, found,
+                                               "pending write").get(write["channel"], value)
+                out.append((envelope.get("task_id", ""), write["channel"], value))
+        return out
 
     async def alist(
         self,
@@ -532,8 +647,27 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         before: Optional[dict] = None,
         limit: Optional[int] = None,
     ) -> AsyncIterator[CheckpointTuple]:
-        for tup in self.list(config, filter=filter, before=before, limit=limit):
-            yield tup
+        parts = self._aio_parts()
+        if parts is None:
+            for tup in self.list(config, filter=filter, before=before, limit=limit):
+                yield tup
+            return
+        if config is None:
+            return
+        container, _lock = parts
+        thread_id = self._thread_id(config)
+        checkpoint_ns = self._checkpoint_ns(config)
+        prefix = f"{self._prefix(thread_id, checkpoint_ns)}/history/"
+        names = sorted([b.name async for b in container.list_blobs(name_starts_with=prefix)], reverse=True)
+        before_id = (before or {}).get("configurable", {}).get("checkpoint_id")
+        if before_id:
+            names = [n for n in names if n.split("/")[-1].replace(".json", "") < before_id]
+        for count, name in enumerate(names):
+            if limit is not None and count >= limit:
+                break
+            data = await (await container.get_blob_client(name).download_blob()).readall()
+            ckpt, meta, parent_id = self._restore(json.loads(data.decode("utf-8")))
+            yield self._tuple(thread_id, checkpoint_ns, ckpt, meta, parent_id, None)
 
     async def aput_writes(
         self,
@@ -542,7 +676,33 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         task_id: str,
         task_path: str = "",
     ) -> None:
-        return self.put_writes(config, writes, task_id, task_path)
+        parts = self._aio_parts()
+        if parts is None:
+            return self.put_writes(config, writes, task_id, task_path)
+        checkpoint_id = (config.get("configurable") or {}).get("checkpoint_id")
+        if not checkpoint_id:
+            return None
+        container, lock = parts
+        thread_id = self._thread_id(config)
+        checkpoint_ns = self._checkpoint_ns(config)
+        blob = container.get_blob_client(self._writes_prefix(thread_id, checkpoint_id, checkpoint_ns)
+                                         + quote(task_id, safe="") + ".json")
+        async with lock:
+            try:
+                envelope = json.loads((await (await blob.download_blob()).readall()).decode("utf-8"))
+            except ResourceNotFoundError:
+                envelope = {"task_id": task_id, "task_path": task_path, "writes": {}}
+            envelope[migrations.VERSION_KEY] = migrations.current()
+            stored = envelope.setdefault("writes", {})
+            for idx, (channel, value) in enumerate(writes):
+                inner = WRITES_IDX_MAP.get(channel, idx)
+                if inner >= 0 and str(inner) in stored:
+                    continue
+                kind, data = self.serde.dumps_typed(value)
+                stored[str(inner)] = {"channel": channel, "type": kind,
+                                      "data": base64.b64encode(data).decode("ascii")}
+            await blob.upload_blob(json.dumps(envelope).encode("utf-8"), overwrite=True)
+        return None
 
 
 # ─────────────────── Module-level factory ───────────────────
@@ -577,11 +737,10 @@ def get_checkpointer() -> AzureBlobCheckpointSaver:
             )
 
         container = ContainerClient.from_connection_string(conn, container_name)
-        async_container = AsyncContainerClient.from_connection_string(
-            conn, container_name
-        )
-
-        _singleton = AzureBlobCheckpointSaver(container, async_container)
+        # ADR-0101: the async client is built per running loop, from this factory (see `_aio_parts`).
+        _singleton = AzureBlobCheckpointSaver(
+            container, async_container_factory=lambda: AsyncContainerClient.from_connection_string(
+                conn, container_name))
         logger.info(
             "AzureBlobCheckpointSaver initialised on container=%s",
             container_name,

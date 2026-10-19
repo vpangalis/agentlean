@@ -2599,6 +2599,29 @@
     "tooling"
    ],
    "control": "Proposed: the test sets PYTHONIOENCODING=utf-8 (or PYTHONUTF8=1) in the child's environment, so the encoding the child writes is the one the test reads, whatever the shell. Rework risk: low — one test's subprocess env; belt impact: none."
+  },
+  {
+   "id": "G-234",
+   "symptom": "TESTS READ THE REAL REGISTRY.JSON FROM AZURE BLOB STORAGE, PAST PYTEST-SOCKET (found 2026-10-17 by the ADR-0087 spike). The gate env (test_gate_acceptance.py's env fixture) fakes load_case, save_case and write_phase_gate but not the registry; a submission that passes the gate calls routes._clear_escalation -> blob.set_escalation -> load_registry -> the real container (settings carry the real AZURE_BLOB_CONNECTION_STRING from .env, and the env patches storage_configured to True). The request reached valuesimsdata.blob.core.windows.net/agent-improve-cases/registry.json and was answered 206 (seen in the http_logging_policy lines of a spike run). pytest-socket's --allow-hosts did not stop it: on Windows' proactor loop aiohttp (the Azure SDK's async transport) connects without the socket call pytest-socket guards — the same hole G-144 closed for httpx (_no_async_network), not closed for aiohttp. Reads only so far: set_escalation writes only when the case has a registry row, and the test case IMPR-TEST-R6 has none — but a test reaching that row, or any other unfaked blob call, would write to the live container. D4 OCCURRENCE: an unfaked storage call in a shared fixture, and a network guard that covers httpx only. D4 ESCAPE: the read succeeds quietly (no failure, no log at WARNING), and the guard's own test covers sync sockets and httpx. NOT FIXED (founder: report first; the containment would fail the gate tests that read the registry today).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "control": "Proposed: (1) _no_async_network also refuses every aiohttp request beyond this machine (patch aiohttp.ClientSession._request as G-144 patched httpx), so an unfaked Azure call fails the test that makes it; (2) the gate env fakes the registry (load_registry / save_registry over its in-memory container), as DEF-192's test already does by hand; (3) settings in pytest carry no live connection string. Rework risk: low — conftest and one fixture; belt impact: none."
+  },
+  {
+   "id": "G-235",
+   "symptom": "G-211'S TEST PASSED BECAUSE THE ERROR HANDLER HID AN EXCEPTION IN AN EARLIER TURN (founder ruling 2026-10-19, item 7; found by the ADR-0087 spike, 2026-10-17). test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_sentence set stub_planner.judgment = None three times, meaning \"back to the default\"; the planner model then returned no verdict, SufficiencyJudgment.model_validate(None) raised, and T29's handler answered those turns with the degraded reply. The test checked only some turns' answers, and one assertion (move != \"respond\") held vacuously on a degraded reply. D4 OCCURRENCE: nodes_common._judge validated the structured output without a case for None — which a real model returns when it answers without the tool call — so an empty judgment failed the whole turn. D4 ESCAPE: the test did not check every turn's answer, and T29's handler turns any node failure into a well-formed reply.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-210"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

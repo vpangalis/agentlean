@@ -86,6 +86,16 @@ def _time_storage() -> None:
                 finally:
                     STORAGE.append({"kind": kind, "op": op, "seconds": time.perf_counter() - t0})
             return run_async
+        if inspect.isasyncgenfunction(fn):
+            @functools.wraps(fn)
+            async def run_agen(*a: Any, **k: Any) -> Any:
+                t0 = time.perf_counter()
+                try:
+                    async for item in fn(*a, **k):
+                        yield item
+                finally:
+                    STORAGE.append({"kind": kind, "op": op, "seconds": time.perf_counter() - t0})
+            return run_agen
         if inspect.isgeneratorfunction(fn):
             @functools.wraps(fn)
             def run_gen(*a: Any, **k: Any) -> Any:
@@ -105,12 +115,37 @@ def _time_storage() -> None:
                 STORAGE.append({"kind": kind, "op": op, "seconds": time.perf_counter() - t0})
         return run
 
+    # ADR-0101: the graph uses the async methods (on their own aio client); the sync ones are timed for scripts and
+    # the in-memory fallback. An async method that falls back to its sync twin is counted once, as the sync call.
     for op in ("put", "put_writes", "get_tuple", "list"):
         setattr(AzureBlobCheckpointSaver, op, timed("checkpoint", op, getattr(AzureBlobCheckpointSaver, op)))
+    for op in ("aput", "aput_writes", "aget_tuple", "alist"):
+        real_async = getattr(AzureBlobCheckpointSaver, op)
+        setattr(AzureBlobCheckpointSaver, op, _timed_unless_fallback(timed("checkpoint", op, real_async), real_async))
     for op in ("batch", "abatch"):
         setattr(AzureBlobStore, op, timed("store", op, getattr(AzureBlobStore, op)))
     for op in ("load_case", "save_case"):
         setattr(blob, op, timed("case", op, getattr(blob, op)))
+
+
+def _timed_unless_fallback(timed_fn: Any, real_fn: Any) -> Any:
+    """ADR-0101: time an async saver method only when it runs on its aio client — without one it calls its timed
+    sync twin, which counts it."""
+    import functools
+    import inspect
+    if inspect.isasyncgenfunction(real_fn):
+        @functools.wraps(real_fn)
+        async def agen(self: Any, *a: Any, **k: Any) -> Any:
+            fn = timed_fn if self._aio_parts() is not None else real_fn
+            async for item in fn(self, *a, **k):
+                yield item
+        return agen
+
+    @functools.wraps(real_fn)
+    async def coro(self: Any, *a: Any, **k: Any) -> Any:
+        fn = timed_fn if self._aio_parts() is not None else real_fn
+        return await fn(self, *a, **k)
+    return coro
 
 
 def storage_since(start: int) -> dict[str, Any]:

@@ -75,3 +75,28 @@ def test_prompt_shields_answers_from_memory_in_a_test() -> None:
     if content_safety.configured():
         assert verdict["reachable"] and not verdict["user_attack"], verdict
         assert verdict["document_attacks"] == [False, False], verdict
+
+
+def test_g234_a_live_storage_call_fails_loudly(monkeypatch) -> None:
+    """G-234 (founder 2026-10-19): a passed gate in the gate env read the live registry.json through aiohttp — the
+    Azure SDK's async transport — past the socket block. Now (a) an aiohttp request beyond this machine is refused,
+    (b) the live connection string is out of the test settings and the environment, and (c) a storage call no test
+    faked fails at once, never a quiet read of the live container."""
+    import asyncio
+    import os
+
+    import aiohttp
+
+    from backend.core.config import settings
+    from backend.storage import blob
+
+    async def aio_call() -> None:
+        async with aiohttp.ClientSession() as session:
+            await session.get("https://valuesimsdata.blob.core.windows.net/agent-improve-cases/registry.json")
+    with pytest.raises(SocketConnectBlockedError):
+        asyncio.run(aio_call())
+
+    assert settings.AZURE_BLOB_CONNECTION_STRING == "" and "AZURE_BLOB_CONNECTION_STRING" not in os.environ
+    monkeypatch.setattr(blob, "storage_configured", lambda: True)     # what the gate env does
+    with pytest.raises(ValueError, match="Connection string is either blank or malformed"):
+        asyncio.run(blob.load_registry())                          # no client can be built: it stops here

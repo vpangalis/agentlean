@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -102,6 +102,135 @@ def test_pending_writes_round_trip_and_the_special_channels_overwrite() -> None:
     assert got == {("task-1", "__interrupt__"): {"kind": "b"}, ("task-1", "x"): 1}
 
 
+class _AsyncBlob:
+    """ADR-0101 — the aio face of `_Blob`, over the same in-memory blobs: what `azure.storage.blob.aio` offers."""
+
+    def __init__(self, box: "_Container", path: str) -> None:
+        self._sync = _Blob(box, path)
+
+    async def upload_blob(self, body: bytes, overwrite: bool = False, etag: str | None = None,
+                          match_condition: Any = None) -> None:
+        self._sync.upload_blob(body, overwrite=overwrite, if_match=etag if match_condition is not None else None)
+
+    async def download_blob(self) -> Any:
+        held = self._sync.download_blob()
+
+        async def readall() -> bytes:
+            return held.readall()
+        return SimpleNamespace(readall=readall)
+
+    async def get_blob_properties(self) -> Any:
+        return self._sync.get_blob_properties()
+
+
+class _AsyncContainer:
+    def __init__(self, box: "_Container") -> None:
+        self._box = box
+        self.calls = 0
+
+    def get_blob_client(self, path: str) -> _AsyncBlob:
+        self.calls += 1
+        return _AsyncBlob(self._box, path)
+
+    async def list_blobs(self, name_starts_with: str = "") -> Any:
+        for item in self._box.list_blobs(name_starts_with=name_starts_with):
+            yield item
+
+    async def close(self) -> None:
+        return None
+
+
+def test_adr_0101_the_async_saver_round_trips_on_the_aio_client() -> None:
+    """ADR-0101 decision 2: aput, aput_writes, aget_tuple and alist run on the aio client — never the sync one — with
+    the sync methods' semantics: the history written once, `latest.json` by ETag (a concurrent write is retried once,
+    then refused), pending writes keyed as the reference saver keys them, the list newest first."""
+    import asyncio
+
+    from langgraph.checkpoint.base import empty_checkpoint
+
+    from backend.core.checkpointer import ConcurrentTurnError
+
+    box = _Container()
+
+    class _NoSync:
+        def __getattr__(self, name: str) -> Any:
+            raise AssertionError(f"the async path used the sync client ({name})")
+    aio = _AsyncContainer(box)
+    saver = AzureBlobCheckpointSaver(container_client=_NoSync(), async_container_factory=cast(Any, lambda: aio))  # type: ignore[arg-type]
+    metadata: Any = {"source": "input", "step": -1, "parents": {}}
+    root = {"configurable": {"thread_id": "T", "checkpoint_ns": ""}}
+
+    async def run() -> dict:
+        first = empty_checkpoint()
+        cfg = await saver.aput(root, first, metadata, {})
+        await saver.aput_writes(cfg, [("__interrupt__", {"kind": "a"}), ("x", 1)], "task-1")
+        await saver.aput_writes(cfg, [("__interrupt__", {"kind": "b"}), ("x", 2)], "task-1")
+        second: Any = {**empty_checkpoint(), "id": "z" + first["id"][1:]}
+        await saver.aput(cfg, second, metadata, {})
+        got = await saver.aget_tuple(cfg)
+        latest = await saver.aget_tuple(root)
+        assert got is not None and latest is not None and latest.parent_config is not None
+        listed = [t.checkpoint["id"] async for t in saver.alist(root)]
+        return {"pending": {(t, c): v for t, c, v in got.pending_writes or []}, "latest": latest.checkpoint["id"],
+                "parent": latest.parent_config["configurable"]["checkpoint_id"], "listed": listed,
+                "ids": (first["id"], second["id"])}
+    out = asyncio.run(run())
+    assert out["pending"] == {("task-1", "__interrupt__"): {"kind": "b"}, ("task-1", "x"): 1}, out["pending"]
+    assert out["latest"] == out["ids"][1] and out["parent"] == out["ids"][0], out
+    assert out["listed"] == [out["ids"][1], out["ids"][0]], out["listed"]
+    assert aio.calls > 0
+
+    # latest.json by ETag: a write that lands between the read and the write is retried once, then refused.
+    real = aio.get_blob_client
+    race_left = [0]
+
+    def meddling(path: str) -> Any:
+        blob = real(path)
+        if path.endswith("latest.json"):
+            async def changed() -> Any:
+                held = box.blobs[path]
+                if race_left[0] > 0:                                 # someone else writes it meanwhile
+                    race_left[0] -= 1
+                    box.blobs[path] = (held[0], f'"moved-{race_left[0]}"')
+                return SimpleNamespace(etag=held[1])
+            blob.get_blob_properties = changed                       # type: ignore[method-assign]
+        return blob
+    aio.get_blob_client = meddling                                   # type: ignore[method-assign]
+
+    async def put(cid: str) -> None:
+        await saver.aput(root, cast(Any, {**empty_checkpoint(), "id": cid}), metadata, {})
+    race_left[0] = 1
+    asyncio.run(put("zz1"))                                          # one conflict: retried, written
+    now = asyncio.run(saver.aget_tuple(root))
+    assert race_left[0] == 0 and now is not None and now.checkpoint["id"] == "zz1"
+    race_left[0] = 2
+    with pytest.raises(ConcurrentTurnError):
+        asyncio.run(put("zz2"))                                      # two: refused
+
+
+def test_adr_0101_a_coaching_turn_writes_no_checkpoint_of_the_inner_agent(env, monkeypatch) -> None:
+    """ADR-0101 decision 1: the coach's inner agent is compiled with checkpointer=False. One coaching turn through
+    the real graph, persisted by the production saver on its aio path: no checkpoint in an `|executor:` namespace;
+    the parent's and the phase subgraph's checkpoints are written, and the turn reloads."""
+    from urllib.parse import unquote
+
+    from backend.core import graph as graph_mod
+
+    box = env.holder["saver"]._container
+    aio = _AsyncContainer(box)
+    env.holder["saver"] = AzureBlobCheckpointSaver(container_client=box, async_container_factory=cast(Any, lambda: aio))  # type: ignore[arg-type]
+    graph_mod.get_graph.cache_clear()
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": ACTOR,
+                                      "message": "Where do we stand?"})
+    assert r.status_code == 200, r.text
+    names = [unquote(n) for n in box.blobs]
+    assert aio.calls > 0, "the turn did not use the aio path"
+    assert not [n for n in names if "|executor:" in n], [n for n in names if "|executor:" in n][:3]
+    assert any("/ns/define_phase:" in n for n in names) and any(n.startswith(f"checkpoints/{CASE_ID}/") for n in names)
+    reloaded = env.client.get(f"/cases/{CASE_ID}")
+    assert reloaded.status_code == 200 and reloaded.json()["conversation_history"], reloaded.text
+
+
 def test_g232_the_run_records_time_every_storage_call(monkeypatch) -> None:
     """G-232 (owner G-220 "Checkpoint weight"): the run scripts time each checkpoint, Store and case-file call,
     and `storage_since` sums a turn's — so a run record says how much of a turn was storage. Timing changes
@@ -112,7 +241,8 @@ def test_g232_the_run_records_time_every_storage_call(monkeypatch) -> None:
     from backend.storage import blob
     from scripts import move_proof_661 as proof
 
-    for owner, names in ((AzureBlobCheckpointSaver, ("put", "put_writes", "get_tuple", "list")),
+    for owner, names in ((AzureBlobCheckpointSaver, ("put", "put_writes", "get_tuple", "list", "aput", "aput_writes",
+                                                     "aget_tuple", "alist")),
                          (AzureBlobStore, ("batch", "abatch")), (blob, ("load_case", "save_case"))):
         for name in names:                      # restored after the test: the timing patches the classes
             monkeypatch.setattr(owner, name, getattr(owner, name))
@@ -129,6 +259,14 @@ def test_g232_the_run_records_time_every_storage_call(monkeypatch) -> None:
     assert got["calls"] == 4 and got["checkpoint"]["calls"] == 4, got
     assert [c["op"] for c in proof.STORAGE[start:]] == ["put", "put_writes", "get_tuple", "list"]
     assert got["seconds"] >= 0 and set(got) == {"seconds", "calls", "checkpoint"}, got
+    # ADR-0101: on the aio client the async methods are what the graph calls — each counted once.
+    import asyncio
+    aio_saver = AzureBlobCheckpointSaver(container_client=_Container(),  # type: ignore[arg-type]
+                                         async_container_factory=cast(Any, lambda: _AsyncContainer(_Container())))
+    start = len(proof.STORAGE)
+    asyncio.run(aio_saver.aput({"configurable": {"thread_id": "T", "checkpoint_ns": ""}}, empty_checkpoint(),
+                               metadata, {}))
+    assert [c["op"] for c in proof.STORAGE[start:]] == ["aput"], proof.STORAGE[start:]
 
 
 # ── the route, the graph, the saver ───────────────────────────────────────
@@ -171,10 +309,23 @@ def env(monkeypatch, stub_planner):
         i = order.index(kw["phase"])
         case.current_phase = order[i + 1] if i + 1 < len(order) else "complete"
 
+    # G-234 (founder 2026-10-19): the case list in memory too — a passed gate clears the escalation, which
+    # read the live registry.json before this fake existed.
+    from backend.storage.models import CaseRegistry
+    registry = {"held": CaseRegistry()}
+
+    async def load_registry():
+        return registry["held"].model_copy(deep=True)
+
+    async def save_registry(r):
+        registry["held"] = r.model_copy(deep=True)
+
     monkeypatch.setattr(routes.blob, "storage_configured", lambda: True)
     monkeypatch.setattr(routes.blob, "load_case", load)
     monkeypatch.setattr(routes.blob, "save_case", save)
     monkeypatch.setattr(routes.blob, "write_phase_gate", write_phase_gate)
+    monkeypatch.setattr(routes.blob, "load_registry", load_registry)
+    monkeypatch.setattr(routes.blob, "save_registry", save_registry)
     monkeypatch.setattr("backend.core.store.get_store", lambda: store)
     monkeypatch.setattr("backend.gateway.routes.get_store", lambda: store)  # the routes' own name (controls review, item 2)
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)

@@ -123,14 +123,14 @@ Generated from each file's status line; never typed.
 | [0077](0077-calculations-run-in-code-never-by-the-coach.md) | Calculations are run by code, never by the coach; the coach explains them | ACCEPTED | — |
 | [0078](0078-process-step-performance-stored-per-step.md) | The as-is process stores its performance per step, and the problem is located in it | ACCEPTED | — |
 | [0079](0079-coherence-reask-through-the-after-agent-hook.md) | A coherence rejection asks the coach again through layer 2a's after_agent hook | SUPERSEDED by 0083 | — |
-| [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | — |
+| [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | refined by 0101 |
 | [0081](0081-two-independent-judges-log-only-until-proven.md) | Two independent judges on every reply, each log-only until proven | ACCEPTED | — |
 | [0082](0082-model-fallback-keeps-refusals-and-token-limits-out.md) | The coach's model fallback as shipped, with refusals and token-limit errors kept out of it | ACCEPTED | — |
 | [0083](0083-retire-the-ai-coherence-judge.md) | The AI coherence judge (layer 2a) is retired | ACCEPTED | — |
 | [0084](0084-grader-v2-evaluator-with-reflection.md) | Grader v2 — the evaluator judges the reply the Belt sees, on four criteria, and the coach revises once | WITHDRAWN | — |
 | [0085](0085-an-upload-that-covers-the-element-is-read-back.md) | An upload that covers the current element is read back on its upload turn, and "use the file" confirms it | ACCEPTED | — |
 | [0086](0086-the-target-is-read-from-the-confirmed-goal.md) | The target value and date are read from the confirmed goal, for one Confirm | ACCEPTED | refined by 0088 |
-| [0087](0087-the-approval-node-writes-both-records.md) | The approval node writes both records — the Store's and the case's — and its error handler undoes both | PROPOSED | refines 0063 |
+| [0087](0087-the-approval-node-writes-both-records.md) | The approval node writes both records — the Store's and the case's — has no error handler, and LangGraph's retry completes it | ACCEPTED | refines 0063 |
 | [0088](0088-element-values-parsed-and-checked-in-code.md) | Element values are parsed and checked in code by one parser per kind — lists, durations, dates — and an element's required parts are checked before its read-back and its Confirm | ACCEPTED | refines 0071, 0086 |
 | [0089](0089-case-location-country-and-site.md) | A case carries its location — country and site — chosen from lists the customer ships as configuration | PROPOSED | — |
 | [0090](0090-the-people-on-a-case.md) | One person record for everyone on a case, kept in the case record and written on every team change; Define's team element refers to it | ACCEPTED | — |
@@ -144,4 +144,5 @@ Generated from each file's status line; never typed.
 | [0098](0098-a-fourth-index-industry-practice.md) | A fourth index: industry practice | ACCEPTED | — |
 | [0099](0099-practice-content-sources-licence-gate-and-waves.md) | Practice content: sources, licence gate and waves | ACCEPTED | — |
 | [0100](0100-how-analyse-and-improve-use-practice.md) | How Analyse and Improve use practice | ACCEPTED | — |
+| [0101](0101-a-turns-storage-does-not-block-it.md) | The coach's inner agent is not checkpointed, and the Blob checkpointer writes without blocking the turn | ACCEPTED | refines 0080 |
 <!-- END ADR INDEX -->
