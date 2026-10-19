@@ -123,7 +123,7 @@ Generated from each file's status line; never typed.
 | [0077](0077-calculations-run-in-code-never-by-the-coach.md) | Calculations are run by code, never by the coach; the coach explains them | ACCEPTED | — |
 | [0078](0078-process-step-performance-stored-per-step.md) | The as-is process stores its performance per step, and the problem is located in it | ACCEPTED | — |
 | [0079](0079-coherence-reask-through-the-after-agent-hook.md) | A coherence rejection asks the coach again through layer 2a's after_agent hook | SUPERSEDED by 0083 | — |
-| [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | — |
+| [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | refined by 0101 |
 | [0081](0081-two-independent-judges-log-only-until-proven.md) | Two independent judges on every reply, each log-only until proven | ACCEPTED | — |
 | [0082](0082-model-fallback-keeps-refusals-and-token-limits-out.md) | The coach's model fallback as shipped, with refusals and token-limit errors kept out of it | ACCEPTED | — |
 | [0083](0083-retire-the-ai-coherence-judge.md) | The AI coherence judge (layer 2a) is retired | ACCEPTED | — |
@@ -144,4 +144,5 @@ Generated from each file's status line; never typed.
 | [0098](0098-a-fourth-index-industry-practice.md) | A fourth index: industry practice | ACCEPTED | — |
 | [0099](0099-practice-content-sources-licence-gate-and-waves.md) | Practice content: sources, licence gate and waves | ACCEPTED | — |
 | [0100](0100-how-analyse-and-improve-use-practice.md) | How Analyse and Improve use practice | ACCEPTED | — |
+| [0101](0101-a-turns-storage-does-not-block-it.md) | The coach's inner agent is not checkpointed, and the Blob checkpointer writes without blocking the turn | ACCEPTED | refines 0080 |
 <!-- END ADR INDEX -->
