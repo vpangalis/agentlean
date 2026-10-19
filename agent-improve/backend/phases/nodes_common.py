@@ -73,7 +73,7 @@ from backend.core import content_safety, guard, guard_messages, pii
 from backend.middleware import fallback as model_fallback
 from backend.middleware import turn_tools
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S, settings
-from backend.core.conversation import message_to_turn
+from backend.core.conversation import CARD_KEY, STRIP_KEY, message_to_turn  # ADR-0093: the card and the strip
 from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
 from backend.core.prompts import (
@@ -1551,6 +1551,50 @@ def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None
     }
 
 
+
+def _element_card(phase: str, record: dict | None, artifacts: dict[str, Any],
+                  plan: Optional[CoachingPlan]) -> tuple[dict | None, dict | None]:
+    """ADR-0093 decisions 2 and 3: the read-back card, drawn in code from the exact value a Confirm will store
+    (the record's pending store over the case's values) — Confirm opens only under a read-back with every
+    required criterion met; a challenge made because a Confirm could not store shows the same card with Confirm
+    closed. After a Confirm, the green strip naming the element and its Gate section. (None, None) otherwise."""
+    if phase != "define" or record is None:
+        return None, None
+    from backend.phases.define import templates
+    pending = record.get("pending") or goal_read_back(plan)
+    field = str((pending or {}).get("field") or "")
+    strip = templates.strip(str(record["stored_field"])) if record.get("stored_field") in templates.TEMPLATES else None
+    if pending and field in templates.TEMPLATES and record.get("move") == moves.READ_BACK:
+        card = templates.card(field, {**artifacts, **dict(pending.get("store") or {})}, spans=pending.get("spans"),
+                              upload=pending.get("upload"), belt_words=str(pending.get("belt_words") or ""))
+        return card, strip
+    return None, strip
+
+
+def _short_card(phase: str, field: Optional[str], pending: dict | None, artifacts: dict[str, Any]) -> dict | None:
+    """ADR-0093: the card of a read-back a Confirm could not store (G-163) — its rows show what is open; Confirm
+    stays closed."""
+    if phase != "define" or not pending or not field:
+        return None
+    from backend.phases.define import templates
+    if field not in templates.TEMPLATES:
+        return None
+    card = templates.card(field, {**artifacts, **dict(pending.get("store") or {})}, spans=pending.get("spans"),
+                          upload=pending.get("upload"), belt_words=str(pending.get("belt_words") or ""))
+    return {**card, "confirm": False}
+
+
+def _attach_card(messages: list, card: dict | None, strip: dict | None) -> None:
+    """Put the card and the strip on the reply — the last AI message. Mutates in place."""
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage):
+            if card is not None:
+                msg.additional_kwargs[CARD_KEY] = card
+            if strip is not None:
+                msg.additional_kwargs[STRIP_KEY] = strip
+            return
+
+
 def _attach_move(messages: list, record: dict | None, feedback: dict | None) -> None:
     """Put the move record and the quality feedback on the reply — the last AI
     message, the channel `_attach_blocks` uses. Mutates in place."""
@@ -2994,6 +3038,12 @@ async def executor(
         if pending.get("upload"):
             # ADR-0085 (G-169) — a read-back of an uploaded file: what a Confirm stores came from the file (R16).
             pending["sources"] = {**pending["sources"], **{f: "upload" for f in store}}
+        if pending.get("spans") and isinstance(store.get(str(pending.get("field"))), str):
+            # ADR-0093 decision 5: a span shown in a row is verbatim in the Belt's answer AND in the text a
+            # Confirm stores (a composed answer stores the coach's version) — otherwise the whole answer, once.
+            from backend.phases.define.templates import verbatim_spans
+            pending["spans"] = verbatim_spans(pending["spans"], str(pending["field"]),
+                                              str(pending.get("belt_words") or ""), store[str(pending["field"])])
         link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
         short = moves.store_missing(pending.get("fields") or [pending.get("field")], prior_artifacts, store)
         unfilled = placeholders(store)
@@ -3249,6 +3299,10 @@ async def executor(
                 record["limit"] = limit_diagnosis          # G-139: the run record reads it here
     feedback = _quality_feedback(grader_log)
     _attach_move(new_messages, record, feedback)
+    card, strip = _element_card(phase, record, artifacts, plan)
+    if card is None and sample_challenge and short and plan is not None:
+        card = _short_card(phase, plan.focus_field, pending, artifacts)
+    _attach_card(new_messages, card, strip)
 
     # **The count that used to disagree with the write, reconciled.** This
     # line logged `len(captured)` — the KEYS the coach named — while the write

@@ -83,6 +83,14 @@ class SufficiencyJudgment(BaseModel):
             "the Belt did not state — never estimate one. Empty otherwise."
         ),
     )
+    criterion_spans: Optional[dict[str, str]] = Field(
+        default=None,
+        description=(
+            "ADR-0093 — for 'sufficient': for each acceptance criterion, keyed by its id exactly as "
+            "listed, the passage of the Belt's answer that meets it, copied character for character. "
+            "Leave out a criterion no passage meets. Empty otherwise."
+        ),
+    )
 
 
 class CoachingPlan(BaseModel):

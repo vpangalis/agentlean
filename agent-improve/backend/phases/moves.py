@@ -421,6 +421,31 @@ def element_rows(phase: str, artifacts: dict[str, Any],
     return rows
 
 
+def _spans_kw(phase: str, field: str, judgment: Any, answer: str) -> dict[str, Any]:
+    """ADR-0093 decision 5 (option (b)): the judgment's quoted span per criterion, kept only where it is a
+    verbatim substring of the Belt's answer (`templates.verbatim_spans`) — `{"spans": …}`, or nothing."""
+    if phase != "define":
+        return {}
+    from backend.phases.define.templates import verbatim_spans
+    spans = verbatim_spans(getattr(judgment, "criterion_spans", None), field, answer)
+    return {"spans": spans} if spans else {}
+
+
+def _confirmed(pending: dict[str, Any]) -> dict[str, Any]:
+    """A confirmed element's status, with what its Gate rows read (ADR-0093 decision 7): the verified spans and
+    the file its values came from."""
+    return {"status": CONFIRMED, **{k: pending[k] for k in ("spans", "upload") if pending.get(k)}}
+
+
+def criteria_open(phase: str, field: str, values: dict[str, Any], pending: dict[str, Any]) -> list[str]:
+    """ADR-0093 decision 2: `[field]` when the read-back's rows, recomputed from what a Confirm would store, leave a
+    required criterion open — the Confirm is refused and nothing stored; [] otherwise."""
+    if phase != "define":
+        return []
+    from backend.phases.define.templates import open_required
+    return [field] if open_required(field, values, spans=pending.get("spans")) else []
+
+
 def _attempts(entry: dict[str, Any]) -> dict[str, Any]:
     """The failed-attempt count an element's entry carries forward (ADR-0072)."""
     n = int(entry.get("attempts") or 0)
@@ -532,12 +557,13 @@ async def decide(phase: str, artifacts: dict[str, Any],
                                                                      or uses_upload(belt, pending)))):
         store = dict(pending.get("store") or {})
         merged = {**artifacts, **store}
-        if store_missing(fields, artifacts, store):
+        # ADR-0093 decision 2: a Confirm with a required criterion open is refused on the server too.
+        missing = store_missing(fields, artifacts, store) or criteria_open(phase, field, merged, pending)
+        if missing:
             # A yes to a read-back that cannot complete the position (a
             # structure refused): nothing is stored, the read-back is made again.
             # DEF-029 / G-117: the reason names what was missing, so the coach's next read-back
             # carries it and the executor tells the Belt, in code, that nothing was stored.
-            missing = store_missing(fields, artifacts, store)
             # ADR-0072 — a refused Confirm is a failed attempt; the third brings the offer.
             tries = int(entry.get("attempts") or 0) + 1
             if tries >= PARK_AFTER:
@@ -562,7 +588,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
                         pending={**{k: v for k, v in pending.items() if k not in ("store", "proposed")},
                                  **_earlier_kw(entry, pending)},
                         reason=CONFIRM_INCOMPLETE.format(missing=", ".join(f"`{f}`" for f in missing)))
-        after[field] = {"status": CONFIRMED}
+        after[field] = _confirmed(pending)
         nxt = current(phase, merged, after)
         # ADR-0086 (A8) — a confirmed goal that states the target: the next position is read back from
         # it, for one Confirm; otherwise it is taught.
@@ -596,7 +622,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
                     messages=so_far, pending=pending, reason=judgment.reason)
     if judgment.verdict == "sufficient":
         new_pending = {"field": field, "fields": list(fields), "belt_words": answer,
-                       "messages": so_far + 1, **_earlier_kw(entry, pending)}
+                       "messages": so_far + 1, **_earlier_kw(entry, pending),
+                       **_spans_kw(phase, field, judgment, answer)}
         after[field] = {"status": ANSWERED, "answer": answer, "messages": so_far + 1,
                         "pending": new_pending, **_attempts(entry)}
         return done(field, fields, status, READ_BACK, judgment=judgment, answer=answer,
@@ -682,7 +709,7 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
 
 __all__ = [
     "MOVES", "STATUSES", "OFFER_PARK", "PARKED", "PARK_CLICK", "TRY_AGAIN_CLICK", "PARK_AFTER",
-    "parked", "park_events", "element_rows", "REVISE_CLICK", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
+    "parked", "park_events", "element_rows", "criteria_open", "REVISE_CLICK", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
     "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK", "REJECTED",
     "MOVE_RECORD_KEY", "QUALITY_FEEDBACK_KEY", "COMPOSED_FIELDS", "positions", "focus",
     "current", "status_of", "last_record", "last_feedback", "belt_message",

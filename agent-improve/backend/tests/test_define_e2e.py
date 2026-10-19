@@ -5585,6 +5585,73 @@ def test_the_report_shows_history_behind_a_link_never_json() -> None:
     _not_written('DEF-199')
 
 
+def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, monkeypatch, stub_planner) -> None:
+    """ADR-0093 "Element templates and the Gate view", build step 1, on the real routes and graph: the judgment's
+    quoted spans (option (b), one call) reach the read-back only where they are verbatim in the Belt's answer;
+    the read-back's card, drawn from the exact value a Confirm stores, rides on the turn (kept in the history);
+    the Confirm keeps the verified spans on the element's status (schema 13) and the turn carries the green
+    strip; a version-12 record without spans migrates and its rows show the whole answer once."""
+    from langchain_core.messages import AIMessage
+
+    from backend.core import migrations
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves, nodes_common
+    from backend.phases.define import templates
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    real_llm = nodes_common.get_llm
+
+    def coach_says(message: str, captured: list | None = None) -> None:
+        call = {"name": "CoachingResponse", "id": "call_adr0093",
+                "args": {**REPLY, "message": message, "fields_captured": captured or []}}
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
+            messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else real_llm(role, **kw))
+
+    answer = ("Since January 2026, 38% of complaints in the Austrian field service close later than 10 working days. "
+              "About 1,200 a year; each late one costs about €45 extra handling.")
+    env.case.phases["define"].field_status = {"business_case": {"status": moves.ASKED}}
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all five criteria met", criterion_spans={
+        "what": "38% of complaints in the Austrian field service close later than 10 working days",
+        "where-when": "Since January 2026",
+        "cost": "costs us roughly twenty thousand a year",          # a paraphrase: dropped
+        "champion": "Katharina Huber"})                             # another element's criterion: dropped
+    coach_says(f'Your business case: "{answer}" Is this right?',
+               captured=[{"field_name": "business_case", "value": answer, "source": "belt"}])
+    ask = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": answer})
+    assert ask.status_code == 200 and ask.json()["move"] == moves.READ_BACK, ask.text
+
+    case = env.client.get(f"/cases/{CASE_ID}").json()
+    pending = case["phases"]["define"]["field_status"]["business_case"]["pending"]
+    kept = {"what": "38% of complaints in the Austrian field service close later than 10 working days",
+            "where-when": "Since January 2026"}
+    assert pending["spans"] == kept, pending.get("spans")
+    card = case["conversation_history"][-1]["readback_card"]
+    rows = {r["id"]: r for r in card["rows"]}
+    assert (card["n"], card["of"], card["name"], card["section"]) == (1, 13, "Business case", "B"), card
+    assert rows["what"]["value"] == kept["what"] and rows["what"]["source"] == templates.YOUR_ANSWER
+    assert rows["cost"]["value"] is None and rows["cost"]["source"] == templates.IN_ANSWER
+    assert card["answer"] == answer and card["confirm"] is True and card["met"] == card["total"] == 5, card
+
+    coach_says("Stored.")
+    done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Confirm",
+                                         "action": "confirm"})
+    assert done.status_code == 200, done.text
+    case = env.client.get(f"/cases/{CASE_ID}").json()
+    assert case["phases"]["define"]["field_status"]["business_case"] == {"status": moves.CONFIRMED, "spans": kept}
+    assert case["phases"]["define"]["structured"]["business_case"] == answer
+    assert case["conversation_history"][-1]["confirmed_strip"]["text"] == (
+        "✓ Element 1 · Business case confirmed — the Gate document is updated (section B).")
+
+    # T88: a version-12 status without spans migrates unchanged; its rows show the whole answer once.
+    v12 = {"field_status": {"business_case": {"status": moves.CONFIRMED}}, migrations.VERSION_KEY: 12}
+    moved = migrations.migrate(v12, 12)
+    assert moved["field_status"] == v12["field_status"] and migrations.current() == 13
+    gate = templates.card("business_case", {"business_case": answer},
+                          spans=moved["field_status"]["business_case"].get("spans"))
+    assert gate["answer"] == answer and all(r["source"] in (templates.IN_ANSWER, templates.YOUR_ANSWER)
+                                            for r in gate["rows"])
+
+
 def test_the_welcome_is_built_by_the_server() -> None:
     """DEF-200 — The welcome is built by the server from the phase state, greets the Belt by name, laid out in blocks (G-201; founder test findings 11, 15)"""
     _not_written('DEF-200')

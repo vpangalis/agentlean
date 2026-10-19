@@ -77,7 +77,9 @@ COACHING_BLOCK_KEYS: tuple[str, ...] = ("explanation", "example", "prompt", "pro
 #: move is derived from them.
 MOVE_RECORD_KEY = "coaching_move"
 QUALITY_FEEDBACK_KEY = "quality_feedback"
-TURN_RECORD_KEYS: tuple[str, ...] = (MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY)
+#: ADR-0093 — the read-back card and the confirmation strip, kept on the turn so a reload draws them again.
+CARD_KEY, STRIP_KEY = "readback_card", "confirmed_strip"
+TURN_RECORD_KEYS: tuple[str, ...] = (MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY, CARD_KEY, STRIP_KEY)
 
 
 def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
@@ -166,6 +168,8 @@ __all__ = [
     "V1_PRESENTATION_KEYS",
     "MOVE_RECORD_KEY",
     "QUALITY_FEEDBACK_KEY",
+    "CARD_KEY",
+    "STRIP_KEY",
     "TURN_RECORD_KEYS",
     "message_to_turn",
     "turn_to_message",
