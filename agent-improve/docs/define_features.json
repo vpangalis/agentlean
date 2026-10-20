@@ -5023,7 +5023,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-22"
+    ]
    },
    "requirement": "T35",
    "belt_impact": "degraded",

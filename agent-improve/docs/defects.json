@@ -49,7 +49,7 @@
   },
   {
    "id": "G-06",
-   "symptom": "`extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared — Attaches to: S-C02, S-F29. Step (procedure era): 8.2.",
+   "symptom": "`extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared — Attaches to: S-C02, S-F29. Step (procedure era): 8.2. | CLOSED 2026-10-20 (founder ruling): 2bcc1af (ARCHITECTURE.md v2.0, design only; v1.88 archived) — `extraction_error` / `extraction_incomplete` were never in backend code (git log -S finds them only in documents).",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -87,7 +87,7 @@
   },
   {
    "id": "G-09",
-   "symptom": "`CoherenceResult` — Attaches to: S-C23, S-C13. Step (procedure era): unscheduled.",
+   "symptom": "`CoherenceResult` — Attaches to: S-C23, S-C13. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): ea24c93 (ADR-0083, the AI coherence judge retired) — `CoherenceResult` is not in the code and has nothing left to describe.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -103,7 +103,7 @@
   },
   {
    "id": "G-11",
-   "symptom": "`GraderVerdict` — only \"carries a `list[CriterionVerdict]`\" is stated — Attaches to: S-C21, S-F26. Step (procedure era): unscheduled.",
+   "symptom": "`GraderVerdict` — only \"carries a `list[CriterionVerdict]`\" is stated — Attaches to: S-C21, S-F26. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): 727439c — `GraderVerdict` defined in backend/validation/schemas.py:117.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -111,7 +111,7 @@
   },
   {
    "id": "G-12",
-   "symptom": "`CoachingGraderVerdict` — Attaches to: S-C22, S-C14. Step (procedure era): unscheduled.",
+   "symptom": "`CoachingGraderVerdict` — Attaches to: S-C22, S-C14. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): 3046bb4 (commit 6.5) — `CoachingGraderVerdict` defined in backend/validation/schemas.py:71.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -150,7 +150,7 @@
   },
   {
    "id": "G-16",
-   "symptom": "`CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 — Attaches to: S-C36. Step (procedure era): unscheduled.",
+   "symptom": "`CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 — Attaches to: S-C36. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): 125a192 — `CitationRecord` defined in backend/core/citations.py:16.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -158,7 +158,7 @@
   },
   {
    "id": "G-17",
-   "symptom": "`CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document — Attaches to: S-C09. Step (procedure era): unscheduled.",
+   "symptom": "`CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document — Attaches to: S-C09. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): 2bcc1af (ARCHITECTURE.md v2.0) — the models exist in storage/models.py (`CaseDocument` at line 281) and v2.0's generated data-models block names them.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -212,9 +212,15 @@
   {
    "id": "G-22",
    "symptom": "`CircuitBreaker` — thresholds and state machine complete, interface absent — Attaches to: S-C35. Step (procedure era): unscheduled.",
-   "requirement": [],
-   "feature": [],
-   "lane": [],
+   "requirement": [
+    "T35"
+   ],
+   "feature": [
+    "DEF-124"
+   ],
+   "lane": [
+    "A"
+   ],
    "escape_class": null
   },
   {
@@ -238,7 +244,7 @@
   },
   {
    "id": "G-24",
-   "symptom": "Constructor arguments for all four remaining custom middlewares — `(...)` is literal in §19 in every case — Attaches to: S-C11, S-C12, S-C13, S-C14. Step (procedure era): unscheduled.",
+   "symptom": "Constructor arguments for all four remaining custom middlewares — `(...)` is literal in §19 in every case — Attaches to: S-C11, S-C12, S-C13, S-C14. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): 3046bb4 (commit 6.5, 'middleware positions 6-8; the stack is complete') — the custom middlewares are built with their constructors.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -254,7 +260,7 @@
   },
   {
    "id": "G-26",
-   "symptom": "Retriever-layer signatures, `RETRIEVAL_EXCEPTIONS` membership, and the `_fail()` contract — Attaches to: S-F18. Step (procedure era): unscheduled.",
+   "symptom": "Retriever-layer signatures, `RETRIEVAL_EXCEPTIONS` membership, and the `_fail()` contract — Attaches to: S-F18. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): df118c3 — `RETRIEVAL_EXCEPTIONS` and `_fail()` built (backend/knowledge/retriever.py:109); ARCHITECTURE.md v2.0 §5 states the contract.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -270,7 +276,7 @@
   },
   {
    "id": "G-28",
-   "symptom": "Gate assembly for Measure, Analyse, Improve and Control — 55 field assignments, each selecting a tier access pattern, and an omission is silent — Attaches to: S-F28, S-F07. Step (procedure era): unscheduled.",
+   "symptom": "Gate assembly for Measure, Analyse, Improve and Control — 55 field assignments, each selecting a tier access pattern, and an omission is silent — Attaches to: S-F28, S-F07. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): 0e69c8a (commit 3.4) — {Phase}Output schemas, validators and gate assembly for every phase.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -278,7 +284,7 @@
   },
   {
    "id": "G-29",
-   "symptom": "`propose_template` — an open \"etc.\" type list and no `fill_data` schema — Attaches to: S-F19. Step (procedure era): unscheduled.",
+   "symptom": "`propose_template` — an open \"etc.\" type list and no `fill_data` schema — Attaches to: S-F19. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): bbed082 (commit 6.2) — `propose_template` has its `fill_data` schema (backend/knowledge/tool_args.py:349).",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -393,7 +399,7 @@
   },
   {
    "id": "G-39",
-   "symptom": "`turn_count`'s increment contract, load-bearing in §11's deterministic `step_log` key — Attaches to: S-C02. Step (procedure era): unscheduled.",
+   "symptom": "`turn_count`'s increment contract, load-bearing in §11's deterministic `step_log` key — Attaches to: S-C02. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): a3ba15e (commit 3.1) — `turn_count` declared in the state schemas.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -508,7 +514,7 @@
   },
   {
    "id": "G-51",
-   "symptom": "`storage/models.py` DEFINES ELEVEN MODELS AND S-C09 NAMES SIX. Unnamed: `AnalystOutputRecord`, `CaseRegistry`, `ChartRecord`, `CitationRecord`, `TeamMemberRecord`. The same shape as Part AP6 one level up — AP6 found six `UploadRecord` fields in the tree and in no document; nothing then checked the model LIST. `CaseRegistry` is the sharpest: `GET /registry`, which §49 ratifies, returns it. Found 2026-09-11 by the three-way alignment audit — Attaches to: S-C09, §10, §23.3. Step (procedure era): unscheduled.",
+   "symptom": "`storage/models.py` DEFINES ELEVEN MODELS AND S-C09 NAMES SIX. Unnamed: `AnalystOutputRecord`, `CaseRegistry`, `ChartRecord`, `CitationRecord`, `TeamMemberRecord`. The same shape as Part AP6 one level up — AP6 found six `UploadRecord` fields in the tree and in no document; nothing then checked the model LIST. `CaseRegistry` is the sharpest: `GET /registry`, which §49 ratifies, returns it. Found 2026-09-11 by the three-way alignment audit — Attaches to: S-C09, §10, §23.3. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): 2bcc1af (ARCHITECTURE.md v2.0) — the generated data-models block names every model storage/models.py defines; S-C09 is archived with v1.88.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -524,7 +530,7 @@
   },
   {
    "id": "G-53",
-   "symptom": "AZURE RETURNS 429 ON THE PREMIUM DEPLOYMENT, SO NO LIVE RUN REACHES A COACHED TURN. `operational-premium` (gpt-4o, westeurope) rate-limits the coach's own model call; `ModelRetryMiddleware` exhausts its two retries, the answer becomes the 429 text, `CoherenceMiddleware` correctly fails it three times and stands the grader down per S-C13 B3. Not a defect — a quota condition — but it blocks every remaining `live-run` verification, and it means the HEALTHY path is still unobserved: coherence passing on its first attempt and `DMAICGraderMiddleware` actually grading have been seen in no trace. Four runs on 2026-09-12, all degraded identically. Resolving the quota is step 9.2; it is EXTERNAL, like §9.0 and §9.1, because the action is a provisioning change and not a code change. — Attaches to: §19.4, §19.7, §19.8, §21. Step (procedure era): 9.2.",
+   "symptom": "AZURE RETURNS 429 ON THE PREMIUM DEPLOYMENT, SO NO LIVE RUN REACHES A COACHED TURN. `operational-premium` (gpt-4o, westeurope) rate-limits the coach's own model call; `ModelRetryMiddleware` exhausts its two retries, the answer becomes the 429 text, `CoherenceMiddleware` correctly fails it three times and stands the grader down per S-C13 B3. Not a defect — a quota condition — but it blocks every remaining `live-run` verification, and it means the HEALTHY path is still unobserved: coherence passing on its first attempt and `DMAICGraderMiddleware` actually grading have been seen in no trace. Four runs on 2026-09-12, all degraded identically. Resolving the quota is step 9.2; it is EXTERNAL, like §9.0 and §9.1, because the action is a provisioning change and not a code change. — Attaches to: §19.4, §19.7, §19.8, §21. Step (procedure era): 9.2. | CLOSED 2026-10-20 (founder ruling): run define_runthrough_20261020T085604 (committed in 043895a): 94 live model calls, every turn coached, no 429.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -540,7 +546,7 @@
   },
   {
    "id": "G-55",
-   "symptom": "1,128 PARENTHETICAL `(§x)` CITATIONS PREDATE §19.2's RULE THAT A CODE IS NEVER RENDERED BARE. 310 in CLAUDE.md as it then stood, 818 in this file. RULED 2026-09-13: NO SWEEP. The ratchet stands — every rule touched from 2026-09-11 names what its citations point at, and the back-catalogue stands as written. A single pass would be a diff across nearly every rule in the constitution, for a gain that arrives anyway as rules are amended. Revisit when the platform reference is authored FROM Agent Improve (§53's forward-document ruling): that pass rewrites citations wholesale, so the sweep costs nothing done alongside it and a diff of its own before then. Carried at step 11.2, governance close-out, which is where the handover is marked. Was CLAUDE.md §19.4's open item; retired from prose at brief step 7 because an open item that renders nowhere is not scheduled. — Attaches to: §19.1, §19.2, §55.1, §56. Step (procedure era): 11.2.",
+   "symptom": "1,128 PARENTHETICAL `(§x)` CITATIONS PREDATE §19.2's RULE THAT A CODE IS NEVER RENDERED BARE. 310 in CLAUDE.md as it then stood, 818 in this file. RULED 2026-09-13: NO SWEEP. The ratchet stands — every rule touched from 2026-09-11 names what its citations point at, and the back-catalogue stands as written. A single pass would be a diff across nearly every rule in the constitution, for a gain that arrives anyway as rules are amended. Revisit when the platform reference is authored FROM Agent Improve (§53's forward-document ruling): that pass rewrites citations wholesale, so the sweep costs nothing done alongside it and a diff of its own before then. Carried at step 11.2, governance close-out, which is where the handover is marked. Was CLAUDE.md §19.4's open item; retired from prose at brief step 7 because an open item that renders nowhere is not scheduled. — Attaches to: §19.1, §19.2, §55.1, §56. Step (procedure era): 11.2. | CLOSED 2026-10-20 FOR CLAUDE.md ONLY (founder ruling): `grep -c \"(§\" agent-improve/CLAUDE.md` = 0. STILL OPEN for ARCHITECTURE.md: the same grep counts 6.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -604,7 +610,7 @@
   },
   {
    "id": "G-62",
-   "symptom": "A COMMIT BODY MAY ASSERT A CODE FACT WITH NOTHING TO RESOLVE IT AGAINST. FOUNDER RULING 2026-09-14, overriding §56.3's *ruled to stay untested*. The accepted reasoning stands — a gate cannot judge whether a prose claim is TRUE — but it can gate the SHAPE: a commit body asserting a fact about code carries a git-resolvable reference, a path with a line range or a commit sha. It never judges correctness. Worked case in the register: v1.31(C) asserted *“Rule 2b blocked the commit adding rule 6 … a watched path staged without this file is exactly what 2b exists to stop”* — a claim about what the guard did, carrying no reference, and wrong: that was the board being regenerated, the first false trigger, read as the rule working. It stood six weeks and cost `ef59aa8`. A `path:line` beside it would not have made it true, but it would have made it checkable. KNOWN LIMIT, recorded with the ruling: it does not catch a citation that RESOLVES AND IS WRONG. §55.2 cited `build_board.py`'s four inputs accurately and drew a false conclusion from them; a shape gate passes that unchanged. Step 6.30 — Attaches to: §56.3, §20.5.1, §55.2. Step (procedure era): 6.30.",
+   "symptom": "A COMMIT BODY MAY ASSERT A CODE FACT WITH NOTHING TO RESOLVE IT AGAINST. FOUNDER RULING 2026-09-14, overriding §56.3's *ruled to stay untested*. The accepted reasoning stands — a gate cannot judge whether a prose claim is TRUE — but it can gate the SHAPE: a commit body asserting a fact about code carries a git-resolvable reference, a path with a line range or a commit sha. It never judges correctness. Worked case in the register: v1.31(C) asserted *“Rule 2b blocked the commit adding rule 6 … a watched path staged without this file is exactly what 2b exists to stop”* — a claim about what the guard did, carrying no reference, and wrong: that was the board being regenerated, the first false trigger, read as the rule working. It stood six weeks and cost `ef59aa8`. A `path:line` beside it would not have made it true, but it would have made it checkable. KNOWN LIMIT, recorded with the ruling: it does not catch a citation that RESOLVES AND IS WRONG. §55.2 cited `build_board.py`'s four inputs accurately and drew a false conclusion from them; a shape gate passes that unchanged. Step 6.30 — Attaches to: §56.3, §20.5.1, §55.2. Step (procedure era): 6.30. | CLOSED 2026-10-20 (founder ruling): 3fae8af — guard rule 24: every class and function the governing documents name exists in the repository or the installed packages.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -626,7 +632,7 @@
   },
   {
    "id": "G-64",
-   "symptom": "APPENDIX A IS A HAND-MAINTAINED DUPLICATE OF A FACT EVERY STEP SECTION ALREADY OWNS, AND IT HAS FALLEN ELEVEN ROWS BEHIND. `REFACTORING_PROCEDURE.md` Appendix A maps each step to its reference sections. Every step section ALSO carries its own ` | Reference § | ` row, and that row is the one a reader of the step actually sees. Appendix A restates it. Found 2026-09-15 by step 6.31’s matrix seed: Appendix A has 59 rows against Appendix D’s 70, missing 6.22–6.31 and 9.2. THE FIRST READING OF THIS FINDING WAS WRONG AND IS RECORDED AS SUCH — it was reported as *“ten steps have no reference section”*, which would breach Appendix A’s own rule that *“a step with no reference section is not a step”*. All eleven DO have one. Nothing is undocumented; the COPY is incomplete, which is a different defect with a different fix. This is `Facts have one owner`, the same class as G-58 — the watched-path list stated in §55.2 and hardcoded in the guard — and it drifts the same way: the copy is updated when someone remembers. THE FIX IS NOT TO TYPE ELEVEN ROWS. Appendix A becomes a projection of the step sections’ own `Reference §` rows, or is asserted against them by set equality in both directions — the check shape already exists as `verify_built.py::matrix_covers_appendix_d`, built at 6.31, and should be generalised rather than rewritten. Filling the rows by hand would leave the second copy in place and buy one commit of agreement — Attaches to: §55.1, §55.4, Appendix A, Appendix D. Step (procedure era): unscheduled.",
+   "symptom": "APPENDIX A IS A HAND-MAINTAINED DUPLICATE OF A FACT EVERY STEP SECTION ALREADY OWNS, AND IT HAS FALLEN ELEVEN ROWS BEHIND. `REFACTORING_PROCEDURE.md` Appendix A maps each step to its reference sections. Every step section ALSO carries its own ` | Reference § | ` row, and that row is the one a reader of the step actually sees. Appendix A restates it. Found 2026-09-15 by step 6.31’s matrix seed: Appendix A has 59 rows against Appendix D’s 70, missing 6.22–6.31 and 9.2. THE FIRST READING OF THIS FINDING WAS WRONG AND IS RECORDED AS SUCH — it was reported as *“ten steps have no reference section”*, which would breach Appendix A’s own rule that *“a step with no reference section is not a step”*. All eleven DO have one. Nothing is undocumented; the COPY is incomplete, which is a different defect with a different fix. This is `Facts have one owner`, the same class as G-58 — the watched-path list stated in §55.2 and hardcoded in the guard — and it drifts the same way: the copy is updated when someone remembers. THE FIX IS NOT TO TYPE ELEVEN ROWS. Appendix A becomes a projection of the step sections’ own `Reference §` rows, or is asserted against them by set equality in both directions — the check shape already exists as `verify_built.py::matrix_covers_appendix_d`, built at 6.31, and should be generalised rather than rewritten. Filling the rows by hand would leave the second copy in place and buy one commit of agreement — Attaches to: §55.1, §55.4, Appendix A, Appendix D. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): d426f10 — the procedure (and its Appendix A) is archived; every reader retired or re-based on the features.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -758,7 +764,7 @@
   },
   {
    "id": "G-75",
-   "symptom": "THE BOARD DISPLAYS ONE GAP PER MARKER AND SILENTLY DROPS THE REST — IN APPENDIX F’S OWN RENDERER. `build_board.py` computes `gnums(m)`, the full list of open gaps whose refs match a marker, and both render sites then take `.split(\", \")[0]` — the highest-numbered one — and discard the others with no `+N more` and no indication anything was dropped. Measured 2026-09-15: seven gaps registered, three displayed. §49’s marker carries G-47, G-66, G-67, G-68, G-69 and G-71 and renders G-71 alone. THIS IS THE FAILURE CLASS APPENDIX F EXISTS FOR, SITTING INSIDE APPENDIX F’S RENDERER. §66’s header states that a gap without a step *“does not render on the board and so is not scheduled by anything”* — a gap WITH a step that still does not render fails the same way, and the board is the artefact a founder reads to decide what is scheduled. A register that is complete and a board that under-reports it are indistinguishable to the reader, which is the `1 of 5 SKILL.md files written` shape one level up. Not a data defect — `read_gaps` returns all seven and is correct — Attaches to: §55.1, §55.2, §66, Appendix F. Step (procedure era): unscheduled.",
+   "symptom": "THE BOARD DISPLAYS ONE GAP PER MARKER AND SILENTLY DROPS THE REST — IN APPENDIX F’S OWN RENDERER. `build_board.py` computes `gnums(m)`, the full list of open gaps whose refs match a marker, and both render sites then take `.split(\", \")[0]` — the highest-numbered one — and discard the others with no `+N more` and no indication anything was dropped. Measured 2026-09-15: seven gaps registered, three displayed. §49’s marker carries G-47, G-66, G-67, G-68, G-69 and G-71 and renders G-71 alone. THIS IS THE FAILURE CLASS APPENDIX F EXISTS FOR, SITTING INSIDE APPENDIX F’S RENDERER. §66’s header states that a gap without a step *“does not render on the board and so is not scheduled by anything”* — a gap WITH a step that still does not render fails the same way, and the board is the artefact a founder reads to decide what is scheduled. A register that is complete and a board that under-reports it are indistinguishable to the reader, which is the `1 of 5 SKILL.md files written` shape one level up. Not a data defect — `read_gaps` returns all seven and is correct — Attaches to: §55.1, §55.2, §66, Appendix F. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): d426f10 — build_board.py and Appendix F's board retired to docs/_archive/retired-tooling/.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -774,7 +780,7 @@
   },
   {
    "id": "G-77",
-   "symptom": "AN UNDECLARED STATE KEY IS INVISIBLE TO THE F-15 PAIRING CHECK, SO “WRITTEN AND NEVER READ” GOES UNCAUGHT FOR ANY MIDDLEWARE THAT RETURNS ONE. `verify_built.py`'s F-15 pass walks the fields DECLARED on `SupervisorState` and `PhaseState` plus `artifacts` keys, and asserts a writer and a reader for each — *“one check for a pattern that recurred seven times”*. A key that is returned from a middleware without being declared anywhere is in neither population, so the check cannot see it and reports green. `grader_warning` (G-76) is the first confirmed instance and was found by a live run, not by any check. REGISTERED SEPARATELY FROM G-76 DELIBERATELY: fixing `grader_warning` closes one field and leaves the blind spot open for the next middleware that returns an ad-hoc key — and §19 mounts eight of them. The escape cause outlives the defect, which is the whole reason §20 splits D4 in two — Attaches to: §55.2, §19, F-15, `verify_built.py`. Step (procedure era): unscheduled.",
+   "symptom": "AN UNDECLARED STATE KEY IS INVISIBLE TO THE F-15 PAIRING CHECK, SO “WRITTEN AND NEVER READ” GOES UNCAUGHT FOR ANY MIDDLEWARE THAT RETURNS ONE. `verify_built.py`'s F-15 pass walks the fields DECLARED on `SupervisorState` and `PhaseState` plus `artifacts` keys, and asserts a writer and a reader for each — *“one check for a pattern that recurred seven times”*. A key that is returned from a middleware without being declared anywhere is in neither population, so the check cannot see it and reports green. `grader_warning` (G-76) is the first confirmed instance and was found by a live run, not by any check. REGISTERED SEPARATELY FROM G-76 DELIBERATELY: fixing `grader_warning` closes one field and leaves the blind spot open for the next middleware that returns an ad-hoc key — and §19 mounts eight of them. The escape cause outlives the defect, which is the whole reason §20 splits D4 in two — Attaches to: §55.2, §19, F-15, `verify_built.py`. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): d426f10 — the procedure's register tooling is archived; the F-15 pairing check went with it.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -858,7 +864,7 @@
   },
   {
    "id": "G-86",
-   "symptom": "APPENDIX F'S `State` COLUMN IS DOCUMENTED AS DERIVED AND IS IN FACT HAND-MAINTAINED, WITH NOTHING CHECKING IT. Appendix F's header states *“`State` is DERIVED, not typed — ⛔ from Appendix D's status cell, then ✅ if git carries the step's spine subject, else ☐”*. Nothing derives it. The emitter that seeded the column at 6.31 was a one-off, and `verify_built.py`'s two matrix checks validate the `Evidence` anchor and the step-set — neither reads the `State` glyph. Found 2026-09-17 on the matrix's OWN row: 6.31 landed as `663a378` on 2026-09-15 and its cell still read `☐ not built` two days later, while the board — which DOES derive from git log — showed it DONE. So the artefact built to stop a document disagreeing with the tree was itself disagreeing with the tree, in the column that says it cannot. Corrected by hand at 6.34, which is the defect repeating rather than the fix. THE CHECK IS CHEAP AND IS DELIBERATELY NOT BUILT HERE: `matrix_states_agree_with_git` is the same shape as `matrix_covers_appendix_d` and belongs with a ruling on what to do about ⚠️, the one state a human legitimately sets and which git cannot derive — so a naive derivation would overwrite the judgement calls the column exists to carry — Attaches to: §55.1, §55.2, Appendix D, Appendix F. Step (procedure era): unscheduled.",
+   "symptom": "APPENDIX F'S `State` COLUMN IS DOCUMENTED AS DERIVED AND IS IN FACT HAND-MAINTAINED, WITH NOTHING CHECKING IT. Appendix F's header states *“`State` is DERIVED, not typed — ⛔ from Appendix D's status cell, then ✅ if git carries the step's spine subject, else ☐”*. Nothing derives it. The emitter that seeded the column at 6.31 was a one-off, and `verify_built.py`'s two matrix checks validate the `Evidence` anchor and the step-set — neither reads the `State` glyph. Found 2026-09-17 on the matrix's OWN row: 6.31 landed as `663a378` on 2026-09-15 and its cell still read `☐ not built` two days later, while the board — which DOES derive from git log — showed it DONE. So the artefact built to stop a document disagreeing with the tree was itself disagreeing with the tree, in the column that says it cannot. Corrected by hand at 6.34, which is the defect repeating rather than the fix. THE CHECK IS CHEAP AND IS DELIBERATELY NOT BUILT HERE: `matrix_states_agree_with_git` is the same shape as `matrix_covers_appendix_d` and belongs with a ruling on what to do about ⚠️, the one state a human legitimately sets and which git cannot derive — so a naive derivation would overwrite the judgement calls the column exists to carry — Attaches to: §55.1, §55.2, Appendix D, Appendix F. Step (procedure era): unscheduled. | CLOSED 2026-10-20 (founder ruling): d426f10 — the procedure (and its Appendix F) is archived; every reader retired or re-based on the features.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -1127,7 +1133,7 @@
   },
   {
    "id": "G-109",
-   "symptom": "THE AMBER IS WHOLE-TREE, NOT PER ROW. `progress.source_hash` hashes every file under `backend/`, `ui/` and `skills/`, and a recorded test outcome is green only on the hash it was run against. So a change to ANY product file turns EVERY test-based status amber, not only the rows whose tests exercise that file. Measured at 6.64: one comment line appended to `backend/phases/define/nodes.py`, no re-run: the headline fell from 14 of 35 to 0 of 35, all 14 proven rows amber, 10 wiring references amber. Correct, and coarse. The improvement: record, per test, the files it depends on (a per-test file map) and turn amber only the rows whose tests touch a changed file. Accepted by the founder as a limit for now, 2026-09-25 — a later improvement, not part of 6.64 — Attaches to: §55, App. H. Step (procedure era): unowned — a later improvement (founder, 2026-09-25).",
+   "symptom": "THE AMBER IS WHOLE-TREE, NOT PER ROW. `progress.source_hash` hashes every file under `backend/`, `ui/` and `skills/`, and a recorded test outcome is green only on the hash it was run against. So a change to ANY product file turns EVERY test-based status amber, not only the rows whose tests exercise that file. Measured at 6.64: one comment line appended to `backend/phases/define/nodes.py`, no re-run: the headline fell from 14 of 35 to 0 of 35, all 14 proven rows amber, 10 wiring references amber. Correct, and coarse. The improvement: record, per test, the files it depends on (a per-test file map) and turn amber only the rows whose tests touch a changed file. Accepted by the founder as a limit for now, 2026-09-25 — a later improvement, not part of 6.64 — Attaches to: §55, App. H. Step (procedure era): unowned — a later improvement (founder, 2026-09-25). | CLOSED 2026-10-20 (founder ruling): d426f10 — the old board and its whole-tree amber retired; the control board reads features.status per feature.",
    "requirement": [],
    "feature": [],
    "lane": [],
@@ -1711,7 +1717,7 @@
   },
   {
    "id": "G-152",
-   "symptom": "THE FULL SUITE FAILED ON A DATE, NOT ON A CHANGE: capability row 35 reads the LangSmith trace of IMPR-2026-0E5's latest turn (2026-09-25), and on 2026-10-11 that trace was past LangSmith's 14-day base retention, so test_row_35_every_define_turn_leaves_a_langsmith_trace asserted 'the turn left NO LangSmith trace' and every push was refused (founder ruling 4.3 needs a passing full run). The code had not changed: the evidence the row reads had expired. Found 2026-10-11 pushing eae3092.",
+   "symptom": "THE FULL SUITE FAILED ON A DATE, NOT ON A CHANGE: capability row 35 reads the LangSmith trace of IMPR-2026-0E5's latest turn (2026-09-25), and on 2026-10-11 that trace was past LangSmith's 14-day base retention, so test_row_35_every_define_turn_leaves_a_langsmith_trace asserted 'the turn left NO LangSmith trace' and every push was refused (founder ruling 4.3 needs a passing full run). The code had not changed: the evidence the row reads had expired. Found 2026-10-11 pushing eae3092. | CLOSED 2026-10-20 (founder ruling): 7056004 (fix(tooling): G-152) — a trace past LangSmith's 14-day retention is skipped, labelled not a pass.",
    "requirement": [],
    "feature": [],
    "lane": [
@@ -1890,7 +1896,7 @@
   },
   {
    "id": "G-165",
-   "symptom": "A HAND-WRITTEN RETRY LOOP AROUND AN LLM CALL ESCAPED THE PATTERN HOOK, AND THE PATTERNS ARE NOT APPLIED AT COMMIT. Framework conformance audit (founder ruling 2026-10-12): scripts/ingest_knowledge.py:496 (_classify, committed 82b9251, 2026-09-27) loops `for attempt in range(CLASSIFIER_MAX_ATTEMPTS)` around `_classifier().invoke(...)` — pattern-9-hand-rolled-llm-retry matches it. The PreToolUse hook applies .claude/config/deprecated_patterns.yaml only to Write/Edit/MultiEdit; an edit made through Bash or a script is never checked, and the commit guard does not apply the patterns to staged code (it only checks the file's rule citations). A scan of the tracked tree today: 3 hits, this one real. 8D — D2 IS: the ingestion script's classifier call. D2 IS-NOT: runtime coaching code (ModelRetryMiddleware, RetryPolicy in use). D4 OCCURRENCE: a retry written by hand for a plain (non-agent) call. D4 ESCAPE: the pattern check runs only on editor writes, never on the staged tree. D5 FIX (proposed, not built): the model client's own max_retries for the classifier, or Runnable.with_retry; and the commit guard applies every deprecated pattern to staged files. D7 PREVENT: the commit-time pattern check (no new pattern line needed: pattern-9 already matches).",
+   "symptom": "A HAND-WRITTEN RETRY LOOP AROUND AN LLM CALL ESCAPED THE PATTERN HOOK, AND THE PATTERNS ARE NOT APPLIED AT COMMIT. Framework conformance audit (founder ruling 2026-10-12): scripts/ingest_knowledge.py:496 (_classify, committed 82b9251, 2026-09-27) loops `for attempt in range(CLASSIFIER_MAX_ATTEMPTS)` around `_classifier().invoke(...)` — pattern-9-hand-rolled-llm-retry matches it. The PreToolUse hook applies .claude/config/deprecated_patterns.yaml only to Write/Edit/MultiEdit; an edit made through Bash or a script is never checked, and the commit guard does not apply the patterns to staged code (it only checks the file's rule citations). A scan of the tracked tree today: 3 hits, this one real. 8D — D2 IS: the ingestion script's classifier call. D2 IS-NOT: runtime coaching code (ModelRetryMiddleware, RetryPolicy in use). D4 OCCURRENCE: a retry written by hand for a plain (non-agent) call. D4 ESCAPE: the pattern check runs only on editor writes, never on the staged tree. D5 FIX (proposed, not built): the model client's own max_retries for the classifier, or Runnable.with_retry; and the commit guard applies every deprecated pattern to staged files. D7 PREVENT: the commit-time pattern check (no new pattern line needed: pattern-9 already matches). | CLOSED 2026-10-20 (founder ruling): 5335617 (fix(tooling): G-165) — the deprecated patterns are applied at commit to every line a commit adds.",
    "requirement": [],
    "feature": [],
    "lane": [
