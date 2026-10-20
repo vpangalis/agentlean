@@ -65,8 +65,10 @@ def _record(name: str, c0: int, turns: list[dict[str, Any]], checks: dict[str, b
 
 
 def _turn(n: int, why: str, http: int, body: dict[str, Any], seconds: float) -> dict[str, Any]:
+    from scripts.define_runthrough import card_record
     return {"n": n, "why": why, "http": http, "seconds": seconds, "move": body.get("move"),
-            "field": body.get("move_field"), "answer": str(body.get("answer") or body.get("detail") or "")[:400]}
+            "field": body.get("move_field"), "answer": str(body.get("answer") or body.get("detail") or "")[:400],
+            "readback_card": card_record(body.get("readback_card"))}     # item 5, 2026-10-20 (DEF-231)
 
 
 def scenario_b_crash(client: Any) -> dict[str, Any]:

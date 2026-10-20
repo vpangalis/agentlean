@@ -439,3 +439,25 @@ def test_run_most_coaching_turns_are_graded(run) -> None:
     without = [t["n"] for t in coached if not (t.get("grader") or {}).get("status")]
     assert coached and not without, ("coached replies with no logged grader verdict", without)
     assert "grader_findings" in run["summary"], "the record has no Grader findings section"
+
+
+def test_run_every_read_back_records_its_card(run) -> None:
+    """DEF-231 — founder prompt 2026-10-20, item 5: the run-through records, per turn, the read-back card the Belt
+    saw (ADR-0093) — each row's criterion, label, value, source and met, and the Confirm state with what is
+    missing — so a card's rows can be judged from the record, never re-derived from the code. Every read-back of
+    a templated element carries its card; Confirm is open only with nothing missing; a Confirm that stored its
+    element followed a card whose Confirm was open."""
+    from backend.phases.define.templates import TEMPLATES
+    turns = run["turns"]
+    backs = [t for t in turns if t.get("move") == "read_back" and (t.get("reply") or {}).get("move_field") in TEMPLATES]
+    assert backs, "no read-back of a templated element in the record"
+    for t in backs:
+        card = t.get("readback_card")
+        assert card, (t["n"], "a read-back turn without its card in the record")
+        assert card["field"] in TEMPLATES and card["rows"], (t["n"], card)
+        for row in card["rows"]:
+            assert {"id", "label", "source", "met"} <= set(row), (t["n"], row)
+        assert isinstance(card["confirm"], bool) and (not card["confirm"] or not card["missing"]), (t["n"], card)
+    for before, after in zip(turns, turns[1:]):
+        if after.get("action") == "confirm" and after.get("move") == "store_and_advance" and before.get("readback_card"):
+            assert before["readback_card"]["confirm"], (after["n"], "stored after a card whose Confirm was closed")

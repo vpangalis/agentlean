@@ -8129,6 +8129,43 @@
    "stage": "coached",
    "layer": "coaching",
    "pilot": true
+  },
+  {
+   "id": "DEF-231",
+   "description": "The live run-through records, per turn, the read-back card the Belt saw — each row's criterion, label, value, source and met, and the Confirm state with what is missing (ADR-0093; founder prompt 2026-10-20 item 5)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-063",
+    "DEF-195"
+   ],
+   "test": "backend/tests/test_define_runthrough.py::test_run_every_read_back_records_its_card",
+   "sources": {
+    "architecture": [
+     "ADR-0093 Element templates and the Gate view"
+    ],
+    "procedure": [
+     "founder prompt 2026-10-20 item 5"
+    ],
+    "code": [
+     "agent-improve/scripts/define_runthrough.py::card_record"
+    ],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R1",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api",
+   "pilot": true
   }
  ]
 }

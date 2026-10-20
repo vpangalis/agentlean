@@ -277,6 +277,7 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
                                              "progress", "move", "move_field", "grader_warning",
                                              "sipoc_diagram", "visualisation")},
             "gate_status": rb.get("gate_status"),
+            "readback_card": card_record(rb.get("readback_card")),   # item 5, 2026-10-20 (DEF-231)
             "fallback": bool(mrec.get("fallback")),
             # G-139 (founder ruling 2, 2026-09-30): what the coach returned when the call limit ended it.
             "limit": mrec.get("limit"),
@@ -634,6 +635,19 @@ def t23_check(client: Any, case_id: str) -> dict[str, Any]:
     return {"store_written": bool(doc), "fields_in_store": len(doc), "differ_from_case": differ,
             "second_approval_http": again.status_code, "unchanged_after_second": doc2 == doc and structured2 == structured,
             "passed": bool(doc) and not differ and doc2 == doc and structured2 == structured}
+
+
+def card_record(card: Any) -> dict[str, Any] | None:
+    """Founder prompt 2026-10-20, item 5 (DEF-231): the read-back card a turn's reply carried (ADR-0093), as the
+    Belt saw it — each row's criterion, label, value, source and whether it is met, and the Confirm state with what
+    is still missing. None when the reply carried no card."""
+    if not isinstance(card, dict):
+        return None
+    return {"field": card.get("field"), "n": card.get("n"), "met": card.get("met"), "total": card.get("total"),
+            "rows": [{k: r.get(k) for k in ("id", "label", "required", "met", "value", "source", "formula")
+                      if k in r} for r in card.get("rows") or [] if isinstance(r, dict)],
+            "confirm": bool(card.get("confirm")), "missing": list(card.get("missing") or []),
+            "statement": card.get("statement"), "answer": card.get("answer"), "upload": card.get("upload")}
 
 
 def grader_entry(case_id: str, belt: str) -> dict[str, Any] | None:
