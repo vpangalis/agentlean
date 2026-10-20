@@ -48,6 +48,7 @@ every session. Every other hand-written section of this file is dated history.*
 | **Open blocker** | None. G-236 "Uploaded team list loses its training column" closed (7f3c419; live scenario (e) passes in run 085604) |
 | **This prompt** (2026-10-20) | Items 0–6 landed; item 7's run-through landed (043895a), its ADR-0087 merge NOT done — the branch is the flag-off spike and DEF-170's test is not written (founder to rule); follow-ups a–c landed (6e609e3, 0ccfbe0) — `git log --since=2026-10-20` |
 | **Owed next** | 1. Replay of the founder's 15 Oct transcript as a session-start check (R-B change 4) · 2. D7s owed under R-B: path_test, join, assumption, claim, xfail_mask (board's Defect loop card) · 3. Item-28 ADR on question turns and calculations — before stage 3 · 4. Stages 3 and 4 · 5. Founder live test 2 · 6. The one ARCHITECTURE.md update after Define · Backlog (R-A): rows 18 and 35 skip on the run-through case; first Measure turn 31.7 s over its 30 s watch line |
+| **Owed next — testing ADR** | Testing ADR 'Agent Improve is tested by use case' (replaces ARCHITECTURE.md §6) — drafted by Desktop from https://claude.ai/artifact/UHaQ67EN93ifiEPWCQ46h9 (sections 1–10). It is the D7 for escape classes path_test, join, assumption and xfail_mask. |
 
 ## ⇒ WHERE THE PLAN LIVES
 
