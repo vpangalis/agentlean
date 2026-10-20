@@ -60,6 +60,11 @@ def problems(features: list[dict]) -> list[str]:
         # The pilot cut (board redesign, 2026-09-30): absent until the founder rules it, then a bool.
         if "pilot" in f and not isinstance(f["pilot"], bool):
             out.append(f"{fid}: pilot {f['pilot']!r} is not true or false")
+        # Founder ruling 2026-10-20: the fixed package (P1..P35) and the merge marker.
+        if "package" in f and not (isinstance(f["package"], str) and f["package"][:1] == "P" and f["package"][1:].isdigit()):
+            out.append(f"{fid}: package {f.get('package')!r} is not P<n>")
+        if f.get("merged_into") and f["merged_into"] not in {g["id"] for g in features}:
+            out.append(f"{fid}: merged_into {f['merged_into']!r} names no feature")
         o = f.get("priority_override", "missing")
         if o == "missing":
             out.append(f"{fid}: no priority_override field (null, or {{rank_tier, reason}})")
@@ -111,8 +116,9 @@ def rank(features: list[dict] | None = None, res: dict | None = None,
     res = F.results() if res is None else res
     reqs = F.requirements() if reqs is None else reqs
     st = F.status(features, res)
-    failing = {i for i, s in st.items() if s == "failing"}
     by_id = {f["id"]: f for f in features}
+    # A merged feature (founder ruling 2026-10-20) is ranked through the feature it was merged into.
+    failing = {i for i, s in st.items() if s == "failing" and not by_id[i].get("merged_into")}
     dependents = _dependents(features, failing)
     hold = held(features, reqs)
 

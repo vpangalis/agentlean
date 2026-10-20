@@ -182,8 +182,14 @@ def shallow(features: list[dict]) -> set[str]:
     return {w["name"] for w in flagged if "drives neither" in w["finding"]}
 
 
+def counted(feature: dict) -> bool:
+    """Founder ruling 2026-10-20: a feature counts toward Define only when its phase is Define and it was not
+    merged into another (`merged_into`) — DEF-227 and DEF-228 (phase analyse) and the merged ones do not."""
+    return feature.get("phase", "define") == "define" and not feature.get("merged_into")
+
+
 def summary(features: list[dict] | None = None, res: dict | None = None) -> dict:
-    features = load() if features is None else features
+    features = [f for f in (load() if features is None else features) if counted(f)]
     res = results() if res is None else res
     st = status(features, res)
     for fid in shallow(features):

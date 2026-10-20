@@ -421,7 +421,7 @@ def data() -> dict:
                      "stage": f.get("stage"), "layer": f.get("layer"), "phase": f.get("phase", "define"),
                      "status": status, "awaiting": f["id"] in waits, "run_criterion": f["id"] in run_wait, "tier": tiers.get(f["id"]), "rank": r.get("rank"),
                      "held": hold.get(f["id"]), "not_e2e": not_e2e, "stub": stub, "requirement": f["requirement"],
-                     "moscow": req.get("moscow"), "hidden": req.get("moscow") == "Won't-now", "pilot": f.get("pilot"),
+                     "moscow": req.get("moscow"), "hidden": req.get("moscow") == "Won't-now" or not features.counted(f), "pilot": f.get("pilot"),
                      "test": f["test"], "depends_on": f["depends_on"], "unblocks": sorted(dependents.get(f["id"], ())),
                      "defects": defect_of.get(f["id"], [])})
     open_ids = {x["id"] for x in rows if x["status"] != "green"}
@@ -625,7 +625,7 @@ def render(d: dict) -> str:
                 f"data-tip='{E(f['id'])} — {E(one_line(f['description']))}' aria-label='{E(f['id'])}'></button>"
                 for f in mine) + "</div>")
     hidden = ("" if not c["hidden"] else
-              f"<span data-key='hidden'>not shown: {len(c['hidden'])} feature(s) deferred (Won't-now) — {E(', '.join(c['hidden']))}</span>")
+              f"<span data-key='hidden'>not shown: {len(c['hidden'])} feature(s): Won't-now, another phase, or merged into another — {E(', '.join(c['hidden']))}</span>")
 
     def item(i: str) -> str:
         f = by_id[i]

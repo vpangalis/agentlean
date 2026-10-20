@@ -33,7 +33,8 @@ FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane"
           "requirement", "belt_impact", "rework_risk", "effort", "priority_override",
           "phase", "stage", "layer"}
 #: Carried by M2 features only: the founder's pilot cut (2026-09-30), true | false (rank.py --check).
-OPTIONAL = {"pilot", "run_criteria"}
+#: `package` and `merged_into`: founder ruling 2026-10-20 (fixed packages; merged duplicates).
+OPTIONAL = {"pilot", "run_criteria", "package", "merged_into"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -366,6 +367,28 @@ def test_a_work_package_takes_same_area_features_in_rank_order_up_to_five_points
     fs[2]["sources"] = {"code": ["agent-improve/ui/index.html"]}      # A3 another area now
     got = rank.packages(fs, rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must")))["A"]
     assert got["features"] == ["A1"]                                  # it ends the package
+
+
+def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:
+    """Founder ruling 2026-10-20: only phase-Define features that were not merged into another count toward
+    Define; a merged feature is not ranked (its first carries it); `package` is P<n> and `merged_into` names a
+    feature. On the real list: DEF-227 and DEF-228 (phase analyse) and the four merged features are left out."""
+    import rank
+    fs = [{**_rf(i, "R1"), "clause": "c", "sources": {}, "provenance": {"capability_rows": []}}
+          for i in ("A1", "A2", "A3")]
+    fs[1]["phase"], fs[2]["merged_into"] = "analyse", "A1"
+    assert [f["id"] for f in fs if F.counted(f)] == ["A1"]
+    s = F.summary(fs, {"outcomes": {}})
+    assert s["total"] == 1 and s["lanes"]["A"]["total"] == 1
+    assert [r["id"] for r in rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must"))] == ["A1", "A2"]
+    bad = rank.problems([{**f, "belt_impact": "none", "rework_risk": "low", "effort": "S", "phase": "define",
+                          "stage": "coached", "layer": "api"} for f in
+                         ({**fs[0], "package": "pilot"}, {**fs[2], "merged_into": "X-9"})])
+    assert any("package 'pilot' is not P<n>" in b for b in bad) and any("merged_into 'X-9'" in b for b in bad)
+    real = F.load()
+    assert sorted(f["id"] for f in real if not F.counted(f)) == [
+        "DEF-089", "DEF-090", "DEF-092", "DEF-106", "DEF-227", "DEF-228"]
+    assert {f["merged_into"] for f in real if f.get("merged_into")} == {"DEF-200", "DEF-213", "DEF-204", "DEF-214"}
 
 
 def test_a_wallclock_test_is_read_from_the_run_through_stage(monkeypatch) -> None:

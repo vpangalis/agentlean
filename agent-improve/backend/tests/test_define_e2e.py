@@ -996,23 +996,6 @@ def test_the_define_report_has_the_visual_of_every_section(env) -> None:
     assert "owner" not in card[7].lower(), "Define names no owner (R5 amended 2026-10-12)"
 
 
-def test_project_status_figures_are_computed_once_by_the_backend() -> None:
-    """DEF-089 — Project status (phase, days since creation, target date and days remaining, days per phase, open and awaiting items) is computed once by the backend a"""
-    _not_written('DEF-089')
-
-
-def test_the_welcome_summary_is_built_in_code_from_confirmed_values() -> None:
-    """DEF-090 — The coaching page greets the Belt by name and summarises confirmed and open elements, assembled in code without a model call; replaces the browser rec"""
-    _not_written('DEF-090')
-
-
-
-def test_the_screen_says_what_is_happening_while_a_turn_runs() -> None:
-    """DEF-092 — While a turn runs the Belt sees its progress steps in plain words (node-level updates on
-    /ask/stream, step 10.1), never a generic 'thinking'; no reply text before coherence and grading ran."""
-    _not_written('DEF-092')
-
-
 def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner) -> None:
     """G-157 / DEF-093 (founder ruling 2026-10-12, option B; ADR-0080), through the routes and graph:
     every model role's client has a request timeout; a judge whose call runs out keeps the coach's
@@ -1274,11 +1257,6 @@ def test_the_creator_is_the_project_lead_and_alone_manages_the_team() -> None:
 def test_the_lead_role_can_be_handed_over_and_is_recorded() -> None:
     """DEF-105 — The project lead can hand the role to another team member; the handover is recorded in the audit trail."""
     _not_written('DEF-105')
-
-
-def test_the_overview_text_is_served_from_the_skill_files() -> None:
-    """DEF-106 — The overview page explains the method and each phase from a 'Team overview' section of that phase's skill file, served by the backend; no overview tex"""
-    _not_written('DEF-106')
 
 
 def test_the_belt_can_pick_any_available_element_or_take_the_recommended_one() -> None:
@@ -6051,7 +6029,9 @@ def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, 
 
 
 def test_the_welcome_is_built_by_the_server() -> None:
-    """DEF-200 — The welcome is built by the server from the phase state, greets the Belt by name, laid out in blocks (G-201; founder test findings 11, 15)"""
+    """DEF-200 — The welcome is built by the server from the phase state, greets the Belt by name, laid out in blocks (G-201; founder test findings 11, 15)
+    Merged here (founder ruling 2026-10-20): DEF-090 — The coaching page greets the Belt by name and summarises confirmed and open elements, assembled in code without a model call; replaces the browser rec
+    """
     _not_written('DEF-200')
 
 
@@ -6071,7 +6051,9 @@ def test_the_sidebar_highlights_the_current_element() -> None:
 
 
 def test_one_progress_figure_everywhere() -> None:
-    """DEF-204 — One progress figure everywhere: 'n of 13 confirmed' (G-205; founder test findings 45)"""
+    """DEF-204 — One progress figure everywhere: 'n of 13 confirmed' (G-205; founder test findings 45)
+    Merged here (founder ruling 2026-10-20): DEF-089 — Project status (phase, days since creation, target date and days remaining, days per phase, open and awaiting items) is computed once by the backend a
+    """
     _not_written('DEF-204')
 
 
@@ -6116,12 +6098,16 @@ def test_the_completion_card_and_the_decision_banner() -> None:
 
 
 def test_progress_steps_are_shown_while_a_turn_runs() -> None:
-    """DEF-213 — While a turn runs the Belt sees a visible indicator and plain-words steps (G-214; founder test findings 47)"""
+    """DEF-213 — While a turn runs the Belt sees a visible indicator and plain-words steps (G-214; founder test findings 47)
+    Merged here (founder ruling 2026-10-20): DEF-092 — While a turn runs the Belt sees its progress steps in plain words (node-level updates on /ask/stream, step 10.1), never a generic 'thinking'; no reply text before coherence and grading ran.
+    """
     _not_written('DEF-213')
 
 
 def test_the_overview_is_served_from_the_skill() -> None:
-    """DEF-214 — The Define overview is served from the skill and says 13 elements and that the project lead approves (G-215; founder test findings 9, 10)"""
+    """DEF-214 — The Define overview is served from the skill and says 13 elements and that the project lead approves (G-215; founder test findings 9, 10)
+    Merged here (founder ruling 2026-10-20): DEF-106 — The overview page explains the method and each phase from a 'Team overview' section of that phase's skill file, served by the backend; no overview tex
+    """
     _not_written('DEF-214')
 
 

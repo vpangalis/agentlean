@@ -1,5 +1,5 @@
 {
- "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). The order of work is COMPUTED, never stored (ADR-0058, brief Part F3): tools/control_board/rank.py ranks every failing feature from its requirement's MoSCoW and the feature's belt_impact (dead_end | wrong_data | data_loss | degraded | none), rework_risk (high | low), effort (S | M | L), depends_on and priority_override (null, or {rank_tier, reason} — founder only). Edit a feature's description, test or sources in place; never add a status. phase (define | measure | …), stage (open_case | coached | report | approve | record_written | next_phase — where in the Belt's journey) and layer (screen | api | coaching | gate | persistence | platform) place each feature on the board's value stream (brief Part F7). PILOT (RETIRED, founder ruling 2026-10-20: Define is done when every Define feature passes, except Won't-now; Measure starts only then): the `pilot` field is kept on each feature and still type-checked (true | false, rank.py), but nothing reads it — the board's M2 is one milestone.",
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). The order of work is COMPUTED, never stored (ADR-0058, brief Part F3): tools/control_board/rank.py ranks every failing feature from its requirement's MoSCoW and the feature's belt_impact (dead_end | wrong_data | data_loss | degraded | none), rework_risk (high | low), effort (S | M | L), depends_on and priority_override (null, or {rank_tier, reason} — founder only). Edit a feature's description, test or sources in place; never add a status. phase (define | measure | …), stage (open_case | coached | report | approve | record_written | next_phase — where in the Belt's journey) and layer (screen | api | coaching | gate | persistence | platform) place each feature on the board's value stream (brief Part F7). PILOT (RETIRED, founder ruling 2026-10-20: Define is done when every Define feature passes, except Won't-now; Measure starts only then): the `pilot` field is kept on each feature and still type-checked (true | false, rank.py), but nothing reads it — the board's M2 is one milestone. PACKAGES (founder ruling 2026-10-20: work runs in fixed packages, one prompt = one package): every failing Define feature carries `package` (P1..P35) as the founder listed it; rank.py chooses the package that holds a lane's top-ranked failing feature (ADR-0058 note). MERGED (same ruling): a feature folded into another carries `merged_into` (its id), shares that feature's test, and is left out of the Define count and the rank. DEFINE COUNT (same ruling): only features with phase \"define\" and no `merged_into` are counted (features.counted).",
  "features": [
   {
    "id": "DEF-001",
@@ -655,7 +655,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": false,
+   "package": "P34"
   },
   {
    "id": "DEF-016",
@@ -1029,7 +1030,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": false,
+   "package": "P8"
   },
   {
    "id": "DEF-024",
@@ -1778,7 +1780,8 @@
    "pilot": false,
    "run_criteria": [
     "backend/tests/test_define_runthrough.py::test_run_scenario_a_a_contradiction_pauses_and_resumes"
-   ]
+   ],
+   "package": "P33"
   },
   {
    "id": "DEF-041",
@@ -2021,7 +2024,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "gate",
-   "pilot": false
+   "pilot": false,
+   "package": "P7"
   },
   {
    "id": "DEF-046",
@@ -2318,7 +2322,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": false
+   "pilot": false,
+   "package": "P20"
   },
   {
    "id": "DEF-053",
@@ -2566,7 +2571,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": false,
+   "package": "P11"
   },
   {
    "id": "DEF-058",
@@ -2651,7 +2657,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": false
+   "pilot": false,
+   "package": "P23"
   },
   {
    "id": "DEF-060",
@@ -2749,7 +2756,8 @@
    "phase": "define",
    "stage": "record_written",
    "layer": "persistence",
-   "pilot": false
+   "pilot": false,
+   "package": "P2"
   },
   {
    "id": "DEF-061",
@@ -2880,7 +2888,8 @@
    "phase": "define",
    "stage": "next_phase",
    "layer": "gate",
-   "pilot": false
+   "pilot": false,
+   "package": "P28"
   },
   {
    "id": "DEF-063",
@@ -3010,7 +3019,8 @@
    "phase": "define",
    "stage": "next_phase",
    "layer": "api",
-   "pilot": true
+   "pilot": true,
+   "package": "P35"
   },
   {
    "id": "DEF-065",
@@ -3685,7 +3695,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P8"
   },
   {
    "id": "DEF-084",
@@ -3807,7 +3818,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "report",
-   "layer": "screen"
+   "layer": "screen",
+   "package": "P18"
   },
   {
    "id": "DEF-088",
@@ -3873,14 +3885,15 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": false
+   "pilot": false,
+   "package": "P16"
   },
   {
    "id": "DEF-089",
-   "description": "Project status (phase, days since creation, target date and days remaining, days per phase, open and awaiting items) is computed once by the backend and shown identically everywhere.",
+   "description": "Merged into DEF-204 (founder ruling 2026-10-20) — Project status (phase, days since creation, target date and days remaining, days per phase, open and awaiting items) is computed once by the backend and shown identically everywhere.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_project_status_figures_are_computed_once_by_the_backend",
+   "test": "backend/tests/test_define_e2e.py::test_one_progress_figure_everywhere",
    "sources": {
     "architecture": [],
     "procedure": [],
@@ -3900,14 +3913,15 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "merged_into": "DEF-204"
   },
   {
    "id": "DEF-090",
-   "description": "The coaching page greets the Belt by name and summarises confirmed and open elements, assembled in code without a model call; replaces the browser recap, the stubbed banner and /context.",
+   "description": "Merged into DEF-200 (founder ruling 2026-10-20) — The coaching page greets the Belt by name and summarises confirmed and open elements, assembled in code without a model call; replaces the browser recap, the stubbed banner and /context.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_the_welcome_summary_is_built_in_code_from_confirmed_values",
+   "test": "backend/tests/test_define_e2e.py::test_the_welcome_is_built_by_the_server",
    "sources": {
     "architecture": [],
     "procedure": [],
@@ -3927,7 +3941,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "merged_into": "DEF-200"
   },
   {
    "id": "DEF-091",
@@ -3959,10 +3974,10 @@
   },
   {
    "id": "DEF-092",
-   "description": "While a turn runs the Belt sees its progress steps in plain words — node-level updates through LangGraph streaming on the planned /ask/stream route (step 10.1) — never a generic 'thinking'; no reply text is shown before coherence and grading have run (founder ruling 2026-10-12).",
+   "description": "Merged into DEF-213 (founder ruling 2026-10-20) — While a turn runs the Belt sees its progress steps in plain words — node-level updates through LangGraph streaming on the planned /ask/stream route (step 10.1) — never a generic 'thinking'; no reply text is shown before coherence and grading have run (founder ruling 2026-10-12).",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_the_screen_says_what_is_happening_while_a_turn_runs",
+   "test": "backend/tests/test_define_e2e.py::test_progress_steps_are_shown_while_a_turn_runs",
    "sources": {
     "architecture": [],
     "procedure": [
@@ -3985,7 +4000,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": false
+   "pilot": false,
+   "merged_into": "DEF-213"
   },
   {
    "id": "DEF-093",
@@ -4080,7 +4096,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "package": "P24"
   },
   {
    "id": "DEF-096",
@@ -4108,7 +4125,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "platform",
-   "pilot": false
+   "pilot": false,
+   "package": "P32"
   },
   {
    "id": "DEF-097",
@@ -4167,7 +4185,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "package": "P9"
   },
   {
    "id": "DEF-099",
@@ -4261,7 +4280,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "record_written",
-   "layer": "screen"
+   "layer": "screen",
+   "package": "P18"
   },
   {
    "id": "DEF-102",
@@ -4289,7 +4309,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "api",
-   "pilot": false
+   "pilot": false,
+   "package": "P25"
   },
   {
    "id": "DEF-103",
@@ -4317,7 +4338,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "api",
-   "pilot": false
+   "pilot": false,
+   "package": "P5"
   },
   {
    "id": "DEF-104",
@@ -4345,7 +4367,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "api",
-   "pilot": false
+   "pilot": false,
+   "package": "P4"
   },
   {
    "id": "DEF-105",
@@ -4374,14 +4397,15 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "api"
+   "layer": "api",
+   "package": "P4"
   },
   {
    "id": "DEF-106",
-   "description": "The overview page explains the method and each phase from a 'Team overview' section of that phase's skill file, served by the backend; no overview text typed in the UI.",
+   "description": "Merged into DEF-214 (founder ruling 2026-10-20) — The overview page explains the method and each phase from a 'Team overview' section of that phase's skill file, served by the backend; no overview text typed in the UI.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_the_overview_text_is_served_from_the_skill_files",
+   "test": "backend/tests/test_define_e2e.py::test_the_overview_is_served_from_the_skill",
    "sources": {
     "architecture": [],
     "procedure": [],
@@ -4401,7 +4425,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "screen"
+   "layer": "screen",
+   "merged_into": "DEF-214"
   },
   {
    "id": "DEF-107",
@@ -4430,7 +4455,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "package": "P22"
   },
   {
    "id": "DEF-108",
@@ -4551,7 +4577,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "api"
+   "layer": "api",
+   "package": "P12"
   },
   {
    "id": "DEF-110",
@@ -4580,7 +4607,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "package": "P11"
   },
   {
    "id": "DEF-111",
@@ -4607,7 +4635,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "package": "P26"
   },
   {
    "id": "DEF-112",
@@ -4634,7 +4663,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "screen"
+   "layer": "screen",
+   "package": "P26"
   },
   {
    "id": "DEF-113",
@@ -4661,7 +4691,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "open_case",
-   "layer": "screen"
+   "layer": "screen",
+   "package": "P24"
   },
   {
    "id": "DEF-114",
@@ -4689,7 +4720,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "screen",
-   "pilot": false
+   "pilot": false,
+   "package": "P25"
   },
   {
    "id": "DEF-115",
@@ -4753,7 +4785,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "api",
-   "pilot": false
+   "pilot": false,
+   "package": "P5"
   },
   {
    "id": "DEF-117",
@@ -4841,7 +4874,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "persistence",
-   "pilot": false
+   "pilot": false,
+   "package": "P6"
   },
   {
    "id": "DEF-120",
@@ -4869,7 +4903,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "persistence",
-   "pilot": false
+   "pilot": false,
+   "package": "P12"
   },
   {
    "id": "DEF-121",
@@ -4896,7 +4931,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "package": "P28"
   },
   {
    "id": "DEF-122",
@@ -4985,7 +5021,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "pilot": false
+   "pilot": false,
+   "package": "P27"
   },
   {
    "id": "DEF-125",
@@ -5012,7 +5049,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "package": "P27"
   },
   {
    "id": "DEF-126",
@@ -5039,7 +5077,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "persistence"
+   "layer": "persistence",
+   "package": "P28"
   },
   {
    "id": "DEF-127",
@@ -5067,7 +5106,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "pilot": false
+   "pilot": false,
+   "package": "P2"
   },
   {
    "id": "DEF-128",
@@ -5094,7 +5134,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "package": "P30"
   },
   {
    "id": "DEF-129",
@@ -5149,7 +5190,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "package": "P30"
   },
   {
    "id": "DEF-131",
@@ -5177,7 +5219,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "gate",
-   "pilot": false
+   "pilot": false,
+   "package": "P7"
   },
   {
    "id": "DEF-132",
@@ -5204,7 +5247,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "package": "P13"
   },
   {
    "id": "DEF-133",
@@ -5232,7 +5276,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": false,
+   "package": "P13"
   },
   {
    "id": "DEF-134",
@@ -5292,7 +5337,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "persistence",
-   "pilot": false
+   "pilot": false,
+   "package": "P12"
   },
   {
    "id": "DEF-136",
@@ -5319,7 +5365,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "platform"
+   "layer": "platform",
+   "package": "P8"
   },
   {
    "id": "DEF-137",
@@ -5384,7 +5431,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "gate",
-   "pilot": false
+   "pilot": false,
+   "package": "P7"
   },
   {
    "id": "DEF-139",
@@ -5501,7 +5549,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "pilot": false
+   "pilot": false,
+   "package": "P29"
   },
   {
    "id": "DEF-143",
@@ -5533,7 +5582,8 @@
    "priority_override": null,
    "phase": "define",
    "stage": "coached",
-   "layer": "coaching"
+   "layer": "coaching",
+   "package": "P31"
   },
   {
    "id": "DEF-144",
@@ -6241,7 +6291,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "pilot": false
+   "pilot": false,
+   "package": "P13"
   },
   {
    "id": "DEF-166",
@@ -6366,7 +6417,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P14"
   },
   {
    "id": "DEF-177",
@@ -6396,7 +6448,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P14"
   },
   {
    "id": "DEF-178",
@@ -6426,7 +6479,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P14"
   },
   {
    "id": "DEF-179",
@@ -6456,7 +6510,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P15"
   },
   {
    "id": "DEF-180",
@@ -6486,7 +6541,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P15"
   },
   {
    "id": "DEF-181",
@@ -6516,7 +6572,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P16"
   },
   {
    "id": "DEF-182",
@@ -6546,7 +6603,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P15"
   },
   {
    "id": "DEF-183",
@@ -6708,7 +6766,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P20"
   },
   {
    "id": "DEF-188",
@@ -6806,7 +6865,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P17"
   },
   {
    "id": "DEF-191",
@@ -7040,7 +7100,8 @@
    "phase": "define",
    "stage": "report",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P17"
   },
   {
    "id": "DEF-198",
@@ -7136,7 +7197,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P21"
   },
   {
    "id": "DEF-201",
@@ -7168,7 +7230,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P20"
   },
   {
    "id": "DEF-202",
@@ -7200,7 +7263,8 @@
    "phase": "define",
    "stage": "approve",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P19"
   },
   {
    "id": "DEF-203",
@@ -7232,7 +7296,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P22"
   },
   {
    "id": "DEF-204",
@@ -7264,7 +7329,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P22"
   },
   {
    "id": "DEF-205",
@@ -7298,7 +7364,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "api",
-   "pilot": true
+   "pilot": true,
+   "package": "P3"
   },
   {
    "id": "DEF-206",
@@ -7330,7 +7397,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P3"
   },
   {
    "id": "DEF-207",
@@ -7362,7 +7430,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P3"
   },
   {
    "id": "DEF-208",
@@ -7396,7 +7465,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P11"
   },
   {
    "id": "DEF-209",
@@ -7430,7 +7500,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P3"
   },
   {
    "id": "DEF-210",
@@ -7463,7 +7534,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P10"
   },
   {
    "id": "DEF-211",
@@ -7495,7 +7567,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P10"
   },
   {
    "id": "DEF-212",
@@ -7527,7 +7600,8 @@
    "phase": "define",
    "stage": "approve",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P19"
   },
   {
    "id": "DEF-213",
@@ -7559,7 +7633,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P23"
   },
   {
    "id": "DEF-214",
@@ -7591,7 +7666,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P21"
   },
   {
    "id": "DEF-215",
@@ -7689,7 +7765,8 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P24"
   },
   {
    "id": "DEF-218",
@@ -7754,7 +7831,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "pilot": true
+   "pilot": true,
+   "package": "P6"
   },
   {
    "id": "DEF-220",
@@ -7788,7 +7866,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P8"
   },
   {
    "id": "DEF-221",
@@ -7822,7 +7901,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P1"
   },
   {
    "id": "DEF-222",
@@ -7856,7 +7936,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P1"
   },
   {
    "id": "DEF-223",
@@ -7888,7 +7969,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "screen",
-   "pilot": true
+   "pilot": true,
+   "package": "P1"
   },
   {
    "id": "DEF-224",
@@ -7920,7 +8002,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": true
+   "pilot": true,
+   "package": "P9"
   },
   {
    "id": "DEF-225",

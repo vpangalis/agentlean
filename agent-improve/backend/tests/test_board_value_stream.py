@@ -44,10 +44,12 @@ def _blob(page: str) -> dict:
 
 
 def test_the_grid_tile_count_equals_the_registry(board) -> None:
-    """One tile per registry feature; only a feature whose requirement is Won't-now is not shown."""
+    """One tile per registry feature; not shown: a feature whose requirement is Won't-now, and one the Define count
+    leaves out (another phase, or merged into another — founder ruling 2026-10-20)."""
     d, page = board
     feats, reqs = F.load(), F.requirements()
-    deferred = {f["id"] for f in feats if (reqs.get(f["requirement"]) or {}).get("moscow") == "Won't-now"}
+    deferred = {f["id"] for f in feats if (reqs.get(f["requirement"]) or {}).get("moscow") == "Won't-now"
+                or not F.counted(f)}
     tiles = [fid for _, fid, _, _ in _TILE.findall(page)]
     assert sorted(tiles) == sorted(f["id"] for f in feats if f["id"] not in deferred)
     assert len(tiles) == d["count"]["tiles"] == len(feats) - len(deferred)
@@ -88,7 +90,7 @@ def test_every_tile_is_in_all_of_define_and_in_at_most_one_other_milestone(board
     for _, fid, ms, _ in _TILE.findall(page):
         keys = ms.split()
         assert keys[0] == "all" and len(keys) <= 2, fid
-    tier_of = {f["id"]: f["tier"] for f in d["features"]}
+    tier_of = {f["id"]: f["tier"] for f in d["features"] if not f["hidden"]}
     ones = {x["key"]: x for x in d["count"]["milestones"]}
     assert set(ones["M1"]["ids"]) == {i for i, t in tier_of.items() if t == 1}
     assert set(ones["M3"]["ids"]) == {i for i, t in tier_of.items() if t == 3}
