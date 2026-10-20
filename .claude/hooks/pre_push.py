@@ -103,9 +103,30 @@ def refusals(updates: list[tuple[str, str, str, str]], source_of, passed: set[st
     return out
 
 
+def ensure_full_runs(updates: list[tuple[str, str, str, str]], source_of, passed: set[str], run) -> list[str]:
+    """DEF-247 (founder ruling 2026-10-20, hook time a): the full suite runs once per package, before its push — a
+    pushed tip whose source has no passing full run gets one here (`run(sha)` -> exit code; the run records itself in
+    the ledger), instead of the push being refused. What still has no passing run is returned, as refusals."""
+    for local_ref, local_sha, remote_ref, remote_sha in updates:
+        if local_sha != ZERO and source_of(local_sha) not in passed and run(local_sha) == 0:
+            passed = passed | {source_of(local_sha)}
+    return refusals(updates, source_of, passed)
+
+
+def _run_full_suite(sha: str) -> int:
+    """The full suite on a commit's tree, in the second worktree (staged_tree.run_suite records the verdict)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import staged_tree
+    print(f"  [pre-push] no passing full run for {sha[:10]} — running the full suite on its tree (once per package)…",
+          file=sys.stderr)
+    code, out = staged_tree.run_suite(tree=_git("rev-parse", f"{sha}^{{tree}}"))
+    print(f"  [pre-push] {out.strip().splitlines()[-1] if out.strip() else ''}", file=sys.stderr)
+    return code
+
+
 def main() -> int:
     updates = [tuple(line.split()) for line in sys.stdin.read().splitlines() if len(line.split()) == 4]
-    bad = refusals(updates, source_id, passed_sources())  # type: ignore[arg-type]
+    bad = ensure_full_runs(updates, source_id, passed_sources(), _run_full_suite)  # type: ignore[arg-type]
     if not bad:
         if updates:
             print(f"  [pre-push] PASS — {len(updates)} ref(s), each on a source whose full suite passed", file=sys.stderr)
