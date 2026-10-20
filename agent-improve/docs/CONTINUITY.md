@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 100 of 223 Define features pass (core 97 of 214) — A 37/88 · B 32/41 · C 24/66 · integrator 7/28 · M1: 43 proven · 0 awaiting fresh run · 28 open |
+| **Headline** | 99 of 223 Define features pass, 31 more proven on earlier code (core 96 of 214) — A 36/88 · B 32/41 · C 24/66 · integrator 7/28 · M1: 43 proven · 23 awaiting fresh run · 6 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
 | **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | current |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-10-20 |

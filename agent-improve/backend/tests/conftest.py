@@ -520,6 +520,21 @@ def _clean_content_safety(request, monkeypatch):
     monkeypatch.setattr(content_safety, "_post", clean)
 
 
+@pytest.fixture(autouse=True)
+def _degraded_reply_raises(request, monkeypatch):
+    """Founder ruling R-B change 1, 2026-10-20 (G-235's escape): T29's handler turns any node failure into
+    a well-formed degraded reply, so a test that checks only some of a turn's answer passes over a crash.
+    In tests the failure is re-raised — the test fails with the real cause — unless the test is marked
+    `@pytest.mark.degraded_expected` because the degraded reply is what it proves."""
+    if request.node.get_closest_marker("degraded_expected"):
+        return
+    from backend.core import graph
+
+    def reraise(node: str, cause: BaseException) -> None:
+        raise cause
+    monkeypatch.setattr(graph, "on_degraded", reraise)
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config):
     """The `serial` marker (founder, 2026-09-27): a test that measures wall-clock
@@ -536,6 +551,9 @@ def pytest_configure(config):
     # Founder ruling 4, 2026-09-28 (G-127): a test that asserts on wall-clock time runs in the
     # run-through stage, not the commit hook, which excludes it (`staged_tree.run_suite`).
     config.addinivalue_line("markers", "wallclock: run by the run-through stage, never the commit hook")
+    # R-B change 1, 2026-10-20: a test whose proof IS T29's degraded reply (`_degraded_reply_raises`).
+    config.addinivalue_line("markers", "degraded_expected: the test proves T29's degraded reply; a node failure "
+                                       "is answered, not re-raised")
 
 
 def pytest_sessionstart(session):

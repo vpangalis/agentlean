@@ -3525,6 +3525,7 @@ def test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching(
     assert html and "'Project lead'" in html.group(0) and "'Champion'" in html.group(0)
 
 
+@pytest.mark.degraded_expected
 def test_t29_every_node_with_an_external_write_has_an_error_handler_that_undoes(env, monkeypatch, stub_planner) -> None:
     """DEF-122 — T29: every parent-graph node with an external write carries an `error_handler`
     (graph.degraded_handler). (a) An approval whose run fails AFTER the approved record was put in
@@ -4095,6 +4096,7 @@ def _server_failure(env, monkeypatch, kind: str) -> tuple[int, str]:
     return r.status_code, str(body.get("detail") or body.get("answer"))
 
 
+@pytest.mark.degraded_expected
 def test_e2e_a_failed_turn_from_the_server_is_readable_and_stays(env, monkeypatch) -> None:
     """DEF-055 — the server's real failures as /ask answers them, drawn by the page's own
     sendMessage: a busy case (409, the server's words) becomes a card that stays in the chat and in

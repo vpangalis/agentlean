@@ -432,6 +432,12 @@ def _undo_gate_write(store: Any, case_id: str, phase: str, written: dict[str, An
         logger.error("%s: T29 — the approved record could not be removed after a failed approval: %s", phase, exc)
 
 
+def on_degraded(node: str, cause: Any) -> None:
+    """T29: called with every failure the handler below answers — nothing happens in production. The test
+    suite replaces it (`backend/tests/conftest.py::_degraded_reply_raises`, founder ruling R-B 2026-10-20)
+    so that a degraded reply no test expected fails that test instead of passing as a well-formed reply."""
+
+
 def degraded_handler(node: str) -> Callable[..., Any]:
     """T29 (DEF-122): the `error_handler=` of every parent node with an external write — a phase node
     (the approved record, undone by `_undo_gate_write`) and the input guard (its audit entry stays:
@@ -449,6 +455,7 @@ def degraded_handler(node: str) -> Callable[..., Any]:
             raise cause
         logger.error("%s: FAILED (%s: %s) — answered with the degraded reply (T29)",
                      node, type(cause).__name__, cause)
+        on_degraded(node, cause)
         extra: dict[str, Any] = {"degraded": {"node": node, "error": type(cause).__name__}}
         if node == guard.NODE:
             extra[guard.NODE] = {"status": "blocked", "threat": "unavailable", "rule": "guard failed",
