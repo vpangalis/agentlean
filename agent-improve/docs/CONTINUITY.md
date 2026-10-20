@@ -45,9 +45,9 @@ every session. Every other hand-written section of this file is dated history.*
 | **Where Define stands** | The generated block's **Headline** above — never copied here |
 | **Finish line** (R-A, 2026-10-20) | Define is done when the founder's second live test passes without a blocking defect. Stages 3 and 4 are in scope; stage 5–6 items (W20 location, ADR-0096 "Hard and soft benefits", R10 "Process document → SIPOC") wait until Analyse starts unless named pilot must-haves; new non-blocking findings go to the backlog |
 | **Defect loop** (R-B, 2026-10-20) | Changes 1–3 adopted: a hidden degraded reply fails its test; `escape_class` on every `docs/defects.json` entry; the board counts regression and capability apart. Change 4 is the next prompt |
-| **Open blocker** | G-236 "Uploaded team list loses its training column" — `docs/defects.json` (registered by item 3 of this prompt) |
-| **This prompt** (2026-10-20) | Items 0–7: this block · the degraded-reply fixture · escape classes · G-236 · the problem-statement card from the 5W2H answers · read-back cards in the run-through record · capability rows 18, 20, 21 · one live run-through, then the ADR-0087 "The approval node writes both records" merge — `git log --since=2026-10-20` |
-| **Owed next** | 1. Replay of the founder's 15 Oct transcript as a session-start check (R-B change 4) · 2. Item-28 ADR on question turns and calculations — before stage 3 · 3. Stages 3 and 4 · 4. Founder live test 2 · 5. The one ARCHITECTURE.md update after Define |
+| **Open blocker** | None. G-236 "Uploaded team list loses its training column" closed (7f3c419; live scenario (e) passes in run 085604) |
+| **This prompt** (2026-10-20) | Items 0–6 landed; item 7's run-through landed (043895a), its ADR-0087 merge NOT done — the branch is the flag-off spike and DEF-170's test is not written (founder to rule); follow-ups a–c landed (6e609e3, 0ccfbe0) — `git log --since=2026-10-20` |
+| **Owed next** | 1. Replay of the founder's 15 Oct transcript as a session-start check (R-B change 4) · 2. D7s owed under R-B: path_test, join, assumption, claim, xfail_mask (board's Defect loop card) · 3. Item-28 ADR on question turns and calculations — before stage 3 · 4. Stages 3 and 4 · 5. Founder live test 2 · 6. The one ARCHITECTURE.md update after Define · Backlog (R-A): rows 18 and 35 skip on the run-through case; first Measure turn 31.7 s over its 30 s watch line |
 
 ## ⇒ WHERE THE PLAN LIVES
 
