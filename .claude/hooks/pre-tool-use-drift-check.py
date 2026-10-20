@@ -36,10 +36,11 @@ except Exception:
 try:
     import yaml
 except ImportError:
-    # Fail-soft: do not block writes just because pyyaml is absent. The
-    # developer sees this notice and installs it; the hook activates after.
-    sys.stderr.write("pyyaml required — pip install pyyaml\n")
-    sys.exit(0)
+    # DEF-233 (G-229, founder 2026-10-20): a guard that cannot run refuses — exit 2 with the reason — instead of
+    # letting every write through unchecked. Install pyyaml into the interpreter that runs the hooks.
+    sys.stderr.write("drift check cannot run: pyyaml required — pip install pyyaml into the Python that runs the "
+                     "hooks. Refusing the write until the guard can run.\n")
+    sys.exit(2)
 
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 CONFIG_REL_PATH = os.path.join(".claude", "config", "deprecated_patterns.yaml")

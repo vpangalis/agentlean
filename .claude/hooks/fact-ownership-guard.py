@@ -33,8 +33,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
+    import yaml  # noqa: F401 — the registry is YAML; _fact_owners imports it lazily, where a failure was swallowed
     import _fact_owners as fo
-except Exception:                                   # noqa: BLE001
+except ImportError as exc:
+    # DEF-233 (G-229, founder 2026-10-20): a guard whose dependency is missing refuses — exit 2 with the reason.
+    sys.stderr.write(f"fact-ownership guard cannot run: {exc} — pip install pyyaml into the Python that runs the "
+                     "hooks. Refusing the write until the guard can run.\n")
+    sys.exit(2)
+except Exception as exc:                            # noqa: BLE001 — a bug in the guard itself still fails open
+    sys.stderr.write(f"fact-ownership guard: not run ({exc.__class__.__name__}: {exc})\n")
     sys.exit(0)
 
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}

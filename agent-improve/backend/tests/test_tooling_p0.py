@@ -32,18 +32,19 @@ def test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_
         assert hook.index(generator) < tests_at, f"{generator} runs after the tests"
 
 
-@pytest.mark.parametrize("hook", ["pre-tool-use-drift-check.py", "fact-ownership-guard.py"])
-def test_a_hook_whose_dependency_is_missing_refuses_with_the_reason(tmp_path, hook) -> None:
+def test_a_hook_whose_dependency_is_missing_refuses_with_the_reason(tmp_path) -> None:
     """DEF-233 — G-229: a Claude Code guard whose dependency (pyyaml) cannot be imported refuses the tool call —
-    exit 2, the reason on stderr — instead of exiting 0 and letting every write through unchecked."""
+    exit 2, the reason on stderr — instead of exiting 0 and letting every write through unchecked. Both guards.
+    (One test, not parametrized: the feature names this node id, and rule 11 reads its outcome.)"""
     fake = tmp_path / "yaml"
     fake.mkdir()
     (fake / "__init__.py").write_text("raise ImportError('pyyaml is not installed (simulated)')\n", encoding="utf-8")
     env = {**os.environ, "PYTHONPATH": str(tmp_path), "PYTHONIOENCODING": "utf-8"}
-    r = subprocess.run([sys.executable, str(HOOKS / hook)], input='{"tool_name": "Write", "tool_input": {}}',
-                       capture_output=True, text=True, encoding="utf-8", env=env, cwd=ROOT, timeout=60)
-    assert r.returncode == 2, (r.returncode, r.stderr)
-    assert "pyyaml" in r.stderr.lower(), r.stderr
+    for hook in ("pre-tool-use-drift-check.py", "fact-ownership-guard.py"):
+        r = subprocess.run([sys.executable, str(HOOKS / hook)], input='{"tool_name": "Write", "tool_input": {}}',
+                           capture_output=True, text=True, encoding="utf-8", env=env, cwd=ROOT, timeout=60)
+        assert r.returncode == 2, (hook, r.returncode, r.stderr)
+        assert "pyyaml" in r.stderr.lower(), (hook, r.stderr)
 
 
 def test_the_test_summary_is_pytests_result_line_not_the_last_line() -> None:
