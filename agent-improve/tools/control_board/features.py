@@ -182,14 +182,19 @@ def shallow(features: list[dict]) -> set[str]:
     return {w["name"] for w in flagged if "drives neither" in w["finding"]}
 
 
-def counted(feature: dict) -> bool:
-    """Founder ruling 2026-10-20: a feature counts toward Define only when its phase is Define and it was not
-    merged into another (`merged_into`) — DEF-227 and DEF-228 (phase analyse) and the merged ones do not."""
-    return feature.get("phase", "define") == "define" and not feature.get("merged_into")
+def counted(feature: dict, reqs: dict[str, dict] | None = None) -> bool:
+    """Founder rulings 2026-10-20: a feature counts toward Define only when its phase is Define, it was not merged
+    into another (`merged_into`), and its requirement is not Won't-now — Define is done when every Define feature
+    passes, Won't-now excepted. `reqs` is `requirements()`, read here when not given."""
+    if feature.get("phase", "define") != "define" or feature.get("merged_into"):
+        return False
+    reqs = requirements() if reqs is None else reqs
+    return (reqs.get(feature.get("requirement", "")) or {}).get("moscow") != "Won't-now"
 
 
 def summary(features: list[dict] | None = None, res: dict | None = None) -> dict:
-    features = [f for f in (load() if features is None else features) if counted(f)]
+    reqs = requirements()
+    features = [f for f in (load() if features is None else features) if counted(f, reqs)]
     res = results() if res is None else res
     st = status(features, res)
     for fid in shallow(features):

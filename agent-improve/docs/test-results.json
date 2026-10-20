@@ -1,9 +1,9 @@
 {
- "source_hash": "9dafabfb934bf90b",
- "commit": "f2b2ab3",
+ "source_hash": "76577895f41819e0",
+ "commit": "e578e3c",
  "commit_matches_source": false,
- "full_run_hash": "9dafabfb934bf90b",
- "recorded_at": "2026-10-20T11:53:17+00:00",
+ "full_run_hash": "76577895f41819e0",
+ "recorded_at": "2026-10-20T12:00:48+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1812,8 +1812,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "6f5cdb27d174d245",
-  "recorded_at": "2026-10-20T11:12:40+00:00",
+  "source_hash": "9dafabfb934bf90b",
+  "recorded_at": "2026-10-20T11:53:17+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

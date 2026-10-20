@@ -48,8 +48,7 @@ def test_the_grid_tile_count_equals_the_registry(board) -> None:
     leaves out (another phase, or merged into another — founder ruling 2026-10-20)."""
     d, page = board
     feats, reqs = F.load(), F.requirements()
-    deferred = {f["id"] for f in feats if (reqs.get(f["requirement"]) or {}).get("moscow") == "Won't-now"
-                or not F.counted(f)}
+    deferred = {f["id"] for f in feats if not F.counted(f, reqs)}
     tiles = [fid for _, fid, _, _ in _TILE.findall(page)]
     assert sorted(tiles) == sorted(f["id"] for f in feats if f["id"] not in deferred)
     assert len(tiles) == d["count"]["tiles"] == len(feats) - len(deferred)

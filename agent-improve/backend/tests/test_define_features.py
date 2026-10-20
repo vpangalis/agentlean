@@ -394,7 +394,10 @@ def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:
     assert any("package 'pilot' is not P<n>" in b for b in bad) and any("merged_into 'X-9'" in b for b in bad)
     real = F.load()
     assert sorted(f["id"] for f in real if not F.counted(f)) == [
-        "DEF-089", "DEF-090", "DEF-092", "DEF-106", "DEF-227", "DEF-228"]
+        "DEF-089", "DEF-090", "DEF-092", "DEF-106", "DEF-140", "DEF-227", "DEF-228"]
+    # Founder ruling 2026-10-20: Won't-now is out of the count too (DEF-140 cites T68, Won't-now).
+    assert not F.counted({**fs[0], "requirement": "T68"}, {"T68": {"moscow": "Won't-now"}})
+    assert F.counted(fs[0], {"R1": {"moscow": "Must"}})
     assert {f["merged_into"] for f in real if f.get("merged_into")} == {"DEF-200", "DEF-213", "DEF-204", "DEF-214"}
 
 

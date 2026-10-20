@@ -421,7 +421,7 @@ def data() -> dict:
                      "stage": f.get("stage"), "layer": f.get("layer"), "phase": f.get("phase", "define"),
                      "status": status, "awaiting": f["id"] in waits, "run_criterion": f["id"] in run_wait, "tier": tiers.get(f["id"]), "rank": r.get("rank"),
                      "held": hold.get(f["id"]), "not_e2e": not_e2e, "stub": stub, "requirement": f["requirement"],
-                     "moscow": req.get("moscow"), "hidden": req.get("moscow") == "Won't-now" or not features.counted(f), "pilot": f.get("pilot"),
+                     "moscow": req.get("moscow"), "hidden": not features.counted(f, reqs), "pilot": f.get("pilot"),
                      "test": f["test"], "depends_on": f["depends_on"], "unblocks": sorted(dependents.get(f["id"], ())),
                      "defects": defect_of.get(f["id"], [])})
     open_ids = {x["id"] for x in rows if x["status"] != "green"}
