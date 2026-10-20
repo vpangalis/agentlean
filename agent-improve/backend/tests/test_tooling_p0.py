@@ -139,3 +139,85 @@ def test_the_tests_close_every_client_they_open() -> None:
                        capture_output=True, text=True, encoding="utf-8", errors="replace",
                        env={**os.environ, "AGENT_IMPROVE_NO_RECORD": "1"}, cwd=PROJECT, timeout=600)
     assert "Unclosed connector" not in r.stdout + r.stderr
+
+
+# ── P0b, hook time (founder ruling 2026-10-20, item 2) ───────────────────────────────────────────────────────────
+
+
+def _hook_module(file: str, name: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, HOOKS / file)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(HOOKS))
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_the_full_suite_runs_once_per_package_before_its_push() -> None:
+    """DEF-247 — (a): a push whose tip has no passing full run gets one — the pre-push hook runs the full suite on
+    that source itself instead of refusing — so the full suite runs once per package, before its push, and the other
+    commits take the fast run. A failing run still refuses the push. CLAUDE.md says push once per package."""
+    pre_push = _hook_module("pre_push.py", "pre_push_p0b")
+    sha = "a" * 40
+    updates = [("refs/heads/main", sha, "refs/heads/main", "b" * 40)]
+    ran: list[str] = []
+
+    def passes(s: str) -> int:
+        ran.append(s)
+        return 0
+
+    def fails(s: str) -> int:
+        ran.append(s)
+        return 1
+    assert pre_push.ensure_full_runs(updates, lambda s: "SRC1", set(), passes) == []
+    assert ran == [sha], ran                                               # run once, on the pushed tip
+    ran.clear()
+    left = pre_push.ensure_full_runs(updates, lambda s: "SRC1", set(), fails)
+    assert left and "SRC1" in left[0], left                                # a failing run still refuses
+    assert pre_push.ensure_full_runs(updates, lambda s: "SRC1", {"SRC1"}, lambda s: 1 / 0) == []   # already passed
+    assert "Push once per package" in (PROJECT / "CLAUDE.md").read_text(encoding="utf-8")
+
+
+def test_a_passing_full_run_is_reused_when_the_source_is_unchanged(tmp_path, monkeypatch) -> None:
+    """DEF-248 — (b): run_suite reuses the ledger's passing full run when the staged source is the same (a commit
+    retried for its message alone), instead of running the suite again."""
+    import json
+    staged_tree = _hook_module("staged_tree.py", "staged_tree_p0b")
+    import pre_push
+    ledger = tmp_path / "full-runs.jsonl"
+    ledger.write_text(json.dumps({"at": "x", "source": "SRC9", "tree": "t", "exit": 0, "summary": "1553 passed"}) + "\n",
+                      encoding="utf-8")
+    monkeypatch.setattr(pre_push, "LEDGER", ledger)
+    monkeypatch.setattr(pre_push, "source_id", lambda rev, root=None: "SRC9")
+    monkeypatch.setattr(staged_tree, "sync", lambda *a, **k: (_ for _ in ()).throw(AssertionError("the suite ran")))
+    code, out = staged_tree.run_suite(tree="t")
+    assert code == 0 and "reused" in out, out
+    monkeypatch.setattr(pre_push, "source_id", lambda rev, root=None: "OTHER")
+    with pytest.raises(AssertionError, match="the suite ran"):
+        staged_tree.run_suite(tree="t")                                    # a changed source runs it
+
+
+def test_the_commit_message_is_checked_at_preflight_before_any_test(tmp_path) -> None:
+    """DEF-249 — (c): the pre-flight checks the commit message's rules (the subject format, the 8D of a fix) before
+    it runs anything else — a message the guard would refuse is refused in a second, not after the suite."""
+    hook = _hook_module("preflight-on-commit.py", "preflight_on_commit_p0b")
+    bad = tmp_path / "msg.txt"
+    bad.write_text("refactor(arch-v2): DEF-222, DEF-223 — two ids in the subject\n\nbody\n", encoding="utf-8")
+    payload = {"tool_name": "Bash", "tool_input": {"command": f'git commit -F "{bad}"'}}
+    code, msg = hook.decide(payload, lambda **k: (_ for _ in ()).throw(AssertionError("the pre-flight ran first")))
+    assert code == 2 and "spine format" in msg, (code, msg)
+    fix = tmp_path / "fix.txt"
+    fix.write_text("fix(upload): G-236 — no 8D in this body\n\nCo-Authored-By: x\n", encoding="utf-8")
+    code, msg = hook.decide({"tool_name": "Bash", "tool_input": {"command": f"git commit -F {fix}"}},
+                            lambda **k: (_ for _ in ()).throw(AssertionError("the pre-flight ran first")))
+    assert code == 2 and "8D" in msg, (code, msg)
+
+
+def test_a_docs_only_commit_does_not_rebuild_the_board() -> None:
+    """DEF-250 — (d): the pre-commit hook rebuilds the control board only when code is staged (the test run ran) or
+    the waiting list the board reads changed — a docs-only commit skips it."""
+    hook = (ROOT / ".githooks" / "pre-commit").read_text(encoding="utf-8")
+    block = hook[hook.index('t_log adr-index "$T0"'):hook.index('t_log control-board "$T0"')]
+    guard = next(line for line in block.splitlines() if '"$CONTROL"' in line and line.lstrip().startswith("if"))
+    assert '"$RAN"' in guard and "board_waiting" in guard, guard

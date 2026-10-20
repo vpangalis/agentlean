@@ -8795,6 +8795,126 @@
    "stage": "build",
    "layer": "tooling",
    "package": "P0b"
+  },
+  {
+   "id": "DEF-247",
+   "description": "The full suite runs once per package, before its push: the pre-push hook runs it on a tip with no passing run; other commits take the fast run (hook time a)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_full_suite_runs_once_per_package_before_its_push",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder ruling 2026-10-20, item 2 (hook time)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-248",
+   "description": "A passing full run is reused when the staged source is unchanged (hook time b)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_a_passing_full_run_is_reused_when_the_source_is_unchanged",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder ruling 2026-10-20, item 2 (hook time)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-249",
+   "description": "The commit message's rules are checked at pre-flight, before any test runs (hook time c)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_commit_message_is_checked_at_preflight_before_any_test",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder ruling 2026-10-20, item 2 (hook time)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-250",
+   "description": "A docs-only commit does not rebuild the control board (hook time d)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_a_docs_only_commit_does_not_rebuild_the_board",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder ruling 2026-10-20, item 2 (hook time)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
   }
  ]
 }
