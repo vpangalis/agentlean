@@ -56,7 +56,7 @@ def counts(path: str) -> bool:
 def source_id(rev: str, root: Path = ROOT) -> str:
     """The source of a commit or tree: its tracked paths that count, with their blob ids."""
     h = hashlib.sha256()
-    for line in _git("ls-tree", "-r", "--full-tree", rev, root=root).splitlines():
+    for line in _git("ls-tree", "-r", "--full-tree", rev.strip(), root=root).splitlines():
         meta, _, path = line.partition("\t")
         if counts(path):
             h.update(f"{meta}\t{path}\n".encode())
@@ -119,7 +119,7 @@ def _run_full_suite(sha: str) -> int:
     import staged_tree
     print(f"  [pre-push] no passing full run for {sha[:10]} — running the full suite on its tree (once per package)…",
           file=sys.stderr)
-    code, out = staged_tree.run_suite(tree=_git("rev-parse", f"{sha}^{{tree}}"))
+    code, out = staged_tree.run_suite(tree=_git("rev-parse", f"{sha}^{{tree}}").strip())
     print(f"  [pre-push] {out.strip().splitlines()[-1] if out.strip() else ''}", file=sys.stderr)
     return code
 

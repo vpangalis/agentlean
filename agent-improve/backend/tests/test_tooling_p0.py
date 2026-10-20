@@ -177,6 +177,11 @@ def test_the_full_suite_runs_once_per_package_before_its_push() -> None:
     assert left and "SRC1" in left[0], left                                # a failing run still refuses
     assert pre_push.ensure_full_runs(updates, lambda s: "SRC1", {"SRC1"}, lambda s: 1 / 0) == []   # already passed
     assert "Push once per package" in (PROJECT / "CLAUDE.md").read_text(encoding="utf-8")
+    # The first live push (2026-10-20) failed: git's tree id came with its newline into source_id. A real tree id,
+    # newline and all, is read as the same source.
+    tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, cwd=ROOT,
+                          env={k: v for k, v in os.environ.items() if not k.startswith("GIT_")}).stdout
+    assert tree.endswith("\n") and pre_push.source_id(tree) == pre_push.source_id(tree.strip())
 
 
 def test_a_passing_full_run_is_reused_when_the_source_is_unchanged(tmp_path, monkeypatch) -> None:
