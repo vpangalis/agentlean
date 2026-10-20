@@ -153,7 +153,10 @@ fi
 t_log adr-index "$T0"
 
 T0=$(date +%s)
-if [ -f "$CONTROL" ]; then
+# DEF-250 (founder ruling 2026-10-20, hook time d): a docs-only commit does not rebuild the board — nothing it draws
+# changed (the test record and the feature list are code; the waiting list, docs/board_waiting.md, is the one
+# Markdown file the board reads, so a change to it still rebuilds).
+if [ -f "$CONTROL" ] && { [ -n "$RAN" ] || git diff --cached --name-only | grep -q '^agent-improve/docs/board_waiting\.md$'; }; then
     if [ -n "$VENV" ] && "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged; then
         git add agent-improve/docs/control-board.html agent-improve/docs/test-results.json 2>/dev/null
         # Controls review, item 6 (founder, 2026-09-30): when the page or CONTINUITY's headline

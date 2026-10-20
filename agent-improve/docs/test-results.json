@@ -1,9 +1,9 @@
 {
  "source_hash": "20fbfb9add5aae5e",
- "commit": "c39a686",
+ "commit": "4955428",
  "commit_matches_source": true,
  "full_run_hash": "5c7233766bf278e3",
- "recorded_at": "2026-10-20T16:02:49+00:00",
+ "recorded_at": "2026-10-20T16:07:35+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1717,7 +1717,7 @@
   "backend/tests/test_timing.py::test_the_commits_one_full_run_is_parallel": "passed",
   "backend/tests/test_timing.py::test_the_record_says_which_source_the_last_full_run_was_on": "passed",
   "backend/tests/test_timing.py::test_the_timing_log_appends_and_sums_only_its_window": "passed",
-  "backend/tests/test_tooling_p0.py::test_a_docs_only_commit_does_not_rebuild_the_board": "skipped",
+  "backend/tests/test_tooling_p0.py::test_a_docs_only_commit_does_not_rebuild_the_board": "passed",
   "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason": "passed",
   "backend/tests/test_tooling_p0.py::test_a_passing_full_run_is_reused_when_the_source_is_unchanged": "passed",
   "backend/tests/test_tooling_p0.py::test_search_index_schemas_have_a_registered_owner": "passed",
