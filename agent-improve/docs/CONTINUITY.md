@@ -11,7 +11,7 @@
 | **Next — lane A** | DEF-221 — A target's operator is kept as the Belt wrote it ('under 10%' stays < 10%) (G-222; founder test findings 52) |
 | **Next — lane B** | DEF-170 — T23's 'or neither' after the case write: an approval that fails after the case record is written leaves neither the Store record nor the app |
 | **Next — lane C** | DEF-205 — An upload in the chat starts its own upload turn; no browser-written 'Let me process it' (G-206; founder test findings 22) |
-| **Next — lane integrator** | DEF-103 — Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project le |
+| **Next — lane integrator** | DEF-232 — The commit hook regenerates the generated documents (data models, code layout, routes, value keys, middleware order) and stages them before  |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.2 |

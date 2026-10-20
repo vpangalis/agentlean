@@ -1,9 +1,9 @@
 {
- "source_hash": "76577895f41819e0",
- "commit": "e578e3c",
+ "source_hash": "1f354c3dfd779701",
+ "commit": "68b6787",
  "commit_matches_source": false,
- "full_run_hash": "76577895f41819e0",
- "recorded_at": "2026-10-20T12:00:48+00:00",
+ "full_run_hash": "1f354c3dfd779701",
+ "recorded_at": "2026-10-20T13:04:04+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1712,6 +1712,11 @@
   "backend/tests/test_timing.py::test_the_commits_one_full_run_is_parallel": "passed",
   "backend/tests/test_timing.py::test_the_record_says_which_source_the_last_full_run_was_on": "passed",
   "backend/tests/test_timing.py::test_the_timing_log_appends_and_sums_only_its_window": "passed",
+  "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason[fact-ownership-guard.py]": "skipped",
+  "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason[pre-tool-use-drift-check.py]": "skipped",
+  "backend/tests/test_tooling_p0.py::test_t67s_child_process_writes_utf8_whatever_the_shell": "skipped",
+  "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests": "skipped",
+  "backend/tests/test_tooling_p0.py::test_the_test_summary_is_pytests_result_line_not_the_last_line": "skipped",
   "backend/tests/test_turn_budget.py::test_no_knowledge_tool_blocks_the_loop": "passed",
   "backend/tests/test_turn_graph.py::test_a_case_in_a_non_phase_is_refused_rather_than_dispatched": "passed",
   "backend/tests/test_turn_graph.py::test_a_coaching_turn_never_runs_the_validator": "passed",
@@ -1812,8 +1817,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "9dafabfb934bf90b",
-  "recorded_at": "2026-10-20T11:53:17+00:00",
+  "source_hash": "76577895f41819e0",
+  "recorded_at": "2026-10-20T12:00:48+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

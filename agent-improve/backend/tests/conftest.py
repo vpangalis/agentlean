@@ -575,6 +575,9 @@ def pytest_sessionfinish(session, exitstatus):
     # (`features.earlier_proof`) is display only — never evidence, never timed as a test run.
     if _os.environ.get("AGENT_IMPROVE_RUNTHROUGH_ANY_SOURCE") == "1":
         return
+    # DEF-235 (2026-10-20): a pytest a test starts inside the suite records nothing — the outer run owns the record.
+    if _os.environ.get("AGENT_IMPROVE_NO_RECORD") == "1":
+        return
     # Step 6.63 — record the run for the control board. Not when the trace
     # guard fired: a run that broke the quota rule is not evidence of anything.
     if _OUTCOMES and not TRACE_CALLS:

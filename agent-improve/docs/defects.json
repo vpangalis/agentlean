@@ -2061,14 +2061,17 @@
   },
   {
    "id": "G-177",
-   "symptom": "THE COMMIT HOOK RUNS THE TESTS BEFORE IT REGENERATES THE GENERATED DOCUMENTS, SO A COMMIT THAT CHANGES A GENERATED SOURCE FAILS ITS OWN RUN. Seen 2026-10-14 three times: c4e870c (the grader's names → docs/code-layout.md), 6ba9ca3 (STATE_SCHEMA_VERSION → docs/data-models.md) and 247bd3d (a docstring → code-layout.md): the pre-commit run of the staged tree failed test_generated_docs.py, then the hook regenerated and staged the documents, and the retried commit passed. D4 OCCURRENCE: the pre-commit hook's order — tests on the staged tree first, the generators (code layout, data models, section index, board) after. D4 ESCAPE: nothing tests the hook's own order; the retry hides it. Before customers (founder 2026-10-14).",
-   "requirement": [],
-   "feature": [],
-   "lane": [
-    "tooling"
+   "symptom": "THE COMMIT HOOK RUNS THE TESTS BEFORE IT REGENERATES THE GENERATED DOCUMENTS, SO A COMMIT THAT CHANGES A GENERATED SOURCE FAILS ITS OWN RUN. Seen 2026-10-14 three times: c4e870c (the grader's names → docs/code-layout.md), 6ba9ca3 (STATE_SCHEMA_VERSION → docs/data-models.md) and 247bd3d (a docstring → code-layout.md): the pre-commit run of the staged tree failed test_generated_docs.py, then the hook regenerated and staged the documents, and the retried commit passed. D4 OCCURRENCE: the pre-commit hook's order — tests on the staged tree first, the generators (code layout, data models, section index, board) after. D4 ESCAPE: nothing tests the hook's own order; the retry hides it. Before customers (founder 2026-10-14). | Control as registered: Proposed: the pre-commit hook runs the generators and stages their output before it runs the tests on the staged tree, and a test of the hook holds that order. | Proved by DEF-232 (package P0, founder ruling 2026-10-20).",
+   "requirement": [
+    "T97"
    ],
-   "escape_class": "error_routine",
-   "control": "Proposed: the pre-commit hook runs the generators and stages their output before it runs the tests on the staged tree, and a test of the hook holds that order."
+   "feature": [
+    "DEF-232"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "error_routine"
   },
   {
    "id": "G-178",
@@ -2783,36 +2786,45 @@
   },
   {
    "id": "G-229",
-   "symptom": "THE CLAUDE CODE HOOKS FAIL OPEN SILENTLY WHEN A DEPENDENCY IS MISSING (recovery of 2026-10-16, founder ruling 2026-10-16). The hooks in .claude/settings.json run as \"python\", the system Python, not agent-improve/.venv. On the fresh clone the system Python (3.14) had no pyyaml: .claude/hooks/pre-tool-use-drift-check.py printed \"pyyaml required — pip install pyyaml\" and exited 0, so every Write and Edit went through without the drift check; .claude/hooks/fact-ownership-guard.py fails open with no message at all (its import of _fact_owners, load_registry and main each swallow the exception and return 0). Nothing reported that two guards were off. D4 OCCURRENCE: a deliberate fail-soft on ImportError, and the hooks run with whatever \"python\" is on PATH. D4 ESCAPE: no check that the hooks' dependencies are importable by the interpreter that runs them; the notice goes to stderr, where it reads as a warning. Contained 2026-10-16: pyyaml 6.0.3 installed on C:\\Python314. NOT FIXED (founder: register, do not fix now).",
-   "requirement": [],
-   "feature": [],
-   "lane": [
-    "tooling"
+   "symptom": "THE CLAUDE CODE HOOKS FAIL OPEN SILENTLY WHEN A DEPENDENCY IS MISSING (recovery of 2026-10-16, founder ruling 2026-10-16). The hooks in .claude/settings.json run as \"python\", the system Python, not agent-improve/.venv. On the fresh clone the system Python (3.14) had no pyyaml: .claude/hooks/pre-tool-use-drift-check.py printed \"pyyaml required — pip install pyyaml\" and exited 0, so every Write and Edit went through without the drift check; .claude/hooks/fact-ownership-guard.py fails open with no message at all (its import of _fact_owners, load_registry and main each swallow the exception and return 0). Nothing reported that two guards were off. D4 OCCURRENCE: a deliberate fail-soft on ImportError, and the hooks run with whatever \"python\" is on PATH. D4 ESCAPE: no check that the hooks' dependencies are importable by the interpreter that runs them; the notice goes to stderr, where it reads as a warning. Contained 2026-10-16: pyyaml 6.0.3 installed on C:\\Python314. NOT FIXED (founder: register, do not fix now). | Control as registered: Proposed: the hooks run with agent-improve/.venv's Python (the interpreter the project's requirements are installed in), and a hook whose dependency is missing refuses the tool call with the reason (exit 2) instead of exiting 0; the session-start hook reports a guard that cannot run. Rework risk: low — the hook entry points and their import blocks only; belt impact: none. | Proved by DEF-233 (package P0, founder ruling 2026-10-20).",
+   "requirement": [
+    "T97"
    ],
-   "escape_class": "assumption",
-   "control": "Proposed: the hooks run with agent-improve/.venv's Python (the interpreter the project's requirements are installed in), and a hook whose dependency is missing refuses the tool call with the reason (exit 2) instead of exiting 0; the session-start hook reports a guard that cannot run. Rework risk: low — the hook entry points and their import blocks only; belt impact: none."
+   "feature": [
+    "DEF-233"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "assumption"
   },
   {
    "id": "G-230",
-   "symptom": "THE PRE-COMMIT HOOK RUNS THE TESTS BEFORE IT REGENERATES THE GENERATED DOCUMENTS (founder ruling 2026-10-17, item 4). .githooks/pre-commit runs the staged-tree tests (lines 55-77) and only afterwards regenerates docs/data-models.md (generate_models.py, line 103) and docs/code-layout.md with the other generated documents (generate_layout and its siblings, lines 112-124). A commit that changes a state class or adds a module-level function therefore fails test_generate_models.py::test_the_declarations_live_in_their_own_file_linked_from_section_4_2 and test_generated_docs.py::test_the_generated_document_is_current[code layout] on the first attempt, with documents the same hook regenerates and stages seconds later; the second attempt passes. Seen 2026-10-17 on G-192's commit (d1b2eac). D4 OCCURRENCE: the generators were added below the test block. D4 ESCAPE: the failure clears itself on a retry, so it reads as a flaky test, not an ordering defect. NOT FIXED (founder: register, no feature).",
-   "requirement": [],
-   "feature": [],
-   "lane": [
-    "tooling"
+   "symptom": "THE PRE-COMMIT HOOK RUNS THE TESTS BEFORE IT REGENERATES THE GENERATED DOCUMENTS (founder ruling 2026-10-17, item 4). .githooks/pre-commit runs the staged-tree tests (lines 55-77) and only afterwards regenerates docs/data-models.md (generate_models.py, line 103) and docs/code-layout.md with the other generated documents (generate_layout and its siblings, lines 112-124). A commit that changes a state class or adds a module-level function therefore fails test_generate_models.py::test_the_declarations_live_in_their_own_file_linked_from_section_4_2 and test_generated_docs.py::test_the_generated_document_is_current[code layout] on the first attempt, with documents the same hook regenerates and stages seconds later; the second attempt passes. Seen 2026-10-17 on G-192's commit (d1b2eac). D4 OCCURRENCE: the generators were added below the test block. D4 ESCAPE: the failure clears itself on a retry, so it reads as a flaky test, not an ordering defect. NOT FIXED (founder: register, no feature). | Control as registered: Proposed: the generators run before the test block, against the staged tree, and stage their output, so the tests read the documents the commit will carry; until then, running each generator with --stage after staging and before committing avoids the failed first attempt. Rework risk: low — the order of blocks in .githooks/pre-commit; belt impact: none. | Proved by DEF-232 (package P0, founder ruling 2026-10-20).",
+   "requirement": [
+    "T97"
    ],
-   "escape_class": "error_routine",
-   "control": "Proposed: the generators run before the test block, against the staged tree, and stage their output, so the tests read the documents the commit will carry; until then, running each generator with --stage after staging and before committing avoids the failed first attempt. Rework risk: low — the order of blocks in .githooks/pre-commit; belt impact: none."
+   "feature": [
+    "DEF-232"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "error_routine"
   },
   {
    "id": "G-231",
-   "symptom": "THE FAST-RUN SUMMARY PRINTS \"Arguments: ()\" INSTEAD OF THE PYTEST RESULT (founder ruling 2026-10-17, item 4). .githooks/pre-commit takes the summary as the last line of the staged-tree run's whole output (SUMMARY=$(printf '%s\n' \"$OUT\" | tail -1)). After pytest prints its result, aiohttp's TCPConnector.__del__ logs \"Unclosed connector\" at interpreter exit through a logging handler whose stream is already closed, and Python prints its \"--- Logging error ---\" block, which ends in \"Arguments: ()\" — so the [tests] line, and the timing it is read into, shows that instead of the counts. Reproduced 2026-10-17 by a serial pytest run of the gate and state areas. D4 OCCURRENCE: an unclosed aiohttp session (a storage or model client left open by a test) and a summary read by position, not by pattern. D4 ESCAPE: rule 4 reads the recorded outcomes, not this line, so nothing fails; the line is only read by people. NOT FIXED (founder: register, no feature).",
-   "requirement": [],
-   "feature": [],
-   "lane": [
-    "tooling"
+   "symptom": "THE FAST-RUN SUMMARY PRINTS \"Arguments: ()\" INSTEAD OF THE PYTEST RESULT (founder ruling 2026-10-17, item 4). .githooks/pre-commit takes the summary as the last line of the staged-tree run's whole output (SUMMARY=$(printf '%s\n' \"$OUT\" | tail -1)). After pytest prints its result, aiohttp's TCPConnector.__del__ logs \"Unclosed connector\" at interpreter exit through a logging handler whose stream is already closed, and Python prints its \"--- Logging error ---\" block, which ends in \"Arguments: ()\" — so the [tests] line, and the timing it is read into, shows that instead of the counts. Reproduced 2026-10-17 by a serial pytest run of the gate and state areas. D4 OCCURRENCE: an unclosed aiohttp session (a storage or model client left open by a test) and a summary read by position, not by pattern. D4 ESCAPE: rule 4 reads the recorded outcomes, not this line, so nothing fails; the line is only read by people. NOT FIXED (founder: register, no feature). | Control as registered: Proposed: the summary is the last line matching pytest's result pattern (\"N passed\" / \"N failed\" ... \" in Ns\"), not the last line; and the unclosed client is found and closed at test teardown. Rework risk: low — one grep in .githooks/pre-commit, and a fixture's teardown; belt impact: none. | Proved by DEF-234 (package P0, founder ruling 2026-10-20).",
+   "requirement": [
+    "T97"
    ],
-   "escape_class": "claim",
-   "control": "Proposed: the summary is the last line matching pytest's result pattern (\"N passed\" / \"N failed\" ... \" in Ns\"), not the last line; and the unclosed client is found and closed at test teardown. Rework risk: low — one grep in .githooks/pre-commit, and a fixture's teardown; belt impact: none."
+   "feature": [
+    "DEF-234"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "claim"
   },
   {
    "id": "G-232",
@@ -2830,14 +2842,17 @@
   },
   {
    "id": "G-233",
-   "symptom": "TEST T67 FAILS UNLESS THE SHELL'S STDIO IS UTF-8 (founder ruling 2026-10-17, item 8). test_define_e2e.py::test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing starts the app in a child process and reads its stderr with encoding=\"utf-8\". The child writes its refusal (\"Agent Improve cannot start — required credential(s) missing …\") in the console's code page, so the em dash is not UTF-8; on Windows the decode error kills subprocess's reader thread, stderr comes back None, and the test fails with \"argument of type 'NoneType' is not iterable\". With PYTHONIOENCODING=utf-8 set in the shell it passes. Seen 2026-10-17 in a serial run from Claude Code's shell; the hook's runs set UTF-8 and pass. D4 OCCURRENCE: the child's stdio encoding is inherited from the environment, the reader's is fixed. D4 ESCAPE: every recorded run had UTF-8 stdio. NOT FIXED (founder: register).",
-   "requirement": [],
-   "feature": [],
-   "lane": [
-    "tooling"
+   "symptom": "TEST T67 FAILS UNLESS THE SHELL'S STDIO IS UTF-8 (founder ruling 2026-10-17, item 8). test_define_e2e.py::test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing starts the app in a child process and reads its stderr with encoding=\"utf-8\". The child writes its refusal (\"Agent Improve cannot start — required credential(s) missing …\") in the console's code page, so the em dash is not UTF-8; on Windows the decode error kills subprocess's reader thread, stderr comes back None, and the test fails with \"argument of type 'NoneType' is not iterable\". With PYTHONIOENCODING=utf-8 set in the shell it passes. Seen 2026-10-17 in a serial run from Claude Code's shell; the hook's runs set UTF-8 and pass. D4 OCCURRENCE: the child's stdio encoding is inherited from the environment, the reader's is fixed. D4 ESCAPE: every recorded run had UTF-8 stdio. NOT FIXED (founder: register). | Control as registered: Proposed: the test sets PYTHONIOENCODING=utf-8 (or PYTHONUTF8=1) in the child's environment, so the encoding the child writes is the one the test reads, whatever the shell. Rework risk: low — one test's subprocess env; belt impact: none. | Proved by DEF-235 (package P0, founder ruling 2026-10-20).",
+   "requirement": [
+    "T97"
    ],
-   "escape_class": "assumption",
-   "control": "Proposed: the test sets PYTHONIOENCODING=utf-8 (or PYTHONUTF8=1) in the child's environment, so the encoding the child writes is the one the test reads, whatever the shell. Rework risk: low — one test's subprocess env; belt impact: none."
+   "feature": [
+    "DEF-235"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "assumption"
   },
   {
    "id": "G-234",

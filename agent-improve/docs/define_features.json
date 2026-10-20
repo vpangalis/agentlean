@@ -1,5 +1,5 @@
 {
- "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). The order of work is COMPUTED, never stored (ADR-0058, brief Part F3): tools/control_board/rank.py ranks every failing feature from its requirement's MoSCoW and the feature's belt_impact (dead_end | wrong_data | data_loss | degraded | none), rework_risk (high | low), effort (S | M | L), depends_on and priority_override (null, or {rank_tier, reason} — founder only). Edit a feature's description, test or sources in place; never add a status. phase (define | measure | …), stage (open_case | coached | report | approve | record_written | next_phase — where in the Belt's journey) and layer (screen | api | coaching | gate | persistence | platform) place each feature on the board's value stream (brief Part F7). PILOT (RETIRED, founder ruling 2026-10-20: Define is done when every Define feature passes, except Won't-now; Measure starts only then): the `pilot` field is kept on each feature and still type-checked (true | false, rank.py), but nothing reads it — the board's M2 is one milestone. PACKAGES (founder ruling 2026-10-20: work runs in fixed packages, one prompt = one package): every failing Define feature carries `package` (P1..P35) as the founder listed it; rank.py chooses the package that holds a lane's top-ranked failing feature (ADR-0058 note). MERGED (same ruling): a feature folded into another carries `merged_into` (its id), shares that feature's test, and is left out of the Define count and the rank. DEFINE COUNT (same ruling): only features with phase \"define\" and no `merged_into` are counted (features.counted).",
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). The order of work is COMPUTED, never stored (ADR-0058, brief Part F3): tools/control_board/rank.py ranks every failing feature from its requirement's MoSCoW and the feature's belt_impact (dead_end | wrong_data | data_loss | degraded | none), rework_risk (high | low), effort (S | M | L), depends_on and priority_override (null, or {rank_tier, reason} — founder only). Edit a feature's description, test or sources in place; never add a status. phase (define | measure | …), stage (open_case | coached | report | approve | record_written | next_phase — where in the Belt's journey) and layer (screen | api | coaching | gate | persistence | platform) place each feature on the board's value stream (brief Part F7). PILOT (RETIRED, founder ruling 2026-10-20: Define is done when every Define feature passes, except Won't-now; Measure starts only then): the `pilot` field is kept on each feature and still type-checked (true | false, rank.py), but nothing reads it — the board's M2 is one milestone. PACKAGES (founder ruling 2026-10-20: work runs in fixed packages, one prompt = one package): every failing Define feature carries `package` (P1..P35) as the founder listed it; rank.py chooses the package that holds a lane's top-ranked failing feature (ADR-0058 note). MERGED (same ruling): a feature folded into another carries `merged_into` (its id), shares that feature's test, and is left out of the Define count and the rank. DEFINE COUNT (same ruling): only features with phase \"define\" and no `merged_into` are counted (features.counted). BUILD (founder ruling 2026-10-20): phase \"build\", stage \"build\", layer \"tooling\" mark the commit hook and tooling features (package P0); phase build keeps them out of the Define count.",
  "features": [
   {
    "id": "DEF-001",
@@ -8304,6 +8304,147 @@
    "stage": "coached",
    "layer": "api",
    "pilot": true
+  },
+  {
+   "id": "DEF-232",
+   "description": "The commit hook regenerates the generated documents (data models, code layout, routes, value keys, middleware order) and stages them before it runs the tests on the staged tree (G-177, G-230)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-177, G-230 (package P0, founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-177",
+     "G-230"
+    ]
+   },
+   "requirement": "T97",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-20: P0 (commit hook and tooling) runs before P1"
+   },
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0"
+  },
+  {
+   "id": "DEF-233",
+   "description": "A Claude Code guard whose dependency is missing refuses the tool call with the reason (exit 2) instead of passing silently (G-229)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-229 (package P0, founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-229"
+    ]
+   },
+   "requirement": "T97",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-20: P0 (commit hook and tooling) runs before P1"
+   },
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0"
+  },
+  {
+   "id": "DEF-234",
+   "description": "The test summary the commit hook prints is pytest's result line, never a logging error printed after it (G-231)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_test_summary_is_pytests_result_line_not_the_last_line",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-231 (package P0, founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-231"
+    ]
+   },
+   "requirement": "T97",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-20: P0 (commit hook and tooling) runs before P1"
+   },
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0"
+  },
+  {
+   "id": "DEF-235",
+   "description": "T67's child process writes UTF-8 whatever the shell's encoding, so its test passes in any shell (G-233)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_t67s_child_process_writes_utf8_whatever_the_shell",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-233 (package P0, founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-233"
+    ]
+   },
+   "requirement": "T97",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-20: P0 (commit hook and tooling) runs before P1"
+   },
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0"
   }
  ]
 }

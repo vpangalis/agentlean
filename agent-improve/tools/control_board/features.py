@@ -194,7 +194,10 @@ def counted(feature: dict, reqs: dict[str, dict] | None = None) -> bool:
 
 def summary(features: list[dict] | None = None, res: dict | None = None) -> dict:
     reqs = requirements()
-    features = [f for f in (load() if features is None else features) if counted(f, reqs)]
+    every = load() if features is None else features
+    # Counts are over the counted features; the next feature per lane is ranked over all of them (a P0 tooling
+    # feature, phase "build", is not counted but is worked first — founder ruling 2026-10-20).
+    features = [f for f in every if counted(f, reqs)]
     res = results() if res is None else res
     st = status(features, res)
     for fid in shallow(features):
@@ -203,7 +206,7 @@ def summary(features: list[dict] | None = None, res: dict | None = None) -> dict
     lanes: dict[str, dict] = {}
     clauses: dict[str, dict] = {}
     import rank  # the computed order (ADR-0058, brief Part F3); imported here: rank imports this module
-    nxt = rank.next_per_lane(rank.rank(features, res))
+    nxt = rank.next_per_lane(rank.rank(every, res))
     for lane in LANES:
         mine = [f for f in features if f["lane"] == lane]
         failing = [f["id"] for f in mine if st[f["id"]] == "failing"]
