@@ -144,6 +144,13 @@ def run_suite(root: Path = ROOT, tree: str | None = None) -> tuple[int, str]:
     not copied back — the checkout's record belongs to its own index."""
     copy_back = tree is None
     tree = tree or index_tree(root)
+    # DEF-248 (founder ruling 2026-10-20, hook time b): the same source passed its full run already (a commit retried
+    # for its message alone) — that run is reused, not repeated. The ledger keys a run by its source, not its tree.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import pre_push
+    src = pre_push.source_id(tree, root)
+    if src in pre_push.passed_sources():
+        return 0, f"full run reused: source {src} passed its full suite before (DEF-248)" + chr(10)
     wt = sync(root, tree)
     base = [venv_python(root), "-m", "pytest", "backend/tests", "-q", "--no-header",
             "-p", "no:cacheprovider"]
