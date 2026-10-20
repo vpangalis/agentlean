@@ -5391,6 +5391,65 @@ def test_an_element_is_read_back_and_stored_only_with_all_its_required_parts(env
         "at least one CTQ as a measurable requirement (with a number)"]
 
 
+def test_the_problem_statement_card_reads_its_rows_from_the_5w2h_answers(env, monkeypatch) -> None:
+    """DEF-230 — ADR-0093 "Element templates and the Gate view": the problem statement's card rows come from the
+    5W2H answers a Confirm stores, never from spans of the composed statement (the statement is the coach's
+    composition, so the Belt's words are not verbatim in it and those spans are dropped — 5 of 9 live). From the
+    Belt's side, on the routes and graph: the Belt answers the seven questions by label; the coach composes the
+    statement and proposes no 5W2H of its own. The read-back card shows the defect, the size and where from the
+    Belt's own answers, none "in your answer", Confirm open; the Confirm stores the seven answers in the Belt's
+    words, and the Gate's card shows the same rows."""
+    from backend.phases import moves
+    from backend.phases.define import parse, templates
+    from backend.tests.test_define_report import COMPLETE
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    record = env.case.phases["define"]
+    done = ("business_case", "team", "voc_summary", "critical_to_quality")
+    record.structured = {f: COMPLETE[f] for f in done}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in ("business_case", "team", "voc_summary")}
+    record.field_status["problem_statement"] = {"status": moves.ASKED}
+    belt = ("What: supplier invoices are paid after their 30-day terms. Where: the accounts payable team across "
+            "our three hospital sites. When: every month since January 2026. Who: the suppliers, and the ward "
+            "managers whose stock gets held. Why it matters: interest, lost discounts and supplier stops. How "
+            "much: 23% of invoices were paid late over January to June 2026. How it shows: suppliers chase us by "
+            "phone and email. The steps where it shows: resolve mismatches and approve.")
+    statement = ("Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from "
+                 "January to June 2026, so suppliers chase us and some put us on stop.")
+    _coach_saying(monkeypatch, "Here is your problem statement. Is this right?", captured=[
+        {"field_name": "problem_statement", "value": statement, "source": "belt"}])
+    body = ask(message=belt)
+    assert body["move"] == moves.READ_BACK, (body["move"], body["answer"])
+    card = body["readback_card"]
+    rows = {r["id"]: r for r in card["rows"]}
+    assert rows["defect"]["value"] == "supplier invoices are paid after their 30-day terms", rows["defect"]
+    assert rows["magnitude"]["value"] == "23% of invoices were paid late over January to June 2026", rows["magnitude"]
+    assert "the accounts payable team across our three hospital sites" in rows["located"]["value"], rows["located"]
+    assert "resolve mismatches and approve" in rows["located"]["value"], rows["located"]
+    assert all(r["source"] == templates.YOUR_ANSWER for r in card["rows"]), [(r["id"], r["source"]) for r in card["rows"]]
+    assert "answer" not in card and card["confirm"], card
+    assert card["statement"] == statement
+
+    _coach_saying(monkeypatch, "Thank you. Next, the baseline.")
+    ask(message="Confirm", action="confirm")
+    define = _define(env)
+    stored = define["structured"]["problem_5w2h"]
+    assert stored["what"] == "supplier invoices are paid after their 30-day terms" and stored["how"] == \
+        "suppliers chase us by phone and email", stored
+    assert not parse.missing_parts("problem_5w2h", stored), stored
+    gate = templates.gate_card("problem_statement", define["structured"], define["field_status"],
+                               define.get("field_log"))
+    assert [(r["id"], r["value"]) for r in gate["rows"]] == [(r["id"], r["value"]) for r in card["rows"]], gate
+
+    # The coach's own 5W2H, keyed as the report labels it, is read by the same keys; the Belt's words win.
+    assert parse.five_w_two_h("no labels here at all") == {}
+    assert parse.five_w_two_h(belt)["why"] == "interest, lost discounts and supplier stops"
+
+
 def test_the_seventh_5w2h_question_has_one_definition(env, monkeypatch) -> None:
     """DEF-189 — The seventh 5W2H question has one definition everywhere: how the problem shows up (G-189; founder test findings 38).
     ADR-0088 decision 7, on the real routes and graph: a 5W2H whose seventh answer is a goal is asked, in code,

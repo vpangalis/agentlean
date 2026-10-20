@@ -692,6 +692,10 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
         dated = parse.calendar_date(value) if phase == "define" and f == "target_date" and isinstance(value, str) else None
         if dated:
             value = dated[0]                               # ADR-0088 decision 5: stored as an ISO date
+        if phase == "define" and f == "problem_5w2h":
+            # DEF-230 (ADR-0093): the seven answers as the Belt labelled them, read in code — the card's rows and
+            # the stored value — the coach's proposal only for what the Belt did not label.
+            value = parse.five_w_two_h_store(words, value) or value
         if phase == "define" and f in parse.TABLE_ELEMENTS and pending.get("upload") and parse.team_rows(words):
             # G-236 (DEF-229): a read-back of an uploaded table stores the file's rows, read in code from its
             # labelled lines (every column, training included) — never the coach's re-typing of them.

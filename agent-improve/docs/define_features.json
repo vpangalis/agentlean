@@ -8092,6 +8092,43 @@
    "stage": "coached",
    "layer": "api",
    "pilot": true
+  },
+  {
+   "id": "DEF-230",
+   "description": "The problem statement's read-back card and Gate card read their rows from the 5W2H answers a Confirm stores — the Belt's labelled answers read in code, the coach's proposal only for the rest — never from spans of the composed statement (ADR-0093)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-195"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_problem_statement_card_reads_its_rows_from_the_5w2h_answers",
+   "sources": {
+    "architecture": [
+     "ADR-0093 Element templates and the Gate view"
+    ],
+    "procedure": [
+     "founder prompt 2026-10-20 item 4 (5 of 9 spans fail verbatim: the statement is the coach's composition)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/parse.py::five_w_two_h",
+     "agent-improve/backend/phases/define/parse.py::five_w_two_h_store"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R6",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
   }
  ]
 }

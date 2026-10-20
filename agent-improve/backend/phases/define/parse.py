@@ -235,6 +235,52 @@ _TRAINING = re.compile(r"train|course|workshop|half[- ]day|full[- ]day|session|l
                        r"none needed|nothing needed|no (?:\w+ )?needed|needs? no", re.I)
 
 
+#: DEF-230 — the 5W2H labels a Belt writes, longest first so "how much" is never read as "how"; `steps` joins `where`.
+_FIVE_W_LABELS: tuple[tuple[str, str], ...] = (
+    ("how_much", r"how[\s_-]+much"),
+    ("how", r"how\s+(?:it|the\s+problem|the\s+defect)\s+(?:shows|is\s+detected|is\s+noticed)(?:\s+up)?|how"),
+    ("what", r"what(?:\s+is\s+going\s+wrong)?"), ("where", r"where"),
+    ("when", r"when(?:,?\s+or\s+since\s+when)?|since\s+when"), ("who", r"who(?:\s+is\s+affected)?"),
+    ("why", r"why(?:\s+it\s+matters)?"), ("steps", r"(?:the\s+)?(?:process\s+)?steps?(?:\s+where\s+it\s+shows)?"))
+_FIVE_W_LABEL = re.compile(r"(?:^|(?<=[.;\n]))\s*(" + "|".join(f"(?P<{k}>{p})" for k, p in _FIVE_W_LABELS) + r")\s*:\s*",
+                           re.I)
+#: The keys a coach may give the 5W2H under (the report's wording), to the stored keys.
+_FIVE_W_KEYS = {"how much": "how_much", "howmuch": "how_much", "how it shows up": "how", "how it shows": "how",
+                "why it matters": "why", "what is going wrong": "what", "who is affected": "who"}
+
+
+def five_w_two_h(words: Any) -> dict[str, str]:
+    """DEF-230 (ADR-0093): the seven 5W2H answers from the Belt's labelled answer ("What: … Where: … How much: …"),
+    read in code, each in the Belt's own words; the process steps the Belt names join `where` (R18). Empty unless at
+    least four of the seven are labelled — an answer in prose is the coach's to structure."""
+    text = str(words or "")
+    hits = list(_FIVE_W_LABEL.finditer(text))
+    out: dict[str, str] = {}
+    for i, m in enumerate(hits):
+        key = next(k for k, _ in _FIVE_W_LABELS if m.group(k))
+        end = hits[i + 1].start() if i + 1 < len(hits) else len(text)
+        line_end = text.find(chr(10), m.end())
+        if line_end != -1:
+            end = min(end, line_end)                  # one answer, one line: a later message is not part of it
+        answer = text[m.end():end].strip().rstrip(".;").strip()
+        if answer:
+            out[key] = answer                         # a later message's answer corrects an earlier one
+    steps = out.pop("steps", "")
+    if steps and out.get("where"):
+        out["where"] = f"{out['where']}; steps: {steps}"
+    return out if len(out) >= 4 else {}
+
+
+def five_w_two_h_store(words: Any, proposed: Any) -> dict[str, Any]:
+    """DEF-230: the 5W2H a Confirm stores — the Belt's labelled answers (in code) where given, the coach's proposal
+    (its keys read as the report labels them) for the rest; {} when neither gives one."""
+    coach = {}
+    for k, v in (proposed.items() if isinstance(proposed, dict) else []):
+        key = re.sub(r"[\s-]+", " ", str(k).strip().lower())
+        coach[_FIVE_W_KEYS.get(key, key.replace(" ", "_"))] = v
+    return {**coach, **five_w_two_h(words)}
+
+
 #: G-236 — the list elements whose uploaded table is read in code, one entry per row, every column kept.
 TABLE_ELEMENTS: tuple[str, ...] = ("team",)
 #: A team file's column for what the member does, when it has no `function` column.
