@@ -6729,7 +6729,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-188"
+     "G-188",
+     "G-237"
     ]
    },
    "requirement": "R4",
@@ -6761,7 +6762,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-189"
+     "G-189",
+     "G-238"
     ]
    },
    "requirement": "R7",

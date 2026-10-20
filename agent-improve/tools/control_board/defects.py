@@ -1,7 +1,7 @@
 """The defect loop's counts — founder ruling R-B change 2, 2026-10-20.
 
 - Escape classes: every `docs/defects.json` entry carries `escape_class` — how the defect got past every check
-  (error_routine | path_test | join | assumption | claim | none), or null when its D4 ESCAPE does not say.
+  (error_routine | path_test | join | assumption | claim | xfail_mask | none), or null when its D4 ESCAPE does not say.
 - The rule: two defects in one class with no D7 action in the register's `escape_controls` -> that D7 is owed
   before the next feature (`owed`). Class `none` (nothing escaped) owes nothing.
 - Regression and capability, counted apart: regression is the rule 11b ratchet set (`docs/features-ratchet.json`,
@@ -21,7 +21,7 @@ DEFECTS = PROJECT / "docs" / "defects.json"
 RATCHET = PROJECT / "docs" / "features-ratchet.json"
 
 #: The classes, in the order the board lists them.
-CLASSES: tuple[str, ...] = ("error_routine", "path_test", "join", "assumption", "claim", "none")
+CLASSES: tuple[str, ...] = ("error_routine", "path_test", "join", "assumption", "claim", "xfail_mask", "none")
 
 
 def register(path: Path = DEFECTS) -> dict[str, Any]:

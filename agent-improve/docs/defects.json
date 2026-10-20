@@ -1,5 +1,5 @@
 {
- "_about": "The defect register — moved here from the archived procedure's Appendix G (founder, 2026-09-27). One entry per defect: id, symptom, requirement (the id it breaks), feature (the DEF id whose end-to-end test proves it fixed), lane (the owner). THERE IS NO STATUS FIELD: a defect's status is its feature's test outcome in docs/test-results.json. feature, requirement and lane are lists: 12 procedure-era gaps are cited by several features. For those gaps they are the features that cite the gap in define_features.json provenance.gaps, and a test keeps the two files agreeing (test_defects.py). Gaps G-01 to G-111 are procedure-era: their symptom keeps the register row verbatim in plain text, including its Attaches-to and Step columns and, for a closed gap, its resolution; an empty feature list means no feature proves them. commit-msg rule 8 resolves a `Gap: G-nn` trailer against this file, read from the INDEX. A new defect gets the next G number, a failing feature, and a lane in the same commit. TOOLING GAPS (founder, 2026-09-30): a defect in the harness rather than in a Define feature is registered with lane [\"tooling\"], feature [] and requirement [], and a `control` field naming the control that now prevents it recurring (test_defects.py enforces the shape). ESCAPE CLASS (founder ruling R-B, 2026-10-20): every entry carries `escape_class` — how the defect got past every check: error_routine (a fallback, handler, retry or log line answered the failure, so it looked well-formed), path_test (the tests ran a different path, input or shape), join (each side tested alone, the join between them not), assumption (an environment or design assumption held in every run checked), claim (a control, commit or report said it was covered and nothing checked the saying), none (nothing escaped: a known, accepted-and-not-built gap) — or null when the entry's D4 ESCAPE does not say. `escape_controls` names the D7 action that now prevents each class; two defects in one class with no D7 there -> that D7 is owed before the next feature (tools/control_board/defects.py).",
+ "_about": "The defect register — moved here from the archived procedure's Appendix G (founder, 2026-09-27). One entry per defect: id, symptom, requirement (the id it breaks), feature (the DEF id whose end-to-end test proves it fixed), lane (the owner). THERE IS NO STATUS FIELD: a defect's status is its feature's test outcome in docs/test-results.json. feature, requirement and lane are lists: 12 procedure-era gaps are cited by several features. For those gaps they are the features that cite the gap in define_features.json provenance.gaps, and a test keeps the two files agreeing (test_defects.py). Gaps G-01 to G-111 are procedure-era: their symptom keeps the register row verbatim in plain text, including its Attaches-to and Step columns and, for a closed gap, its resolution; an empty feature list means no feature proves them. commit-msg rule 8 resolves a `Gap: G-nn` trailer against this file, read from the INDEX. A new defect gets the next G number, a failing feature, and a lane in the same commit. TOOLING GAPS (founder, 2026-09-30): a defect in the harness rather than in a Define feature is registered with lane [\"tooling\"], feature [] and requirement [], and a `control` field naming the control that now prevents it recurring (test_defects.py enforces the shape). ESCAPE CLASS (founder ruling R-B, 2026-10-20): every entry carries `escape_class` — how the defect got past every check: error_routine (a fallback, handler, retry or log line answered the failure, so it looked well-formed), path_test (the tests ran a different path, input or shape), join (each side tested alone, the join between them not), assumption (an environment or design assumption held in every run checked), claim (a control, commit or report said it was covered and nothing checked the saying), xfail_mask (a feature test that newly failed read as xfail, not failed — founder follow-up 2026-10-20), none (nothing escaped: a known, accepted-and-not-built gap) — or null when the entry's D4 ESCAPE does not say. `escape_controls` names the D7 action that now prevents each class; two defects in one class with no D7 there -> that D7 is owed before the next feature (tools/control_board/defects.py).",
  "defects": [
   {
    "id": "G-01",
@@ -2871,6 +2871,34 @@
     "C"
    ],
    "escape_class": "path_test"
+  },
+  {
+   "id": "G-237",
+   "symptom": "A REGRESSION HID BEHIND NON-STRICT XFAIL (DEF-188, 2026-10-20, found before commit f4f013d). My first parse.five_w_two_h (DEF-230) did not read \"how_much:\" (underscore) as a label, so the answer to \"why\" ran on into it and into the next message (\"they chase us and some leave; how_much: 40% closed after 5 working days\nConfirm\"); test_an_element_is_read_back_and_stored_only_with_all_its_required_parts failed. FIXED in f4f013d (labels accept _ and -; an answer ends at its line). D4 OCCURRENCE: the label pattern allowed only a space inside \"how much\", and an answer ran to the next label across messages. D4 ESCAPE: a feature test is a non-strict xfail measurement, so the area run that followed reported it as xfail, not failed (\"166 passed, none failed\"); it was seen only by running the named tests with --runxfail and comparing with today's baseline record, where it passed. Rule 11b's ratchet would have refused the commit; nothing flags it on an ordinary run.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-188"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "xfail_mask"
+  },
+  {
+   "id": "G-238",
+   "symptom": "A REGRESSION HID BEHIND NON-STRICT XFAIL (DEF-189, 2026-10-20, found before commit f4f013d). The same first parse.five_w_two_h kept the FIRST answer to a label, so the Belt's corrected \"how:\" in a second message lost to the goal it corrected and the read-back asked again how the problem shows up; test_the_seventh_5w2h_question_has_one_definition failed. FIXED in f4f013d (a later message's answer corrects an earlier one). D4 OCCURRENCE: \"key not in out\" kept the first occurrence. D4 ESCAPE: a feature test is a non-strict xfail measurement, so the area run that followed reported it as xfail, not failed (\"166 passed, none failed\"); it was seen only by running the named tests with --runxfail and comparing with today's baseline record, where it passed. Rule 11b's ratchet would have refused the commit; nothing flags it on an ordinary run.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-189"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "xfail_mask"
   }
  ],
  "escape_controls": {

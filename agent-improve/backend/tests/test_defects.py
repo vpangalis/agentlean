@@ -17,7 +17,7 @@ import pytest
 _DOCS = Path(__file__).resolve().parents[2] / "docs"
 FIELDS = {"id", "symptom", "requirement", "feature", "lane", "escape_class"}
 #: Founder ruling R-B change 2, 2026-10-20: how each defect got past every check; null when its D4 ESCAPE does not say.
-ESCAPE_CLASSES = {"error_routine", "path_test", "join", "assumption", "claim", "none"}
+ESCAPE_CLASSES = {"error_routine", "path_test", "join", "assumption", "claim", "xfail_mask", "none"}
 #: Founder 2026-09-30 (review of ea2d265): a TOOLING gap — a defect in the harness, not in a Define
 #: feature — has no feature and no requirement, lane ["tooling"], and names the `control` that now
 #: prevents it recurring.
