@@ -7,22 +7,22 @@
 
 | | |
 |---|---|
-| **Headline** | 99 of 223 Define features pass, 31 more proven on earlier code (core 96 of 214) — A 36/88 · B 32/41 · C 24/66 · integrator 7/28 · M1: 43 proven · 23 awaiting fresh run · 6 open |
+| **Headline** | 100 of 223 Define features pass (core 97 of 214) — A 37/88 · B 32/41 · C 24/66 · integrator 7/28 · M1: 43 proven · 0 awaiting fresh run · 28 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
 | **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
-| **Block regenerated** | 2026-10-19 |
+| **Block regenerated** | 2026-10-20 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.
 A feature passes only when its end-to-end test passes.*
 <!-- END CURRENT BUILD STATUS -->
 
-## ⇒ M1 REACHED — 2026-09-30 (fifth run), stop condition 7
+## M1 REACHED — 2026-09-30 (fifth run), stop condition 7 — history
 
 *Hand-written. Founder rulings 2026-09-30 (items 1-5); the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
 
@@ -35,79 +35,19 @@ A feature passes only when its end-to-end test passes.*
 | **Still open** | G-139 — its cause is NOT captured: it occurred on 1 run of 3 on the pre-G-140 code (174434) and on neither run since; the diagnosis is live on every run. G-141 (DEF-002) waits on it |
 | **Found and fixed** | f511b68: 416d9df's merge regex took the name of rule 8's and crashed the guard on any `Feature:` trailer (failed closed; nothing landed under it) |
 
-## ⇒ CURRENT POSITION — 2026-09-24
+## ⇒ CURRENT POSITION — 2026-10-20
 
-*Hand-written below the generated block, so regeneration does not touch it.
-Update it with every commit that moves the position.*
+*Hand-written, and the ONLY place the position is written: pointers, not copies. Update it at the end of
+every session. Every other hand-written section of this file is dated history.*
 
 | | |
 |---|---|
-| **Last commit** | **The coaching move is decided in code — ruled and registered** (ARCHITECTURE v1.75, step 6.61 first in Order; `git log -1`) · the CLAUDE.md rule §21 in its own commit · **root reference back-port OWED** (binds all three agents) · **step 10.0 landed** (ARCHITECTURE v1.76): the four blocks and the grader's warning reach the Belt; a reload redraws past turns |
-| **Register** | **15 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35**. Rows 13 and 35 proven on trace `01a0d3e5-6246-7de3-b768-2ee767a5130c` (G-96 live turn, first in process: yes) |
-| **Red from 6.49** | **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence rejects and never re-asks — `xfail(strict=True)`, step 6.53) |
-| **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
-
-| Trace | Where the 45 s went |
-|---|---|
-| `01a0d215-a216-75e2-ba80-1c80597f891f` | The grader failed the reply twice and was re-judging the **same text** |
-| `01a0d28e-d4da-7901-a75e-44d86b102098` | Three knowledge lookups in a row, about 32 s (12.2 + 9.8 + 10.4) |
-
-**The executor soft budget (`nodes_common.py:647`) ended neither turn before the 45 s limit.**
-
-**TRACING IS BACK, ON A BUDGET.** After G-95 spent the free quota the founder added a
-card with a **$10/month** limit (2026-09-24). A probe was accepted at 14:25 UTC and the
-G-96 live turn traced at 14:50. **Every live proof is counted in traces before and
-after**; a full pytest run must still create 0 (the `fe27cf4` guard).
-
-**6.46 landed (ARCHITECTURE v1.71):** the Define script is in the system message on
-every model call and each turn records version + hash; §22's guard refuses a captured
-worked example. Row 3 green. **G-96 closed** (v1.72): layer 2a is told the script step and
-sees the whole reply; every verdict is in `step_log`. Open: **G-94** (empty case index
-searched; 6.55 proposed), G-97 / G-98 (decide at 6.43 Part A), **G-99** (2a rejects a
-stock-taking summary as parroting — founder).
-
-**6.57 landed (v1.73):** *"Define · Step n of 12"* is `define_progress` — delivered in the
-prompt, written into the reply's `progress`, recorded with the model's own count
-(`define_position` in `step_log`). Step 10.3's bar must call the same function.
-**6.56 registered (GATED)** with its driver, `scripts/coaching_proof_656.py` — two untraced
-dry runs, 0 sends. **Its one traced run (positions 1–8, ≤ 15 turns) is HELD by the founder.**
-Registered 2026-09-25: **G-100** (expected savings reads "23%" as 23 — 100× too large;
-proposed owner step 6.58) and **G-101** (`init_tracing()` ignores `LANGSMITH_TRACING=false`).
-
-**THE DEFINE PATH, ruled 2026-09-25 — Appendix F's `Order` column is the only
-copy:** 6.61 → 6.59 → 6.58 → 6.56 → 6.45 → 6.51 → 10.3 → 10.4 → 6.43 → 6.44 →
-7.1 → 7.2 → 7.3 → 7.7 → 7.4 → 7.5 → 7.8 → 7.9 (end to end) → 6.62 (the other four phase scripts; Define does not wait on it). Depends-on is each
-step's own card. Estimates and epics: Appendix F, *"The Define path — estimate
-and epic"*. Founder milestones: G-23 (7.1), G-40 (7.2), the latency ruling (6.53),
-F2 (10.2, off the path). The coherence audit is DONE (`IMPR-2026-AD5`, 0 traces);
-its findings are G-102..G-106.
-
-**Superseded by the Define path above — kept for the record:**
-
-1. **6.51** — the baseline card
-2. **6.46** — the coaching script reaches the model: the §22 guard, and remove the duplicate "Capture as:" lines
-3. **10.3** — progress counts the real field names
-4. **6.44** — the contradiction stop moves into a node
-5. **7.3 + 7.7** — the HITL gate, proven on a fresh case that carries an upload
-
-| Founder content owed | Blocks |
-|---|---|
-| The Define rubric text | **7.2** |
-| The gate screen design | **10.2** |
-
-**Deferred:** the Jira mirror (after Define is tested end to end) · login and team members.
-
-**Risks:** two Claude Code sessions on one tree (the shared git index and working
-copy) · the repo sits inside OneDrive sync.
-
-**Reviewer rules:** verify every edit before claiming it · label every claim
-VERIFIED or RELAYED · work an 8D before any fix · nothing is green without a check.
-
-**Known empty vertical:** the block above says no row carries an `Order` number.
-That is the `read_order()` bug, not an empty plan: `build_board.py` and
-`continuity_status.py:250` carry two copies of one regex, and neither allows for
-the `Zone` column 6.37 added (a bug in `stories.py`, S28). Appendix F in fact carries
-`Order` 1–6 (6.51, 6.46, 10.3, 6.44, 7.3, 7.7).
+| **Where Define stands** | The generated block's **Headline** above — never copied here |
+| **Finish line** (R-A, 2026-10-20) | Define is done when the founder's second live test passes without a blocking defect. Stages 3 and 4 are in scope; stage 5–6 items (W20 location, ADR-0096 "Hard and soft benefits", R10 "Process document → SIPOC") wait until Analyse starts unless named pilot must-haves; new non-blocking findings go to the backlog |
+| **Defect loop** (R-B, 2026-10-20) | Changes 1–3 adopted: a hidden degraded reply fails its test; `escape_class` on every `docs/defects.json` entry; the board counts regression and capability apart. Change 4 is the next prompt |
+| **Open blocker** | G-236 "Uploaded team list loses its training column" — `docs/defects.json` (registered by item 3 of this prompt) |
+| **This prompt** (2026-10-20) | Items 0–7: this block · the degraded-reply fixture · escape classes · G-236 · the problem-statement card from the 5W2H answers · read-back cards in the run-through record · capability rows 18, 20, 21 · one live run-through, then the ADR-0087 "The approval node writes both records" merge — `git log --since=2026-10-20` |
+| **Owed next** | 1. Replay of the founder's 15 Oct transcript as a session-start check (R-B change 4) · 2. Item-28 ADR on question turns and calculations — before stage 3 · 3. Stages 3 and 4 · 4. Founder live test 2 · 5. The one ARCHITECTURE.md update after Define |
 
 ## ⇒ WHERE THE PLAN LIVES
 
