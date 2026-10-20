@@ -1,9 +1,9 @@
 {
  "source_hash": "20fbfb9add5aae5e",
- "commit": "e25fdf3",
+ "commit": "c39a686",
  "commit_matches_source": true,
  "full_run_hash": "5c7233766bf278e3",
- "recorded_at": "2026-10-20T15:57:17+00:00",
+ "recorded_at": "2026-10-20T16:02:49+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1723,7 +1723,7 @@
   "backend/tests/test_tooling_p0.py::test_search_index_schemas_have_a_registered_owner": "passed",
   "backend/tests/test_tooling_p0.py::test_t67s_child_process_writes_utf8_whatever_the_shell": "passed",
   "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests": "passed",
-  "backend/tests/test_tooling_p0.py::test_the_commit_message_is_checked_at_preflight_before_any_test": "skipped",
+  "backend/tests/test_tooling_p0.py::test_the_commit_message_is_checked_at_preflight_before_any_test": "passed",
   "backend/tests/test_tooling_p0.py::test_the_fact_ownership_check_runs_at_the_commit_gate": "skipped",
   "backend/tests/test_tooling_p0.py::test_the_full_suite_runs_once_per_package_before_its_push": "passed",
   "backend/tests/test_tooling_p0.py::test_the_hooks_run_with_the_projects_python": "skipped",

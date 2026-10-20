@@ -32,6 +32,62 @@ def is_commit(command: str) -> bool:
     return bool(COMMIT_RE.search(command)) and "--dry-run" not in command
 
 
+#: DEF-249 — the commit message as the command gives it: `-F <file>` / `--file <file>`, or each `-m <text>`.
+_FILE_RE = re.compile(r"""\s(?:-F|--file)(?:\s+|=)(?:"([^"]+)"|'([^']+)'|(\S+))""")
+_M_RE = re.compile(r"""\s-m\s+(?:"((?:[^"\\]|\\.)*)"|'([^']*)')""")
+
+
+def commit_message(command: str) -> str | None:
+    """DEF-249: the message a `git commit` command carries, or None (an editor opens: nothing to check here)."""
+    m = _FILE_RE.search(command)
+    if m:
+        try:
+            return Path(next(g for g in m.groups() if g)).read_text(encoding="utf-8")
+        except OSError:
+            return None
+    parts = [next((g for g in mm.groups() if g is not None), "") for mm in _M_RE.finditer(command)]
+    return "\n\n".join(parts) if parts else None
+
+
+def message_problems(message: str) -> list[str]:
+    """DEF-249 (founder ruling 2026-10-20, hook time c): the commit guard's message rules, run on the message before
+    any test — the subject format of a feature commit (rule 1), the 8D of a fix (rule 6), the number a new file needs
+    (rule 8), `Design:` (rule 17), `Ruling:` (rule 20), `Verified:` (rule 23). Each refusal, in the guard's words."""
+    import contextlib
+    import importlib.util
+    import io
+    hooks = Path(__file__).resolve().parent
+    spec = importlib.util.spec_from_file_location("guard_preflight", hooks / "commit-msg-refactor-guard.py")
+    assert spec and spec.loader
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    root = str(hooks.parents[1])
+    lines = [ln for ln in message.splitlines() if not ln.startswith("#")]
+    subject = (lines[0] if lines else "").strip()
+    body = "\n".join(lines)
+    try:
+        staged, added = guard.staged_paths(root), guard.added_paths(root)
+    except Exception:                               # noqa: BLE001 — without the index, the message rules alone
+        staged, added = [], []
+    checks = [lambda: guard.check_8d(subject, body),
+              lambda: guard.check_step_or_gap(root, subject, body, added),
+              lambda: guard.check_design(root, body, staged),
+              lambda: guard.check_founder_ownership(root, body, staged),
+              lambda: guard.check_verified(body, staged)]
+    if subject.startswith("refactor(arch-v2):") and not guard.SUBJECT_RE.match(subject):
+        checks.insert(0, lambda: guard.fail("refactor subject does not match the spine format", f"Got: {subject}",
+                                            "Expected: refactor(arch-v2): DEF-xxx — <what changed>"))
+    out = []
+    for check in checks:
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+                check()
+        except SystemExit:
+            out.append(err.getvalue().strip())
+    return out
+
+
 def decide(payload: dict, run) -> tuple[int, str]:
     """(exit code, message) for one PreToolUse payload. `run` is preflight.run."""
     if payload.get("tool_name") not in ("Bash", "PowerShell"):
@@ -39,6 +95,12 @@ def decide(payload: dict, run) -> tuple[int, str]:
     command = (payload.get("tool_input") or {}).get("command") or ""
     if not is_commit(command):
         return 0, ""
+    message = commit_message(command)
+    if message is not None:
+        problems = message_problems(message)
+        if problems:
+            return 2, ("\n\n".join(problems) + "\n\nPRE-FLIGHT FAILED on the commit message (DEF-249) — nothing was "
+                       "run. Fix the message; the commit-msg guard would refuse it after the whole suite.")
     lines: list[str] = []
     working = bool(WORKING_RE.search(command))
     code = run(echo=lines.append, **({"working": True} if working else {}))
