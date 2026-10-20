@@ -4,8 +4,7 @@
 Pinned: every shown feature is one tile in its stage × layer cell and the tiles number the
 registry's features; colour = state, three states; every number — the milestone buttons, the
 "What's left" groups, Next up and the tile total — is read from `count()`, and the list of a
-milestone sums to its total minus its done; the pilot cut splits M2 only once the registry
-carries it; the retired sections are gone; the commit guard's rule 10 reads the page back as true.
+milestone sums to its total minus its done; the retired pilot flag affects nothing; the retired sections are gone; the commit guard's rule 10 reads the page back as true.
 """
 from __future__ import annotations
 
@@ -169,27 +168,19 @@ def _row(fid: str, tier: int | None, status: str, rank: int | None = None, **kw)
             "held": kw.get("held"), "hidden": kw.get("hidden", False), "pilot": kw.get("pilot")}
 
 
-def test_until_the_pilot_cut_is_ruled_m2_is_one_button(board) -> None:
+def test_the_retired_pilot_flag_affects_nothing(board) -> None:
+    """Founder ruling 2026-10-20: Define is done when every Define feature passes, except Won't-now; the pilot
+    flag no longer affects anything. With every M2 feature carrying it, true or false, M2 is still one button,
+    with all of them, and the page shows no pilot milestone and no pilot note."""
     d, page = board
-    rows = [_row("A", 1, "green"), _row("B", 2, "grey", 1, pilot=True), _row("C", 2, "amber", 2)]
-    c = bcb.count(rows)
-    assert [x["key"] for x in c["milestones"]] == ["all", "M1", "M2", "M3"] and not c["pilot_ruled"]
-    assert c["milestones"][2]["name"] == "Must-haves"
-    if not d["count"]["pilot_ruled"]:
-        assert "data-ms='M2'" in page and f"{bcb.PILOT_NOT_RULED}." in page
-        assert "Ready for pilot</b>" not in page and "Before customers</b>" not in page
-
-
-def test_once_ruled_m2_splits_into_ready_for_pilot_and_before_customers() -> None:
     rows = [_row("A", 1, "green"), _row("B", 2, "grey", 2, pilot=True), _row("C", 2, "amber", 1, pilot=False),
             _row("D", 2, "green", pilot=True), _row("E", 3, "grey", 3)]
     c = bcb.count(rows)
     ms = {x["key"]: x for x in c["milestones"]}
-    assert c["pilot_ruled"] and list(ms) == ["all", "M1", "M2-pilot", "M2-later", "M3"]
-    assert (ms["M2-pilot"]["name"], ms["M2-later"]["name"]) == ("Ready for pilot", "Before customers")
-    assert (ms["M2-pilot"]["total"], ms["M2-pilot"]["done"], ms["M2-later"]["total"]) == (2, 1, 1)
-    rows[2]["pilot"] = None                                  # one M2 feature without it: not ruled
-    assert [x["key"] for x in bcb.count(rows)["milestones"]] == ["all", "M1", "M2", "M3"]
+    assert list(ms) == ["all", "M1", "M2", "M3"] and not c["pilot_ruled"]
+    assert (ms["M2"]["name"], ms["M2"]["total"], ms["M2"]["done"]) == ("Must-haves", 3, 1)
+    assert "data-ms='M2'" in page and "data-key='pilot'" not in page
+    assert "Ready for pilot</b>" not in page and "Before customers</b>" not in page
 
 
 def test_a_pilot_field_is_true_or_false() -> None:

@@ -1,9 +1,9 @@
 {
- "source_hash": "b5b664e997e3c804",
- "commit": "043895a",
+ "source_hash": "f7b0e55122778096",
+ "commit": "2b3c5e3",
  "commit_matches_source": false,
- "full_run_hash": "b5b664e997e3c804",
- "recorded_at": "2026-10-20T09:26:35+00:00",
+ "full_run_hash": "f7b0e55122778096",
+ "recorded_at": "2026-10-20T10:36:12+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -50,16 +50,15 @@
   "backend/tests/test_board_value_stream.py::test_every_tile_is_in_all_of_define_and_in_at_most_one_other_milestone": "passed",
   "backend/tests/test_board_value_stream.py::test_next_up_is_the_first_five_open_in_the_order_of_work_never_a_held_one": "passed",
   "backend/tests/test_board_value_stream.py::test_no_code_names_in_the_labels": "passed",
-  "backend/tests/test_board_value_stream.py::test_once_ruled_m2_splits_into_ready_for_pilot_and_before_customers": "passed",
   "backend/tests/test_board_value_stream.py::test_rule_10_reads_the_rendered_page_back_as_true": "passed",
   "backend/tests/test_board_value_stream.py::test_the_default_is_the_first_milestone_not_complete": "passed",
   "backend/tests/test_board_value_stream.py::test_the_grid_tile_count_equals_the_registry": "passed",
   "backend/tests/test_board_value_stream.py::test_the_page_has_the_new_layout_and_not_the_retired_sections": "passed",
   "backend/tests/test_board_value_stream.py::test_the_page_is_self_contained": "passed",
   "backend/tests/test_board_value_stream.py::test_the_phase_tabs_follow_the_registry": "passed",
+  "backend/tests/test_board_value_stream.py::test_the_retired_pilot_flag_affects_nothing": "passed",
   "backend/tests/test_board_value_stream.py::test_the_rows_carry_the_founders_plain_names": "passed",
   "backend/tests/test_board_value_stream.py::test_the_sum_of_the_list_is_total_minus_done_for_every_milestone": "passed",
-  "backend/tests/test_board_value_stream.py::test_until_the_pilot_cut_is_ruled_m2_is_one_button": "passed",
   "backend/tests/test_board_value_stream.py::test_waiting_on_you_reads_its_file_and_an_empty_file_hides_the_box": "passed",
   "backend/tests/test_capability_rows.py::test_g152_a_trace_past_retention_is_not_read_as_missing": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_10_a_row_short_a_key_is_red": "passed",
@@ -1816,8 +1815,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "5ec35137301bd066",
-  "recorded_at": "2026-10-20T09:18:42+00:00",
+  "source_hash": "b5b664e997e3c804",
+  "recorded_at": "2026-10-20T09:26:35+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

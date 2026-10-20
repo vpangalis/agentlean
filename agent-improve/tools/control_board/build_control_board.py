@@ -20,10 +20,9 @@ proven (a written test that fails, a passing test that is not end to end, its la
 top, or proven only on earlier code and awaiting a fresh run-through — `features.awaiting`);
 grey = not started (its test is a stub). A feature whose requirement is Won't-now is not shown.
 
-The pilot cut: "Ready for pilot" and "Before customers" split M2 by each feature's `pilot`
-field (true | false) in the feature registry, set by the founder's pilot-cut ruling. Until
-every M2 feature carries it, M2 is one button, "Must-haves", and the page says the cut is not
-ruled yet — the split is never guessed.
+The pilot cut is RETIRED (founder ruling 2026-10-20: Define is done when every Define feature
+passes, except Won't-now). Each feature keeps its `pilot` field, but nothing reads it: M2 is one
+button, "Must-haves".
 
 The Belt journey strip: each element square opens what the Belt provides, why it matters and
 its acceptance criteria (the Define skill), what happened to it in the run (the run record) and
@@ -75,10 +74,7 @@ E = html.escape
 ALL = ("all", "All of Define", "everything")
 M1 = ("M1", "Belt gets through", "M1")
 M2_ONE = ("M2", "Must-haves", "M2")
-M2_PILOT = ("M2-pilot", "Ready for pilot", "M2 pilot")
-M2_LATER = ("M2-later", "Before customers", "M2 later")
 M3 = ("M3", "Nice to have", "M3")
-PILOT_NOT_RULED = "pilot cut not ruled yet"
 #: The three states, in the words the page uses.
 STATE_WORDS = {"green": "done — passes end to end on the current code",
                "amber": "built, not yet proven", "grey": "not started"}
@@ -301,20 +297,17 @@ def _order(f: dict) -> tuple:
 
 
 def pilot_ruled(rows: list[dict]) -> bool:
-    """The pilot cut is ruled once every M2 feature carries `pilot: true|false` in the registry —
-    the founder's ruling sets it (a founder-owned change, with its `Ruling:` trailer)."""
-    m2 = [r for r in rows if r["tier"] == rank.MILESTONES["M2"]]
-    return bool(m2) and all(isinstance(r["pilot"], bool) for r in m2)
+    """RETIRED (founder ruling 2026-10-20: Define is done when every Define feature passes, except
+    Won't-now; the pilot flag no longer affects anything). Always False: M2 is never split."""
+    return False
 
 
 def milestones(rows: list[dict]) -> list[tuple[tuple[str, str, str], list[dict]]]:
     """The milestone buttons, left to right, each with its features; `rows` are the shown ones.
-    M1-M3 are tiers 1-3 (`rank.MILESTONES`); M2 is split by `pilot` only once that is ruled."""
+    M1-M3 are tiers 1-3 (`rank.MILESTONES`); M2 is one milestone — the pilot flag is retired (2026-10-20)."""
     tier = rank.MILESTONES
     m2 = [r for r in rows if r["tier"] == tier["M2"]]
-    split = ([(M2_PILOT, [r for r in m2 if r["pilot"] is True]), (M2_LATER, [r for r in m2 if r["pilot"] is False])]
-             if pilot_ruled(rows) else [(M2_ONE, m2)])
-    return [(ALL, rows), (M1, [r for r in rows if r["tier"] == tier["M1"]]), *split,
+    return [(ALL, rows), (M1, [r for r in rows if r["tier"] == tier["M1"]]), (M2_ONE, m2),
             (M3, [r for r in rows if r["tier"] == tier["M3"]])]
 
 
@@ -618,7 +611,7 @@ def render(d: dict) -> str:
         f"<span class='big'>{x['done']}<span class='small mut'> / {x['total']} done</span></span>"
         f"<span class='bar'><i class='d' style='width:{_pct(x['done'], x['total']):.1f}%'></i>"
         f"<i class='b' style='width:{_pct(x['built'], x['total']):.1f}%'></i></span></button>" for x in c["milestones"])
-    pilot = "" if c["pilot_ruled"] else f"<p class='note' data-key='pilot'>Ready for pilot / Before customers: {PILOT_NOT_RULED}.</p>"
+    pilot = ""                                     # the pilot flag is retired (founder ruling 2026-10-20)
 
     head = "<div></div>" + "".join(f"<div class='h'>{E(label)}</div>" for _, label in STAGES)
     cells = []
