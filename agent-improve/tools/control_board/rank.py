@@ -208,58 +208,33 @@ def next_per_lane(ranked: list[dict]) -> dict[str, str | None]:
     return out
 
 
-#: A work package's size (brief Part F9.2): effort points, S = 1, M = 2, L = 3.
+#: A work package's size in effort points, S = 1, M = 2, L = 3 — reported, no longer a cut (2026-10-20).
 PACKAGE_POINTS = 5
-
-
-def _modules(f: dict) -> set[str]:
-    return {c.split("::", 1)[0] for c in ((f.get("sources") or {}).get("code") or [])
-            if "/tests/" not in c}
-
-
-def _same_area(f: dict, g: dict) -> bool:
-    """Same layer AND stage (both set), or a shared product module in their sources."""
-    if f.get("layer") and f.get("stage") and (f["layer"], f["stage"]) == (g.get("layer"), g.get("stage")):
-        return True
-    return bool(_modules(f) & _modules(g))
 
 
 def packages(features: list[dict] | None = None, ranked: list[dict] | None = None,
              res: dict | None = None) -> dict[str, dict]:
-    """Each lane's next work package (brief Part F9.2): its top-ranked failing feature, then the
-    next-ranked features of the lane, in rank order, that share its area (same layer and stage,
-    or the same module) or depend on a feature already in the package — until 5 effort points.
-    A feature of another area is never pulled ahead of its rank: it ends the package (and
-    starts the next one); so does one that would push the package past 5 points. A feature
-    the design gate holds is skipped (founder, 2026-09-28)."""
+    """Each lane's next work package — founder ruling 2026-10-20: work runs in fixed packages, one prompt = one
+    package. Packages are fixed in the feature list (`package`, P1..P35); rank chooses the package: the one holding
+    the lane's top-ranked failing feature that carries one (a feature the design gate holds is skipped). The
+    package is every feature carrying that name, whatever its lane, in rank order, then the passing ones;
+    `points` counts the failing ones' effort. A package over 5 points may take two prompts (`over`)."""
     features = F.load() if features is None else features
     ranked = rank(features, res) if ranked is None else ranked
     by_id = {f["id"]: f for f in features}
+    order = {r["id"]: n for n, r in enumerate(ranked)}
     out: dict[str, dict] = {}
     for lane in F.LANES:
-        queue = [r["id"] for r in ranked if r["lane"] == lane and not r.get("held")]
-        if not queue:
-            out[lane] = {"features": [], "points": 0}
+        top = next((r["id"] for r in ranked if r["lane"] == lane and not r.get("held")
+                    and by_id[r["id"]].get("package")), None)
+        if top is None:
+            out[lane] = {"package": None, "features": [], "points": 0, "over": False}
             continue
-        top = by_id[queue[0]].get("priority_override") or {}
-        if top.get("package"):
-            # A founder-ruled package (priority_override.package): its features, in rank order,
-            # whatever their points — the founder set its size.
-            pkg = [i for i in queue if (by_id[i].get("priority_override") or {}).get("package") == top["package"]]
-            out[lane] = {"features": pkg, "points": sum(EFFORT.get(by_id[i].get("effort", "M"), 2) for i in pkg),
-                         "package": top["package"]}
-            continue
-        pkg = [queue[0]]
-        points = EFFORT.get(by_id[queue[0]].get("effort", "M"), 2)
-        for fid in queue[1:]:
-            f = by_id[fid]
-            e = EFFORT.get(f.get("effort", "M"), 2)
-            related = any(_same_area(by_id[p], f) for p in pkg) or bool(set(f["depends_on"]) & set(pkg))
-            if not related or points + e > PACKAGE_POINTS:
-                break
-            pkg.append(fid)
-            points += e
-        out[lane] = {"features": pkg, "points": points}
+        name = by_id[top]["package"]
+        mine = [f["id"] for f in features if f.get("package") == name and not f.get("merged_into")]
+        mine.sort(key=lambda i: (i not in order, order.get(i, 0), i))
+        points = sum(EFFORT.get(by_id[i].get("effort", "M"), 2) for i in mine if i in order)
+        out[lane] = {"package": name, "features": mine, "points": points, "over": points > PACKAGE_POINTS}
     return out
 
 
@@ -276,7 +251,8 @@ def main(argv: list[str]) -> int:
     for lane in F.LANES:
         mine = [r for r in ranked if r["lane"] == lane]
         print(f"lane {lane} ({F.LANES[lane]}): {len(mine)} failing, ranked · next package "
-              f"{', '.join(pk[lane]['features']) or '—'} ({pk[lane]['points']} points)")
+              f"{pk[lane]['package'] or '—'}: {', '.join(pk[lane]['features']) or '—'} ({pk[lane]['points']} points"
+              f"{', over 5: may take two prompts' if pk[lane]['over'] else ''})")
         for r in mine[: int(argv[argv.index('--top') + 1]) if "--top" in argv else 5]:
             print(f"  #{r['rank']:>3} {r['id']}  {r['reason']}")
     return 0

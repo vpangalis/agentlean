@@ -350,23 +350,24 @@ def test_the_guard_passes_a_ratcheted_feature_that_still_passes(tmp_path, no_git
     _guard().check_ratchet(str(_repo(tmp_path, "passed", ratchet=["DEF-900"])))
 
 
-def test_a_work_package_takes_same_area_features_in_rank_order_up_to_five_points() -> None:
-    """Brief Part F9.2: the lane's top feature, then same-area (layer and stage, or module) or
-    dependent features in rank order, to 5 effort points; another area ends the package."""
+def test_the_next_package_is_the_fixed_one_holding_the_lanes_top_feature() -> None:
+    """Founder ruling 2026-10-20: packages are fixed in the feature list; rank chooses the package — the one holding
+    the lane's top-ranked failing feature that carries one. The package is all its features, whatever their lane,
+    in rank order, passing ones after; points count the failing ones; over 5 it may take two prompts."""
     import rank
-    fs = [_rf("A1", "R1", impact="dead_end", effort="M"),         # top: 2 points
-          _rf("A2", "R1", effort="M", deps=["A1"]),                   # ranks 4th (score 0.5)
-          _rf("A3", "R1", effort="S"),                               # same module: joins (3)
-          _rf("A4", "R1", effort="S")]                               # same module: joins (4)
-    for f in fs:
-        f["sources"] = {"code": ["agent-improve/backend/x.py::f"]}
-    ranked = rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must"))
-    assert [r["id"] for r in ranked] == ["A1", "A3", "A4", "A2"]
-    got = rank.packages(fs, ranked)["A"]
-    assert got == {"features": ["A1", "A3", "A4"], "points": 4}      # A2 would pass 5 points
-    fs[2]["sources"] = {"code": ["agent-improve/ui/index.html"]}      # A3 another area now
-    got = rank.packages(fs, rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must")))["A"]
-    assert got["features"] == ["A1"]                                  # it ends the package
+    fs = [{**_rf("A1", "R1", impact="dead_end", effort="L"), "package": "P2"},
+          {**_rf("A2", "R1", effort="L"), "package": "P2"},
+          {**_rf("B1", "R1", effort="S", lane="B"), "package": "P2"},
+          {**_rf("A3", "R1", effort="S"), "package": "P1"},
+          {**_rf("A4", "R1", impact="dead_end", effort="S")},                  # top of lane A, no package
+          {**_rf("A5", "R1", effort="S"), "package": "P2"}]
+    passed = {"outcomes": {"backend/tests/test_x.py::test_A5": "passed"}}
+    ranked = rank.rank(fs, passed, _reqs(R1="Must"))
+    assert [r["id"] for r in ranked if r["lane"] == "A"][:2] == ["A4", "A1"]
+    got = rank.packages(fs, ranked)
+    assert got["A"] == {"package": "P2", "features": ["A1", "B1", "A2", "A5"], "points": 7, "over": True}
+    assert got["B"]["package"] == "P2"                       # B1's own lane chooses the same package
+    assert got["C"] == {"package": None, "features": [], "points": 0, "over": False}
 
 
 def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:

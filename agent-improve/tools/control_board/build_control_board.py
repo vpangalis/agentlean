@@ -433,7 +433,8 @@ def data() -> dict:
     loop = {"tally": defect_loop.tally(reg), "owed": defect_loop.owed(reg),
             **defect_loop.split(st, defect_loop.ratchet())}
     return {"model": model(), "features": rows, "count": count(rows), "journey": j,
-            "phases": live_phases(), "waiting": waiting_on_you(), "built_on": built_on(), "loop": loop}
+            "phases": live_phases(), "waiting": waiting_on_you(), "built_on": built_on(), "loop": loop,
+            "packages": rank.packages(feats, ranked)}
 
 
 # ── the page ────────────────────────────────────────────────────────────────
@@ -663,6 +664,16 @@ def render(d: dict) -> str:
             + "".join(f"<li>{E(k.replace('_', ' '))}: {n}{' — <b>D7 owed</b>' if k in lp['owed'] else ''}</li>"
                       for k, n in lp["tally"].items())
             + "</ul>")
+    # Founder ruling 2026-10-20: one prompt = one package; each lane's next package, with all its features.
+    def pkg_item(stream: str, pk: dict) -> str:
+        name = E(features.LANES.get(stream, stream).capitalize())
+        if not pk["package"]:
+            return f"<li data-ws='{stream}'><b>{name}</b>: no package open</li>"
+        over = " — over 5 points, may take two prompts" if pk["over"] else ""
+        return (f"<li data-ws='{stream}'><b>{name} · {E(pk['package'])}</b> ({pk['points']} points{over})<ul>"
+                + "".join(item(i) for i in pk["features"]) + "</ul></li>")
+    pkgs = ("<h2>Next package, per work stream</h2><ul class='small' data-key='packages'>"
+            + "".join(pkg_item(s, pk) for s, pk in d["packages"].items()) + "</ul>")
     progress = json.dumps({k: m[k] for k in ("headline", "passing", "total", "statuses", "next")},
                           ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
     j = d["journey"]
@@ -683,7 +694,7 @@ def render(d: dict) -> str:
 </div>
 <div class="cols">
 <div class="card" id="left">{''.join(lefts)}</div>
-<div class="card side">{waiting}<h2>Next up</h2>{''.join(nexts)}<h2>Selected tile</h2><div id="detail" class="mut">Click a tile.</div>{loop}</div>
+<div class="card side">{waiting}{pkgs}<h2>Next up</h2>{''.join(nexts)}<h2>Selected tile</h2><div id="detail" class="mut">Click a tile.</div>{loop}</div>
 </div>
 </div>
 <div id="tip" role="tooltip"></div>

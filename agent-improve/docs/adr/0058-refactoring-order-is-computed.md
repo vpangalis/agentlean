@@ -49,3 +49,7 @@ group the tiers and are accepted on run-through evidence.
 - The plan cannot go stale: it is recomputed from the feature list, test results and requirements.
 - The founder's judgement is explicit (MoSCoW, overrides with reasons) and visible on the board.
 - Estimates can be wrong; a wrong effort estimate shifts order only inside a tier, never tier 1.
+
+## Notes
+
+Note (founder, 2026-10-20): packages are fixed in the feature list; rank chooses the package.

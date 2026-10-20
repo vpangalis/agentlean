@@ -131,10 +131,12 @@ def test_rule_21_passes_a_founders_note_appended_but_not_a_note_with_an_edit(rep
     above it stays as accepted, and a note that is not the founder's, dated, is refused."""
     g = _guard()
     text = _read(repo, _ADR).rstrip("\n")
-    note = "\n\n## Notes\n\nNote (founder, 2026-10-14): what this decision's purpose is served by.\n"
+    # The record may already carry founder notes (ADR-0058 does, from 2026-10-20): a new note joins that section.
+    head = "\n\n" if "## Notes" in text else "\n\n## Notes\n\n"
+    note = head + "Note (founder, 2026-10-14): what this decision's purpose is served by.\n"
     g.check_adr_immutability(str(repo), _stage(repo, _ADR, text + note))
     for bad in (text.replace("on every commit", "on each commit") + note,
-                text + "\n\n## Notes\n\nA note with no founder and no date.\n"):
+                text + head + "A note with no founder and no date.\n"):
         _git(repo, "reset", "-q", "--hard")
         with pytest.raises(SystemExit):
             g.check_adr_immutability(str(repo), _stage(repo, _ADR, bad))
