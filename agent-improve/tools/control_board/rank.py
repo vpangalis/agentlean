@@ -40,6 +40,8 @@ MILESTONES = {"M1": 1, "M2": 2, "M3": 3}
 #: Where a feature sits on the board's value stream (brief Part F7).
 #: "build" (founder ruling 2026-10-20): the commit hook and tooling (package P0) — never counted toward a phase.
 PHASES = ("define", "measure", "analyse", "improve", "control", "build")
+#: Not ranked while Define runs (founder ruling 2026-10-20).
+LATER_PHASES = ("measure", "analyse", "improve", "control")
 STAGES = ("open_case", "coached", "report", "approve", "record_written", "next_phase", "build")
 LAYERS = ("screen", "api", "coaching", "gate", "persistence", "platform", "tooling")
 
@@ -62,8 +64,9 @@ def problems(features: list[dict]) -> list[str]:
         if "pilot" in f and not isinstance(f["pilot"], bool):
             out.append(f"{fid}: pilot {f['pilot']!r} is not true or false")
         # Founder ruling 2026-10-20: the fixed package (P1..P35) and the merge marker.
-        if "package" in f and not (isinstance(f["package"], str) and f["package"][:1] == "P" and f["package"][1:].isdigit()):
-            out.append(f"{fid}: package {f.get('package')!r} is not P<n>")
+        if "package" in f and not (isinstance(f["package"], str) and f["package"][:1] == "P"
+                                   and f["package"][1:].rstrip("abcdefghijklmnopqrstuvwxyz").isdigit()):
+            out.append(f"{fid}: package {f.get('package')!r} is not P<n> (one letter may follow: P0b)")
         if f.get("merged_into") and f["merged_into"] not in {g["id"] for g in features}:
             out.append(f"{fid}: merged_into {f['merged_into']!r} names no feature")
         o = f.get("priority_override", "missing")
@@ -118,8 +121,11 @@ def rank(features: list[dict] | None = None, res: dict | None = None,
     reqs = F.requirements() if reqs is None else reqs
     st = F.status(features, res)
     by_id = {f["id"]: f for f in features}
-    # A merged feature (founder ruling 2026-10-20) is ranked through the feature it was merged into.
-    failing = {i for i, s in st.items() if s == "failing" and not by_id[i].get("merged_into")}
+    # A merged feature (founder ruling 2026-10-20) is ranked through the feature it was merged into; a feature of a
+    # later DMAIC phase is not ranked while Define runs (founder ruling 2026-10-20: Measure starts only when Define
+    # is done) — `build` (the tooling) is ranked like Define.
+    failing = {i for i, s in st.items() if s == "failing" and not by_id[i].get("merged_into")
+               and by_id[i].get("phase", "define") not in LATER_PHASES}
     dependents = _dependents(features, failing)
     hold = held(features, reqs)
 

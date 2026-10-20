@@ -5437,7 +5437,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-13"
+    ]
    },
    "requirement": "T66",
    "belt_impact": "degraded",
@@ -8481,6 +8483,318 @@
    "phase": "control",
    "stage": "record_written",
    "layer": "persistence"
+  },
+  {
+   "id": "DEF-237",
+   "description": "A search round that returns nothing new ends the search; the coach answers with what it has, inside the deadline (G-85)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_a_search_round_with_nothing_new_ends_the_search",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-85 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-85"
+    ]
+   },
+   "requirement": "T26",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "package": "P13"
+  },
+  {
+   "id": "DEF-238",
+   "description": "The upload interpretation uses structured output through the allowed path, never JSON parsed from text (G-48)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_the_upload_interpretation_uses_structured_output",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-48 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-48"
+    ]
+   },
+   "requirement": "T100",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api",
+   "package": "P11"
+  },
+  {
+   "id": "DEF-239",
+   "description": "The constraint check (layer 2c) checks budget, timeline, risk and measurement, with its own result shape (G-10; Measure)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_the_constraint_check_runs_with_its_own_result_shape",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-10 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-10"
+    ]
+   },
+   "requirement": "T101",
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null,
+   "phase": "measure",
+   "stage": "report",
+   "layer": "gate"
+  },
+  {
+   "id": "DEF-240",
+   "description": "Each Analyse turn plans its retrieval rather than taking the phase default (G-111; Analyse)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_an_analyse_turn_plans_its_retrieval",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-111 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-111"
+    ]
+   },
+   "requirement": "T102",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "analyse",
+   "stage": "coached",
+   "layer": "coaching"
+  },
+  {
+   "id": "DEF-241",
+   "description": "The fact-ownership check runs at the commit gate over the staged governed documents, whatever wrote them (G-59)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_fact_ownership_check_runs_at_the_commit_gate",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-59 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-59"
+    ]
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-242",
+   "description": "Search index schemas have a registered owner in the fact-owner registry (G-60)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_search_index_schemas_have_a_registered_owner",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-60 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-60"
+    ]
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-243",
+   "description": "The server log carries no Azure SDK request blocks at INFO, and the favicon is served (G-228)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_server_log_is_quiet_and_the_favicon_is_served",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-228 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-228"
+    ]
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-244",
+   "description": "The Claude Code hooks run with agent-improve/.venv's Python, not whatever python is on PATH (the rest of G-229)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_hooks_run_with_the_projects_python",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-229, the control's other half (founder ruling 2026-10-20; G-229 itself is proved by DEF-233)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-245",
+   "description": "The session start reports a guard that cannot run (the rest of G-229)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_session_start_reports_a_guard_that_cannot_run",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-229, the control's other half (founder ruling 2026-10-20; G-229 itself is proved by DEF-233)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-246",
+   "description": "The tests close every client they open: no 'Unclosed connector' at interpreter exit (the rest of G-231)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_tests_close_every_client_they_open",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-231, the control's other half (founder ruling 2026-10-20; G-231 itself is proved by DEF-234)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
   }
  ]
 }

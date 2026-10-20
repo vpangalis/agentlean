@@ -67,3 +67,71 @@ def test_t67s_child_process_writes_utf8_whatever_the_shell() -> None:
                         "--runxfail"], capture_output=True, text=True, encoding="utf-8", errors="replace",
                        env={**env, "AGENT_IMPROVE_NO_RECORD": "1"}, cwd=PROJECT, timeout=300)
     assert r.returncode == 0, r.stdout[-1500:]
+
+
+# ── package P0b (founder ruling 2026-10-20; requirement T99) ─────────────────────────────────────────────────────
+
+
+def test_the_fact_ownership_check_runs_at_the_commit_gate() -> None:
+    """DEF-241 — G-59 (ruled 2026-09-14, §55.5): the ownership check moves to the commit gate, over the staged governed
+    documents — the index holds the final content whatever wrote it (a Bash edit, a script, a peer). The commit guard
+    exposes check_fact_ownership and its main runs it. (Contract level: P0b's build adds the refusal case.)"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("guard_p0b", HOOKS / "commit-msg-refactor-guard.py")
+    assert spec and spec.loader
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    assert hasattr(guard, "check_fact_ownership"), "the commit guard has no fact-ownership check"
+    assert "check_fact_ownership(" in (HOOKS / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
+
+
+def test_search_index_schemas_have_a_registered_owner() -> None:
+    """DEF-242 — G-60: search index schemas are an ownership class with a registered owner in fact_owners.yaml.
+    (The owner's form — a cached schema snapshot, or the class ruled out of mechanical ownership — is G-60's open
+    ruling.)"""
+    import yaml
+    reg = yaml.safe_load((ROOT / ".claude" / "config" / "fact_owners.yaml").read_text(encoding="utf-8"))
+    ids = {o.get("id") for o in reg.get("owners") or []}
+    assert any("index" in str(i) for i in ids), sorted(map(str, ids))
+
+
+def test_the_server_log_is_quiet_and_the_favicon_is_served() -> None:
+    """DEF-243 — G-228: the Azure SDK's request/response blocks are not logged at INFO, and /favicon.ico is served."""
+    import logging
+    from fastapi.testclient import TestClient
+    from backend.app import app
+    level = logging.getLogger("azure.core.pipeline.policies.http_logging_policy").getEffectiveLevel()
+    assert level > logging.INFO, logging.getLevelName(level)
+    assert TestClient(app).get("/favicon.ico").status_code == 200
+
+
+def test_the_hooks_run_with_the_projects_python() -> None:
+    """DEF-244 — the rest of G-229: every Python hook in .claude/settings.json runs with agent-improve/.venv's Python,
+    the interpreter the project's requirements are installed in, not whatever "python" is on PATH."""
+    import json
+    settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    commands = [h["command"] for groups in (settings.get("hooks") or {}).values() for g in groups
+                for h in g.get("hooks") or [] if ".py" in h.get("command", "")]
+    assert commands, "no Python hook found"
+    assert all(".venv" in c for c in commands), [c for c in commands if ".venv" not in c]
+
+
+def test_the_session_start_reports_a_guard_that_cannot_run(tmp_path) -> None:
+    """DEF-245 — the rest of G-229: with pyyaml unimportable, the session-start hook says a guard cannot run."""
+    fake = tmp_path / "yaml"
+    fake.mkdir()
+    (fake / "__init__.py").write_text("raise ImportError('pyyaml is not installed (simulated)')\n", encoding="utf-8")
+    env = {**os.environ, "PYTHONPATH": str(tmp_path), "PYTHONIOENCODING": "utf-8"}
+    r = subprocess.run([sys.executable, str(HOOKS / "session-start-context.py")], input="{}", capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env=env, cwd=ROOT, timeout=300)
+    assert "cannot run" in (r.stdout + r.stderr).lower(), (r.stdout + r.stderr)[-1500:]
+
+
+def test_the_tests_close_every_client_they_open() -> None:
+    """DEF-246 — the rest of G-231: a serial run of the gate and state areas leaves no unclosed aiohttp client —
+    no "Unclosed connector" at interpreter exit (the logging error that once replaced the hook's summary)."""
+    r = subprocess.run([sys.executable, "-m", "pytest", "backend/tests/test_gate_acceptance.py",
+                        "backend/tests/test_state.py", "-q", "--no-header", "-p", "no:cacheprovider", "-n", "0"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       env={**os.environ, "AGENT_IMPROVE_NO_RECORD": "1"}, cwd=PROJECT, timeout=600)
+    assert "Unclosed connector" not in r.stdout + r.stderr

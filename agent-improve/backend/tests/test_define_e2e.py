@@ -6646,3 +6646,30 @@ def test_an_approved_case_is_written_to_the_case_index() -> None:
     improve_case_index, one document per completed case, so past-case search finds it; an unfinished case is never
     written. Held under guard rule 19 until ADR-0102 is accepted."""
     _not_written('DEF-236')
+
+
+def test_a_search_round_with_nothing_new_ends_the_search() -> None:
+    """DEF-237 — G-85 (P13): a search round that returns nothing new ends the search; the coach answers with what it has, inside
+    the deadline. (founder ruling 2026-10-20)"""
+    _not_written('DEF-237')
+
+
+
+def test_the_upload_interpretation_uses_structured_output() -> None:
+    """DEF-238 — G-48 (P11, T100): the upload interpretation returns its typed result through structured output on an allowed
+    path, never JSON parsed from the model's text. (founder ruling 2026-10-20)"""
+    _not_written('DEF-238')
+
+
+
+def test_the_constraint_check_runs_with_its_own_result_shape() -> None:
+    """DEF-239 — G-10 (T101, Measure): the constraint check (layer 2c) checks budget, timeline, risk and measurement, with its own
+    result shape. Phase measure: not ranked while Define runs. (founder ruling 2026-10-20)"""
+    _not_written('DEF-239')
+
+
+
+def test_an_analyse_turn_plans_its_retrieval() -> None:
+    """DEF-240 — G-111 (T102, Analyse): each Analyse turn plans its retrieval rather than taking the phase default. Phase analyse:
+    not ranked while Define runs. (founder ruling 2026-10-20)"""
+    _not_written('DEF-240')

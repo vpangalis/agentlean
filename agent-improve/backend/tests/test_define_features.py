@@ -387,7 +387,8 @@ def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:
     assert [f["id"] for f in fs if F.counted(f)] == ["A1"]
     s = F.summary(fs, {"outcomes": {}})
     assert s["total"] == 1 and s["lanes"]["A"]["total"] == 1
-    assert [r["id"] for r in rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must"))] == ["A1", "A2"]
+    # A later phase (A2, analyse) is not ranked while Define runs; a merged feature (A3) never is (2026-10-20).
+    assert [r["id"] for r in rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must"))] == ["A1"]
     bad = rank.problems([{**f, "belt_impact": "none", "rework_risk": "low", "effort": "S", "phase": "define",
                           "stage": "coached", "layer": "api"} for f in
                          ({**fs[0], "package": "pilot"}, {**fs[2], "merged_into": "X-9"})])
