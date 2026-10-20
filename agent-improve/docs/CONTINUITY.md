@@ -14,7 +14,7 @@
 | **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
-| **CLAUDE.md** | v2.3.1 |
+| **CLAUDE.md** | v2.3.2 |
 | **Block regenerated** | 2026-10-20 |
 
 *Every figure comes from `docs/define_features.json` and

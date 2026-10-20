@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve: how to work here
-# Version 2.3.1 — September 2026
+# Version 2.3.2 — October 2026
 # Earlier versions, the why and the history: docs/_archive/CLAUDE_md_v2.2.46_2026-09-26.md
 
 DMAIC coaching agent (LangGraph, `create_agent` + middleware, Azure). **These rules win over
@@ -38,6 +38,7 @@ your lane and make its end-to-end test pass. Never edit a feature to say it pass
 - The pre-flight (`.claude/hooks/preflight.py`) runs before every `git commit`: drift,
   types and tests of what the staged change reaches. A failure passes only if HEAD's record has it.
 - Read a bare `mypy .` count as a measurement, never as a pass/fail.
+- A newly failing feature test reads XFAIL: judge a run by per-test outcomes against `docs/test-results.json`, never by "none failed".
 
 ## Commit conventions
 
