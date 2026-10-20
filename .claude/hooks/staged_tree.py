@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -120,6 +121,19 @@ def run(cmd: list[str], wt: Path, root: Path = ROOT, timeout: int = 900,
                           errors="replace", timeout=timeout, env=env)
 
 
+#: DEF-234 (G-231): pytest's result line — "12 passed, 3 xfailed in 4.20s", "no tests ran in 0.1s", "1 error in 2s".
+_RESULT = re.compile(r"(\d+ (passed|failed|errors?|skipped|xfailed|xpassed|deselected|warnings?)|no tests ran)(?=[ ,])"
+                     r".* in [\d.]+s")
+
+
+def result_line(text: str) -> str:
+    """DEF-234 (G-231): the summary of a pytest run — its last result line, not its last line: an interpreter
+    exit can print a logging error after it (aiohttp's unclosed connector ends in "Arguments: ()"). The last
+    non-empty line when no result line is found."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    return next((ln for ln in reversed(lines) if _RESULT.search(ln)), lines[-1] if lines else "")
+
+
 def run_suite(root: Path = ROOT, tree: str | None = None) -> tuple[int, str]:
     """THE commit's one full run, on the staged tree. The recorder writes its
     record inside the staged worktree; it is copied back to the checkout,
@@ -149,8 +163,7 @@ def run_suite(root: Path = ROOT, tree: str | None = None) -> tuple[int, str]:
     codes = [c for c in (par.returncode, ser.returncode) if c not in (0, 5)]
 
     def last(r: subprocess.CompletedProcess) -> str:
-        return next((ln for ln in reversed(((r.stdout or "") + (r.stderr or "")).splitlines())
-                     if ln.strip()), "").strip()
+        return result_line((r.stdout or "") + (r.stderr or ""))
     out = ((par.stdout or "") + (par.stderr or "") + (ser.stdout or "") + (ser.stderr or "")
            + "\n" + f"parallel: {last(par)} | serial: {last(ser)}" + "\n")
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -204,7 +217,7 @@ def run_fast(root: Path = ROOT) -> tuple[int, str]:
     if record.is_file():
         shutil.copyfile(record, root / PROJECT / "docs" / "test-results.json")
     text = (r.stdout or "") + (r.stderr or "")
-    last = next((ln for ln in reversed(text.splitlines()) if ln.strip()), "").strip()
+    last = result_line(text)
     code = 0 if r.returncode in (0, 5) else r.returncode
     return code, text + chr(10) + f"fast ({len(tests)} test files): {last}" + chr(10)
 
