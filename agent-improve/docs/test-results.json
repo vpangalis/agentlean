@@ -1,9 +1,9 @@
 {
- "source_hash": "5931d82452279835",
- "commit": "f4f013d",
+ "source_hash": "5ec35137301bd066",
+ "commit": "26f2390",
  "commit_matches_source": false,
- "full_run_hash": "5931d82452279835",
- "recorded_at": "2026-10-20T08:46:55+00:00",
+ "full_run_hash": "5ec35137301bd066",
+ "recorded_at": "2026-10-20T08:53:42+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1816,8 +1816,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "aeab9f066ca44521",
-  "recorded_at": "2026-10-20T08:37:59+00:00",
+  "source_hash": "5931d82452279835",
+  "recorded_at": "2026-10-20T08:46:55+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2711,6 +2711,7 @@
    "backend/tests/test_define_runthrough.py::test_run_an_answer_is_judged_at_most_once": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_an_untaught_field_is_taught_example_before_ask": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_every_grader_fail_quotes_its_sentence": "skipped",
+   "backend/tests/test_define_runthrough.py::test_run_every_read_back_records_its_card": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_every_turn_answers_inside_its_time_limit": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_every_turn_states_its_step": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_every_turn_states_step_n_of_12": "skipped",

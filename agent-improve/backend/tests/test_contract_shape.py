@@ -2,8 +2,10 @@
 
 WHAT THIS FILE PINS, AND WHY IT IS NOT THE SAME AS ROW 18
 ---------------------------------------------------------
-`test_declared_types.py` holds capability row 18: **captured values carry their
-declared type**, read off the case the system actually wrote. That row is the
+`test_capability_rows.py::test_row_18_captured_values_carry_their_declared_type`
+holds capability row 18: **captured values carry their declared type**, read off
+the case the system actually wrote (moved there from `test_declared_types.py` in
+f61ddcb — the one file allowed to reach the live case, G-234). That row is the
 OUTCOME.
 
 This file pins the MECHANISM that produces it — that every structured coached
