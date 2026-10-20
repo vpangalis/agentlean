@@ -2857,6 +2857,20 @@
     "A"
    ],
    "escape_class": "error_routine"
+  },
+  {
+   "id": "G-236",
+   "symptom": "UPLOADED TEAM LIST LOSES ITS TRAINING COLUMN (live run-through 20261019T171608, scenario (e)). The Belt uploads a team CSV whose columns are name, role, function and training; the upload turn answers \"Not stored yet: your answer for Team still needs the training anyone needs, or that none is needed\" instead of reading the team back, \"use the file\" is then answered as a question, and nothing is stored — the Belt would have to retype five people. D4 OCCURRENCE: the stored team came from the coach's re-typing of the file (its schema said each entry is {name, role, function}, so the training column had no key), and the interpretation model's value is its copy of the file, not the file; and the parts check reads training only from phrases (\"none\", \"half a day on …\" match none of them). D4 ESCAPE: DEF-169's offline test uploads a business case (one string), never a list element with a column beyond name, role and function; only the live scenario (e) uploads a team, and its failure was in an untracked record.",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-229"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {

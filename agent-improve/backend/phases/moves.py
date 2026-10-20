@@ -692,6 +692,10 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
         dated = parse.calendar_date(value) if phase == "define" and f == "target_date" and isinstance(value, str) else None
         if dated:
             value = dated[0]                               # ADR-0088 decision 5: stored as an ISO date
+        if phase == "define" and f in parse.TABLE_ELEMENTS and pending.get("upload") and parse.team_rows(words):
+            # G-236 (DEF-229): a read-back of an uploaded table stores the file's rows, read in code from its
+            # labelled lines (every column, training included) — never the coach's re-typing of them.
+            value = parse.team_rows(words)
         if phase == "define" and f == "critical_to_quality" and isinstance(value, list):
             # ADR-0088 decision 2: the rows as the Belt stated them, never a cross product.
             value = parse.ctq_rows(value)

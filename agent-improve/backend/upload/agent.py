@@ -161,6 +161,7 @@ async def process_upload(
     masked_text, pii_masked = pii.mask(parsed.get("text") or "")
     parsed = {**parsed, "text": masked_text}
     interpretation = await _interpret(filename, parsed, case_meta, phase, element)
+    interpretation = _table_value(interpretation, parsed, phase, element)
 
     return {
         **base,
@@ -276,6 +277,21 @@ async def _interpret(
         logger.warning("Upload interpretation failed for %s: %s", filename, exc)
 
     return _interpretation_unavailable(filename, parsed, citation)
+
+
+def _table_value(interpretation: UploadInterpretation, parsed: dict[str, Any], phase: str,
+                 element: Any) -> UploadInterpretation:
+    """G-236 (DEF-229): for a table file and a list element (the team), the value a read-back shows is the
+    file's own rows as the parser labelled them — every column, written in code — not the model's copy, which
+    dropped the training column live. The model still judges whether the file answers the element (an empty
+    value stays empty) and each criterion."""
+    from backend.phases.define import parse as define_parse
+    check = interpretation.element_check
+    lines = define_parse.table_lines(parsed.get("text"))
+    if (phase != "define" or element not in define_parse.TABLE_ELEMENTS or parsed.get("structure") != "table"
+            or check is None or not check.value.strip() or not define_parse.team_rows(lines)):
+        return interpretation
+    return interpretation.model_copy(update={"element_check": check.model_copy(update={"value": lines})})
 
 
 def _element_check(raw: Any, element: str, ids: list[str]) -> ElementCheck | None:

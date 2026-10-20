@@ -64,8 +64,10 @@ def _people(values: dict[str, Any]) -> Read:
 def _training(values: dict[str, Any]) -> Read:
     said = []
     for m in _team(values):
-        hit = next((str(v) for k, v in m.items() if k not in ("name", "role", "function")
-                    and parse._TRAINING.search(str(v or ""))), None)
+        # G-236: the member's own training entry, in whatever words ("none" included); else a column that says it.
+        hit = str(m.get("training") or "").strip() or next(
+            (str(v) for k, v in m.items() if k not in ("name", "role", "function")
+             and parse._TRAINING.search(str(v or ""))), None)
         if hit is None:
             # Training stated inside the name, role or function: the clause that states it, not the whole entry.
             hit = next((c.strip() for c in re.split(r"[;,.]", _text(m)) if parse._TRAINING.search(c)), None)

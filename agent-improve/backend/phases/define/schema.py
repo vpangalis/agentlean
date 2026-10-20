@@ -214,7 +214,9 @@ class DefineOutput(BaseModel):
     team: list[dict] = Field(
         ...,
         description=(
-            "Project team. Each entry {name, role, function}. Roles per "
+            "Project team. Each entry {name, role, function}, plus every "
+            "other column given (training, time on the project) under its "
+            "own key. Roles per "
             "§39.1.4: Project Leader, Sponsor/Champion, Process Owner, Team "
             "Members. Coached early because the people must exist before the "
             "work."

@@ -235,6 +235,37 @@ _TRAINING = re.compile(r"train|course|workshop|half[- ]day|full[- ]day|session|l
                        r"none needed|nothing needed|no (?:\w+ )?needed|needs? no", re.I)
 
 
+#: G-236 — the list elements whose uploaded table is read in code, one entry per row, every column kept.
+TABLE_ELEMENTS: tuple[str, ...] = ("team",)
+#: A team file's column for what the member does, when it has no `function` column.
+_FUNCTION_COLUMNS = ("department", "job", "job_title", "title", "position")
+
+
+def table_lines(text: Any) -> str:
+    """G-236: a parsed table's rows as `upload.parsers._table_text` labels them ("name: … | role: …"), without
+    its header line — the file's own words, every column, written in code."""
+    lines = [x for x in str(text or "").splitlines() if x.strip()]
+    return "\n".join(x for x in lines[1:] if ": " in x)
+
+
+def team_rows(text: Any) -> list[dict[str, str]]:
+    """G-236: the team from an uploaded table's labelled lines ("name: … | role: … | training: …"), read in code —
+    every column kept under its own key (lower case, spaces as underscores); a department or job title is the
+    function when the file has no function column. Empty when the lines carry no names."""
+    out = []
+    for line in str(text or "").splitlines():
+        row: dict[str, str] = {}
+        for part in line.split(" | "):
+            key, sep, val = part.partition(": ")
+            if sep and key.strip() and val.strip():
+                row[re.sub(r"\s+", "_", key.strip().lower())] = val.strip()
+        if "function" not in row:
+            row.update({"function": row[k] for k in _FUNCTION_COLUMNS if k in row and "function" not in row})
+        if row.get("name"):
+            out.append(row)
+    return out
+
+
 def missing_parts(field: str, value: Any) -> list[str]:
     """ADR-0088 decision 6: the required parts of an element R7 names that `value` lacks, in the Belt's words —
     the seven 5W2H answers (DEF-R04); a champion, a process owner and training stated (DEF-R02); customers, needs
@@ -246,9 +277,11 @@ def missing_parts(field: str, value: Any) -> list[str]:
         return [f"the 5W2H answer{'s' if len(blank) > 1 else ''} to {' and '.join(blank)}"] if blank else []
     if field == "team" and isinstance(value, list):
         everyone = " ".join(text(e) for e in value)
+        # G-236: a member's own `training` entry states it, in whatever words ("none" included).
+        trained = any(isinstance(e, dict) and str(e.get("training") or "").strip() for e in value)
         return [part for part, pattern in (("a champion", _CHAMPION), ("a process owner", _OWNER),
                                            ("the training anyone needs, or that none is needed", _TRAINING))
-                if not pattern.search(everyone)]
+                if not pattern.search(everyone) and not (pattern is _TRAINING and trained)]
     if field == "critical_to_quality" and isinstance(value, list):
         rows = [r for r in value if isinstance(r, dict)]
         out = [part for part, key in (("the customer of each CTQ", "customer"), ("the need behind each CTQ", "need"))

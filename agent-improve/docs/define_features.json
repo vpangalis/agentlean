@@ -8053,6 +8053,45 @@
    "stage": "coached",
    "layer": "coaching",
    "pilot": false
+  },
+  {
+   "id": "DEF-229",
+   "description": "An uploaded team list keeps every column of the file — training included — read in code from the file's rows, so the parts check accepts it, the read-back's Confirm opens and \"use the file\" stores the people with their training (G-236)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-169"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_g236_an_uploaded_team_list_keeps_its_training_column_and_confirm_opens",
+   "sources": {
+    "architecture": [
+     "ADR-0085 an upload that covers the element is read back"
+    ],
+    "procedure": [
+     "G-236 (scenario (e), run 20261019T171608)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/parse.py::team_rows",
+     "agent-improve/backend/upload/agent.py::_table_value"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-236"
+    ]
+   },
+   "requirement": "W5",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api",
+   "pilot": true
   }
  ]
 }

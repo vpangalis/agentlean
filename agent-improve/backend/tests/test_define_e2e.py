@@ -1533,6 +1533,84 @@ def test_an_upload_that_covers_the_element_is_read_back_and_use_the_file_confirm
     assert e.get("passed"), {k: v for k, v in (e.get("checks") or {}).items() if not v}
 
 
+#: G-236 — the founder's team file (team_field_service.csv) with its training column.
+TEAM_FIELD_SERVICE = (
+    "name,role,department,time_commitment,training\n"
+    "Katharina Huber,Project Sponsor,Head of Field Service Austria,2 h per month,none\n"
+    "Markus Steiner,Process Owner,Service Desk Lead Vienna,4 h per week,none\n"
+    "Elena Gruber,Team Member,Field Technician Coordinator,4 h per week,half a day on data collection before Measure\n"
+    "Thomas Wagner,Team Member,Customer Care Analyst,4 h per week,half a day on data collection before Measure\n"
+    "Sabine Hofer,Team Member,Quality and Complaints Manager,3 h per week,none\n")
+
+
+def test_g236_an_uploaded_team_list_keeps_its_training_column_and_confirm_opens(env, monkeypatch) -> None:
+    """DEF-229 — G-236 (scenario (e), 2026-10-19: "Not stored yet: your answer for Team still needs the training
+    anyone needs"): from the Belt's side, through the routes and graph. The Belt uploads team_field_service.csv in
+    Define at the team element; the read-back's team keeps every column of the file — training included, read in
+    code from the file, whatever the models wrote — so the parts check accepts it, the card's Confirm is open,
+    and "use the file" stores the five people with their training."""
+    from backend.gateway import routes
+    from backend.middleware.skills import acceptance_criteria
+    from backend.phases import moves
+    from backend.storage.models import ElementCheck, UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    filename = "team_field_service.csv"
+    people = [("Katharina Huber", "Project Sponsor", "Head of Field Service Austria"),
+              ("Markus Steiner", "Process Owner", "Service Desk Lead Vienna"),
+              ("Elena Gruber", "Team Member", "Field Technician Coordinator"),
+              ("Thomas Wagner", "Team Member", "Customer Care Analyst"),
+              ("Sabine Hofer", "Team Member", "Quality and Complaints Manager")]
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/0/{filename}"
+
+    async def index(*a, **k):
+        return "idx-team-1"
+
+    async def interpret(filename_, parsed, case_meta, phase, element=None):
+        # The interpretation model, as seen live: it judges the file to cover the team, and its value drops
+        # the training column.
+        return UploadInterpretation(summary="The project team for field service.", element_check=ElementCheck(
+            element=element, value="\n".join(f"{n} — {r}, {f}" for n, r, f in people),
+            criteria=[{"criterion": cid, "result": "supported"} for cid, _ in acceptance_criteria("define", element)]))
+
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    _shields(monkeypatch)
+    # The coach model, as its schema told it: each member {name, role, function} — no training.
+    _coach_saying(monkeypatch, "Here is your team from the file. Is this right?", captured=[
+        {"field_name": "team", "source": "upload",
+         "value": [{"name": n, "role": r, "function": f} for n, r, f in people]}])
+    env.case.phases["define"].structured = {"business_case": "Late field-service closures cost us repeat visits."}
+    env.case.phases["define"].field_status = {"business_case": {"status": moves.CONFIRMED}}
+
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": (filename, TEAM_FIELD_SERVICE.encode(), "text/csv")})
+    assert r.status_code == 200, r.text
+    seen = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                         "message": "I've uploaded our team list."}).json()
+    assert seen["move"] == "read_back" and seen["move_field"] == "team", (seen["move"], seen["move_field"],
+                                                                          seen["answer"])
+    card = seen["readback_card"]
+    training = next(row for row in card["rows"] if row["id"] == "training")
+    assert training["met"], ("the parts check refused the file's training column", card["rows"])
+    assert card["confirm"], ("Confirm is closed", card["missing"])
+
+    used = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                         "message": f"Please use the team exactly as listed in {filename}."}).json()
+    assert used["move"] == "store_and_advance", (used["move"], used["answer"])
+    team = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]["team"]
+    assert [m["name"] for m in team] == [n for n, _, _ in people], team
+    assert {m["name"]: m.get("training") for m in team} == {
+        "Katharina Huber": "none", "Markus Steiner": "none", "Sabine Hofer": "none",
+        "Elena Gruber": "half a day on data collection before Measure",
+        "Thomas Wagner": "half a day on data collection before Measure"}, team
+    assert all(m["role"] and m["function"] for m in team), team                     # the department is the function
+    assert team[0]["time_commitment"] == "2 h per month", team[0]
+
+
 def test_removing_a_file_removes_it_from_storage_and_index() -> None:
     """DEF-109 — Deleting an uploaded file removes it from storage and the search index; the audit log keeps its name, digest, date and who removed it."""
     _not_written('DEF-109')
