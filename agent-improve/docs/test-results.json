@@ -1,9 +1,9 @@
 {
- "source_hash": "9695066e6f77717e",
- "commit": "f2f93dd",
- "commit_matches_source": true,
- "full_run_hash": "9695066e6f77717e",
- "recorded_at": "2026-10-20T13:34:23+00:00",
+ "source_hash": "3f4084a44c343ecb",
+ "commit": "73ddfea",
+ "commit_matches_source": false,
+ "full_run_hash": "3f4084a44c343ecb",
+ "recorded_at": "2026-10-20T13:56:27+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -430,6 +430,7 @@
   "backend/tests/test_define_e2e.py::test_a_strict_limit_is_kept_as_written": "skipped",
   "backend/tests/test_define_e2e.py::test_a_submission_missing_a_field_is_refused_by_name": "passed",
   "backend/tests/test_define_e2e.py::test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them": "passed",
+  "backend/tests/test_define_e2e.py::test_an_approved_case_is_written_to_the_case_index": "skipped",
   "backend/tests/test_define_e2e.py::test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case": "passed",
   "backend/tests/test_define_e2e.py::test_an_approved_report_prints_with_the_record_heading": "skipped",
   "backend/tests/test_define_e2e.py::test_an_element_is_read_back_and_stored_only_with_all_its_required_parts": "passed",
@@ -1816,8 +1817,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "f6e363a51d513893",
-  "recorded_at": "2026-10-20T13:16:55+00:00",
+  "source_hash": "9695066e6f77717e",
+  "recorded_at": "2026-10-20T13:34:23+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -3807,10 +3808,11 @@
    "backend/tests/test_timing.py::test_the_commits_one_full_run_is_parallel": "passed",
    "backend/tests/test_timing.py::test_the_record_says_which_source_the_last_full_run_was_on": "passed",
    "backend/tests/test_timing.py::test_the_timing_log_appends_and_sums_only_its_window": "passed",
+   "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason": "passed",
    "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason[fact-ownership-guard.py]": "skipped",
    "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason[pre-tool-use-drift-check.py]": "skipped",
    "backend/tests/test_tooling_p0.py::test_t67s_child_process_writes_utf8_whatever_the_shell": "passed",
-   "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests": "skipped",
+   "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests": "passed",
    "backend/tests/test_tooling_p0.py::test_the_test_summary_is_pytests_result_line_not_the_last_line": "passed",
    "backend/tests/test_turn_budget.py::test_a_lookup_runs_its_queries_concurrently": "passed",
    "backend/tests/test_turn_budget.py::test_a_slow_turn_answers_before_the_wall": "passed",

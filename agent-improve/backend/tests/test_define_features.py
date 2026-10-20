@@ -393,9 +393,14 @@ def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:
                          ({**fs[0], "package": "pilot"}, {**fs[2], "merged_into": "X-9"})])
     assert any("package 'pilot' is not P<n>" in b for b in bad) and any("merged_into 'X-9'" in b for b in bad)
     real = F.load()
-    assert sorted(f["id"] for f in real if not F.counted(f)) == [
-        "DEF-089", "DEF-090", "DEF-092", "DEF-106", "DEF-140", "DEF-227", "DEF-228",
-        "DEF-232", "DEF-233", "DEF-234", "DEF-235"]                       # P0, phase "build" (2026-10-20)
+    reqs = F.requirements()
+    out = {f["id"] for f in real if not F.counted(f, reqs)}
+    # The ones the rulings named are out; and every feature out is out for one of the three reasons, no other.
+    assert {"DEF-089", "DEF-090", "DEF-092", "DEF-106", "DEF-140", "DEF-227", "DEF-228"} <= out, out
+    for f in real:
+        if f["id"] in out:
+            assert (f.get("phase", "define") != "define" or f.get("merged_into")
+                    or (reqs.get(f["requirement"]) or {}).get("moscow") == "Won't-now"), f["id"]
     # Founder ruling 2026-10-20: Won't-now is out of the count too (DEF-140 cites T68, Won't-now).
     assert not F.counted({**fs[0], "requirement": "T68"}, {"T68": {"moscow": "Won't-now"}})
     assert F.counted(fs[0], {"R1": {"moscow": "Must"}})

@@ -271,7 +271,8 @@ def test_a_feature_held_by_its_adr_is_never_a_lanes_top() -> None:
     records["0071"]["status"] = "PROPOSED"
     feats, reqs = F.load(), F.requirements()
     hold = R.held(feats, reqs, records)
-    assert hold and set(hold.values()) == {"ADR-0071"}
+    assert hold and "ADR-0071" in set(hold.values())          # others may be held too (ADR-0102, DEF-236)
+    assert {f["id"] for f in feats if f["requirement"] == "R7"} <= set(hold)
     ranked = [{**r, "held": hold.get(r["id"])} for r in R.rank(feats, F.results(), reqs)]
     nxt = R.next_per_lane(ranked)
     assert not hold.keys() & {i for i in nxt.values() if i}

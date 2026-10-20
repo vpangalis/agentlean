@@ -6639,3 +6639,10 @@ async function apiJSON(url,opts){return url.includes('/ask')?answers.shift():{}}
     assert 'id="rb-confirm"' in page["redraw"], "a redraw of the chat lost the buttons"
     assert page["removed"], "a new send left the old read-back's buttons on screen"
     assert 'id="rb-confirm"' not in page["last"], "a teach reply carries no Confirm"
+
+
+def test_an_approved_case_is_written_to_the_case_index() -> None:
+    """DEF-236 — T98 (founder 2026-10-20; G-37, G-94): on approval of the Control gate the case is written to
+    improve_case_index, one document per completed case, so past-case search finds it; an unfinished case is never
+    written. Held under guard rule 19 until ADR-0102 is accepted."""
+    _not_written('DEF-236')

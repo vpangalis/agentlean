@@ -8445,6 +8445,42 @@
    "stage": "build",
    "layer": "tooling",
    "package": "P0"
+  },
+  {
+   "id": "DEF-236",
+   "description": "An approved case is written to the case index, so past-case search finds it — on approval of the Control gate, one document per completed case in improve_case_index; an unfinished case is never written (T98; G-37, G-94)",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-049"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_an_approved_case_is_written_to_the_case_index",
+   "sources": {
+    "architecture": [
+     "ADR-0102 (to be drafted by Desktop when Control starts)"
+    ],
+    "procedure": [
+     "G-37, G-94 (founder ruling 2026-10-20)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-37",
+     "G-94"
+    ]
+   },
+   "requirement": "T98",
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "control",
+   "stage": "record_written",
+   "layer": "persistence"
   }
  ]
 }

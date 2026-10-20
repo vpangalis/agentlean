@@ -384,9 +384,15 @@
   {
    "id": "G-37",
    "symptom": "Nothing writes `improve_case_index` — the schema is defined, cleanup of it is required, and no writer is named — Attaches to: S-F36. Step (procedure era): unscheduled.",
-   "requirement": [],
-   "feature": [],
-   "lane": [],
+   "requirement": [
+    "T98"
+   ],
+   "feature": [
+    "DEF-236"
+   ],
+   "lane": [
+    "integrator"
+   ],
    "escape_class": null
   },
   {
@@ -941,9 +947,15 @@
   {
    "id": "G-94",
    "symptom": "OPEN QUESTIONS SEARCH AN EMPTY CASE INDEX. `improve_case_index` holds 0 documents (read 2026-09-24), yet `rag_lookup_case_history` is bound on every Define turn and the coach calls it on almost every open question: trace `01a0d366…` (first turn in process: yes) — 6 queries, 0 hits each, *\"No similar improvement cases found\"*. A whole lookup (~3–5 s warm, the variant model call included) spent on a search that cannot return anything. The G-85 class: a mechanism wired to an empty source. Proposed: step 6.55 — not built: stop offering the lookup while the index is empty (or say so to the coach), and give the index a writer, a sample case and tests (brief item 9) — Attaches to: §23, §29.2, G-85. Step (procedure era): proposed 6.55.",
-   "requirement": [],
-   "feature": [],
-   "lane": [],
+   "requirement": [
+    "T98"
+   ],
+   "feature": [
+    "DEF-236"
+   ],
+   "lane": [
+    "integrator"
+   ],
    "escape_class": null
   },
   {
