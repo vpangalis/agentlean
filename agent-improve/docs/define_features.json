@@ -7926,7 +7926,7 @@
   },
   {
    "id": "DEF-221",
-   "description": "A target's operator is kept as the Belt wrote it ('under 10%' stays < 10%) (G-222; founder test findings 52)",
+   "description": "A target written 'under 10%' is read back in words as 'at most 10%' with the Belt's own wording shown, so the Belt confirms or changes it (G-222; founder test findings 52; done-when ruled 2026-10-20, ADR-0071 kept)",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-171"
@@ -8644,7 +8644,7 @@
   },
   {
    "id": "DEF-242",
-   "description": "Search index schemas have a registered owner in the fact-owner registry (G-60)",
+   "description": "Search index schemas are ruled out of mechanical ownership — the registry says so with its reason, and the generated data-models.md ties each index's fields to their code owner (G-60; closed by founder ruling 2026-10-20)",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
    "test": "backend/tests/test_tooling_p0.py::test_search_index_schemas_have_a_registered_owner",

@@ -1,9 +1,9 @@
 {
- "source_hash": "6e4f040825ba4743",
- "commit": "4d52080",
+ "source_hash": "5c7233766bf278e3",
+ "commit": "916d801",
  "commit_matches_source": false,
- "full_run_hash": "6e4f040825ba4743",
- "recorded_at": "2026-10-20T15:02:29+00:00",
+ "full_run_hash": "5c7233766bf278e3",
+ "recorded_at": "2026-10-20T15:23:44+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1718,7 +1718,7 @@
   "backend/tests/test_timing.py::test_the_record_says_which_source_the_last_full_run_was_on": "passed",
   "backend/tests/test_timing.py::test_the_timing_log_appends_and_sums_only_its_window": "passed",
   "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason": "passed",
-  "backend/tests/test_tooling_p0.py::test_search_index_schemas_have_a_registered_owner": "skipped",
+  "backend/tests/test_tooling_p0.py::test_search_index_schemas_have_a_registered_owner": "passed",
   "backend/tests/test_tooling_p0.py::test_t67s_child_process_writes_utf8_whatever_the_shell": "passed",
   "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests": "passed",
   "backend/tests/test_tooling_p0.py::test_the_fact_ownership_check_runs_at_the_commit_gate": "skipped",
@@ -1827,8 +1827,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "f28c229e482c147e",
-  "recorded_at": "2026-10-20T14:08:07+00:00",
+  "source_hash": "6e4f040825ba4743",
+  "recorded_at": "2026-10-20T15:02:29+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2499,7 +2499,7 @@
    "backend/tests/test_define_e2e.py::test_list_elements_are_split_as_the_belt_numbered_them": "passed",
    "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record": "passed",
    "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told": "skipped",
-   "backend/tests/test_define_e2e.py::test_metric_lines_are_their_own_block_and_never_show_ids": "skipped",
+   "backend/tests/test_define_e2e.py::test_metric_lines_are_their_own_block_and_never_show_ids": "passed",
    "backend/tests/test_define_e2e.py::test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_coachs": "passed",
    "backend/tests/test_define_e2e.py::test_no_ai_judge_rules_on_a_reply_the_grader_is_the_one_check": "passed",
    "backend/tests/test_define_e2e.py::test_node_limits_retries_and_compensation_use_langgraph_primitives": "skipped",
@@ -2559,7 +2559,7 @@
    "backend/tests/test_define_e2e.py::test_t94_strict_by_default_and_production_needs_content_safety": "passed",
    "backend/tests/test_define_e2e.py::test_t95_past_case_search_returns_completed_cases_only": "skipped",
    "backend/tests/test_define_e2e.py::test_the_5w2h_mind_map_shows_every_answer_in_full": "skipped",
-   "backend/tests/test_define_e2e.py::test_the_a8_read_back_shows_its_chart": "skipped",
+   "backend/tests/test_define_e2e.py::test_the_a8_read_back_shows_its_chart": "passed",
    "backend/tests/test_define_e2e.py::test_the_as_is_process_captures_step_performance_structured": "passed",
    "backend/tests/test_define_e2e.py::test_the_belt_can_pick_any_available_element_or_take_the_recommended_one": "skipped",
    "backend/tests/test_define_e2e.py::test_the_belt_can_see_captured_and_missing_fields": "passed",

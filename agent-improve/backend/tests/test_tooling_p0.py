@@ -86,13 +86,17 @@ def test_the_fact_ownership_check_runs_at_the_commit_gate() -> None:
 
 
 def test_search_index_schemas_have_a_registered_owner() -> None:
-    """DEF-242 — G-60: search index schemas are an ownership class with a registered owner in fact_owners.yaml.
-    (The owner's form — a cached schema snapshot, or the class ruled out of mechanical ownership — is G-60's open
-    ruling.)"""
+    """DEF-242 — G-60, closed by founder ruling 2026-10-20: the search-index-schema class is ruled OUT of mechanical
+    ownership — the registry says so with the reason — and the generated data-models.md ties each index's fields to
+    the code that owns them, which is where the facts are held."""
     import yaml
     reg = yaml.safe_load((ROOT / ".claude" / "config" / "fact_owners.yaml").read_text(encoding="utf-8"))
-    ids = {o.get("id") for o in reg.get("owners") or []}
-    assert any("index" in str(i) for i in ids), sorted(map(str, ids))
+    out = {o.get("class"): o for o in reg.get("ruled_out") or []}
+    assert "search-index-schemas" in out and "data-models.md" in out["search-index-schemas"]["reason"], out
+    assert "search-index-schemas" not in {o.get("id") for o in reg.get("owners") or []}    # no guard row
+    models = (PROJECT / "docs" / "data-models.md").read_text(encoding="utf-8")
+    for owner in ("KNOWLEDGE_INDEX_FIELDS", "EVIDENCE_INDEX", "CASE_INDEX"):
+        assert owner in models, owner
 
 
 def test_the_server_log_is_quiet_and_the_favicon_is_served() -> None:

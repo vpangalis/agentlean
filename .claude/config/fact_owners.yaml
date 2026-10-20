@@ -127,3 +127,13 @@ owners:
     # the registry CITES resolves to a real section; that sweep runs on every
     # structural change and caught §18.1 at step 7.
 
+
+# Classes the founder ruled OUT of mechanical ownership (no guard row is written for them).
+ruled_out:
+  - class: search-index-schemas
+    ruling: founder 2026-10-20 (G-60, DEF-242)
+    reason: >-
+      The owner is a live Azure index, which the guard cannot read on the write path; the generated
+      agent-improve/docs/data-models.md (section "Search indexes") already ties each index's fields to the code
+      that owns them (knowledge/retriever.py::KNOWLEDGE_INDEX_FIELDS, storage/layout.py::EVIDENCE_INDEX,
+      storage/layout.py::CASE_INDEX).
