@@ -53,3 +53,5 @@ group the tiers and are accepted on run-through evidence.
 ## Notes
 
 Note (founder, 2026-10-20): packages are fixed in the feature list; rank chooses the package.
+
+Note (founder, 2026-10-20): a package never goes before a package that holds a failing dependency of its features.
