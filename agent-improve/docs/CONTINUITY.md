@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 101 of 226 Define features pass, 31 more proven on earlier code (core 98 of 217) — A 37/89 · B 32/41 · C 25/67 · integrator 7/29 · M1: 45 proven · 23 awaiting fresh run · 6 open |
-| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
-| **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
-| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Headline** | 138 of 226 Define features pass (core 130 of 217) — A 64/89 · B 34/41 · C 26/67 · integrator 14/29 (record older than the source) · M1: 70 proven · 0 awaiting fresh run · 3 open |
+| **Next — lane A** | DEF-221 — A target's operator is kept as the Belt wrote it ('under 10%' stays < 10%) (G-222; founder test findings 52) |
+| **Next — lane B** | DEF-170 — T23's 'or neither' after the case write: an approval that fails after the case record is written leaves neither the Store record nor the app |
+| **Next — lane C** | DEF-205 — An upload in the chat starts its own upload turn; no browser-written 'Let me process it' (G-206; founder test findings 22) |
+| **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-10-20 |
