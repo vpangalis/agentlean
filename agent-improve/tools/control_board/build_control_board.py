@@ -50,6 +50,7 @@ sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE.parent / "architecture"))
 
 import adrs  # noqa: E402
+import defects as defect_loop  # noqa: E402
 import features  # noqa: E402
 import rank  # noqa: E402
 import wiring  # noqa: E402
@@ -435,8 +436,11 @@ def data() -> dict:
         x["blocker"] = _blocker(x, open_ids)
     j = journey()
     _journey_features(j, rows)
+    reg = defect_loop.register(DEFECTS)
+    loop = {"tally": defect_loop.tally(reg), "owed": defect_loop.owed(reg),
+            **defect_loop.split(st, defect_loop.ratchet())}
     return {"model": model(), "features": rows, "count": count(rows), "journey": j,
-            "phases": live_phases(), "waiting": waiting_on_you(), "built_on": built_on()}
+            "phases": live_phases(), "waiting": waiting_on_you(), "built_on": built_on(), "loop": loop}
 
 
 # ── the page ────────────────────────────────────────────────────────────────
@@ -655,6 +659,17 @@ def render(d: dict) -> str:
                "<h2>Waiting on you</h2><ul data-key='waiting'>"
                + "".join(f"<li>{_CODE.sub(_code, E(w))}</li>" for w in d["waiting"]) + "</ul>")
 
+    # R-B change 2 (2026-10-20): regression and capability apart, and the defects per escape class.
+    lp = d["loop"]
+    pct = f"{_pct(lp['regression_passing'], lp['regression_total']):.0f}%"
+    newly = f", {lp['capability_passing']} newly passing" if lp["capability_passing"] else ""
+    loop = ("<h2>Defect loop</h2><p class='small' data-key='ratchet'>"
+            f"Regression (passed before, target 100%): <b>{lp['regression_passing']} / {lp['regression_total']}</b> "
+            f"pass ({pct}) · Capability (never passed yet): <b>{lp['capability_total']}</b>{newly}</p>"
+            "<ul class='small' data-key='escapes'>"
+            + "".join(f"<li>{E(k.replace('_', ' '))}: {n}{' — <b>D7 owed</b>' if k in lp['owed'] else ''}</li>"
+                      for k, n in lp["tally"].items())
+            + "</ul>")
     progress = json.dumps({k: m[k] for k in ("headline", "passing", "total", "statuses", "next")},
                           ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
     j = d["journey"]
@@ -675,7 +690,7 @@ def render(d: dict) -> str:
 </div>
 <div class="cols">
 <div class="card" id="left">{''.join(lefts)}</div>
-<div class="card side">{waiting}<h2>Next up</h2>{''.join(nexts)}<h2>Selected tile</h2><div id="detail" class="mut">Click a tile.</div></div>
+<div class="card side">{waiting}<h2>Next up</h2>{''.join(nexts)}<h2>Selected tile</h2><div id="detail" class="mut">Click a tile.</div>{loop}</div>
 </div>
 </div>
 <div id="tip" role="tooltip"></div>

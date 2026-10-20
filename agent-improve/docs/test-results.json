@@ -1,9 +1,9 @@
 {
- "source_hash": "945ac7f7bea2425a",
- "commit": "f446c14",
+ "source_hash": "7c4d103fbea3e0e1",
+ "commit": "1dd785d",
  "commit_matches_source": false,
- "full_run_hash": "945ac7f7bea2425a",
- "recorded_at": "2026-10-20T07:55:42+00:00",
+ "full_run_hash": "7c4d103fbea3e0e1",
+ "recorded_at": "2026-10-20T08:03:50+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -402,6 +402,7 @@
   "backend/tests/test_declared_types.py::test_the_str_field_in_the_same_turn_is_untouched": "passed",
   "backend/tests/test_declared_types.py::test_the_turn_does_not_fail_for_the_belt": "passed",
   "backend/tests/test_defects.py::test_a_new_defect_carries_one_failing_feature_and_one_lane": "passed",
+  "backend/tests/test_defects.py::test_escape_classes_and_the_d7_rule": "passed",
   "backend/tests/test_defects.py::test_every_defect_has_the_founders_fields_and_no_status": "passed",
   "backend/tests/test_defects.py::test_ids_are_unique_and_none_was_lost_in_the_move": "passed",
   "backend/tests/test_defects.py::test_the_feature_links_agree_with_the_feature_list_both_ways": "passed",
@@ -1812,8 +1813,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "9523f85ceb26f018",
-  "recorded_at": "2026-10-19T17:13:55+00:00",
+  "source_hash": "945ac7f7bea2425a",
+  "recorded_at": "2026-10-20T07:55:42+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
