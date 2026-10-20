@@ -368,6 +368,12 @@ def test_the_next_package_is_the_fixed_one_holding_the_lanes_top_feature() -> No
     assert got["A"] == {"package": "P2", "features": ["A1", "B1", "A2", "A5"], "points": 7, "over": True}
     assert got["B"]["package"] == "P2"                       # B1's own lane chooses the same package
     assert got["C"] == {"package": None, "features": [], "points": 0, "over": False}
+    # Founder ruling 2026-10-20 (P4 before P5): a package whose feature depends on a failing feature of another
+    # package waits for it — the lane takes that package first.
+    fs += [{**_rf("I1", "R1", impact="dead_end", effort="S", lane="integrator", deps=["C1"]), "package": "P5"},
+           {**_rf("C1", "R1", effort="S", lane="C"), "package": "P4"}]
+    got = rank.packages(fs, rank.rank(fs, passed, _reqs(R1="Must")), passed)
+    assert got["integrator"]["package"] == "P4" and got["integrator"]["features"] == ["C1"], got["integrator"]
 
 
 def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:

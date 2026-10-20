@@ -1,9 +1,9 @@
 {
- "source_hash": "6f5cdb27d174d245",
- "commit": "eb34b43",
+ "source_hash": "9dafabfb934bf90b",
+ "commit": "f2b2ab3",
  "commit_matches_source": false,
- "full_run_hash": "6f5cdb27d174d245",
- "recorded_at": "2026-10-20T11:12:40+00:00",
+ "full_run_hash": "9dafabfb934bf90b",
+ "recorded_at": "2026-10-20T11:53:17+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1812,8 +1812,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "3082f8b8f5768991",
-  "recorded_at": "2026-10-20T10:56:04+00:00",
+  "source_hash": "6f5cdb27d174d245",
+  "recorded_at": "2026-10-20T11:12:40+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2624,6 +2624,7 @@
    "backend/tests/test_define_features.py::test_the_guard_refuses_a_DEF_commit_whose_test_fails": "passed",
    "backend/tests/test_define_features.py::test_the_guard_refuses_a_regression_of_a_ratcheted_feature": "passed",
    "backend/tests/test_define_features.py::test_the_next_feature_waits_for_its_dependencies": "passed",
+   "backend/tests/test_define_features.py::test_the_next_package_is_the_fixed_one_holding_the_lanes_top_feature": "passed",
    "backend/tests/test_define_features.py::test_the_rank_tiers_scores_and_never_places_a_feature_above_its_dependency": "passed",
    "backend/tests/test_define_features.py::test_the_ratchet_refuses_a_regression_and_never_forgets": "passed",
    "backend/tests/test_define_phase_metrics.py::test_a_complete_define_case_assembles": "passed",

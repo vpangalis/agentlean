@@ -218,11 +218,13 @@ def packages(features: list[dict] | None = None, ranked: list[dict] | None = Non
     package. Packages are fixed in the feature list (`package`, P1..P35); rank chooses the package: the one holding
     the lane's top-ranked failing feature that carries one (a feature the design gate holds is skipped). The
     package is every feature carrying that name, whatever its lane, in rank order, then the passing ones;
-    `points` counts the failing ones' effort. A package over 5 points may take two prompts (`over`)."""
+    `points` counts the failing ones' effort. A package over 5 points may take two prompts (`over`). A package
+    never goes before one that holds a failing dependency of its features: that one is taken first (P4 before P5)."""
     features = F.load() if features is None else features
     ranked = rank(features, res) if ranked is None else ranked
     by_id = {f["id"]: f for f in features}
     order = {r["id"]: n for n, r in enumerate(ranked)}
+    st = F.status(features, F.results() if res is None else res)
     out: dict[str, dict] = {}
     for lane in F.LANES:
         top = next((r["id"] for r in ranked if r["lane"] == lane and not r.get("held")
@@ -231,6 +233,18 @@ def packages(features: list[dict] | None = None, ranked: list[dict] | None = Non
             out[lane] = {"package": None, "features": [], "points": 0, "over": False}
             continue
         name = by_id[top]["package"]
+        # Founder ruling 2026-10-20 (P4 before P5): a package never goes before a package that holds a failing
+        # dependency of its features — that package is taken first, followed until none is left.
+        seen = {name}
+        while True:
+            ahead = sorted({by_id[d]["package"] for i in by_id if by_id[i].get("package") == name and i in order
+                            for d in F.blockers(i, features, st)
+                            if by_id[d].get("package") and by_id[d]["package"] not in seen},
+                           key=lambda p: min(order.get(i, 10**6) for i in by_id if by_id[i].get("package") == p))
+            if not ahead:
+                break
+            name = ahead[0]
+            seen.add(name)
         mine = [f["id"] for f in features if f.get("package") == name and not f.get("merged_into")]
         mine.sort(key=lambda i: (i not in order, order.get(i, 0), i))
         points = sum(EFFORT.get(by_id[i].get("effort", "M"), 2) for i in mine if i in order)
