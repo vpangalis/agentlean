@@ -229,7 +229,7 @@ def test_the_gate_screen_draws_the_seven_sections_and_both_diagrams() -> None:
     assert "How does it show up?" in html and "how_much answer" in html, "the 5W2H diagram"
     assert 'id="report-sipoc"' in html, "the SIPOC diagram's host"
     assert "paid within 30 days" in html, "the CTQ table"
-    assert "late_payment_rate (%)" in html and "23% → 5%" in html, "one primary, baseline to target"
+    assert "Late payment rate (%)" in html and "23% → 5%" in html, "one primary, baseline to target"
     assert "&lt;b&gt;sponsor" in html and "<b>sponsor</b>" not in html, "the Belt's text is escaped"
 
 

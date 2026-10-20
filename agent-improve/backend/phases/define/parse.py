@@ -505,6 +505,16 @@ def metric_text(value: Any) -> str:
     return (f"{words} {figure}".strip() + (" (an estimate)" if mv.get("is_estimate") else ""))
 
 
+def metric_name(name: Any) -> str:
+    """DEF-223 (G-224, C1): a metric's name as the Belt reads it — a registry id ("late_payment_rate") becomes words
+    ("Late payment rate"); a name already written as words is kept as written. The id stays the key in code."""
+    text = str(name or "").strip()
+    if "_" in text or (text and text == text.lower() and " " not in text):
+        words = text.replace("_", " ").strip()
+        return words[:1].upper() + words[1:]
+    return text
+
+
 def primary_unit(artifacts: Any) -> str:
     """The primary metric's unit, from the registry (its first entry)."""
     reg = (artifacts or {}).get("metric_definitions") or []

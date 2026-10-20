@@ -4634,15 +4634,23 @@ function benefitTimelineHtml(v) {
 // line dated. Drawn into `containerId`; nothing when there is no number to draw.
 function baselineTargetHtml(v) {
   if (!v || (v.baseline == null && v.target == null)) return '';
-  const top = Math.max(Number(v.baseline) || 0, Number(v.target) || 0) || 1;
+  // DEF-222 (finding 41): drawn to scale — a share on 0–100 %, so a 23% baseline is a quarter of the bar.
+  const top = v.unit === '%' ? 100 : (Math.max(Number(v.baseline) || 0, Number(v.target) || 0) || 1);
   const bar = (label, value, colour) => value == null ? '' : `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">
       <div style="width:70px;font-size:10px;color:#5B6B7C">${label}</div>
       <div style="flex:1;background:#F0EEE8;border-radius:3px"><div style="height:12px;border-radius:3px;
         width:${Math.max(2, Math.round(100 * Number(value) / top))}%;background:${colour}"></div></div>
       <div style="width:70px;font-size:11px;font-weight:600;color:#2C3E50">${escapeHtml(String(value))}${escapeHtml(v.unit || '')}</div></div>`;
   return `<div class="baseline-target" style="margin:6px 0">
-    <div style="font-size:10px;color:#5B6B7C;margin-bottom:2px">${escapeHtml(String(v.metric || '').replace(/_/g, ' '))}</div>
+    <div style="font-size:10px;color:#5B6B7C;margin-bottom:2px">${escapeHtml(String(v.metric || ''))}</div>
     ${bar('Today', v.baseline, '#B3261E')}${bar(v.target_date ? 'By ' + v.target_date : 'Target', v.target, '#1E6B3A')}</div>`;
+}
+
+// DEF-222 (finding 53): the baseline-to-target chart a turn carries — the target read back from the goal (A8) —
+// for the visual pane; '' for any other visual.
+function liveTargetChart(turn) {
+  const v = (turn || {}).visualisation;
+  return v && v.type === 'baseline_target' ? baselineTargetHtml(v) : '';
 }
 
 function renderBaselineTarget(v, containerId) {
@@ -6073,6 +6081,10 @@ function renderLiveViz() {
     vizEl.style.cssText = 'padding:0 12px 8px';
     chatEl.appendChild(vizEl);
   }
+
+  // DEF-222: a turn that carries the baseline-to-target chart shows it (the pane had no case for it).
+  const targetChart = liveTargetChart(lastAsk);
+  if (targetChart) { vizEl.innerHTML = targetChart; return; }
 
   // Render only the active work product visual
   switch(workProduct) {

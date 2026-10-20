@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from backend.core import diagrams
-from backend.phases.define.parse import as_metric, parse_limit, primary_unit
+from backend.phases.define.parse import as_metric, metric_name, parse_limit, primary_unit
 
 #: The visual of each read-back field.
 VISUAL_OF: dict[str, str] = {
@@ -55,7 +55,7 @@ def _baseline_target(values: dict[str, Any], field: Optional[str]) -> dict[str, 
         candidates = [f for f in figures if f and f["unit"] == unit and (not base or f["number"] != base["number"])]
         target = candidates[-1] if candidates else None
     return diagrams.build_baseline_target(
-        metric=str(primary.get("name") or "primary metric"), unit=unit,
+        metric=metric_name(primary.get("name")) or "primary metric", unit=unit,               # DEF-223: never the id
         baseline=(base or {}).get("number"), target=(target or {}).get("number"),
         direction=(target or {}).get("direction", "equal"), target_date=_date(values.get("target_date")))
 

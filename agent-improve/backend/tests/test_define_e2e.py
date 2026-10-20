@@ -672,8 +672,11 @@ def test_baseline_and_target_are_stored_as_a_number_with_a_unit(env, monkeypatch
     _coach_saying(monkeypatch, f'Here is your baseline: "{words}" Is this right?', captured=[
         {"field_name": "metric_definitions", "value": registry, "source": "belt"},
         {"field_name": "baseline_estimate", "value": "roughly twenty-three percent", "source": "belt"}])
-    answer = ask(CASE_ID, message=words)["answer"]
-    assert "Read as a number" in answer and "23%" in answer and "(an estimate)" not in answer, answer
+    body = ask(CASE_ID, message=words)
+    # DEF-223 (2026-10-20): the number a Confirm stores is the read-back card's own row, written in code from the
+    # MetricValue — no longer a line appended to the coach's text.
+    baseline_row = next(r for r in body["readback_card"]["rows"] if r["id"] == "quantified")
+    assert baseline_row["value"] == "23%" and "(an estimate)" not in baseline_row["value"], baseline_row
     _coach_saying(monkeypatch, "Thank you. Next, the scope.")
     ask(CASE_ID, message="Confirm", action="confirm")
     base = stored(CASE_ID).get("baseline_estimate")
@@ -697,8 +700,9 @@ def test_baseline_and_target_are_stored_as_a_number_with_a_unit(env, monkeypatch
     assert judged[-1].verdict == "insufficient", judged[-1]
     assert "days" in judged[-1].reason and "%" in judged[-1].reason, judged[-1].reason
     _coach_saying(monkeypatch, 'Your target: "unter 5 %". Is this right?')
-    answer = ask(case_2, message="unter 5 %")["answer"]
-    assert "at most 5%" in answer, answer
+    body = ask(case_2, message="unter 5 %")
+    target_row = next(r for r in body["readback_card"]["rows"] if r["id"] == "number-and-unit")   # DEF-223
+    assert target_row["value"] == "at most 5%", target_row
     _coach_saying(monkeypatch, "Thank you. Next, the date.")
     ask(case_2, message="Confirm", action="confirm")
     target = stored(case_2).get("target_value")
@@ -4103,7 +4107,7 @@ def test_e2e_the_gate_screen_draws_the_report_the_server_sent(env) -> None:
     assert "How does it show up?" in html and "how_much answer" in html, "the 5W2H diagram"
     assert 'id="report-sipoc"' in html, "the SIPOC diagram's host"
     assert "paid within 30 days" in html, "the CTQ table"
-    assert "late_payment_rate (%)" in html and "23% → 5%" in html, "one primary, baseline to target"
+    assert "Late payment rate (%)" in html and "23% → 5%" in html, "one primary, baseline to target"
     assert "&lt;b&gt;sponsor" in html and "<b>sponsor</b>" not in html, "the Belt's text is escaped"
 
 
@@ -6509,14 +6513,84 @@ def test_a_strict_limit_is_kept_as_written() -> None:
     _not_written('DEF-221')
 
 
-def test_the_a8_read_back_shows_its_chart() -> None:
-    """DEF-222 — The target read back from the goal shows its baseline-to-target chart (G-223; founder test findings 53)"""
-    _not_written('DEF-222')
+def _page_js(*names: str, script: str) -> dict:
+    """The page's own functions, cut from ui/index.html (never copied), run under node; what `script` prints."""
+    import json
+    import re
+    import shutil
+    import subprocess
+    from pathlib import Path
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    cut = []
+    for name in names:
+        m = re.search(r"^(?:async )?function " + name + r"\(.*?^\}", src, re.M | re.S)
+        assert m, f"{name} not found in ui/index.html"
+        cut.append(m.group(0))
+    out = subprocess.run([node, "-e", chr(10).join(cut) + chr(10) + script], capture_output=True, text=True,
+                         encoding="utf-8")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
 
 
-def test_metric_lines_are_their_own_block_and_never_show_ids() -> None:
-    """DEF-223 — The code-written metric reading is its own block, and display names replace registry ids (G-224; founder test findings 42, 43)"""
-    _not_written('DEF-223')
+def test_the_a8_read_back_shows_its_chart(env, monkeypatch) -> None:
+    """DEF-222 — G-223 (founder test finding 53): the target read back from the goal (A8, ADR-0086) shows its
+    baseline-to-target chart — the server sends it on the turn, and the visual pane draws it (it had no case for
+    a baseline_target visual, so nothing was drawn), to scale: a share on 0–100 %, so a 23% baseline is a quarter
+    of the bar, never the whole of it (finding 41)."""
+    goal = "Reduce the late payment rate from 23% to under 5% by 31 March 2027."
+    _a8_at_goal_read_back(env, monkeypatch, goal)
+    first = _askd(env, action="confirm", message="Confirm")
+    vis = first.get("visualisation") or {}
+    assert first["move_field"] == "target_value" and vis.get("type") == "baseline_target", (first["move_field"], vis)
+    assert (vis["baseline"], vis["target"], vis["unit"], vis["confirmed"]) == (23.0, 5.0, "%", False), vis
+    import json
+    got = _page_js("escapeHtml", "baselineTargetHtml", "liveTargetChart",
+                   script=f"process.stdout.write(JSON.stringify({{html: liveTargetChart({json.dumps({'visualisation': vis})}),"
+                          f" none: liveTargetChart({{visualisation: {{type: 'mindmap_5w2h'}}}})}}))")
+    html = got["html"]
+    assert "width:23%" in html and "width:5%" in html, html                        # 0-100 % for a share
+    assert "Today" in html and "2027-03-31" in html, html
+    assert got["none"] == "", "another visual is not drawn as the target chart"
+
+
+def test_metric_lines_are_their_own_block_and_never_show_ids(env, monkeypatch) -> None:
+    """DEF-223 — G-224 (founder test findings 42, 43): (a) the number a Confirm stores for the baseline is shown in
+    its own block — the read-back card's "Baseline" row — never as a code-written line run into the coach's
+    paragraph; (b) the Belt sees the metric's display name ("Late payment rate"), never its registry id
+    ("late_payment_rate"): on the card, in the Gate's rows and on the chart."""
+    from backend.phases import moves
+    from backend.phases.define import parse, templates, visuals
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    order = [f for f, _ in moves.positions("define")]
+    record.structured = {f: COMPLETE[f] for f in ("business_case", "team", "voc_summary", "critical_to_quality",
+                                                  "problem_statement", "problem_5w2h")}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:4]}
+    record.field_status["baseline_estimate"] = {"status": moves.ASKED}
+    words = ("Late payment rate, in %: the share of supplier invoices paid more than 30 days after the invoice "
+             "date. About 23% today, from the AP ledger for January to June 2026.")
+    registry = [{"name": "late_payment_rate", "unit": "%", "meaning": "paid more than 30 days late"}]
+    _coach_saying(monkeypatch, f'Here is your baseline: "{words}" Is this right?', captured=[
+        {"field_name": "metric_definitions", "value": registry, "source": "belt"},
+        {"field_name": "baseline_estimate", "value": "about 23%", "source": "belt"}])
+    body = _askd(env, message=words)
+    assert body["move"] == moves.READ_BACK, body["move"]
+    assert "Read as a number" not in body["answer"], body["answer"]                 # (a) not run into the text
+    rows = {r["id"]: r for r in body["readback_card"]["rows"]}
+    assert rows["quantified"]["value"] == "23%", rows["quantified"]                 # (a) its own block
+    assert rows["one-primary"]["value"] == "Late payment rate (%)", rows["one-primary"]   # (b) the card
+    assert "late_payment_rate" not in str(body["readback_card"]), body["readback_card"]
+    values = {**COMPLETE, "metric_definitions": registry}
+    gate_rows = templates.rows("baseline_estimate", values)
+    assert "late_payment_rate" not in str(gate_rows) and "Late payment rate" in str(gate_rows), gate_rows  # (b) Gate
+    chart = visuals.for_field("target_value", values, confirmed=False)
+    assert chart is not None and chart[1]["metric"] == "Late payment rate", chart                     # (b) chart
+    assert parse.metric_name("late_payment_rate") == "Late payment rate"
+    assert parse.metric_name("Invoice error rate") == "Invoice error rate"         # a name already readable stays
 
 
 def test_the_same_answer_gets_the_same_verdict() -> None:

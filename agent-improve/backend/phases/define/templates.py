@@ -127,13 +127,13 @@ def _primary(values: dict[str, Any]) -> dict[str, Any]:
 
 def _primary_name(values: dict[str, Any]) -> Read:
     p = _primary(values)
-    name, unit = str(p.get("name") or "").strip(), str(p.get("unit") or "").strip()
+    name, unit = parse.metric_name(p.get("name")), str(p.get("unit") or "").strip()     # DEF-223: never the id
     return (f"{name} ({unit})" if name and unit else name or None), None
 
 
 def _defined(values: dict[str, Any]) -> Read:
     p = _primary(values)
-    parts = [str(p.get(k) or "").strip() for k in ("name", "unit", "meaning")]
+    parts = [parse.metric_name(p.get("name")), *(str(p.get(k) or "").strip() for k in ("unit", "meaning"))]
     return (" · ".join(x for x in parts if x) or None), None
 
 

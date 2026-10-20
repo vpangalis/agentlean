@@ -122,7 +122,7 @@ _NOT_YET = "Not confirmed yet."
 def _summaries(a: dict[str, Any], body: dict[int, dict[str, Any]]) -> dict[int, str]:
     """C1 (DEF-086) — each section's short plain-language summary: what it shows and what it means for
     the project, built in code from the confirmed values only (never a value the section lacks)."""
-    from backend.phases.define.parse import date_shown
+    from backend.phases.define.parse import date_shown, metric_name
     s1, s2, s3, s4, s5, s6, s7 = (body[n] for n in range(1, 8))
     team = s1.get("team") or []
     champion = (s1.get("champion") or {}).get("name")
@@ -150,7 +150,7 @@ def _summaries(a: dict[str, Any], body: dict[int, dict[str, Any]]) -> dict[int, 
     four = (f"{len(ctqs)} customer need{'s' if len(ctqs) != 1 else ''} turned into measurable "
             f"requirement{'s' if len(ctqs) != 1 else ''}." if ctqs else _NOT_YET)
     primary = s5.get("primary") or {}
-    five = (f"Success is measured by {str(primary.get('name') or 'the primary metric').replace('_', ' ')}: from "
+    five = (f"Success is measured by {metric_name(primary.get('name')) or 'the primary metric'}: from "
             f"{s5.get('baseline') or 'a baseline not confirmed yet'} today to {s5.get('target') or 'a target not confirmed yet'}"
             + (f" by {date_shown(s5['target_date'])}" if s5.get("target_date") else "") + "."
             if primary else _NOT_YET)

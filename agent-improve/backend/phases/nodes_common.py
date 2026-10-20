@@ -3182,7 +3182,11 @@ async def executor(
                                 belt_words)
     new_messages = _with_carried(new_messages, reply, phase, carried)
     if move == moves.READ_BACK and phase == "define" and pending is not None:
-        new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
+        from backend.phases.define import templates as _templates
+        if str(pending.get("field") or "") not in _templates.TEMPLATES:
+            # DEF-223 (G-224): the read-back card (ADR-0093) shows the number a Confirm stores in its own row; the
+            # code-written line is written only for a read-back that draws no card, never run into the coach's text.
+            new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
         # DEF-018 — the metric's first appearance: its meaning from the Belt's registry entry, in code.
         meaning = _metric_meaning({**dict(pending.get("proposed") or {}), **dict(pending.get("store") or {})}) \
             if "metric_definitions" in (pending.get("fields") or []) else None
