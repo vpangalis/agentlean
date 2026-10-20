@@ -4490,7 +4490,8 @@ def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(
     from backend.core.config import REQUIRED_CREDENTIALS
 
     project = Path(__file__).resolve().parents[2]
-    bare = {k: v for k, v in os.environ.items() if k != "AZURE_OPENAI_API_KEY"}
+    # DEF-235 (G-233): the child writes UTF-8, the encoding read below, whatever the shell's code page.
+    bare = {**{k: v for k, v in os.environ.items() if k != "AZURE_OPENAI_API_KEY"}, "PYTHONIOENCODING": "utf-8"}
     # The .env file would put the key back; the start is otherwise the real one (the app module loads).
     start = "import dotenv; dotenv.load_dotenv = lambda *a, **k: False; import backend.app"
     out = subprocess.run([sys.executable, "-c", start], cwd=project, env=bare,
