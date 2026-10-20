@@ -4287,7 +4287,9 @@
    "id": "DEF-102",
    "description": "The user is identified by the customer's single sign-on (Entra ID first); a case is visible only to its team; roles project lead, team member, Champion.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-104"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_user_comes_from_single_sign_on",
    "sources": {
     "architecture": [],
@@ -4316,7 +4318,10 @@
    "id": "DEF-103",
    "description": "Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project lead hands over in person (R8a amended 2026-10-01; e-mail delivery later, as an adapter) — single-use, expiring after 72 hours; each sign-in records who and when.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-104",
+    "DEF-216"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_without_sign_on_only_registered_team_members_enter",
    "sources": {
     "architecture": [],
@@ -4345,7 +4350,10 @@
    "id": "DEF-104",
    "description": "The creator of a case is its project lead; only the lead adds or removes members and assigns roles; the lead is shown on the form, header, list and sign-in window.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-215",
+    "DEF-216"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_creator_is_the_project_lead_and_alone_manages_the_team",
    "sources": {
     "architecture": [],
@@ -4642,7 +4650,9 @@
    "id": "DEF-112",
    "description": "Each message shows who wrote it; a second person opening a case in use is told who is working on it.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-102"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told",
    "sources": {
     "architecture": [],
@@ -4698,7 +4708,9 @@
    "id": "DEF-114",
    "description": "The sign-in window says what it is, who may enter and what to do otherwise, and names the project lead; an unknown name is refused with the same guidance.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-103"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_sign_in_window_explains_itself_and_names_the_lead",
    "sources": {
     "architecture": [],
@@ -5169,7 +5181,9 @@
    "id": "DEF-130",
    "description": "A drop of more than 10% in any eval metric blocks release",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-142"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_t50_a_drop_of_more_than_10_in_any_eval_metric_blocks_release",
    "sources": {
     "architecture": [],
@@ -6393,7 +6407,13 @@
    "id": "DEF-176",
    "description": "Gate view section A · Project and team: the team table with time on project and training as their own columns, one name for the lead (gate_view_mockup.html; G-198)",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-047",
+    "DEF-069",
+    "DEF-198",
+    "DEF-229",
+    "DEF-215"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_gate_view_section_a_follows_the_mockup",
    "sources": {
     "architecture": [],
@@ -6424,7 +6444,12 @@
    "id": "DEF-177",
    "description": "Gate view section B · Business case and benefits: the business case by its template (What/Where/Since when/Size/Cost), cost of the gap and expected saving as two labelled figures (gate_view_mockup.html; G-198)",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-047",
+    "DEF-069",
+    "DEF-198",
+    "DEF-225"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_gate_view_section_b_follows_the_mockup",
    "sources": {
     "architecture": [],
@@ -6455,7 +6480,12 @@
    "id": "DEF-178",
    "description": "Gate view section C · Problem, goal and scope: the composed statement highlighted with the 5W2H table under it, the goal as a highlighted block, scope as two labelled boxes (gate_view_mockup.html; G-198)",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-047",
+    "DEF-069",
+    "DEF-198",
+    "DEF-230"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_gate_view_section_c_follows_the_mockup",
    "sources": {
     "architecture": [],
@@ -6486,7 +6516,12 @@
    "id": "DEF-179",
    "description": "Gate view section D · Voice of the customer and CTQs: the need-to-CTQ table with the rows as stated (gate_view_mockup.html; G-198)",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-047",
+    "DEF-069",
+    "DEF-198",
+    "DEF-184"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_gate_view_section_d_follows_the_mockup",
    "sources": {
     "architecture": [],
@@ -6517,7 +6552,12 @@
    "id": "DEF-180",
    "description": "Gate view section E · Metrics: the primary metric by its display name, a chart scaled 0–100 % for shares, the target pending until confirmed (gate_view_mockup.html; G-198)",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-047",
+    "DEF-069",
+    "DEF-198",
+    "DEF-162"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_gate_view_section_e_follows_the_mockup",
    "sources": {
     "architecture": [],
@@ -6548,7 +6588,13 @@
    "id": "DEF-181",
    "description": "Gate view section F · High-level process: the numbered flow with arrows, per-step time and frequency, the R18 step highlighted, the performance table (gate_view_mockup.html; G-198)",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-047",
+    "DEF-069",
+    "DEF-198",
+    "DEF-172",
+    "DEF-211"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_gate_view_section_f_follows_the_mockup",
    "sources": {
     "architecture": [],
@@ -6579,7 +6625,12 @@
    "id": "DEF-182",
    "description": "Gate view section G · Issues and barriers: the issues as the Belt numbered them, no owner (gate_view_mockup.html; G-198)",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-047",
+    "DEF-069",
+    "DEF-198",
+    "DEF-036"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_gate_view_section_g_follows_the_mockup",
    "sources": {
     "architecture": [],
