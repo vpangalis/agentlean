@@ -49,6 +49,31 @@ rm -f "$MARKER"
 # into the commit's `Timing:` trailer, which the board reads from git log.
 mkdir -p .claude/logs && date +%s > .claude/logs/pre-commit-start
 RAN=""
+# DEF-232 (G-177, G-230; founder 2026-10-20, package P0): the generators the tests check run, and stage
+# their output, BEFORE the tests on the staged tree — so a commit that changes a generated source never fails
+# its own first run on documents this hook regenerates seconds later.
+# Part G (founder, 2026-09-27) — ARCHITECTURE.md's data-models block, regenerated
+# from the STAGED source into the index copy (commit-msg rule 16 checks it). A
+# document without the markers is left alone. Fail-soft, like this hook.
+T0=$(date +%s)
+if [ -n "$SYSPY" ] && [ -f "agent-improve/tools/architecture/generate_models.py" ]; then
+    "$SYSPY" agent-improve/tools/architecture/generate_models.py --stage </dev/null || echo "  [data models] WARNING: not regenerated; rule 16 will check the block" >&2
+fi
+t_log data-models "$T0"
+
+# Founder 2026-09-30 (ARCHITECTURE.md headroom, A1 and A3) — the code layout and the API routes,
+# generated from the STAGED source into their own documents (test_generated_docs.py checks
+# both are current). Fail-soft, like this hook.
+T0=$(date +%s)
+if [ -n "$SYSPY" ]; then
+    for GEN in generate_layout generate_routes generate_value_keys generate_middleware_order; do
+        if [ -f "agent-improve/tools/architecture/$GEN.py" ]; then
+            "$SYSPY" "agent-improve/tools/architecture/$GEN.py" --stage </dev/null || echo "  [$GEN] WARNING: not regenerated" >&2
+        fi
+    done
+fi
+t_log generated-docs "$T0"
+
 # 6.67 — path-based (founder addendum, speed item 1): code, config, hooks,
 # .json/.html/.yaml run the suite; documentation only runs the fast checks
 # (rules 12 and 13). The generated outputs a previous attempt left staged do
@@ -99,28 +124,6 @@ if [ -n "$SYSPY" ] && [ -f ".claude/hooks/section_index.py" ]; then
     "$SYSPY" .claude/hooks/section_index.py && git add agent-improve/docs/section-index.md 2>/dev/null
 fi
 t_log section-index "$T0"
-
-# Part G (founder, 2026-09-27) — ARCHITECTURE.md's data-models block, regenerated
-# from the STAGED source into the index copy (commit-msg rule 16 checks it). A
-# document without the markers is left alone. Fail-soft, like this hook.
-T0=$(date +%s)
-if [ -n "$SYSPY" ] && [ -f "agent-improve/tools/architecture/generate_models.py" ]; then
-    "$SYSPY" agent-improve/tools/architecture/generate_models.py --stage </dev/null || echo "  [data models] WARNING: not regenerated; rule 16 will check the block" >&2
-fi
-t_log data-models "$T0"
-
-# Founder 2026-09-30 (ARCHITECTURE.md headroom, A1 and A3) — the code layout and the API routes,
-# generated from the STAGED source into their own documents (test_generated_docs.py checks
-# both are current). Fail-soft, like this hook.
-T0=$(date +%s)
-if [ -n "$SYSPY" ]; then
-    for GEN in generate_layout generate_routes generate_value_keys generate_middleware_order; do
-        if [ -f "agent-improve/tools/architecture/$GEN.py" ]; then
-            "$SYSPY" "agent-improve/tools/architecture/$GEN.py" --stage </dev/null || echo "  [$GEN] WARNING: not regenerated" >&2
-        fi
-    done
-fi
-t_log generated-docs "$T0"
 
 # Part F3 (ADR-0058) — the order of work is computed by rank.py from the feature list and
 # the requirements; here it checks every feature's rank inputs (the board and CONTINUITY

@@ -1,9 +1,9 @@
 {
  "source_hash": "9695066e6f77717e",
- "commit": "b797e97",
- "commit_matches_source": false,
+ "commit": "f2f93dd",
+ "commit_matches_source": true,
  "full_run_hash": "9695066e6f77717e",
- "recorded_at": "2026-10-20T13:28:51+00:00",
+ "recorded_at": "2026-10-20T13:34:23+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1714,7 +1714,7 @@
   "backend/tests/test_timing.py::test_the_timing_log_appends_and_sums_only_its_window": "passed",
   "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason": "passed",
   "backend/tests/test_tooling_p0.py::test_t67s_child_process_writes_utf8_whatever_the_shell": "passed",
-  "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests": "skipped",
+  "backend/tests/test_tooling_p0.py::test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests": "passed",
   "backend/tests/test_tooling_p0.py::test_the_test_summary_is_pytests_result_line_not_the_last_line": "passed",
   "backend/tests/test_turn_budget.py::test_no_knowledge_tool_blocks_the_loop": "passed",
   "backend/tests/test_turn_graph.py::test_a_case_in_a_non_phase_is_refused_rather_than_dispatched": "passed",
