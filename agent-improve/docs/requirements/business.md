@@ -230,9 +230,11 @@ benefits estimate (Control verifies realised savings against it).
 
 **g Done when**
 
-**R12 Define is done** · ACCEPTED 2026-09-27, amended 2026-09-30 · MoSCoW: Must · Design: none
-A fresh case with a prepared Belt (the scripted run-through persona) reaches an approved Define
-report in at most 40 Belt turns, with no turn over 45 s and no element left unreachable.
+**R12 Define is done** · ACCEPTED 2026-09-27, amended 2026-09-30 and 2026-10-20 · MoSCoW: Must · Design: none
+Define is done when every Define feature in docs/define_features.json passes, Won't-now excepted, and
+one live run-through on a fresh case reaches an approved Define report within 40 turns, no turn over
+45 s, at most USD 1.50. Measure starts only then. (Founder ruling 2026-10-20; replaces the run-only
+finish line.)
 `scripts/define_runthrough.py` is the acceptance test and records turns, model calls, time and cost.
 Cost ceiling: a completed Define run-through costs at most USD 1.50 in model usage (1.5 × the measured
 ≈ USD 1.00, run of 2026-09-30). A run above the ceiling fails the acceptance test.
