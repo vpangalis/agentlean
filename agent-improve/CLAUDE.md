@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve: how to work here
-# Version 2.3.2 — October 2026
+# Version 2.3.3 — October 2026
 # Earlier versions, the why and the history: docs/_archive/CLAUDE_md_v2.2.46_2026-09-26.md
 
 DMAIC coaching agent (LangGraph, `create_agent` + middleware, Azure). **These rules win over
@@ -45,7 +45,7 @@ your lane and make its end-to-end test pass. Never edit a feature to say it pass
 - A feature lands as `refactor(arch-v2): DEF-xxx — <what changed>`; `chore(tooling):` names
   no DEF id; anything else carries `Step: X.Y` or `Feature: DEF-xxx`. End with `Co-Authored-By:`.
 - **Stage by name, in a command of its own**, then commit — the hooks test what is STAGED.
-  Push after every commit. Never `--no-verify`.
+  Push once per package. Never `--no-verify`.
 - Scratch never enters the tree and is never evidence; a new file needs a step or feature
   number (`chore(tooling):` excepted).
 

@@ -14,7 +14,7 @@
 | **Next — lane integrator** | DEF-103 — Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project le |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
-| **CLAUDE.md** | v2.3.2 |
+| **CLAUDE.md** | v2.3.3 |
 | **Block regenerated** | 2026-10-20 |
 
 *Every figure comes from `docs/define_features.json` and
