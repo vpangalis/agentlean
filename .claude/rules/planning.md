@@ -12,8 +12,7 @@ Brief Part F5 (founder, 2026-09-27); the rule is ADR-0058. Process 1 is the
 
 - The queue is recomputed on every commit (`tools/control_board/rank.py`, run by the
   pre-commit hook). Nobody writes an order of work by hand.
-- After a feature passes, a defect is registered, a run-through is recorded or a requirement
-  changes, report the new top of each lane's queue (`python tools/control_board/rank.py`).
+- Each report gives the new top of each lane's queue (`python tools/control_board/rank.py`).
 - Never pick work outside the rank without a founder override (`priority_override`, with
   its reason, set only by the founder).
 - When Claude Code finds that a requirement is wrong, missing or conflicting, it never edits
@@ -30,8 +29,8 @@ Brief Part F5 (founder, 2026-09-27); the rule is ADR-0058. Process 1 is the
   change; a commit may name several DEF ids and lands only if all of them and their
   dependencies pass.
 - Questions are asked at the start, together, never mid-run.
-- A time box of 60 minutes: when it is reached, finish the current commit, report where it
-  stands and what is left of the package, and stop.
+- Before coding a package, list its assumptions (framework behaviour, accepted ADRs, repo rules);
+  each gets a probe test or a cited ADR line first. A failed one stops the package, reported before code.
+- The day's one report lists what its live run found, each with its escape class; the count should fall.
 - Area tests while working; the full suite only in the hook. Never rerun a passing suite.
-- Every prompt is recorded in `.claude/logs/prompts.jsonl` at its end
-  (`.claude/hooks/prompt_record.py`); the report's timing line summarises that record.
+- Each prompt is logged (`.claude/hooks/prompt_record.py`); the report's timing line reads it.
