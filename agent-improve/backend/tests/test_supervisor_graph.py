@@ -33,7 +33,8 @@ def test_exactly_the_five_phase_nodes_plus_escalation() -> None:
     nodes = set(graph_builder().nodes)
     # T29 (DEF-122): LangGraph registers each node's error_handler as a node of its own.
     handlers = {n for n in nodes if n.startswith("__error_handler__")}
-    assert nodes - handlers == PHASE_NODES | {ESCALATE_NODE, "input_guard"}
+    # ADR-0087: Define's approval node, entered by the gate path, has no error handler (T29 amended).
+    assert nodes - handlers == PHASE_NODES | {ESCALATE_NODE, "input_guard", "define_approval"}
     assert handlers == {f"__error_handler__{n}" for n in PHASE_NODES | {"input_guard"}}
 
 
@@ -73,7 +74,9 @@ def test_an_unwired_phase_has_no_subgraph_until_4_4() -> None:
 
 def test_start_enters_every_phase_node_through_the_router_and_every_phase_ends() -> None:
     b = graph_builder()
-    assert set(b.edges) == {(p, END) for p in PHASE_NODES} | {(ESCALATE_NODE, END), (START, "input_guard")}, b.edges
+    # ADR-0087: Define's approval node, entered from the router on the gate path, ends too.
+    assert set(b.edges) == ({(p, END) for p in PHASE_NODES} | {("define_approval", END)}
+                            | {(ESCALATE_NODE, END), (START, "input_guard")}), b.edges
     branches = b.branches["input_guard"]            # ADR-0057: the guard sits before the router
     assert list(branches) == ["route_to_phase"]
     assert not {(a, z) for a, z in b.edges if a in PHASE_NODES and z in PHASE_NODES}
@@ -251,3 +254,49 @@ def test_command_parent_reaches_the_escalation_node() -> None:
         f"expected the Command to reach escalate and skip the rest of the "
         f"phase node; got {ran}"
     )
+
+
+#: The calls by which a node function runs a compiled graph of its own: a phase subgraph, or the executor's agent.
+_SUBGRAPH_CALLS = ("_subgraph(", "create_agent(", "agent.ainvoke(")
+
+
+def _node_source(spec: Any) -> str:
+    """A node function's source, with the shared `nodes_common` function it delegates to (`_c.<name>(`)."""
+    import re
+
+    from backend.phases import nodes_common
+    fn = getattr(spec.runnable, "afunc", None) or getattr(spec.runnable, "func", None)
+    try:
+        source = inspect.getsource(fn) if fn is not None else ""
+    except (OSError, TypeError):
+        return ""
+    for name in re.findall(r"(?<![\w.])_c\.(\w+)\(", source):
+        if callable(shared := getattr(nodes_common, name, None)):
+            source += inspect.getsource(shared)
+    return source
+
+
+def test_a_node_that_invokes_a_checkpointed_subgraph_carries_no_retry_policy(monkeypatch) -> None:
+    """Graph rule §3.6 (founder ruling 2026-10-21, the D7 of the ADR-0087 retry escape): a node whose function invokes
+    a checkpointed subgraph never carries a `retry_policy`. LangGraph issue #9253: a retry does not reset the task's
+    subgraph call counter, so the retried call looks for its checkpoint under a new namespace and starts afresh —
+    Define's approval re-ran as a coaching turn and the route answered "approved" with nothing saved. Review this
+    rule when #9253 is fixed."""
+    from langgraph.graph import StateGraph
+
+    from backend.phases.subgraph_common import build_phase_subgraph
+    builders: dict[str, Any] = {"parent": graph_builder()}
+    real_compile = StateGraph.compile
+
+    def capture(self, *a, **k):                                      # the subgraph builder compiles inside
+        builders["define subgraph"] = self
+        return real_compile(self, *a, **k)
+    monkeypatch.setattr(StateGraph, "compile", capture)
+    build_phase_subgraph("define")
+    monkeypatch.setattr(StateGraph, "compile", real_compile)
+    invoking = {(where, name): spec for where, b in builders.items() for name, spec in b.nodes.items()
+                if any(call in _node_source(spec) for call in _SUBGRAPH_CALLS)}
+    assert {("parent", "define_phase"), ("parent", "define_approval"), ("define subgraph", "executor")} <= set(invoking), \
+        sorted(invoking)
+    retried = sorted(f"{where}:{name}" for (where, name), spec in invoking.items() if spec.retry_policy)
+    assert not retried, f"nodes that invoke a checkpointed subgraph carry a retry_policy (LangGraph #9253): {retried}"

@@ -239,7 +239,8 @@ def test_the_runtime_is_one_graph_with_a_node_per_phase(wired) -> None:
     graph, _ = wired
     names = {n for n in graph.get_graph().nodes if n not in ("__start__", "__end__")
              and not n.startswith("__error_handler__")}            # T29 (DEF-122): the handlers
-    assert names == {f"{p}_phase" for p in PHASE_ORDER} | {graph_mod.ESCALATE_NODE, "input_guard"}
+    assert names == ({f"{p}_phase" for p in PHASE_ORDER} | {graph_mod.ESCALATE_NODE, "input_guard"}
+                     | {f"{p}_approval" for p in graph_mod.APPROVAL_PHASES})        # ADR-0087
     assert graph_mod.WIRED_PHASES == PHASE_ORDER, "step 4.4 closed WATCH 17"
 
 

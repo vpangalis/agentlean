@@ -2977,6 +2977,20 @@
     "A"
    ],
    "escape_class": "xfail_mask"
+  },
+  {
+   "id": "G-239",
+   "symptom": "AN APPROVAL THAT FAILED ONCE WAS ANSWERED \"APPROVED\" WITH NOTHING SAVED (found 2026-10-20 building ADR-0087, before any commit; founder ruling 2026-10-21, option B). The ADR-0087 approval node carried a LangGraph retry_policy; a failure after a write was undone and retried, the retry re-called the Define subgraph, which started afresh as a coaching turn (planner entry=decision turn_count=0, move=respond) and returned without `final`, so the node returned normally and POST /gate/decision answered 200 \"The Define report is approved\" with no Store record, no case record and the pause used up. D4 OCCURRENCE: LangGraph issue #9253 (open; community PR #9279 closed unmerged) — a retry keeps the task's scratchpad, whose subgraph call counter numbers the retried call `define_approval:<task>|1`, a namespace with no checkpoint (langgraph 1.2.11 pregel/_loop.py 325-338; _retry.py only sets CONFIG_KEY_RESUMING). D4 ESCAPE: the retry answered the failure and the run looked well-formed; the route reported approval on any run that returned. D5 FIX: no retry_policy on the approval node (brief storage failures are retried by the Azure storage library's default ExponentialRetry, 3 retries); a failure undoes both writes and the route answers 503 in the founder's words; the route answers \"approved\" only when both records exist and the phase advanced. D7 PREVENT: graph rule §3.6 — a node that invokes a checkpointed subgraph never carries a retry_policy — proved by test_supervisor_graph.py::test_a_node_that_invokes_a_checkpointed_subgraph_carries_no_retry_policy, and the route check by test_adr0087_approved_is_answered_only_when_both_records_exist_and_the_phase_advanced. REVIEW the rule when LangGraph fixes #9253.",
+   "requirement": [
+    "T23"
+   ],
+   "feature": [
+    "DEF-170"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "error_routine"
   }
  ],
  "escape_controls": {

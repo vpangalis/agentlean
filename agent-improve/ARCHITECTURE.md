@@ -97,7 +97,9 @@ flowchart TB
     G --> RT{"route_to_phase<br/>current_phase"}
     RT -- "blocked" --> EN((END))
     RT -- "define … control" --> W["{phase}_phase<br/>wrapper node"]
+    RT -- "Define gate / decision" --> AP["define_approval<br/>wrapper node, ADR-0087"]
     W --> EN
+    AP --> EN
     X[escalate] --> EN
   end
   subgraph phase["Phase subgraph — one DMAIC phase, PhaseState"]
@@ -185,8 +187,12 @@ sequenceDiagram
 as a task raced against `_until_disconnect`; a client gone first cancels it (499). The run holds the
 case's Blob lease (`blob.case_lease`, 60 s; T11): a second writer is answered 409 and runs nothing.
 Every parent node with an external write (the phase nodes, the input guard) carries
-`error_handler=graph.degraded_handler` (T29): a failed approval's Store record is removed, the
-Belt gets the degraded reply in code (a gate route answers 503), and a failed guard ends the turn.
+`error_handler=graph.degraded_handler` (T29): the Belt gets the degraded reply in code (a gate route
+answers 503), and a failed guard ends the turn. The exception is Define's approval node,
+`define_approval` (ADR-0087), which the gate path enters: a handler on the node that holds the
+report's pause would use up the decision, so it undoes both its writes in place and re-raises, with
+no retry policy (G-239, LangGraph #9253). `POST /gate/decision` answers 503, and the report still
+awaits the decision.
 Every route: [docs/api-routes.md](docs/api-routes.md), generated. This table's route column is
 checked against the code (`test_the_graph_route_table_names_real_routes`).
 
@@ -194,7 +200,7 @@ checked against the code (`test_the_graph_route_table_names_real_routes`).
 |---|---|---|---|
 | `POST /ask` | `_graph_input`: no checkpoint yet → the seven `SupervisorState` fields plus the case's prior conversation; else `{"messages": [new]}`; a checkpoint phase ≠ case phase is 409 | `thread_id` = case id; `recursion_limit` 50 | `_mirror_asks` (Store); no blob write — the reply carries the phase's merged record into the checkpoint (ADR-0066) |
 | `POST /gate` | the same, `entry="gate"` | same | non-Define phases: `write_phase_gate` on a pass |
-| `POST /gate/decision` | `Command(resume={decision, elements, reason, actor, at})` after `_pending_interrupts` finds `accept_define_report` | same, `entry="decision"`; reject sets `belt_action="rejected"` | approve: `assemble_gate_document`, `write_phase_gate` |
+| `POST /gate/decision` | `Command(resume={decision, elements, reason, actor, at})` after `_pending_interrupts` finds `accept_define_report` | same, `entry="decision"`; reject sets `belt_action="rejected"` | approve: nothing written here — `define_approval` wrote both records; "approved" only when both exist and the phase advanced |
 | `GET /gate/review/{case_id}/{phase}` | none — `graph.aget_state(config)` reads the pause | same | — |
 
 ### 2.5 Checkpoints and persistence
@@ -268,8 +274,8 @@ sequenceDiagram
     API->>A: Command(resume=decision)
     alt approve
       A-->>API: final assembled; gate counters reset
-      A-->>API: output mapper — Store record written, phase advanced in the graph
-      API->>API: the same record to the case blob and registry (write_phase_gate), once
+      A-->>API: define_approval — Store record (output mapper), then the case record (write_phase_gate), phase advanced
+      API->>API: checks both records exist and the phase advanced, then answers "approved"
     else reject
       A-->>API: named elements reopened; rejection_feedback; back to the planner
     end
@@ -280,7 +286,7 @@ sequenceDiagram
 |---|---|
 | Pause payload | Define: `{kind: "accept_define_report", phase, passage, ask}` — `passage` keys the passing submission; the report itself (`phases/define/report.py::define_report`, each section's status and the value history) is served by `GET /gate/review/{case_id}/{phase}`. Other phases do not pause: `gate_review` passes through (`_gate_passage` is Define only) and `POST /gate` writes on a pass |
 | Decision | `POST /gate/decision` with `approve` or `reject`; a rejection must name at least one element and a reason; a decision with nothing pending answers 409 |
-| Approve | `gate_apply` assembles `{Phase}Output` by Pydantic construction (no model call) as `final` and resets `gate_attempts` and `validator_feedback`; the output mapper writes it to the Store and advances the phase (§3.2); the route writes the same record to the case blob and registry once (`write_phase_gate`) |
+| Approve | `gate_apply` assembles `{Phase}Output` by Pydantic construction (no model call) as `final` and resets `gate_attempts` and `validator_feedback`; in Define's approval node (ADR-0087) the output mapper writes it to the Store and advances the phase (§3.2), then the node writes the same record to the case blob and registry once (`write_phase_gate`); any failure undoes both and the decision stays pending |
 | Reject | `gate_apply` sets the named elements back to open in `field_status`, stores `rejection_feedback`, and routes to the planner; the coach takes the Belt back to those elements in the same run |
 | Durability | A pause survives a restart; an approval after a restart writes once |
 | Edits | The report is not edited on screen; every change goes through coaching |
@@ -364,7 +370,7 @@ ingest; index creation.
 | Node | Reads | Does | Writes |
 |---|---|---|---|
 | `input_guard` (main graph) | the Belt's newest message | Threat A (rewriting the rules: fixed rules, then Prompt Shields) and D (over 10,000 characters); strict unless `GUARD_MODE=development`; fail closed; skips gate and resume entries | on a block: a reply built in code (`core/guard_messages.py`: the threat's text, the element, its sample); the verdict — threat, rule, person, time, shield — to the Store's `step_log` namespace; that turn, like a `content_filter` refusal, kept from later model calls and the reload (`guard.without_blocked`) |
-| `route_to_phase` (main graph, conditional edge) | `current_phase`, the guard's verdict | Picks `{phase}_phase`, or `END` for a blocked turn | nothing |
+| `route_to_phase` (main graph, conditional edge) | `current_phase`, the guard's verdict, the entry | Picks `{phase}_phase` — `define_approval` for Define's gate and decision entries (ADR-0087) — or `END` for a blocked turn | nothing |
 | `{phase}_phase` (main graph, wrapper) | `SupervisorState`, the Store | Input mapper → subgraph → on approval the output mapper | `messages`, `history`; on approval `current_phase`, `phase_index`, `gate_passed` |
 | `planner` | `field_status`, `artifacts`, acceptance criteria | One judgment; builds `CoachingPlan` with `moves.decide` | `coaching_plan`, `field_status`, `step_log` |
 | `executor` | plan, messages, state | `create_agent` with phase tools and middleware; reads `CoachingResponse` | `messages`, `artifacts` (confirmed only), `citations`, `step_log` |

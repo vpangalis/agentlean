@@ -2745,7 +2745,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-178"
+     "G-178",
+     "G-239"
     ]
    },
    "requirement": "T23",

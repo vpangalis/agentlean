@@ -7,9 +7,9 @@
 
 | | |
 |---|---|
-| **Headline** | 141 of 221 Define features pass (core 133 of 212) — A 64/89 · B 35/41 · C 28/64 · integrator 14/27 (record older than the source) · M1: 70 proven · 0 awaiting fresh run · 3 open |
-| **Next — lane A** | DEF-221 — A target written 'under 10%' is read back in words as 'at most 10%' with the Belt's own wording shown, so the Belt confirms or changes it (G |
-| **Next — lane B** | DEF-170 — T23's 'or neither' after the case write: an approval that fails after the case record is written leaves neither the Store record nor the app |
+| **Headline** | 141 of 221 Define features pass (core 133 of 212) — A 65/89 · B 35/41 · C 28/64 · integrator 13/27 · M1: 71 proven · 0 awaiting fresh run · 2 open |
+| **Next — lane A** | DEF-208 — A file that covers an element only partly is read back as a draft table with its gaps marked (G-209; founder test findings 25) |
+| **Next — lane B** | DEF-159 — G-129: a complete Define passes the gate rubric — an answer the element's own acceptance criteria accepted is not failed at the gate for its |
 | **Next — lane C** | DEF-205 — An upload in the chat starts its own upload turn; no browser-written 'Let me process it' (G-206; founder test findings 22) |
 | **Next — lane integrator** | DEF-103 — Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project le |
 | **Run-through record** | current |

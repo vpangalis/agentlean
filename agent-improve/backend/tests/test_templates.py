@@ -130,7 +130,8 @@ def test_the_structured_elements_show_the_values_that_go_into_the_gate() -> None
     metric = {r["id"]: r for r in templates.rows("baseline_estimate", A99)}
     assert metric["one-primary"]["value"] == "Late-closure rate (%)" and metric["quantified"]["value"] == "38%"
     target = {r["id"]: r for r in templates.rows("target_value", A99)}
-    assert target["number-and-unit"]["value"] == "at most 10%"
+    # DEF-221 (ruled 2026-10-20, ADR-0071 kept): "at most" in words, the Belt's own wording beside it.
+    assert target["number-and-unit"]["value"] == "at most 10% (you wrote “under 10%”)"
     assert target["direction"]["value"] == "38% → at most 10%"
     assert templates.rows("target_date", A99)[0]["value"] == "31 March 2027"
     sipoc = {r["id"]: r for r in templates.rows("process_map_sipoc", A99)}

@@ -435,10 +435,149 @@ def test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case(env
 
 
 
-def test_t23_an_approval_failing_after_the_case_write_leaves_neither() -> None:
-    """DEF-170 — G-178 (founder 2026-10-14, before customers): an approval that fails AFTER the case record
-    is written leaves neither the Store record nor the approved case record."""
-    _not_written('DEF-170')
+def _approval_after(env) -> dict:
+    """ADR-0087 tests: what an approval left — the Store record, the case writes, the phase, the pause."""
+    from backend.core.store import get_store
+    from backend.phases.mappers_common import read_gate_document
+    from backend.tests.test_gate_acceptance import _review
+    return {"store": bool(read_gate_document(get_store(), CASE_ID, "define")), "case_writes": len(env.written),
+            "phase": env.case.current_phase, "awaiting": _review(env).get("awaiting_decision")}
+
+
+def test_t23_an_approval_failing_after_the_case_write_leaves_neither(env, monkeypatch) -> None:
+    """DEF-170 — G-178, ADR-0087 as amended (founder ruling 2026-10-21, option B): an approval that fails AFTER the
+    case record is written leaves neither record — the approval node (define_approval) wrote both, undoes both in place
+    and re-raises, with no graph-level retry. The route answers 503 in the founder's words; the report still awaits the
+    decision (GET /gate/review shows the pause); a second approval writes both records exactly once. A third answers
+    409 and writes nothing (T15, T23)."""
+    from backend.core import graph as graph_mod
+    real, calls = graph_mod._write_case_record, {"n": 0}
+
+    async def write_then_fail(*a, **k):
+        calls["n"] += 1
+        out = await real(*a, **k)
+        if calls["n"] == 1:
+            raise RuntimeError("after the case write")
+        return out
+    monkeypatch.setattr(graph_mod, "_write_case_record", write_then_fail)
+    saved_before = len(env.saved)
+    _submit(env)
+    first = _decide(env, decision="approve")
+    assert first.status_code == 503 and first.json()["detail"] == graph_mod.APPROVAL_FAILED, first.text
+    assert calls["n"] == 1, "the approval node was retried"
+    restored = env.saved[saved_before:]
+    assert restored and restored[-1].current_phase == "define" and not restored[-1].phases["define"].gate_passed
+    mid = _approval_after(env)
+    assert not mid["store"] and mid["phase"] == "define" and mid["awaiting"] is True, mid
+    second = _decide(env, decision="approve")
+    end = _approval_after(env)
+    assert second.status_code == 200 and end["store"] and end["phase"] == "measure", (second.text, end)
+    assert end["case_writes"] == mid["case_writes"] + 1, "the second approval did not write the case record once"
+    third = _decide(env, decision="approve")
+    assert third.status_code == 409 and _approval_after(env)["case_writes"] == end["case_writes"], third.text
+
+
+def test_adr0087_a_failure_after_the_store_write_leaves_neither(env, monkeypatch) -> None:
+    """ADR-0087 test 1: the output mapper wrote the Store record and failed — the Store record is removed, no case
+    record written, the report still awaits; the second approval completes with one record each."""
+    from backend.core import graph as graph_mod
+    from backend.phases.mappers_common import write_gate_document
+    real, calls = graph_mod.OUTPUT_MAPPERS["define"], {"n": 0}
+
+    def failing(child, parent, store):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            write_gate_document(store, parent, "define", child)
+            raise RuntimeError("after the Store write")
+        return real(child, parent, store)
+    monkeypatch.setitem(graph_mod.OUTPUT_MAPPERS, "define", failing)
+    _submit(env)
+    first = _decide(env, decision="approve")
+    assert first.status_code == 503 and first.json()["detail"] == graph_mod.APPROVAL_FAILED, first.text
+    assert _approval_after(env) == {"store": False, "case_writes": 0, "phase": "define", "awaiting": True}
+    second = _decide(env, decision="approve")
+    end = _approval_after(env)
+    assert second.status_code == 200 and end["store"] and end["case_writes"] == 1 and end["phase"] == "measure", end
+
+
+def test_adr0087_a_failure_at_the_case_write_leaves_neither(env, monkeypatch) -> None:
+    """ADR-0087 tests 2 and 4 (amended): the case write itself fails once the storage library's own retries are spent
+    — neither record, still awaiting; the lead's second approval writes one record each (no graph-level retry)."""
+    from backend.storage import blob
+    real, calls = blob.write_phase_gate, {"n": 0}
+
+    async def failing(**kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("the case record is unreachable")
+        return await real(**kw)
+    monkeypatch.setattr(blob, "write_phase_gate", failing)
+    _submit(env)
+    first = _decide(env, decision="approve")
+    assert first.status_code == 503, first.text
+    assert _approval_after(env) == {"store": False, "case_writes": 0, "phase": "define", "awaiting": True}
+    second = _decide(env, decision="approve")
+    end = _approval_after(env)
+    assert second.status_code == 200 and end["store"] and end["case_writes"] == 1 and end["phase"] == "measure", end
+    assert calls["n"] == 2, calls
+
+
+def test_adr0087_approved_is_answered_only_when_both_records_exist_and_the_phase_advanced(env, monkeypatch) -> None:
+    """Founder ruling 2026-10-21, item 3: POST /gate/decision answers "approved" only when the phase advanced and both
+    records exist. A run that returns without the case record (the silent path LangGraph issue #9253 opened) is not
+    reported as approved."""
+    from backend.core import graph as graph_mod
+    from backend.gateway import routes
+
+    async def writes_nothing(*a, **k):
+        return {}
+    monkeypatch.setattr(graph_mod, "_write_case_record", writes_nothing)
+    _submit(env)
+    r = _decide(env, decision="approve")
+    assert r.status_code == 500 and r.json()["detail"] == routes.APPROVAL_INCOMPLETE, r.text
+    assert "is approved" not in r.text
+
+
+class _Killed(BaseException):
+    """The process killed mid-approval: nothing that catches Exception runs — no undo, no retry."""
+
+
+def test_adr0087_a_killed_process_between_the_two_writes_completes_after_a_restart(env, monkeypatch) -> None:
+    """ADR-0087 test 6: the process dies after the Store write, before the case write; after a restart the decision is
+    still pending, the approval completes, one record each, the phase is Measure."""
+    from backend.core import graph as graph_mod
+    real = graph_mod._write_case_record
+
+    async def killed(*a, **k):
+        raise _Killed("the process was killed after the Store write")
+    monkeypatch.setattr(graph_mod, "_write_case_record", killed)
+    _submit(env)
+    with pytest.raises(BaseException) as got:
+        _decide(env, decision="approve")
+    assert "Killed" in repr(got.value) or "No response returned" in str(got.value), repr(got.value)
+    monkeypatch.setattr(graph_mod, "_write_case_record", real)
+    env.restart()
+    assert _approval_after(env)["awaiting"] is True
+    resumed = _decide(env, decision="approve")
+    end = _approval_after(env)
+    assert resumed.status_code == 200 and end["store"] and end["case_writes"] == 1 and end["phase"] == "measure", end
+
+
+@pytest.mark.degraded_expected
+def test_adr0087_a_coaching_failure_keeps_the_degraded_reply(env, monkeypatch) -> None:
+    """ADR-0087 test 7: coaching turns still enter define_phase, whose T29 handler answers a failure with the
+    degraded reply (only the approval node has none)."""
+    from backend.core import graph as graph_mod
+    from backend.phases import nodes_common
+    planner = nodes_common.get_llm
+
+    def failing(role, **kw):
+        if role == "coach":
+            raise RuntimeError("the coach deployment answered 500")
+        return planner(role, **kw)
+    monkeypatch.setattr(nodes_common, "get_llm", failing)
+    body = _askd(env, message="Our baseline is 23%")
+    assert body["answer"] == graph_mod.DEGRADED_REPLY, body["answer"]
 
 def test_the_create_form_shows_no_case_id_the_server_did_not_assign(monkeypatch) -> None:
     """DEF-074 — G-113: before the server assigns a case id, the create form shows none; the
@@ -702,7 +841,8 @@ def test_baseline_and_target_are_stored_as_a_number_with_a_unit(env, monkeypatch
     _coach_saying(monkeypatch, 'Your target: "unter 5 %". Is this right?')
     body = ask(case_2, message="unter 5 %")
     target_row = next(r for r in body["readback_card"]["rows"] if r["id"] == "number-and-unit")   # DEF-223
-    assert target_row["value"] == "at most 5%", target_row
+    # DEF-221 (ruled 2026-10-20): the limit in words, the Belt's own wording beside it.
+    assert target_row["value"] == "at most 5% (you wrote “unter 5 %”)", target_row
     _coach_saying(monkeypatch, "Thank you. Next, the date.")
     ask(case_2, message="Confirm", action="confirm")
     target = stored(case_2).get("target_value")
@@ -2258,7 +2398,8 @@ def test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it(env) ->
     assert state.values["gate_passed"].get("define") is True
     history = asyncio.run(_history(compiled, config))
     nodes = {n for h in history for n in (h.next or ())}      # the node each step ran next
-    assert {"define_phase", "measure_phase"} <= nodes, nodes
+    # ADR-0087: the gate path runs Define's approval node; the next turn enters Measure's phase node.
+    assert {"define_approval", "measure_phase"} <= nodes, nodes
     assert nodes <= set(graph_mod.graph_builder().nodes) | {"__start__"}, nodes   # one graph only
 
 
@@ -3610,9 +3751,10 @@ def test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching(
 @pytest.mark.degraded_expected
 def test_t29_every_node_with_an_external_write_has_an_error_handler_that_undoes(env, monkeypatch, stub_planner) -> None:
     """DEF-122 — T29: every parent-graph node with an external write carries an `error_handler`
-    (graph.degraded_handler). (a) An approval whose run fails AFTER the approved record was put in
-    the Store: the record is removed (only what this run wrote), nothing is written to the case,
-    and POST /gate/decision answers 503 with the degraded reply — never a 500 or a half-approved
+    (graph.degraded_handler) — except Define's approval node (ADR-0087, T29 amended), which undoes
+    its writes in place and re-raises. (a) An approval whose run fails AFTER the approved record was
+    put in the Store: the record is removed (only what this run wrote), nothing is written to the
+    case, and POST /gate/decision answers 503 in plain words — never a 500 or a half-approved
     case. (b) The input guard failing after its audit write: the Belt gets the degraded reply and
     the turn goes no further — fail closed, no phase runs (the audit entry stays, R19)."""
     from backend.core import graph as graph_mod
@@ -3630,7 +3772,7 @@ def test_t29_every_node_with_an_external_write_has_an_error_handler_that_undoes(
     monkeypatch.setitem(graph_mod.OUTPUT_MAPPERS, "define", failing_mapper)
     _submit(env)
     r = _decide(env, decision="approve")
-    assert r.status_code == 503 and r.json()["detail"] == graph_mod.DEGRADED_REPLY, r.text
+    assert r.status_code == 503 and r.json()["detail"] == graph_mod.APPROVAL_FAILED, r.text
     assert read_gate_document(get_store(), CASE_ID, "define") == {}, "the approved record outlived the failure"
     assert not env.written and env.case.current_phase == "define", "a failed approval changed the case"
 
@@ -6530,9 +6672,25 @@ def test_the_coach_writes_no_sample_of_its_own() -> None:
     _not_written('DEF-220')
 
 
-def test_a_strict_limit_is_kept_as_written() -> None:
-    """DEF-221 — A target's operator is kept as the Belt wrote it ('under 10%' stays < 10%) (G-222; founder test findings 52)"""
-    _not_written('DEF-221')
+def test_a_strict_limit_is_kept_as_written(env, monkeypatch) -> None:
+    """DEF-221 — G-222 (founder test finding 52; done-when ruled 2026-10-20, ADR-0071 kept: <= / >= / =): a target
+    written "under 10%" is read back in words as "at most 10%" with the Belt's own wording shown, so the Belt
+    confirms or changes it. Through the routes and graph, on the target read back from the goal (A8), the card's
+    Target row says "at most 10%" and shows "under 10%" as the Belt wrote it; what a Confirm stores stays {10, %, <=}."""
+    from backend.phases.define import templates
+    goal = "Reduce the late payment rate from 23% to under 10% by 31 March 2027."
+    _a8_at_goal_read_back(env, monkeypatch, goal)
+    first = _askd(env, action="confirm", message="Confirm")
+    assert first["move_field"] == "target_value", first["move_field"]
+    row = next(r for r in first["readback_card"]["rows"] if r["id"] == "number-and-unit")
+    assert "at most 10%" in row["value"] and "under 10%" in row["value"], row
+    _coach_saying(monkeypatch, "Next, the benefits.")
+    _askd(env, action="confirm", message="Confirm")
+    stored = _define(env)["structured"]["target_value"]
+    assert (stored["value"], stored["unit"], stored["direction"]) == (10.0, "%", "<="), stored
+    # The rule itself: the Belt's phrase is shown only when it says the limit in other words.
+    same = {"target_value": {"value": 5.0, "unit": "%", "direction": "<=", "is_estimate": False, "raw": "at most 5%"}}
+    assert templates.rows("target_value", same)[0]["value"] == "at most 5%"
 
 
 def _page_js(*names: str, script: str) -> dict:

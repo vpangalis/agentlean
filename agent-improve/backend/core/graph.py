@@ -125,8 +125,9 @@ def _subgraph(phase: str):
 
 # ── the phase node ────────────────────────────────────────────────────────
 
-def phase_node(phase: str) -> Callable[..., Any]:
-    """Build the parent's node function for one phase.
+def phase_node(phase: str, approval: bool = False) -> Callable[..., Any]:
+    """Build the parent's node function for one phase — with `approval`, the approval node (ADR-0087): the same
+    subgraph, entered by the gate path, and on approval it writes both records (see the end of `node`).
 
     **S-F10's execution site.** A boundary mapper runs inside the parent's
     *uniquely-named* node function for its phase, not inside the subgraph, and
@@ -268,7 +269,25 @@ def phase_node(phase: str) -> Callable[..., Any]:
         }
         # ADR-0063 — the subgraph returns `final` only from gate_apply after approval: the
         # output mapper writes the approved record to the Store and advances the phase.
-        if result.get("final"):
+        if result.get("final") and approval:
+            # ADR-0087 decisions 2–4 (amended 2026-10-21): this node writes both records — the Store's (the output
+            # mapper), then the case's — and on any failure undoes both in place and re-raises; with no error
+            # handler and no retry policy the task stays pending with its pause, and a second approval completes it.
+            from backend.storage import blob as _blob
+            case_id = str(state["case_id"])
+            before = await _blob.load_case(case_id)
+            before = before.model_copy(deep=True) if before is not None else None
+            try:
+                advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
+                await _write_case_record(store, case_id, phase, result)
+            except Exception:
+                _undo_gate_write(store, case_id, phase, dict(result["final"]))
+                await _undo_case_write(case_id, phase, before)
+                raise
+            update.update(advanced)
+            logger.info("%s: approved — the Store record and the case record written, current_phase -> %s",
+                        phase, advanced.get("current_phase"))
+        elif result.get("final"):
             try:
                 advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
             except Exception:
@@ -281,7 +300,7 @@ def phase_node(phase: str) -> Callable[..., Any]:
                         phase, advanced.get("current_phase"))
         return update
 
-    node.__name__ = phase
+    node.__name__ = f"{phase}_approval" if approval else phase
     return node
 
 
@@ -399,10 +418,15 @@ def _persistence():
 
 # ── the main graph (ADR-0063) ──────────────────────────────────────────────
 
-def route_to_phase(state: SupervisorState) -> str:
+#: ADR-0087 decision 1 — the phases whose gate path enters their own approval node.
+APPROVAL_PHASES = ("define",)
+
+
+def route_to_phase(state: SupervisorState, config: Optional[RunnableConfig] = None) -> str:
     """The phase entry — the "traffic light". Deterministic, no model call: a turn the input
-    guard blocked ends here; otherwise the entry is `current_phase`'s node. A case whose phase
-    has no subgraph (`"complete"`) raises."""
+    guard blocked ends here; otherwise the entry is `current_phase`'s node — a gate submission
+    in Define enters its approval node (ADR-0087), so the report's pause belongs to it. A case
+    whose phase has no subgraph (`"complete"`) raises."""
     if guard.blocked(state):
         return END
     current = state.get("current_phase")
@@ -411,12 +435,53 @@ def route_to_phase(state: SupervisorState) -> str:
             f"Case is in phase {current!r}, which has no subgraph — `\"complete\"` on a "
             f"finished project is the ordinary way to reach here."
         )
+    entry = ((config or {}).get("configurable") or {}).get("entry", "ask")
+    if current in APPROVAL_PHASES and entry in ("gate", "decision"):
+        return f"{current}_approval"
     return f"{current}_phase"
 
 
 #: T29 (DEF-122) — the reply written in code when a node with an external write fails.
 DEGRADED_REPLY = ("Something went wrong on our side and this step did not go through — nothing was "
                   "changed. Please send it again in a moment.")
+
+#: ADR-0087 as amended (founder ruling 2026-10-21, option B) — what the route answers when the approval failed: the
+#: storage library's own retries (ExponentialRetry, 3 by default) are spent and the node undid both writes.
+APPROVAL_FAILED = ("The approval could not be saved because the storage service is not reachable. Nothing you "
+                   "confirmed is lost. Please approve again in a few minutes.")
+
+
+async def _write_case_record(store: Any, case_id: str, phase: str, result: dict[str, Any]) -> dict[str, Any]:
+    """ADR-0087 decision 2: the case record gets the approved document the output mapper put in the Store (its
+    `_approved` stamp names the actor), with the evidence — citations, uploads, field log — from the subgraph's own
+    state. Idempotent (decision 4): `blob.write_phase_gate` merges into the phase record. Returns what it wrote."""
+    from backend.phases.mappers_common import read_gate_document
+    from backend.storage import blob as _blob
+    approved = dict(read_gate_document(store, case_id, phase) or {})
+    actor = str((approved.pop("_approved", None) or {}).get("actor") or "")
+    await _blob.write_phase_gate(
+        case_id=case_id, phase=phase, structured=approved, submitted_by=actor,
+        summary=f"Define report approved by {actor}, project lead, on behalf of the team (R6)",
+        citations=[dict(c) for c in result.get("citations") or []],
+        uploads=[dict(u) for u in result.get("uploads") or []],
+        field_log=[dict(e) for e in result.get("field_log") or []])
+    return approved
+
+
+async def _undo_case_write(case_id: str, phase: str, before: Any) -> None:
+    """ADR-0087 decision 3: the case record back to what it held before this run — only when it now holds this run's
+    approval (the phase passed here and had not before), whichever step after the write failed."""
+    if before is None or before.phases[phase].gate_passed:
+        return
+    from backend.storage import blob as _blob
+    try:
+        now = await _blob.load_case(case_id)
+        if now is not None and now.phases[phase].gate_passed:
+            await _blob.save_case(before)
+            logger.warning("%s: ADR-0087 — the approval failed after its case write; the case record was restored",
+                           phase)
+    except Exception as exc:  # noqa: BLE001 — the original failure is what the Belt must hear about
+        logger.error("%s: ADR-0087 — the case record could not be restored after a failed approval: %s", phase, exc)
 
 
 def _undo_gate_write(store: Any, case_id: str, phase: str, written: dict[str, Any]) -> None:
@@ -471,12 +536,20 @@ def graph_builder() -> StateGraph:
     for phase in PHASE_ORDER:
         builder.add_node(f"{phase}_phase", phase_node(phase), error_handler=degraded_handler(f"{phase}_phase"))
         builder.add_edge(f"{phase}_phase", END)
+    for phase in APPROVAL_PHASES:
+        # ADR-0087 (T29 amended): no error handler — a handler on the node that holds the report's pause uses up the
+        # pending decision; it undoes its writes in place and re-raises. No retry policy (founder ruling 2026-10-21,
+        # option B; graph rule §3.6): a retry re-calls the subgraph under a new namespace and it starts afresh
+        # (LangGraph issue #9253) — the lead approves again instead.
+        builder.add_node(f"{phase}_approval", phase_node(phase, approval=True))
+        builder.add_edge(f"{phase}_approval", END)
     builder.add_node(ESCALATE_NODE, escalate_node)
     builder.add_edge(ESCALATE_NODE, END)
     builder.add_node(guard.NODE, guard.input_guard, retry_policy=guard.RETRY,
                      error_handler=degraded_handler(guard.NODE))
     builder.add_edge(START, guard.NODE)
-    builder.add_conditional_edges(guard.NODE, route_to_phase, [*(f"{p}_phase" for p in PHASE_ORDER), END])
+    builder.add_conditional_edges(guard.NODE, route_to_phase, [*(f"{p}_phase" for p in PHASE_ORDER),
+                                                               *(f"{p}_approval" for p in APPROVAL_PHASES), END])
     return builder
 
 

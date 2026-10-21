@@ -1847,28 +1847,27 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     except StateSchemaVersionError as e:            # ADR-0065 (T88)
         raise HTTPException(409, str(e))
     except Exception as e:
-        logger.error("decide_gate() error: %s", e)
-        raise HTTPException(500, f"Graph error: {str(e)}")
+        # ADR-0087 decision 3: the approval node undid both writes and re-raised, and its retries are spent —
+        # nothing was committed and the report still awaits the decision; the lead approves again.
+        from backend.core import graph as _graph
+        logger.error("decide_gate() error: %s — the approval did not go through; nothing changed", e)
+        raise HTTPException(503, _graph.APPROVAL_FAILED)
 
     _refuse_degraded(result)                                   # T29 (DEF-122)
     if request.decision == "approve":
-        # ADR-0063: the approved record is the graph's — the output mapper wrote it to the
-        # Store in this run. The case blob gets that same document, written once, here.
+        # ADR-0087 decision 2: the approval node wrote both records — the Store's and the case's; the route
+        # writes neither. Founder ruling 2026-10-21 (item 3): it answers "approved" only when it can see that
+        # both exist and the phase advanced — never on a run that merely returned.
         from backend.core.store import get_store
         from backend.phases.mappers_common import read_gate_document
-        _, evidence = assemble_gate_document(case, request.phase)
-        approved = dict(read_gate_document(get_store(), request.case_id, request.phase) or {})
-        if not approved:
-            raise HTTPException(500, "The approval ran but the graph wrote no record to the Store (ADR-0063).")
-        approved.pop("_approved", None)
-        document = approved
-        await blob.write_phase_gate(
-            case_id=request.case_id, phase=request.phase, structured=document,
-            submitted_by=request.actor,
-            summary=f"Define report approved by {request.actor}, project lead, on behalf of the team (R6)",
-            citations=evidence["citations"], uploads=evidence["uploads"],
-            field_log=evidence["field_log"],                    # G-147 (DEF-061)
-        )
+        stored = read_gate_document(get_store(), request.case_id, request.phase)
+        after = await blob.load_case(request.case_id)
+        if not (stored and after is not None and after.phases[request.phase].gate_passed
+                and after.current_phase != request.phase):
+            logger.error("decide_gate(): the approval ran but did not complete — Store record %s, case record %s, "
+                         "phase %s", bool(stored), bool(after and after.phases[request.phase].gate_passed),
+                         after.current_phase if after else None)
+            raise HTTPException(500, APPROVAL_INCOMPLETE)
         idx = PHASE_ORDER.index(request.phase)
         next_phase = PHASE_ORDER[idx + 1] if idx < len(PHASE_ORDER) - 1 else None
         return GateDecisionResponse(
@@ -2076,6 +2075,11 @@ def _refuse_degraded(result: Any) -> None:
 #: R6 amendment (DEF-100) — an approval sent by someone other than the project lead.
 APPROVE_LEAD_ONLY = ("Only the project lead, {lead}, approves the Define report, on behalf of the team. "
                      "Ask {lead} to approve it — or reject it naming what to change, which anyone may do.")
+
+#: Founder ruling 2026-10-21 (ADR-0087 amendment, item 3): the approval ran but the route cannot see both records
+#: and the phase moved on, so it is not reported as approved.
+APPROVAL_INCOMPLETE = ("The approval ran but was not saved completely, so the Define report is not shown as "
+                       "approved. Please open the report again before approving.")
 
 
 #: ADR-0076 (T65) — said in code on the third failed submission; the case stays open. G-192: it reads as

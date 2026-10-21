@@ -104,7 +104,11 @@ budget or retry loop).
 writes.** Every node that writes to Azure Blob, `improve_case_index`,
 or `improve_evidence_index` gets an `error_handler=` that undoes the
 external write and routes to a degraded response. The re-approval cascade
-(§9.5) and time-travel debugging both depend on it.
+(§9.5) and time-travel debugging both depend on it. Except the
+approval node: undoes in place, re-raises (ADR-0087).
+
+**No `retry_policy` on a node that invokes a checkpointed subgraph**
+(G-239, LangGraph #9253).
 
 **Graceful shutdown is REQUIRED; its named mechanism is UNCONFIRMED.** A
 deployment rollout must not kill mid-coaching sessions — they save their

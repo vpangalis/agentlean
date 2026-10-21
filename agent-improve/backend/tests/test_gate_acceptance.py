@@ -300,6 +300,9 @@ def env(monkeypatch, stub_planner):
 
     async def save(c):
         saved.append(c)
+        if c is not case:                            # as the blob does: the next load reads what was saved
+            for name in type(c).model_fields:        # (ADR-0087: an undone approval restores the case)
+                setattr(case, name, getattr(c, name))
 
     async def write_phase_gate(**kw: Any):
         # As storage/blob.py::write_phase_gate does: the record passes and the case moves on.

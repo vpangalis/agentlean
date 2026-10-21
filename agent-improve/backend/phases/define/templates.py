@@ -143,7 +143,10 @@ def _metric(field: str) -> Callable[[dict[str, Any]], Read]:
         if is_empty_capture(v):
             return None, False
         mv = parse.as_metric(v, target=field == "target_value")
-        return parse.metric_text(mv), mv["value"] is not None
+        text = parse.metric_text(mv)
+        # DEF-221 (ruled 2026-10-20): the limit in words, with the Belt's own wording beside it when it differs.
+        said = parse.limit_phrase(mv) if field == "target_value" else ""
+        return (f"{text} (you wrote “{said}”)" if said else text), mv["value"] is not None
     return read
 
 

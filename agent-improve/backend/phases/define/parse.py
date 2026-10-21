@@ -505,6 +505,23 @@ def metric_text(value: Any) -> str:
     return (f"{words} {figure}".strip() + (" (an estimate)" if mv.get("is_estimate") else ""))
 
 
+def limit_phrase(value: Any) -> str:
+    """DEF-221 (finding 52; ADR-0071 kept): the Belt's own words for a target's limit — "under 10%" — found in the
+    MetricValue's raw words around its figure, with the limit word before it. "" when the words carry no limit word
+    or say it as the read-back does ("at most 10%")."""
+    mv = as_metric(value, target=True)
+    if mv["value"] is None or not mv.get("direction") or mv["direction"] == "=":
+        return ""
+    number = f"{mv['value']:g}".replace(".", "[.,]")
+    words = "|".join(re.escape(w) for w in sorted((*_BELOW, *_ABOVE), key=len, reverse=True))
+    m = re.search(rf"(?<![A-Za-zÄÖÜäöüß])({words})\s*{number}(?!\d)\s*(%|per\s?cent|percent|prozent|[A-Za-zÄÖÜäöüß]+)?",
+                  str(mv.get("raw") or ""), re.I)
+    if not m:
+        return ""
+    phrase = " ".join(m.group(0).split())
+    return "" if phrase.lower().replace(" ", "") == metric_text(mv).lower().replace(" ", "") else phrase
+
+
 def metric_name(name: Any) -> str:
     """DEF-223 (G-224, C1): a metric's name as the Belt reads it — a registry id ("late_payment_rate") becomes words
     ("Late payment rate"); a name already written as words is kept as written. The id stays the key in code."""
