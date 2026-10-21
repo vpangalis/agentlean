@@ -4183,7 +4183,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-21: a rubric that changes its verdict blocks every live run-through and R12's final live run"
+   },
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
@@ -8054,7 +8057,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-21: a rubric that changes its verdict blocks every live run-through and R12's final live run"
+   },
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",

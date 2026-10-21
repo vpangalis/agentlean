@@ -2787,7 +2787,7 @@
   },
   {
    "id": "G-225",
-   "symptom": "THE JUDGMENT RULES ON THE RUBRIC'S CRITERIA ONLY, AND THE SAME ANSWER GETS THE SAME VERDICT. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 68, build item 9: On Change of element 13 the judgment challenged the confirmed barriers for not naming 'time', then passed the same three barriers. D4 OCCURRENCE: the skill's prompt list (data/people/systems/time) is read as criteria (G-168 class). D4 ESCAPE: no replay of confirmed answers.",
+   "symptom": "THE JUDGMENT RULES ON THE RUBRIC'S CRITERIA ONLY, AND THE SAME ANSWER GETS THE SAME VERDICT. Founder Define test 2026-10-15 (IMPR-2026-A99), findings 68, build item 9: On Change of element 13 the judgment challenged the confirmed barriers for not naming 'time', then passed the same three barriers. D4 OCCURRENCE: the skill's prompt list (data/people/systems/time) is read as criteria (G-168 class). D4 ESCAPE: no replay of confirmed answers. EVIDENCE (founder ruling 2026-10-21): live run define_runthrough_20261021T064519 — the gate submission was refused at element 13 (DEF-R13: \"The barriers mentioned are generic and do not specify concrete elements from this project\") on the stored text \"Three barriers now: the three sites use different approval routes, the ERP change freeze until January, and the AP team's year-end close in December, when nobody is free for workshops.\", the same text the rubric passed in both runs of 2026-10-20 (define_runthrough_20261020T085604 and T143753). The rubric (layer 2d) changes its verdict on an unchanged answer, as the planner's judgment did in findings 68.",
    "requirement": [
     "T47"
    ],
