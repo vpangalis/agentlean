@@ -145,4 +145,5 @@ Generated from each file's status line; never typed.
 | [0099](0099-practice-content-sources-licence-gate-and-waves.md) | Practice content: sources, licence gate and waves | ACCEPTED | — |
 | [0100](0100-how-analyse-and-improve-use-practice.md) | How Analyse and Improve use practice | ACCEPTED | — |
 | [0101](0101-a-turns-storage-does-not-block-it.md) | The coach's inner agent is not checkpointed, and the Blob checkpointer writes without blocking the turn | ACCEPTED | refines 0080 |
+| [0103](0103-a-failed-approval-is-approved-again.md) | The approval node writes both records, has no error handler and no retry policy; a failed approval is approved again | ACCEPTED | — |
 <!-- END ADR INDEX -->
