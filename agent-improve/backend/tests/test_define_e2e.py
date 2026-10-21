@@ -1804,9 +1804,31 @@ def test_t37_a_deployment_rollout_ends_no_coaching_session_in_flight_turns_chec(
     _not_written('DEF-126')
 
 
-def test_t38_retries_are_exhausted_before_a_node_s_error_handler_runs() -> None:
-    """DEF-127 — Retries are exhausted before a node's error handler runs"""
-    _not_written('DEF-127')
+@pytest.mark.degraded_expected
+def test_t38_retries_are_exhausted_before_a_node_s_error_handler_runs(env, monkeypatch) -> None:
+    """DEF-127 — T38 (ADR-0043): a node with a retry policy and an error handler — the input guard — has its retries
+    exhausted before the handler runs: a transient failure on the first attempts is retried and the turn is coached
+    (no degraded reply); a failure on every attempt reaches the handler only after all of them (degraded reply)."""
+    from backend.core import graph as graph_mod
+    from backend.core import guard
+    from backend.core.errors import ShieldTransientError
+    real, calls = guard.input_guard, {"n": 0, "fail": 0}
+
+    async def flaky(state, config=None):
+        calls["n"] += 1
+        if calls["n"] <= calls["fail"]:
+            raise ShieldTransientError("Prompt Shields timed out (simulated)")
+        return await real(state, config)
+    monkeypatch.setattr(guard, "input_guard", flaky)
+    graph_mod.get_graph.cache_clear()
+    _coach_saying(monkeypatch, "Here is what I understood. Is this right?")
+    calls.update(n=0, fail=guard.ATTEMPTS - 1)                     # fails until the last attempt
+    body = _askd(env, message="Our baseline is 23%")
+    assert body["answer"] != graph_mod.DEGRADED_REPLY and calls["n"] == guard.ATTEMPTS, (calls, body["answer"])
+    calls.update(n=0, fail=10 ** 6)                                # fails on every attempt
+    body = _askd(env, message="Our baseline is 23%")
+    assert body["answer"] == graph_mod.DEGRADED_REPLY and calls["n"] == guard.ATTEMPTS, (calls, body["answer"])
+    graph_mod.get_graph.cache_clear()
 
 
 def test_t42_validation_and_extraction_steps_are_traced_spans() -> None:

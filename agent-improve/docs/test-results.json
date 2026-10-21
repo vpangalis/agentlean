@@ -1,9 +1,9 @@
 {
- "source_hash": "618eca9cd826f277",
- "commit": "c16901c",
+ "source_hash": "35c81ea3627a797c",
+ "commit": "4ee8b63",
  "commit_matches_source": false,
  "full_run_hash": "5c7233766bf278e3",
- "recorded_at": "2026-10-20T16:13:15+00:00",
+ "recorded_at": "2026-10-21T07:12:06+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -527,7 +527,7 @@
   "backend/tests/test_define_e2e.py::test_t35_two_three_state_circuit_breakers_3_failures_in_30_s_open_60_s_rese": "skipped",
   "backend/tests/test_define_e2e.py::test_t36_a_token_limit_400_is_never_retried_on_a_smaller_model": "skipped",
   "backend/tests/test_define_e2e.py::test_t37_a_deployment_rollout_ends_no_coaching_session_in_flight_turns_chec": "skipped",
-  "backend/tests/test_define_e2e.py::test_t38_retries_are_exhausted_before_a_node_s_error_handler_runs": "skipped",
+  "backend/tests/test_define_e2e.py::test_t38_retries_are_exhausted_before_a_node_s_error_handler_runs": "passed",
   "backend/tests/test_define_e2e.py::test_t42_validation_and_extraction_steps_are_traced_spans": "skipped",
   "backend/tests/test_define_e2e.py::test_t43_every_log_line_carries_request_id_case_id_and_phase": "passed",
   "backend/tests/test_define_e2e.py::test_t50_a_drop_of_more_than_10_in_any_eval_metric_blocks_release": "skipped",

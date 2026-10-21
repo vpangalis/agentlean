@@ -7,15 +7,15 @@
 
 | | |
 |---|---|
-| **Headline** | 139 of 221 Define features pass, 1 more proven on earlier code (core 131 of 212) — A 63/89 · B 34/41 · C 28/64 · integrator 14/27 (record older than the source) · M1: 70 proven · 1 awaiting fresh run · 3 open |
+| **Headline** | 141 of 221 Define features pass (core 133 of 212) — A 64/89 · B 35/41 · C 28/64 · integrator 14/27 (record older than the source) · M1: 70 proven · 0 awaiting fresh run · 3 open |
 | **Next — lane A** | DEF-221 — A target written 'under 10%' is read back in words as 'at most 10%' with the Belt's own wording shown, so the Belt confirms or changes it (G |
 | **Next — lane B** | DEF-170 — T23's 'or neither' after the case write: an approval that fails after the case record is written leaves neither the Store record nor the app |
 | **Next — lane C** | DEF-205 — An upload in the chat starts its own upload turn; no browser-written 'Let me process it' (G-206; founder test findings 22) |
 | **Next — lane integrator** | DEF-103 — Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project le |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
-| **Block regenerated** | 2026-10-20 |
+| **Block regenerated** | 2026-10-21 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.
