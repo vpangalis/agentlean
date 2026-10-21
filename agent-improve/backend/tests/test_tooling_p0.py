@@ -259,3 +259,25 @@ def test_the_fast_run_runs_its_tests_in_parallel_and_the_serial_ones_alone(tmp_p
     assert opt(par, "-m") == "not serial and not wallclock", par
     assert opt(ser, "-n") == "0" and opt(ser, "-m") == "serial and not wallclock", ser
     assert all(f in par and f in ser for f in files), calls
+
+
+def test_the_status_block_is_built_from_the_staged_tree(tmp_path, monkeypatch) -> None:
+    """DEF-252 (founder ruling 2026-10-21, item 4): a docs-only commit was refused (rule 10) while code was
+    uncommitted, because CONTINUITY.md's status block is generated from the WORKING tree — the feature list, the
+    test record and the product hash on disk — while the board, not rebuilt for a docs-only commit (DEF-250),
+    reflects the index. With --staged (as the commit hook calls it), the block is built from the staged tree: the
+    worktree of the index the commit's tests run in (staged_tree.sync), never from the checkout."""
+    hook = (ROOT / ".githooks" / "pre-commit").read_text(encoding="utf-8")
+    assert '"$CONTINUITY" --staged' in hook, "the commit hook does not ask for the staged status block"
+    cont = _hook_module("pre-commit-continuity.py", "continuity_p0b")
+    import staged_tree
+    built: list[str] = []
+    monkeypatch.setattr(staged_tree, "sync", lambda root=None, tree=None: tmp_path)
+    def build_block(cwd, today=None) -> str:
+        built.append(str(cwd))
+        return ""
+    monkeypatch.setattr(cont.cs, "build_block", build_block)
+    monkeypatch.setattr(cont, "_git", lambda args, root: __import__("subprocess").CompletedProcess(
+        args, 0, stdout=str(ROOT) if "rev-parse" in args else "", stderr=""))
+    cont.main(["--staged"])
+    assert built and built[0] == str(tmp_path), f"the block was built from {built}, not the staged tree"

@@ -8952,6 +8952,36 @@
    "stage": "build",
    "layer": "tooling",
    "package": "P0b"
+  },
+  {
+   "id": "DEF-252",
+   "description": "A commit made while other code is uncommitted is not refused: CONTINUITY.md's status block is built from the staged tree, as the board's check reads it, never from the working tree",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_status_block_is_built_from_the_staged_tree",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder ruling 2026-10-21, item 4 (P9 report): a docs-only commit refused while code was uncommitted"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
   }
  ]
 }

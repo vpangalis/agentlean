@@ -22,9 +22,10 @@ Brief Part F5 (founder, 2026-09-27); the rule is ADR-0058. Process 1 is the
 
 ## Prompt cycle time — effective 2026-09-28 (brief Part F9)
 
-- One prompt = one package (founder, 2026-10-20). Packages are fixed in the feature list
-  (`package`); `rank.py` picks the one holding the lane's top-ranked failing feature. Over 5
-  points it may take two prompts; never two packages in one prompt.
+- Packages are fixed in the feature list (`package`); `rank.py` picks the next. They chain
+  (founder, 2026-10-21): when a package's area tests pass, the next starts; stop only for a design
+  decision, a conflict with an accepted ADR or a failing live run. Packages built on the same day
+  share that day's run-through; they land together after it — one push, one report.
 - One commit per feature, or several features in one commit when they share their code
   change; a commit may name several DEF ids and lands only if all of them and their
   dependencies pass.

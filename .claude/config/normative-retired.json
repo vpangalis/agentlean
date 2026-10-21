@@ -414,6 +414,12 @@
    "from": ".claude/rules/middleware.md",
    "class": "equivalent",
    "reason": "kept in other words, same strength: .claude/rules/middleware.md — Nothing switches the grader off (ADR-0081); the coherence judge it named is retired (ADR-0083, founder ruling 2026-10-13, B1)"
+  },
+  {
+   "sentence": "Over 5 points it may take two prompts; never two packages in one prompt.",
+   "from": ".claude/rules/planning.md",
+   "class": "obsolete",
+   "reason": "founder ruling 2026-10-21 (speed, item 1): packages chain in rank order, and the day's packages share its one run-through and land together — .claude/rules/planning.md, 'Packages are fixed in the feature list'"
   }
  ]
 }
