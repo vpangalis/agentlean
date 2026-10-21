@@ -279,7 +279,9 @@ def phase_node(phase: str, approval: bool = False) -> Callable[..., Any]:
             before = before.model_copy(deep=True) if before is not None else None
             try:
                 advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
-                await _write_case_record(store, case_id, phase, result)
+                # G-240: the uploads written are the case record's own, complete upload records.
+                held = [u.model_dump() for u in (before.phases[phase].uploads or [])] if before is not None else []
+                await _write_case_record(store, case_id, phase, result, held)
             except Exception:
                 _undo_gate_write(store, case_id, phase, dict(result["final"]))
                 await _undo_case_write(case_id, phase, before)
@@ -451,10 +453,13 @@ APPROVAL_FAILED = ("The approval could not be saved because the storage service 
                    "confirmed is lost. Please approve again in a few minutes.")
 
 
-async def _write_case_record(store: Any, case_id: str, phase: str, result: dict[str, Any]) -> dict[str, Any]:
+async def _write_case_record(store: Any, case_id: str, phase: str, result: dict[str, Any],
+                             case_uploads: Optional[list[dict[str, Any]]] = None) -> dict[str, Any]:
     """ADR-0087 decision 2: the case record gets the approved document the output mapper put in the Store (its
-    `_approved` stamp names the actor), with the evidence — citations, uploads, field log — from the subgraph's own
-    state. Idempotent (decision 4): `blob.write_phase_gate` merges into the phase record. Returns what it wrote."""
+    `_approved` stamp names the actor), with the evidence — citations and the field log from the subgraph's own
+    state (ADR-0066: the checkpoint holds them), and the uploads the case record already holds (G-240: the
+    subgraph's upload entries are another shape, refused by the record's UploadRecord). Idempotent (decision 4):
+    `blob.write_phase_gate` merges into the phase record. Returns what it wrote."""
     from backend.phases.mappers_common import read_gate_document
     from backend.storage import blob as _blob
     approved = dict(read_gate_document(store, case_id, phase) or {})
@@ -463,7 +468,7 @@ async def _write_case_record(store: Any, case_id: str, phase: str, result: dict[
         case_id=case_id, phase=phase, structured=approved, submitted_by=actor,
         summary=f"Define report approved by {actor}, project lead, on behalf of the team (R6)",
         citations=[dict(c) for c in result.get("citations") or []],
-        uploads=[dict(u) for u in result.get("uploads") or []],
+        uploads=[dict(u) for u in case_uploads or []],
         field_log=[dict(e) for e in result.get("field_log") or []])
     return approved
 

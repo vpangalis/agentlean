@@ -590,6 +590,32 @@ def test_adr0087_a_killed_process_between_the_two_writes_completes_after_a_resta
     assert resumed.status_code == 200 and end["store"] and end["case_writes"] == 1 and end["phase"] == "measure", end
 
 
+def test_adr0087_an_approval_with_an_upload_writes_the_case_records_uploads(env, monkeypatch) -> None:
+    """G-240 (live run define_runthrough_20261021T105808: the approval answered 503, "2 validation errors for
+    UploadRecord — uploaded_by, classification: Field required"): the approval node writes the case record's own
+    upload records — complete UploadRecords — never the subgraph's upload entries (another shape). On a case with an
+    upload, the approval completes, and every upload written validates as the case record's UploadRecord."""
+    from backend.storage import blob
+    from backend.storage.models import UploadInterpretation, UploadRecord
+    record = UploadRecord(filename="team.csv", blob_path=f"uploads/{CASE_ID}/team.csv", uploaded_by=ACTOR,
+                          uploaded_at="2026-10-21T08:00:00+00:00", classification="purpose=Team list · spreadsheet",
+                          rows=5, evidence_index_id="abc123", summary="The project team.",
+                          interpretation=UploadInterpretation(summary="The project team.", source_filename="team.csv",
+                                                              source_blob_path=f"uploads/{CASE_ID}/team.csv"))
+    env.case.phases["define"].uploads = [record]
+    fake = blob.write_phase_gate
+    written: list = []
+
+    async def validating(**kw):
+        written.extend(UploadRecord.model_validate(u) for u in kw.get("uploads") or [])   # as the case record does
+        return await fake(**kw)
+    monkeypatch.setattr(blob, "write_phase_gate", validating)
+    _submit(env)
+    r = _decide(env, decision="approve")
+    assert r.status_code == 200, r.text
+    assert [u.filename for u in written] == ["team.csv"] and written[0].uploaded_by == ACTOR, written
+
+
 @pytest.mark.degraded_expected
 def test_adr0087_a_coaching_failure_keeps_the_degraded_reply(env, monkeypatch) -> None:
     """ADR-0087 test 7: coaching turns still enter define_phase, whose T29 handler answers a failure with the

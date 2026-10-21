@@ -180,6 +180,45 @@ def path_b(client: Any) -> dict[str, Any]:
             "after": after}
 
 
+def path_c(client: Any) -> dict[str, Any]:
+    """G-240 (live run define_runthrough_20261021T105808): a case that carries an upload — the approval writes the
+    case record's own upload records and completes; before the fix it answered 503 ("2 validation errors for
+    UploadRecord")."""
+    import asyncio
+
+    from backend.storage import blob
+    from backend.storage.models import UploadRecord
+    from scripts.hard_path_scenarios import saved_case
+    case_id = saved_case("define_all_confirmed", "LIVE APPROVAL CHECK C — a case with an upload (G-240)")
+    upload = UploadRecord(filename="team.csv", blob_path=f"uploads/{case_id}/team.csv", uploaded_by=ACTOR,
+                          uploaded_at="2026-10-21T08:00:00+00:00", classification="purpose=Team list · spreadsheet",
+                          rows=5, summary="The project team, five people.")
+
+    async def with_upload() -> None:
+        case = await blob.load_case(case_id)
+        assert case is not None
+        case.phases["define"].uploads = [upload]
+        await blob.save_case(case)
+    asyncio.run(with_upload())
+    r = client.post("/gate", json={"case_id": case_id, "submitted_by": ACTOR, "phase": "define"})
+    submit = {"http": r.status_code, "awaiting_acceptance": (r.json() or {}).get("awaiting_acceptance")}
+    http, body, storage, writes = _decide(client, case_id)
+    after = _state(client, case_id)
+    stored = client.get(f"/cases/{case_id}").json()
+    uploads = [u.get("filename") for u in ((stored.get("phases") or {}).get("define") or {}).get("uploads") or []]
+    checks = {
+        "the report paused (POST /gate)": submit["http"] == 200 and bool(submit["awaiting_acceptance"]),
+        "the approval answered 200": http == 200,
+        "both records written once": writes.get("store_write") == 1 and writes.get("case_write") == 1,
+        "the case record keeps its upload": uploads == ["team.csv"],
+        "both records exist, the phase is Measure": after["store_record"] and after["case_gate_passed"]
+        and after["current_phase"] == "measure",
+    }
+    return {"kind": "path_c", "case_id": case_id, "passed": all(checks.values()), "checks": checks, "submit": submit,
+            "decision": {"http": http, "detail": body.get("detail"), "message": body.get("message"),
+                         "storage": storage, "gate_writes": writes}, "uploads": uploads, "after": after}
+
+
 def main() -> int:
     from scripts.define_runthrough import _product_hash, _source_hash, _tracing_off
     _tracing_off()
@@ -193,7 +232,7 @@ def main() -> int:
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
     entries: list[dict[str, Any]] = []
     with TestClient(app) as client:
-        for path in (path_a, path_b):
+        for path in (path_a, path_b, path_c):
             try:
                 entries.append(path(client))
             except CapReached as exc:

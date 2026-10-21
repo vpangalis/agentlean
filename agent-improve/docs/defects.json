@@ -2991,6 +2991,20 @@
     "B"
    ],
    "escape_class": "error_routine"
+  },
+  {
+   "id": "G-240",
+   "symptom": "A DEFINE APPROVAL ON A CASE WITH AN UPLOAD ANSWERED 503 AND NOTHING WAS SAVED (live run define_runthrough_20261021T105808, 2026-10-21: decide_gate() error: 2 validation errors for UploadRecord — uploaded_by, classification: Field required; the approval node undid both writes, the pause stayed). D4 OCCURRENCE: DEF-170 (baa1c4b, ADR-0087 decision 2) — define_approval's case write passed the subgraph's upload entries (the Store case record's uploads_by_phase shape) to blob.write_phase_gate, which validates them as the case record's UploadRecord; the route before ADR-0087 passed the case record's own (assemble_gate_document). D4 ESCAPE: the e2e tests ran cases without uploads against a fake writer that validated nothing, and the live approval check of 2026-10-21 morning used a saved case with no upload; the run-through's case carried one. D5 FIX: the node writes the uploads the case record already holds (graph._write_case_record(case_uploads=)); citations and the field log stay the subgraph's (ADR-0066). D6 VERIFY: test_define_e2e.py::test_adr0087_an_approval_with_an_upload_writes_the_case_records_uploads (failed 503 before the fix); live, scripts/live_approval_check.py path C — a case with an upload, real Azure, 0 model calls: approval 200, both records once, the upload kept (live_approval_20261021T113633). D7 PREVENT: the e2e test's writer validates uploads as the real one does; the live check carries a case with an upload.",
+   "requirement": [
+    "T23"
+   ],
+   "feature": [
+    "DEF-170"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {

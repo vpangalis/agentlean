@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 151 of 221 Define features pass (core 143 of 212) — A 69/89 · B 39/41 · C 30/64 · integrator 13/27 · M1: 74 proven · 0 awaiting fresh run · 1 open |
-| **Next — lane A** | DEF-208 — A file that covers an element only partly is read back as a draft table with its gaps marked (G-209; founder test findings 25) |
-| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
-| **Next — lane C** | DEF-176 — Gate view section A · Project and team: the team table with time on project and training as their own columns, one name for the lead (gate_v |
-| **Next — lane integrator** | DEF-103 — Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project le |
-| **Run-through record** | current |
+| **Headline** | 115 of 221 Define features pass, 31 more proven on earlier code (core 112 of 212) — A 42/89 · B 37/41 · C 29/64 · integrator 7/27 · M1: 49 proven · 23 awaiting fresh run · 4 open |
+| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
+| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
+| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
 | **Block regenerated** | 2026-10-21 |

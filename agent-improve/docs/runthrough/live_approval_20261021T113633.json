@@ -1,0 +1,238 @@
+[
+ {
+  "kind": "path_a",
+  "case_id": "IMPR-SAVED-1421B6",
+  "passed": true,
+  "checks": {
+   "the report paused (POST /gate)": true,
+   "nothing written before the decision": true,
+   "the approval answered 200": true,
+   "the Store record written once": true,
+   "the case record written once": true,
+   "both records exist after it": true,
+   "the phase is Measure": true,
+   "a second approval answers 409": true,
+   "and writes nothing": true
+  },
+  "submit": {
+   "http": 200,
+   "awaiting_acceptance": true,
+   "failed_checks": []
+  },
+  "decision": {
+   "http": 200,
+   "message": "The Define report is approved. Moving to measure",
+   "storage": {
+    "seconds": 2.46,
+    "calls": 21,
+    "case": {
+     "seconds": 0.23,
+     "calls": 5
+    },
+    "store": {
+     "seconds": 0.24,
+     "calls": 5
+    },
+    "checkpoint": {
+     "seconds": 1.99,
+     "calls": 11
+    }
+   },
+   "gate_writes": {
+    "store_write": 1,
+    "case_write": 1
+   }
+  },
+  "second": {
+   "http": 409,
+   "storage": {
+    "seconds": 0.3,
+    "calls": 4,
+    "case": {
+     "seconds": 0.04,
+     "calls": 1
+    },
+    "store": {
+     "seconds": 0.05,
+     "calls": 1
+    },
+    "checkpoint": {
+     "seconds": 0.21,
+     "calls": 2
+    }
+   },
+   "gate_writes": {}
+  },
+  "after": {
+   "store_record": true,
+   "case_gate_passed": true,
+   "current_phase": "measure",
+   "awaiting_decision": false
+  }
+ },
+ {
+  "kind": "path_b",
+  "case_id": "IMPR-SAVED-A0D23D",
+  "passed": true,
+  "checks": {
+   "the report paused (POST /gate)": true,
+   "the refused write answered 503": true,
+   "with the founder's message": true,
+   "the Store record was written, then removed": true,
+   "no Store record after it": true,
+   "the case unchanged": true,
+   "the pause is still there (GET /gate/review)": true,
+   "the second approval answered 200": true,
+   "it wrote the Store record once": true,
+   "and the case record once": true,
+   "both records exist, the phase is Measure": true
+  },
+  "submit": {
+   "http": 200,
+   "awaiting_acceptance": true,
+   "failed_checks": []
+  },
+  "refused": {
+   "http": 503,
+   "detail": "The approval could not be saved because the storage service is not reachable. Nothing you confirmed is lost. Please approve again in a few minutes.",
+   "storage": {
+    "seconds": 2.12,
+    "calls": 19,
+    "case": {
+     "seconds": 0.14,
+     "calls": 3
+    },
+    "store": {
+     "seconds": 0.3,
+     "calls": 6
+    },
+    "checkpoint": {
+     "seconds": 1.69,
+     "calls": 10
+    }
+   },
+   "gate_writes": {
+    "store_write": 1,
+    "case_write_refused": 1,
+    "store_delete": 1
+   }
+  },
+  "after_refusal": {
+   "store_record": false,
+   "case_gate_passed": false,
+   "current_phase": "define",
+   "awaiting_decision": true
+  },
+  "second": {
+   "http": 200,
+   "message": "The Define report is approved. Moving to measure",
+   "storage": {
+    "seconds": 1.67,
+    "calls": 17,
+    "case": {
+     "seconds": 0.24,
+     "calls": 5
+    },
+    "store": {
+     "seconds": 0.26,
+     "calls": 5
+    },
+    "checkpoint": {
+     "seconds": 1.18,
+     "calls": 7
+    }
+   },
+   "gate_writes": {
+    "store_write": 1,
+    "case_write": 1
+   }
+  },
+  "after": {
+   "store_record": true,
+   "case_gate_passed": true,
+   "current_phase": "measure",
+   "awaiting_decision": false
+  }
+ },
+ {
+  "kind": "path_c",
+  "case_id": "IMPR-SAVED-02263E",
+  "passed": true,
+  "checks": {
+   "the report paused (POST /gate)": true,
+   "the approval answered 200": true,
+   "both records written once": true,
+   "the case record keeps its upload": true,
+   "both records exist, the phase is Measure": true
+  },
+  "submit": {
+   "http": 200,
+   "awaiting_acceptance": true
+  },
+  "decision": {
+   "http": 200,
+   "detail": null,
+   "message": "The Define report is approved. Moving to measure",
+   "storage": {
+    "seconds": 2.47,
+    "calls": 21,
+    "case": {
+     "seconds": 0.25,
+     "calls": 5
+    },
+    "store": {
+     "seconds": 0.25,
+     "calls": 5
+    },
+    "checkpoint": {
+     "seconds": 1.97,
+     "calls": 11
+    }
+   },
+   "gate_writes": {
+    "store_write": 1,
+    "case_write": 1
+   }
+  },
+  "uploads": [
+   "team.csv"
+  ],
+  "after": {
+   "store_record": true,
+   "case_gate_passed": true,
+   "current_phase": "measure",
+   "awaiting_decision": false
+  }
+ },
+ {
+  "kind": "summary",
+  "started": "20261021T113633",
+  "source_hash": "0d28003ba0237e24",
+  "product_hash": "a3e26501d93173e9",
+  "model_calls": 0,
+  "rubric_replayed_from": "define_runthrough_20261020T143753 gate_submit: passed, failed_checks [] (every criterion pass)",
+  "storage": {
+   "seconds": 32.25,
+   "calls": 179,
+   "case": {
+    "seconds": 2.11,
+    "calls": 35
+   },
+   "store": {
+    "seconds": 2.86,
+    "calls": 33
+   },
+   "checkpoint": {
+    "seconds": 27.28,
+    "calls": 111
+   }
+  },
+  "gate_writes": {
+   "store_write": 4,
+   "case_write": 3,
+   "case_write_refused": 1,
+   "store_delete": 1
+  },
+  "passed": true
+ }
+]
