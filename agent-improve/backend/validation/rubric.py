@@ -205,22 +205,66 @@ async def _llm_verdicts(criteria: list[tuple[str, str, str]], document: str) -> 
     return GraderVerdict.model_validate(out)
 
 
+#: DEF-224 — the elements a model-judged criterion reads beyond its own, so a change to any of them re-judges it:
+#: the goal is judged against the baseline and the target (DEF-R07); "belongs to THIS project" against what the
+#: project is (DEF-R13). Every other criterion judges its own element's value.
+READS: dict[str, tuple[str, ...]] = {
+    "DEF-R07": ("baseline_estimate", "target_value", "target_date"),
+    "DEF-R13": ("business_case", "project_scope", "process_map_sipoc"),
+}
+
+
+def _version() -> str:
+    """DEF-224: what a kept gate verdict was judged against — the Define script (the elements' acceptance criteria;
+    its hash, as logged per turn), the rubric and the grader's prompt. Any of them changing re-judges everything."""
+    from backend.middleware.skills import script_record
+    from backend.validation import kept
+    return kept.fingerprint(script_record("define")["sha256"], DEFINE_RUBRIC, GATE_GRADER_PROMPT, MODEL_ASKS)
+
+
+def _fingerprint(version: str, cid: str, field: str, a: dict[str, Any]) -> str:
+    from backend.validation import kept
+    return kept.fingerprint(version, cid, [kept.answer(_text(a.get(f))) for f in (field, *READS.get(cid, ()))])
+
+
+def kept_verdicts(artifacts: dict[str, Any], verdict: GraderVerdict) -> dict[str, dict[str, Any]]:
+    """DEF-224: each model-judged criterion's verdict with its fingerprint, keyed by criterion — what the gate keeps
+    in the graded element's `field_status` entry (`field_status[field]["gate"]`)."""
+    a, version = dict(artifacts or {}), _version()
+    fields = {cid: field for cid, field, _ in DEFINE_CRITERIA}
+    return {v.criterion: {"fp": _fingerprint(version, v.criterion, fields[v.criterion], a), "field": fields[v.criterion],
+                          "status": v.status, "feedback": v.feedback}
+            for v in verdict.verdicts if v.criterion in fields and v.criterion not in CODE_ONLY}
+
+
 async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
-                       today: Optional[dt.date] = None) -> GraderVerdict:
+                       today: Optional[dt.date] = None,
+                       kept: Optional[dict[str, dict[str, Any]]] = None) -> GraderVerdict:
     """Grade a Define gate document against DEFINE_RUBRIC — one verdict per
-    criterion, in the rubric's order, pass or fail with the reason."""
+    criterion, in the rubric's order, pass or fail with the reason.
+
+    DEF-224 (G-225): `kept` is the verdicts kept from earlier submissions (`kept_verdicts`); a criterion whose
+    fingerprint is unchanged keeps its verdict with no model call, and only the changed ones go to the model."""
     a = dict(artifacts or {})
     today = today or dt.date.today()
     verdicts: dict[str, CriterionVerdict] = {}
     to_judge: list[tuple[str, str, str]] = []
+    version = _version() if kept else ""
     for cid, field, text in DEFINE_CRITERIA:
         v = _code_half(cid, a, today)
+        held = (kept or {}).get(cid) or {}
         if v is not None:
             verdicts[cid] = v
         elif cid in CODE_ONLY:                      # unreachable: code-only criteria always settle
             verdicts[cid] = _fail(cid, "the deterministic check did not settle")
+        elif held.get("fp") and held["fp"] == _fingerprint(version, cid, field, a):
+            verdicts[cid] = CriterionVerdict(criterion=cid, status="pass" if held.get("status") == "pass" else "fail",
+                                             feedback=str(held.get("feedback") or ""))
         else:
             to_judge.append((cid, field, MODEL_ASKS.get(cid, text)))
+    if kept is not None:
+        logger.info("define rubric: %d criterion verdict(s) kept for unchanged answers, %d to judge (DEF-224)",
+                    sum(1 for cid, _, _ in DEFINE_CRITERIA if cid in verdicts and cid in kept), len(to_judge))
     if to_judge:
         model = await (judge or _llm_verdicts)(to_judge, _document(a))
         given = {v.criterion.strip(): v for v in model.verdicts}
@@ -236,4 +280,4 @@ async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
     return GraderVerdict(verdicts=[verdicts[cid] for cid, _, _ in DEFINE_CRITERIA])
 
 
-__all__ = ["CODE_ONLY", "DEFINE_CRITERIA", "MODEL_ASKS", "grade_define"]
+__all__ = ["CODE_ONLY", "DEFINE_CRITERIA", "MODEL_ASKS", "READS", "grade_define", "kept_verdicts"]

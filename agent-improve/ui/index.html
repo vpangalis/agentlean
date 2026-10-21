@@ -1217,14 +1217,18 @@ async function openTeamPanel(){
 function renderTeamPanel(data){
   S.people=data;
   const isLead=!!(S.user&&String(S.user).trim().toLowerCase()===String(data.lead||'').trim().toLowerCase());
+  // DEF-104 (R8b): only the lead assigns a member's role and removes a member — never the lead themselves.
+  const manage=(p,i)=>isLead&&!p.is_lead;
   const rows=(data.people||[]).map((p,i)=>`
     <tr class="tp-row${p.status==='proposed'?' tp-proposed':''}">
       <td>${escapeHtml(p.full_name)}${p.is_lead?' <span class="tr-badge">lead</span>':''}</td>
-      <td>${escapeHtml(p.role||'')}</td><td>${escapeHtml(p.department||'')}</td>
+      <td>${manage(p,i)?`<input type="text" id="tp-role-${i}" value="${escapeHtml(p.role||'')}" style="width:120px">
+        <button class="btn-secondary" id="tp-role-save-${i}" onclick="teamRole(${i})">Save</button>`:escapeHtml(p.role||'')}</td>
+      <td>${escapeHtml(p.department||'')}</td>
       <td>${p.email?escapeHtml(p.email):'<span style="color:var(--text2)">no e-mail yet</span>'}</td>
       <td>${p.status==='proposed'?(isLead?`<input type="email" id="tp-email-${i}" placeholder="Company e-mail" style="width:150px">
         <button class="btn-secondary" id="tp-confirm-${i}" onclick="teamConfirm(${i})">Confirm</button>`:'proposed — the lead confirms')
-        :'member'}</td>
+        :'member'}${manage(p,i)?` <button class="btn-secondary" id="tp-remove-${i}" onclick="teamRemove(${i})">Remove</button>`:''}</td>
     </tr>`).join('');
   const add=isLead?`<div class="add-member-form show" style="margin-top:10px">
       <div class="field" style="flex:1"><input type="text" id="tp-new-name" placeholder="Full name"></div>
@@ -1256,6 +1260,25 @@ async function teamConfirm(i){
   if(!email){toast(`${p.full_name} needs a company e-mail to be confirmed.`);return;}
   await teamSend('POST',`${API}/cases/${S.case.case_id}/people/${encodeURIComponent(p.full_name)}?confirm=true`,
                  {full_name:p.full_name,role:p.role,email});
+}
+
+// DEF-104 (R8b): the lead assigns a member's role.
+async function teamRole(i){
+  const p=S.people.people[i];
+  const role=document.getElementById(`tp-role-${i}`).value.trim();
+  if(!role){toast(`Please give ${p.full_name}'s role on the project.`);return;}
+  await teamSend('POST',`${API}/cases/${S.case.case_id}/people/${encodeURIComponent(p.full_name)}`,
+                 {full_name:p.full_name,role});
+}
+
+// DEF-104 (R8b): the lead removes a member (never themselves — the lead role is handed over first).
+async function teamRemove(i){
+  const p=S.people.people[i];
+  try{
+    const data=await apiJSON(`${API}/cases/${S.case.case_id}/people/${encodeURIComponent(p.full_name)}`,
+      {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({actor:S.user})});
+    S.case.people=data.people;renderTeamPanel(data);renderWorkspaceTeam();
+  }catch(e){toast((e&&e.message)||String(e),5000);}
 }
 
 async function teamSend(method,url,person){
@@ -6510,12 +6533,27 @@ async function handleChatFile(input){
   form.append('file',file);form.append('case_id',S.case.case_id);
   form.append('uploaded_by',S.user);form.append('phase',S.phase);
   try{
-    appendMsgToDOM(`<div class="msg user"><div class="mav mu">${S.user.charAt(0)}</div><div class="bbl bbl-user">📎 ${file.name}</div></div>`);
-    const resp=await apiJSON(`${API}/upload`,{method:'POST',body:form});
-    const aiTurn={role:'ai',user:null,text:`I've received the file <strong>${file.name}</strong>. ${resp.classification?'Classification: '+resp.classification+'.':''} Let me process it.`,timestamp:new Date().toISOString(),citations:[]};
-    S.localChat.push(aiTurn);
-    appendMsgToDOM(renderTurn(aiTurn));
-  }catch(e){toast('Upload failed: '+(e.message||e),6000);}
+    await apiJSON(`${API}/upload`,{method:'POST',body:form});
+  }catch(e){toast('Upload failed: '+(e.message||e),6000);return;}
+  // DEF-206 (G-207): the files panel shows the new file at once.
+  await refreshCaseFiles();
+  // DEF-205 (G-206): the upload turn starts now, in the Belt's name — the coach reads the file on it; the
+  // browser writes no reply of its own. What the Belt had typed is put back afterwards.
+  const chat=document.getElementById('chat-input');
+  if(chat){
+    const typed=chat.value;
+    chat.value=`📎 ${file.name}`;
+    await sendMessage();
+    chat.value=typed;
+  }
+}
+
+// DEF-206 (G-207): the case read again after an upload, and the nav (with its case files panel) redrawn.
+async function refreshCaseFiles(){
+  try{
+    const r=await fetch(`${API}/cases/${S.case.case_id}`,{credentials:'include'});
+    if(r.ok){S.case=await r.json();renderPhaseNav();}
+  }catch(e){}
 }
 
 async function submitGateReview() {

@@ -88,6 +88,9 @@ def complete(people: list[PersonRecord], who: str, details: dict[str, Any]) -> l
         update["location"] = PersonLocation(**{k: str(details["location"].get(k) or "") for k in ("country", "site")})
     if person is lead(people):
         update.pop("role", None)
+    elif _norm(update.get("role", "")) == PROJECT_LEAD:
+        # DEF-104 (R8b): a role is assigned, never the lead's — the case has one lead; handing it over is R8c.
+        raise ValueError("the case has one project lead — the lead role is handed over, not assigned")
     mail = update.get("email")
     if mail and any(p is not person and _norm(p.email) == _norm(mail) for p in people):
         raise ValueError(f"{mail} is already on this case")
@@ -106,6 +109,17 @@ def add(people: list[PersonRecord], person: PersonRecord) -> list[PersonRecord]:
     if find(people, person.full_name) or (person.email and find(people, person.email)):
         raise ValueError(f"{person.full_name} is already on this case")
     return [*people, person]
+
+
+def remove(people: list[PersonRecord], who: str) -> list[PersonRecord]:
+    """DEF-104 (R8b): the lead removes a member. Never the lead: the case keeps one lead, and handing the role
+    over is R8c's."""
+    person = find(people, who)
+    if person is None:
+        raise LookupError(who)
+    if person is lead(people):
+        raise ValueError("the project lead cannot be removed — the lead role is handed over first")
+    return [p for p in people if p is not person]
 
 
 def may_sign_in(person: Optional[PersonRecord]) -> bool:

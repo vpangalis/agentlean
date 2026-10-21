@@ -554,6 +554,11 @@ GOAL_TARGET_HEAD = "Your goal already states the target. Here is what I read fro
 GOAL_TARGET_NEXT = "The target date comes next."
 GOAL_TARGET_ASK = "Is this right? Confirm to store it, or Change to set it yourself."
 
+#: DEF-098 (R15, G-196) — the next element read back IN CODE from what an earlier answer gave for it
+#: (`phases/nodes_common._offer_reply`). Nothing is stored before the Confirm (ADR-0002).
+OFFER_HEAD = "You already gave the {element} in an earlier answer:"
+OFFER_ASK = "Is this right? Confirm to store it, or Change to give it again."
+
 #: G-117 (DEF-156) — the only sentences that tell the Belt what was stored, written by
 #: `phases/nodes_common._store_truth` from the storage result, never by the coach model.
 STORE_NOTE_STORED = "Stored: {elements}."

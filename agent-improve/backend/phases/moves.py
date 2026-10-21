@@ -270,6 +270,29 @@ def uses_upload(text: str, pending: Optional[dict[str, Any]]) -> bool:
         all(_USE_FILE.search(p) or _COURTESY.match(p) for p in parts)
 
 
+#: DEF-209 (G-210) — a part of a message that only points at an uploaded file ("the team is in the attached file",
+#: "see the uploaded spreadsheet", the upload turn's own "📎 team.csv").
+_POINTS_AT_FILE = re.compile(r"^📎|\b(in|see|from|on|within)\b.{0,40}\b(the|my|our|this)\b.{0,20}\b(file|upload|"
+                             r"uploaded|attachment|attached|spreadsheet|csv|excel|sheet|list|document)\b")
+#: The reason a message that only points at a file is answered without a judgment.
+POINTS_AT_FILE_REASON = ("decided in code (DEF-209): the message points at the uploaded file and gives no answer "
+                         "of its own — it is not judged as a typed answer; the coach responds about the file")
+
+
+def points_at_file(text: str) -> bool:
+    """DEF-209 (G-210): every part of the message either points at an uploaded file or is a courtesy — nothing
+    in it is an answer of its own, so it is never judged as a typed answer."""
+    t = " ".join((text or "").lower().replace("’", "'").split())
+    if not t:
+        return False
+    if t.startswith("📎"):
+        return True
+    parts = [" ".join(re.sub(r"[^\w'\s]", " ", p).split()) for p in _CLAUSE.split(t)]
+    parts = [p for p in parts if p]
+    return bool(parts) and any(_POINTS_AT_FILE.search(p) for p in parts) and \
+        all(_POINTS_AT_FILE.search(p) or _COURTESY.match(p) for p in parts)
+
+
 #: ADR-0086 (A8) — the positions a confirmed goal can fill: its target value and its target date.
 GOAL_FIELDS: tuple[str, ...] = ("target_value", "target_date")
 
@@ -299,6 +322,26 @@ def from_goal(phase: str, nxt: Optional[tuple[str, Any]], artifacts: dict[str, A
         return None
     return {"field": nxt[0], "fields": list(store), "belt_words": goal.strip(), "messages": 1,
             "from_goal": True, "store": store, "proposed": dict(store), "sources": {f: "typed" for f in store}}
+
+
+def from_offer(phase: str, nxt: Optional[tuple[str, Any]], field_status: dict[str, dict[str, Any]],
+               artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """DEF-098 (R15, G-196; ADR-0002): the read-back the next position starts with when an earlier answer gave a
+    value for it — the coach captured it then (`field_status[field]["offered"]`), nothing was stored. It is read
+    back for one Confirm, which stores it as any read-back does (`pending_store`); None when nothing was offered."""
+    if not nxt:
+        return None
+    field = nxt[0]
+    offered = ((field_status.get(field) or {}).get("offered") or {})
+    value = offered.get("value")
+    if value in (None, "", [], {}):
+        return None
+    words = value.strip() if isinstance(value, str) else str(offered.get("words") or "")
+    proposed: dict[str, Any] = {field: value}
+    pending: dict[str, Any] = {"field": field, "fields": list(nxt[1] or (field,)), "belt_words": words,
+                               "messages": 1, "from_offer": True, "proposed": proposed, "sources": {field: "typed"}}
+    pending["store"] = pending_store(phase, pending, dict(proposed), artifacts)
+    return pending
 
 
 def is_confirmation(text: str) -> bool:
@@ -592,7 +635,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
         nxt = current(phase, merged, after)
         # ADR-0086 (A8) — a confirmed goal that states the target: the next position is read back from
         # it, for one Confirm; otherwise it is taught.
-        derived = from_goal(phase, nxt, merged)
+        # DEF-098 (R15): else a value an earlier answer gave for it, offered now for one Confirm.
+        derived = from_goal(phase, nxt, merged) or from_offer(phase, nxt, after, merged)
         if nxt is not None and derived is not None:
             after[nxt[0]] = {"status": ANSWERED, "answer": derived["belt_words"], "messages": 1, "pending": derived}
         elif nxt is not None:
@@ -602,8 +646,9 @@ async def decide(phase: str, artifacts: dict[str, Any],
                     store=store, stored_field=field,
                     confirmed={k: pending.get(k) for k in ("belt_words", "reasons", "sources")})
 
-    if pending and action == CHANGE_CLICK and pending.get("from_goal"):
-        # ADR-0086 — a Change of the target read from the goal teaches the element as usual.
+    if pending and action == CHANGE_CLICK and (pending.get("from_goal") or pending.get("from_offer")):
+        # ADR-0086 — a Change of the target read from the goal teaches the element as usual; DEF-098, the same
+        # for a value offered from an earlier answer.
         after[field] = {"status": ASKED}
         return done(field, fields, status, TEACH)
     if pending and action == CHANGE_CLICK:
@@ -616,7 +661,9 @@ async def decide(phase: str, artifacts: dict[str, Any],
     previous = str((pending or {}).get("belt_words") or entry.get("answer") or "")
     so_far = int((pending or entry).get("messages") or 0)
     answer = _join(previous, belt)
-    judgment = await judge(field, previous, belt, "yes" if pending else "no")
+    # DEF-209 (G-210): a message that only points at the uploaded file is not an answer — decided here, no judgment.
+    judgment = (SufficiencyJudgment(verdict="not_an_answer", reason=POINTS_AT_FILE_REASON) if points_at_file(belt)
+                else await judge(field, previous, belt, "yes" if pending else "no"))
     if judgment.verdict == "not_an_answer":
         return done(field, fields, status, RESPOND, judgment=judgment, answer=previous,
                     messages=so_far, pending=pending, reason=judgment.reason)

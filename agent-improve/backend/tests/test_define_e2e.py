@@ -211,9 +211,36 @@ def test_a_submission_missing_a_field_is_refused_by_name(env) -> None:
 
 
 
-def test_define_gate_has_no_warning_path() -> None:
-    """DEF-045 — Define's gate has no Tier 2: it never issues a 'warning' verdict and acknowledged_gaps is always empty."""
-    _not_written('DEF-045')
+def test_define_gate_has_no_warning_path(env, monkeypatch) -> None:
+    """DEF-045 — R7, ADR-0040 ("Define has no Tier 2"), G-08: Define's gate has no Tier 2 — it never issues a
+    'warning' verdict and acknowledged_gaps is always empty. Layer 2d records a grader's 'warning' as a fail
+    (Tier 1: pass or fail only), so through the routes and graph the gate refuses it; with every criterion passing
+    the report is approved, and the approved gate document's acknowledged_gaps is []."""
+    from backend.core.store import get_store
+    from backend.phases.mappers_common import read_gate_document
+    from backend.tests.test_define_report import COMPLETE
+    from backend.validation import rubric
+
+    async def warns(criteria, document):
+        return rubric.GraderVerdict(verdicts=[rubric.CriterionVerdict(
+            criterion=c, status="warning" if i == 0 else "pass", feedback="could be sharper" if i == 0 else "")
+            for i, (c, _, _) in enumerate(criteria)])
+    graded = asyncio.run(rubric.grade_define(dict(COMPLETE), judge=warns))
+    assert {v.status for v in graded.verdicts} <= {"pass", "fail"} and graded.failed, graded
+    monkeypatch.setattr(rubric, "_llm_verdicts", warns)
+    first = _submit(env)
+    assert first["passed"] is False and not first.get("awaiting_acceptance"), first
+
+    async def all_pass(criteria, document):
+        return rubric.GraderVerdict(verdicts=[rubric.CriterionVerdict(criterion=c, status="pass")
+                                              for c, _, _ in criteria])
+    monkeypatch.setattr(rubric, "_llm_verdicts", all_pass)
+    # DEF-224: the refused answer keeps its verdict — the team changes it, and it is judged again.
+    _change_through_coaching(env, monkeypatch, "business_case", COMPLETE["business_case"] + " Measured monthly.")
+    assert _submit(env)["awaiting_acceptance"] is True
+    assert _decide(env, decision="approve").status_code == 200
+    doc = read_gate_document(get_store(), CASE_ID, "define")
+    assert doc and doc.get("acknowledged_gaps") == [], doc.get("acknowledged_gaps")
 
 
 
@@ -1235,8 +1262,27 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
 
 def test_a_step_time_with_one_end_of_its_range_reads_in_words() -> None:
     """DEF-172 — G-179 (founder 2026-10-14, before customers): a step with only a maximum (or only a minimum)
-    time reads in words in the report, never "(? to 20 days)"."""
-    _not_written('DEF-172')
+    time reads in words in the report, never "(? to 20 days)". The step table of element 12 (the gate view's
+    section F and the read-back card read the same rows): "6 days, at most 20 days", "6 days, at least 2 days";
+    both ends still read as a range."""
+    from backend.phases.define import templates
+    sipoc = {"suppliers": "AP team", "inputs": "Invoices", "outputs": "Paid invoices", "customers": "Suppliers",
+             "process_metrics": "Days to pay",
+             "process_steps": [
+                 {"id": "S1", "name": "Receive invoice", "duration": {"avg": "6 days", "max": "20 days"}},
+                 {"id": "S2", "name": "Approve invoice", "duration": {"avg": "6 days", "min": "2 days"}},
+                 {"id": "S3", "name": "Pay invoice", "duration": {"avg": "3 days", "min": "2 days", "max": "4 days"}},
+                 {"id": "S4", "name": "File invoice", "duration": {"avg": "1 day", "max": "1 week"}}]}
+    rows = templates.rows("process_map_sipoc", {"process_map_sipoc": sipoc})
+    table = next(r["value"] for r in rows if isinstance(r.get("value"), dict)
+                 and "Time (range)" in (r["value"].get("columns") or []))
+    times = [row[1] for row in table["rows"]]
+    assert times[0] == "6 days, at most 20 days", times
+    assert times[1] == "6 days, at least 2 days", times
+    assert times[2] == "3 days (2 days to 4 days)", times
+    # founder ruling 2026-10-21, item 8: one of a unit is written singular — "1 day", never "1 days".
+    assert times[3] == "1 day, at most 1 week", times
+    assert not any("?" in t for t in times), times
 
 
 def test_an_ordinary_turn_makes_at_most_four_model_calls(env, monkeypatch) -> None:
@@ -1371,9 +1417,55 @@ def test_the_product_reaches_nothing_outside_the_intranet() -> None:
 
 
 
-def test_values_for_other_elements_in_one_answer_are_read_back() -> None:
-    """DEF-098 — When an answer carries values for other unconfirmed elements, the coach reads them back for confirmation; nothing is stored before confirmation."""
-    _not_written('DEF-098')
+def test_values_for_other_elements_in_one_answer_are_read_back(env, monkeypatch, stub_planner) -> None:
+    """DEF-098 — R15, G-196 (founder test findings 17; ADR-0002): when an answer carries values for other unconfirmed
+    elements, the coach reads them back for confirmation; nothing is stored before confirmation. Through the routes
+    and graph: the answer on the project scope also states the goal; the scope is read back and confirmed; the goal
+    is NOT stored, and when it comes up it opens with the value given earlier, read back in code for one Confirm;
+    the Confirm stores it, in the words given."""
+    from backend.core import prompts as P
+    from backend.core import guard_messages
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    order = [f for f, _ in moves.positions("define")]
+    before = order[:order.index("project_scope")]
+    record = env.case.phases["define"]
+    record.structured = {k: COMPLETE[k] for k in before}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in before}
+    record.field_status["project_scope"] = {"status": moves.ASKED}
+    goal = "Cut late payments from 23% to 5% by March 2027."
+    scope = dict(COMPLETE["project_scope"])
+
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="in and out named")
+    _coach_saying(monkeypatch, f"In scope: {scope['in_scope']}; out: {scope['out_scope']}. Is this right?",
+                  captured=[{"field_name": "project_scope", "value": scope, "source": "belt"},
+                            {"field_name": "goal_statement", "value": goal, "source": "belt"}])
+    first = ask(message=f"In scope: {scope['in_scope']}, not {scope['out_scope']}. {goal}")
+    assert first.get("move") == moves.READ_BACK, first.get("move")
+    got = _define(env)
+    assert "goal_statement" not in (got.get("structured") or {}), "a value was stored before its confirmation"
+    assert (got["field_status"].get("goal_statement") or {}).get("offered", {}).get("value") == goal, got["field_status"]
+
+    calls = stub_planner.calls
+    second = ask(message="Confirm", action="confirm")
+    got = _define(env)
+    assert got["structured"]["project_scope"] == scope, got["structured"].get("project_scope")
+    assert "goal_statement" not in got["structured"], "the offered goal was stored without its Confirm"
+    head = P.OFFER_HEAD.format(element=guard_messages.element_name("define", "goal_statement"))
+    assert head in second["answer"] and goal in second["answer"], second["answer"]
+    assert second.get("move") == moves.READ_BACK, second.get("move")
+
+    ask(message="Confirm", action="confirm")
+    got = _define(env)
+    assert got["structured"]["goal_statement"] == goal, got["structured"].get("goal_statement")
+    assert stub_planner.calls == calls, "a Confirm of an offered value was judged by the model"
 
 
 
@@ -1393,9 +1485,78 @@ def test_without_sign_on_only_registered_team_members_enter() -> None:
     _not_written('DEF-103')
 
 
-def test_the_creator_is_the_project_lead_and_alone_manages_the_team() -> None:
-    """DEF-104 — The creator of a case is its project lead; only the lead adds or removes members and assigns roles; the lead is shown on the form, header, list and si"""
-    _not_written('DEF-104')
+def test_the_creator_is_the_project_lead_and_alone_manages_the_team(env) -> None:
+    """DEF-104 — R8b (ADR-0090): the creator of a case is its project lead; only the lead adds or removes members
+    and assigns roles; the lead is shown on the form, header, list and sign-in window. On the real routes: a member
+    is removed and a role assigned by the lead only — anyone else is refused in plain words, naming the lead; the
+    lead cannot remove themselves (the case keeps one lead; handing over is R8c). On the page, run under node: the
+    header, the case list and the sign-in window name the lead; the form says "You will be the project lead"; the
+    team panel offers Remove and the role edit to the lead only. (The creator becoming the lead is DEF-215's (1).)"""
+    import json
+    from pathlib import Path
+
+    from backend.storage import people as people_mod
+    from backend.storage.models import CaseDocument
+
+    env.case.people = CaseDocument.new(case_id=CASE_ID, title="t", belt_level="green", leader=ACTOR,
+                                       department="Finance", target_date="2027-03-31", team=[]).people
+    for name in ("Max Berg", "Lena Hart"):
+        r = env.client.post(f"/cases/{CASE_ID}/people", json={"actor": ACTOR, "person": {"full_name": name,
+                                                                                            "role": "Analyst"}})
+        assert r.status_code == 200, r.text
+
+    # removing a member: the lead only
+    refused = env.client.request("DELETE", f"/cases/{CASE_ID}/people/Max Berg", json={"actor": "Lena Hart"})
+    assert refused.status_code == 403 and f"Only the project lead, {ACTOR}" in refused.json()["detail"], refused.text
+    removed = env.client.request("DELETE", f"/cases/{CASE_ID}/people/Max Berg", json={"actor": ACTOR})
+    assert removed.status_code == 200, removed.text
+    assert [p["full_name"] for p in removed.json()["people"]] == [ACTOR, "Lena Hart"], removed.json()
+    assert people_mod.find(env.case.people, "Max Berg") is None, "the removal was not written to the case"
+    itself = env.client.request("DELETE", f"/cases/{CASE_ID}/people/{ACTOR}", json={"actor": ACTOR})
+    assert itself.status_code == 422 and "hand" in itself.json()["detail"], itself.text
+
+    # assigning a role: the lead only
+    no = env.client.post(f"/cases/{CASE_ID}/people/Lena Hart",
+                         json={"actor": "Lena Hart", "person": {"full_name": "Lena Hart", "role": "Champion"}})
+    assert no.status_code == 403, no.text
+    yes = env.client.post(f"/cases/{CASE_ID}/people/Lena Hart",
+                          json={"actor": ACTOR, "person": {"full_name": "Lena Hart", "role": "Process owner"}})
+    assert yes.status_code == 200, yes.text
+    assert {p["full_name"]: p["role"] for p in yes.json()["people"]}["Lena Hart"] == "Process owner"
+
+    # the page
+    html = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    assert "You will be the project lead" in html, "the create form does not tell the creator"
+    people = json.dumps({"case_id": CASE_ID, "lead": "Priya Shah", "people": [
+        {"full_name": "Priya Shah", "role": "project lead", "status": "member", "is_lead": True},
+        {"full_name": "Lena Hart", "role": "Analyst", "status": "member", "is_lead": False}]})
+    got = _page_js("escapeHtml", "initials", "renderWorkspaceTeam", "loadRegistry", "showSignIn", "renderTeamPanel",
+                   script=r"""
+const els = {}; const API = '/api';
+function el(id) { return els[id] || (els[id] = {id, innerHTML: '', setAttribute() {}, remove() {}}); }
+const document = {getElementById: el, createElement: () => el('new'), body: {appendChild() {}}};
+const PHASES = {define: {bg: '', color: '', letter: 'D', label: 'Define'}};
+let S = {case: {leader: 'Priya Shah', people: [{}, {}]}, user: 'Priya Shah'};
+async function apiJSON() { return [{case_id: 'IMPR-1', title: 'Late payments', leader: 'Priya Shah',
+                                    current_phase: 'define', rag_status: 'green'}]; }
+async function signInInfo() { return {case_id: 'IMPR-1', title: 'Late payments', lead: 'Priya Shah',
+                                      not_on_team: 'Not on the team? Ask Priya Shah to add you.'}; }
+function toast() {}
+(async () => {
+  el('ws-team'); renderWorkspaceTeam(); const header = els['ws-team'].innerHTML;
+  el('recent-list'); await loadRegistry(); const list = els['recent-list'].innerHTML;
+  await showSignIn('IMPR-1'); const signIn = els['sign-in-window'].innerHTML;
+  renderTeamPanel(""" + people + """); const asLead = els['team-panel'].innerHTML;
+  S.user = 'Lena Hart'; renderTeamPanel(""" + people + """); const asMember = els['team-panel'].innerHTML;
+  console.log(JSON.stringify({header, list, signIn, asLead, asMember}));
+})();
+""")
+    assert "Lead: Priya Shah" in got["header"], got["header"]
+    assert "Priya Shah" in got["list"], got["list"]
+    assert "Project lead: <b>Priya Shah</b>" in got["signIn"], got["signIn"]
+    assert "teamRemove(" in got["asLead"] and "teamRole(" in got["asLead"], "the lead is offered no Remove or role edit"
+    assert "teamRemove(" not in got["asMember"] and "teamRole(" not in got["asMember"], "a member is offered them"
+    assert "teamRemove(0)" not in got["asLead"], "the lead is offered to remove themselves"
 
 
 def test_the_lead_role_can_be_handed_over_and_is_recorded() -> None:
@@ -1982,9 +2143,26 @@ def test_t50_a_drop_of_more_than_10_in_any_eval_metric_blocks_release() -> None:
     _not_written('DEF-130')
 
 
-def test_t56_gate_validation_makes_no_retrieval_calls() -> None:
-    """DEF-131 — Gate validation makes no retrieval calls"""
-    _not_written('DEF-131')
+def test_t56_gate_validation_makes_no_retrieval_calls(env, monkeypatch) -> None:
+    """DEF-131 — T56, ADR-0039: gate validation makes no retrieval calls. Every retrieval in the product goes
+    through retriever.py's client builders (the search client, the embeddings); through the routes and graph a gate
+    submission — validated, layer 2d run, the report paused — and its approval build neither."""
+    from backend.knowledge import retriever
+    called: list[str] = []
+
+    def refuse(name):
+        def fn(*a, **k):
+            called.append(name)
+            raise AssertionError(f"retrieval during gate validation: {name}")
+        return fn
+    for name in ("build_search_client", "get_embeddings", "get_knowledge_vectorstore", "search_knowledge",
+                 "search_cases", "search_evidence"):
+        if hasattr(retriever, name):
+            monkeypatch.setattr(retriever, name, refuse(name))
+    body = _submit(env)
+    assert body["awaiting_acceptance"] is True, body
+    assert _decide(env, decision="approve").status_code == 200
+    assert called == [], called
 
 
 def test_t57_a_capability_tool_refuses_until_a_stability_check_has_passed() -> None:
@@ -2008,9 +2186,27 @@ def test_t61_each_skill_description_stays_under_2_000_tokens() -> None:
     _not_written('DEF-136')
 
 
-def test_t66_a_tier_2_criterion_can_never_fail_a_gate() -> None:
-    """DEF-138 — A Tier 2 criterion can never fail a gate"""
-    _not_written('DEF-138')
+def test_t66_a_tier_2_criterion_can_never_fail_a_gate(env, monkeypatch) -> None:
+    """DEF-138 — T66, ADR-0040 ("Tier 2 fields can only warn"), G-13: a Tier 2 criterion can never fail a gate.
+    The verdict schema enforces it: a Tier 2 'fail' is recorded as a 'warning' and is never among the failures.
+    Through the routes and graph: layer 2d returning a Tier 2 failure (Define has none of its own; the verdict is
+    built as a phase with Tier 2 builds it) passes the gate — the report awaits the team's decision."""
+    from backend.phases import nodes_common
+    from backend.validation.schemas import CriterionVerdict, GraderVerdict
+
+    v = CriterionVerdict(criterion="MEA-R09", tier=2, status="fail", feedback="no sigma estimate")
+    assert v.status == "warning", v
+    assert GraderVerdict(verdicts=[v]).passed, "a Tier 2 verdict failed the verdict"
+    t1 = CriterionVerdict(criterion="MEA-R01", tier=1, status="fail", feedback="no baseline")
+    assert not GraderVerdict(verdicts=[v, t1]).passed and GraderVerdict(verdicts=[v, t1]).failed == [t1]
+
+    async def tier_2_fails(artifacts, judge=None, today=None, **kw):
+        return GraderVerdict(verdicts=[CriterionVerdict(criterion="DEF-R01", status="pass"),
+                                       CriterionVerdict(criterion="XTR-R99", tier=2, status="fail",
+                                                        feedback="a recommendation, not a requirement")])
+    monkeypatch.setattr(nodes_common, "grade_define", tier_2_fails)
+    body = _submit(env)
+    assert body["passed"] is True and body["awaiting_acceptance"] is True, body
 
 
 
@@ -3692,7 +3888,9 @@ def test_three_failed_gate_attempts_escalate(env, monkeypatch) -> None:
         return rubric.GraderVerdict(verdicts=[rubric.CriterionVerdict(criterion=c, status="pass")
                                               for c, _, _ in criteria])
     monkeypatch.setattr(rubric, "_llm_verdicts", all_pass)
-    passed = _submit(env)
+    # DEF-224 (founder ruling 2026-10-21): the same business case keeps its verdict — the team changes it, and the
+    # changed one is judged again.
+    passed = changed_submit(4)
     assert passed["passed"] is True, passed
     assert rows[CASE_ID].status == "active" and rows[CASE_ID].escalation is None, rows[CASE_ID]
 
@@ -6182,7 +6380,10 @@ def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, 
                                          "action": "confirm"})
     assert done.status_code == 200, done.text
     case = env.client.get(f"/cases/{CASE_ID}").json()
-    assert case["phases"]["define"]["field_status"]["business_case"] == {"status": moves.CONFIRMED, "spans": kept}
+    entry = case["phases"]["define"]["field_status"]["business_case"]
+    # DEF-224: the entry also keeps the planner's verdict for this answer (`judged`), beside what is asserted here.
+    assert {k: v for k, v in entry.items() if k != "judged"} == {"status": moves.CONFIRMED, "spans": kept}, entry
+    assert entry["judged"]["verdict"]["verdict"] == "sufficient", entry
     assert case["phases"]["define"]["structured"]["business_case"] == answer
     assert case["conversation_history"][-1]["confirmed_strip"]["text"] == (
         "✓ Element 1 · Business case confirmed — the Gate document is updated (section B).")
@@ -6226,19 +6427,59 @@ def test_one_progress_figure_everywhere() -> None:
     _not_written('DEF-204')
 
 
+def _chat_file_run() -> dict:
+    """DEF-205/206: the page's own upload handler, run under node with the browser stubbed: what it called."""
+    return _page_js("handleChatFile", "refreshCaseFiles", script=r"""
+const log = []; const shown = [];
+const API = '/api';
+const S = {case: {case_id: 'IMPR-1', files: []}, user: 'ana', phase: 'define', localChat: []};
+const input = {value: 'half-typed words'};
+const document = {getElementById: (id) => id === 'chat-input' ? input : null};
+async function apiJSON(url, opts) { log.push(['upload', url, opts.method]); return {classification: 'team_list'}; }
+async function fetch(url, opts) { log.push(['fetch', url]);
+  return {ok: true, json: async () => ({case_id: 'IMPR-1', files: [{filename: 'team.csv'}]})}; }
+function renderPhaseNav() { log.push(['nav', S.case.files.length]); }
+async function sendMessage(action) { log.push(['send', input.value, action || null]); }
+function appendMsgToDOM(html) { shown.push(String(html)); }
+function renderTurn(t) { return t.text; }
+function toast(m) { log.push(['toast', m]); }
+(async () => {
+  await handleChatFile({files: [{name: 'team.csv'}]});
+  console.log(JSON.stringify({log, shown, typed: input.value}));
+})();
+""")
+
+
 def test_an_upload_starts_its_own_turn() -> None:
-    """DEF-205 — An upload in the chat starts its own upload turn; no browser-written 'Let me process it' (G-206; founder test findings 22)"""
-    _not_written('DEF-205')
+    """DEF-205 — G-206 (founder test findings 22): an upload in the chat starts its own upload turn — the page sends
+    the turn itself, in the Belt's name ("📎 <file>"), through the ordinary send path, so the coach reads the file
+    now; the browser writes no reply of its own ("Let me process it"), and what the Belt had typed is kept."""
+    got = _chat_file_run()
+    kinds = [e[0] for e in got["log"]]
+    assert kinds[0] == "upload" and "send" in kinds, got["log"]
+    send = next(e for e in got["log"] if e[0] == "send")
+    assert send[1] == "📎 team.csv" and send[2] is None, send
+    assert not any("process it" in s.lower() for s in got["shown"]), got["shown"]
+    assert got["typed"] == "half-typed words", "the Belt's unsent words were lost"
 
 
 def test_the_files_panel_refreshes_after_an_upload() -> None:
-    """DEF-206 — The case files panel refreshes after an upload (G-207; founder test findings 23, 34)"""
-    _not_written('DEF-206')
+    """DEF-206 — G-207 (founder test findings 23, 34): the case files panel refreshes after an upload — the case is
+    read again and the nav redrawn with the new file, before the upload turn starts."""
+    got = _chat_file_run()
+    kinds = [e[0] for e in got["log"]]
+    assert ["fetch", "/api/cases/IMPR-1"] in got["log"], got["log"]
+    nav = next(e for e in got["log"] if e[0] == "nav")
+    assert nav[1] == 1, "the panel was redrawn without the new file"
+    assert kinds.index("nav") < kinds.index("send"), got["log"]
 
 
 def test_the_team_ask_mentions_the_upload() -> None:
-    """DEF-207 — The team element's ask mentions that the team list can be uploaded as a file (G-208; founder test findings 24)"""
-    _not_written('DEF-207')
+    """DEF-207 — G-208 (founder test findings 24): the team element's ask, as the coach is given it from the Define
+    script, tells the Belt the team list can be uploaded as a file."""
+    from backend.middleware.skills import teaching_blocks
+    ask = teaching_blocks("define", "team").get("prompt") or ""          # the script's **Ask**
+    assert "upload" in ask.lower() and ("file" in ask.lower() or "list" in ask.lower()), ask
 
 
 def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps() -> None:
@@ -6246,9 +6487,33 @@ def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps() -> None:
     _not_written('DEF-208')
 
 
-def test_a_message_pointing_at_the_file_is_not_judged() -> None:
-    """DEF-209 — A message pointing at the uploaded file is never judged as a typed answer (G-210; founder test findings 26)"""
-    _not_written('DEF-209')
+def test_a_message_pointing_at_the_file_is_not_judged(env, monkeypatch, stub_planner) -> None:
+    """DEF-209 — G-210 (founder test findings 26): a message pointing at the uploaded file ("Our project team is in
+    the attached file", or the upload turn's own "📎 team.csv") is never judged as a typed answer — no model
+    judgment, no challenge; the coach responds about the file. An answer that also carries content is judged."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    record = env.case.phases["define"]
+    record.structured = {"business_case": COMPLETE["business_case"]}
+    record.field_status = {"business_case": {"status": moves.CONFIRMED}, "team": {"status": moves.ASKED}}
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", failed_criterion=None,
+                                                reason="does not directly answer")
+    _coach_saying(monkeypatch, "Thanks — I will read the team from your file.")
+    for words in ("Our project team is in the attached file.", "📎 team.csv", "See the uploaded spreadsheet."):
+        calls = stub_planner.calls
+        body = ask(message=words)
+        assert stub_planner.calls == calls, f"{words!r} was judged as a typed answer"
+        assert body.get("move") != moves.CHALLENGE, (words, body.get("move"))
+    calls = stub_planner.calls
+    ask(message="The team is in the attached file, and Tom Okafor is our champion.")
+    assert stub_planner.calls == calls + 1, "an answer with content of its own was not judged"
 
 
 def test_a_how_to_question_is_answered_and_the_element_resumes() -> None:
@@ -6773,9 +7038,80 @@ def test_metric_lines_are_their_own_block_and_never_show_ids(env, monkeypatch) -
     assert parse.metric_name("Invoice error rate") == "Invoice error rate"         # a name already readable stays
 
 
-def test_the_same_answer_gets_the_same_verdict() -> None:
-    """DEF-224 — The judgment rules on the rubric's criteria only, and the same answer gets the same verdict (G-225; founder test findings 68)"""
-    _not_written('DEF-224')
+def test_the_same_answer_gets_the_same_verdict(env, monkeypatch, stub_planner) -> None:
+    """DEF-224 — G-225 (founder test findings 68; founder ruling 2026-10-21): both places a model judges an answer keep
+    their verdict with a fingerprint of the exact answer and the script's version, and an unchanged fingerprint reuses
+    it with no model call — even when the model would now answer differently.
+    (1) The planner's per-element judgment: the same answer to element 13 sent again is challenged again, on the same
+        criterion, with no model call; a changed answer is judged.
+    (2) The gate rubric (layer 2d): the same stored report submitted twice gets the same verdict — the second
+        submission makes no model call although the stub would now pass it; when one element changes, only the
+        criteria on that element go to the model."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+    from backend.validation import rubric
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    order = [f for f, _ in moves.positions("define")]
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items() if k != "issues_and_barriers"}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order if f != "issues_and_barriers"}
+    record.field_status["issues_and_barriers"] = {"status": moves.ASKED}
+    words = "Some barriers, I suppose."
+
+    # (1) the planner's judgment
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", failed_criterion=None,
+                                                reason="names no concrete barrier")
+    _coach_saying(monkeypatch, "Which barriers, concretely?")
+    first = ask(message=words)
+    calls = stub_planner.calls
+    assert calls >= 1 and first.get("move") == moves.CHALLENGE, (calls, first.get("move"))
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="the model changed its mind")
+    again = ask(message=words)
+    assert stub_planner.calls == calls, "the unchanged answer was judged again by the model"
+    assert again.get("move") == moves.CHALLENGE, again.get("move")
+    better = COMPLETE["issues_and_barriers"]
+    _coach_saying(monkeypatch, f'Your barriers: "{better}" Is this right?',
+                  captured=[{"field_name": "issues_and_barriers", "value": better, "source": "belt"}])
+    changed = ask(message=better)
+    assert stub_planner.calls == calls + 1 and changed.get("move") == moves.READ_BACK, (stub_planner.calls,
+                                                                                         changed.get("move"))
+
+    # (2) the gate rubric, on a fresh thread from the record: every element confirmed
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    record.structured = dict(COMPLETE)
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order}
+    asked: list[list[str]] = []
+
+    async def flipping(criteria, document):
+        asked.append([cid for cid, _, _ in criteria])
+        fail_r13 = len(asked) == 1
+        return rubric.GraderVerdict(verdicts=[
+            rubric.CriterionVerdict(criterion=cid, status="fail" if fail_r13 and cid == "DEF-R13" else "pass",
+                                    feedback="generic barriers" if fail_r13 and cid == "DEF-R13" else "")
+            for cid, _, _ in criteria])
+    monkeypatch.setattr(rubric, "_llm_verdicts", flipping)
+    one = _submit(env)
+    two = _submit(env)
+    assert len(asked) == 1, f"the unchanged report went to the model again: {asked}"
+    assert one["passed"] is False and two["passed"] is False, (one, two)
+    assert one["missing_fields"] == two["missing_fields"] and "DEF-R13" in one["missing_fields"][0], (one, two)
+
+    # a changed element: only its criteria are judged (code level, the kept verdicts as the gate keeps them)
+    kept = rubric.kept_verdicts(COMPLETE, rubric.GraderVerdict(verdicts=[
+        rubric.CriterionVerdict(criterion=cid, status="pass", feedback="") for cid, _, _ in rubric.DEFINE_CRITERIA]))
+    edited = {**COMPLETE, "issues_and_barriers": COMPLETE["issues_and_barriers"] + " Also the auditors' visit."}
+    asked.clear()
+    import asyncio
+    asyncio.run(rubric.grade_define(edited, judge=flipping, kept=kept))
+    on_13 = [cid for cid, field, _ in rubric.DEFINE_CRITERIA if field == "issues_and_barriers"]
+    assert asked and set(asked[0]) <= set(on_13), f"criteria on unchanged elements were judged again: {asked}"
 
 
 def test_practice_lookup_returns_only_the_cases_industry_and_licensed_content() -> None:

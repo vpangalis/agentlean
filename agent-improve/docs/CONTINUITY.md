@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Headline** | 141 of 221 Define features pass (core 133 of 212) — A 65/89 · B 35/41 · C 28/64 · integrator 13/27 · M1: 71 proven · 0 awaiting fresh run · 4 open |
-| **Next — lane A** | DEF-098 — When an answer carries values for other unconfirmed elements, the coach reads them back for confirmation; nothing is stored before confirmat |
-| **Next — lane B** | DEF-159 — G-129: a complete Define passes the gate rubric — an answer the element's own acceptance criteria accepted is not failed at the gate for its |
-| **Next — lane C** | DEF-205 — An upload in the chat starts its own upload turn; no browser-written 'Let me process it' (G-206; founder test findings 22) |
+| **Headline** | 151 of 221 Define features pass (core 143 of 212) — A 69/89 · B 39/41 · C 30/64 · integrator 13/27 · M1: 74 proven · 0 awaiting fresh run · 1 open |
+| **Next — lane A** | DEF-208 — A file that covers an element only partly is read back as a draft table with its gaps marked (G-209; founder test findings 25) |
+| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
+| **Next — lane C** | DEF-176 — Gate view section A · Project and team: the team table with time on project and training as their own columns, one name for the lead (gate_v |
 | **Next — lane integrator** | DEF-103 — Without single sign-on only the team members the lead registered can open the case: each enters with a personal one-time code the project le |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |

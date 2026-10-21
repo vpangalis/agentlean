@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CriterionResult(BaseModel):
@@ -112,6 +112,13 @@ class CriterionVerdict(BaseModel):
     feedback: str = Field(
         default="",
         description="The reason — what the document lacks and the one fix. Empty on a pass.")
+
+    @model_validator(mode="after")
+    def _tier_2_only_warns(self) -> "CriterionVerdict":
+        """T66, ADR-0040 (DEF-138): a Tier 2 criterion can never fail a gate — its 'fail' is a 'warning'."""
+        if self.tier == 2 and self.status == "fail":
+            self.status = "warning"
+        return self
 
 
 class GraderVerdict(BaseModel):

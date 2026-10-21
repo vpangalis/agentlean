@@ -494,13 +494,21 @@ def as_metric(value: Any, *, target: bool = False, unit: str = "") -> dict[str, 
 _WORDS = {"<=": "at most", ">=": "at least", "=": ""}
 
 
+#: The units written singular after a 1 — time and count words; a unit like "%" or "EUR" is never touched.
+_PLURAL_UNITS = frozenset({"seconds", "minutes", "hours", "days", "weeks", "months", "years", "invoices", "orders",
+                           "items", "cases", "calls", "tickets", "errors", "defects", "units", "runs"})
+
+
 def metric_text(value: Any) -> str:
     """A MetricValue as the Belt reads it: "at most 5 %", "23 % (an estimate)"; a value that is
     not a number yet says so and shows the Belt's words."""
     mv = as_metric(value)
     if mv["value"] is None:
         return f"not a number yet — {mv['raw']}" if mv["raw"] else "not given"
-    figure = f"{mv['value']:g}{'' if mv['unit'] in ('', '%') else ' '}{mv['unit']}".strip()
+    unit = str(mv["unit"] or "")
+    if mv["value"] == 1 and unit.endswith("s") and unit.split()[-1] in _PLURAL_UNITS:
+        unit = unit[:-1]                    # founder ruling 2026-10-21 (P16): "1 day", never "1 days"
+    figure = f"{mv['value']:g}{'' if unit in ('', '%') else ' '}{unit}".strip()
     words = _WORDS.get(mv.get("direction") or "", "")
     return (f"{words} {figure}".strip() + (" (an estimate)" if mv.get("is_estimate") else ""))
 

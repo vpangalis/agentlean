@@ -32,7 +32,8 @@ from backend.gateway.schemas import (
 )
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
 from backend.gateway import access
-from backend.gateway.schemas import PeopleResponse, PersonChange, PersonOut, SessionOut, SignInIn, SignInInfo
+from backend.gateway.schemas import (PeopleResponse, PersonChange, PersonOut, PersonRemoval, SessionOut, SignInIn,
+                                     SignInInfo)
 from backend.gateway.schemas import GateDecisionRequest, GateDecisionResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
@@ -1095,6 +1096,23 @@ async def change_person(case_id: str, who: str, change: PersonChange, http: Requ
         return people_mod.confirm(ps, details.get("full_name") or who, change.person.email) if confirm else ps
     try:
         case = await blob.update_people(case_id, apply)
+    except LookupError:
+        raise HTTPException(404, f"{who} is not on this case.")
+    except ValueError as e:
+        raise HTTPException(422, f"{e}.")
+    assert case is not None
+    return _people_out(case)
+
+
+@router.delete("/cases/{case_id}/people/{who}", response_model=PeopleResponse)
+async def remove_person(case_id: str, who: str, body: PersonRemoval, http: Request) -> PeopleResponse:
+    """DEF-104 (R8b, ADR-0090): the lead removes a member — never themselves (the case keeps one lead; handing the
+    role over is R8c). Written to the case record as every change of the people is (ADR-0090 decision 2)."""
+    from backend.storage import people as people_mod
+    _bind(case_id, None)
+    await _as_lead(case_id, body.actor, http)
+    try:
+        case = await blob.update_people(case_id, lambda ps: people_mod.remove(ps, who))
     except LookupError:
         raise HTTPException(404, f"{who} is not on this case.")
     except ValueError as e:

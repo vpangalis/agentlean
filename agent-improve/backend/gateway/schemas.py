@@ -42,6 +42,12 @@ class PersonChange(BaseModel):
     person: PersonIn
 
 
+class PersonRemoval(BaseModel):
+    """DEF-104 (R8b): the lead (`actor`) removes a member from the case."""
+
+    actor: str
+
+
 class AskRequest(BaseModel):
     """One conversational turn from the team."""
 

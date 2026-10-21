@@ -218,8 +218,10 @@ def _performance(values: dict[str, Any]) -> Read:
     rows = []
     for st in steps:
         d = st.get("duration") or {}
-        rng = (f" ({text(d['min']) if d.get('min') else '?'} to {text(d['max']) if d.get('max') else '?'})"
-               if d.get("min") or d.get("max") else "")
+        # DEF-172 (G-179): one end of the range reads in words — never "(? to 20 days)".
+        rng = (f" ({text(d['min'])} to {text(d['max'])})" if d.get("min") and d.get("max") else
+               f", at most {text(d['max'])}" if d.get("max") else
+               f", at least {text(d['min'])}" if d.get("min") else "")
         seen = "; ".join(f"{p['note']} ({p['said_by']})" if p.get("said_by") else str(p.get("note") or "")
                          for p in st.get("problems") or [] if isinstance(p, dict)) or "—"
         rows.append([f"{'⚠ ' if st.get('problems') else ''}{st['id']} · {st['name']}",

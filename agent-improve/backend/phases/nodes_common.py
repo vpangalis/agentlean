@@ -124,6 +124,7 @@ from backend.middleware.skills import (
 from backend.phases import moves
 from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases.gate_registry import GATE_SPECS, captured_count, review_rows, split_by_declared_type
+from backend.validation import kept as kept_verdicts
 from backend.validation.rubric import grade_define
 from backend.phases.mappers_common import PHASE_ORDER
 
@@ -499,6 +500,15 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
                             _checked_criterion(phase, field, SufficiencyJudgment.model_validate(verdict)))
 
 
+def _judgment_version(phase: str) -> str:
+    """DEF-224: what a kept planner verdict was judged against — the phase script (its hash, as logged per turn)
+    and the judgment's prompt. Either changing re-judges every answer."""
+    from backend.core.prompts import PLANNER_CALCULATION_INPUTS
+    from backend.middleware.skills import script_record
+    return kept_verdicts.fingerprint(script_record(phase)["sha256"], PLANNER_JUDGMENT_PROMPT,
+                                     PLANNER_JUDGMENT_READING_BACK, PLANNER_CALCULATION_INPUTS)
+
+
 def _number_required(phase: str, field: str, previous: str, latest: str,
                      j: SufficiencyJudgment) -> SufficiencyJudgment:
     """ADR-0071 (DEF-076): a baseline or a target with no number is never sufficient — whatever
@@ -585,9 +595,25 @@ async def _plan_turn(phase: str, state: PhaseState,
     only when the field is answered and the reply is not a plain yes.
     """
     messages = list(state.get("messages") or [])
+    prior_status = dict(state.get("field_status") or {})
+    judged: dict[str, dict[str, Any]] = {}
 
     async def judge(field: str, previous: str, latest: str, reading_back: str) -> SufficiencyJudgment:
-        return await _judge(phase, state, field, previous, latest, reading_back)
+        # DEF-224 (G-225, founder ruling 2026-10-21): what code decides runs first — it reads other elements'
+        # values, not only this answer; then a verdict kept for the same answer is reused with no model call.
+        if _judged_in_code(phase, state, field, previous, latest) is not None:
+            return await _judge(phase, state, field, previous, latest, reading_back)    # decided there, in code
+        fp = kept_verdicts.fingerprint(_judgment_version(phase), field, reading_back,
+                                       kept_verdicts.answer(previous, latest))
+        held = (prior_status.get(field) or {}).get("judged") or {}
+        if held.get("fp") == fp and held.get("verdict"):
+            logger.info("%s.planner: `%s` answered as before — its kept verdict reused, no model call (DEF-224)",
+                        phase, field)
+            return SufficiencyJudgment.model_validate(held["verdict"])
+        j = await _judge(phase, state, field, previous, latest, reading_back)
+        if not (j.reason or "").startswith("decided in code (G-235)"):     # an empty reply is not a verdict
+            judged[field] = {"fp": fp, "verdict": j.model_dump()}
+        return j
 
     # R4 — a Confirm or Change click arrives on the request, not in the text;
     # the route puts it on `config` beside the entry mode.
@@ -598,11 +624,17 @@ async def _plan_turn(phase: str, state: PhaseState,
                            moves.belt_message(messages), judge, action=action, element=element,
                            # ADR-0085 (G-169) — a file that covers the element is read back on its upload turn.
                            upload=_unread_upload(state))
+    # DEF-224: the kept verdicts ride in each element's entry, which `decide` rebuilds — carried forward, and
+    # this turn's model verdict kept beside the element it judged.
+    field_status = kept_verdicts.carry(prior_status, dict(d["field_status"] or {}))
+    for field, verdict in judged.items():
+        if field in field_status:
+            field_status[field]["judged"] = verdict
     return CoachingPlan(
         focus_field=d["field"], status=d["status"], move=d["move"],
         judgment=d["judgment"], answer=d["answer"], messages=d["messages"],
         pending=d["pending"], store=d["store"], stored_field=d["stored_field"], confirmed=d["confirmed"],
-        statuses=d["statuses"], field_status=d["field_status"], reason=d["reason"],
+        statuses=d["statuses"], field_status=field_status, reason=d["reason"],
         retrieval_strategy=_retrieval_strategy(phase),
     )
 
@@ -2169,19 +2201,35 @@ CHANGE_QUESTION = "What would you like to change?"
 
 
 def goal_read_back(plan: Optional[CoachingPlan]) -> Optional[dict[str, Any]]:
-    """ADR-0086 (A8): the read-back of the target a store turn ends with, when the confirmed goal states
-    it (`moves.from_goal`, decided in the planner) — its pending record, or None."""
+    """The read-back a store turn ends with for the NEXT position — its pending record, or None:
+    ADR-0086 (A8), the target the confirmed goal states (`moves.from_goal`); DEF-098 (R15), a value an earlier
+    answer gave for it (`moves.from_offer`). Both decided in the planner."""
     if plan is None or plan.move != moves.STORE_AND_ADVANCE or not plan.focus_field:
         return None
     pending = ((plan.field_status or {}).get(plan.focus_field) or {}).get("pending") or {}
-    return pending if pending.get("from_goal") else None
+    return pending if pending.get("from_goal") or pending.get("from_offer") else None
+
+
+def _offer_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
+    """DEF-098 (R15): after a Confirm, the next element read back IN CODE from what an earlier answer gave for
+    it — the element, the value as it was given, and the one question. No model call; nothing is stored until
+    the Belt confirms (ADR-0002)."""
+    pending = goal_read_back(plan)
+    if pending is None or not pending.get("from_offer"):
+        return None
+    from backend.core import prompts as P
+    field = str(pending.get("field") or "")
+    value = (pending.get("proposed") or {}).get(field)
+    shown = str(pending.get("belt_words") or "") or _words(value)
+    head = P.OFFER_HEAD.format(element=guard_messages.element_name(phase, field))
+    return CoachingResponse(message=head + chr(10) + f"“{shown}”" + chr(10) * 2 + P.OFFER_ASK, prompt=P.OFFER_ASK)
 
 
 def _goal_target_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
     """ADR-0086 (A8): after the goal's Confirm, the target it states read back IN CODE for one Confirm —
     the value and the date, or the one the goal gives (the other is taught next). No model call."""
     pending = goal_read_back(plan)
-    if pending is None or phase != "define":
+    if pending is None or phase != "define" or not pending.get("from_goal"):
         return None
     from backend.core import prompts as P
     from backend.phases.define import parse
@@ -2700,7 +2748,7 @@ async def executor(
     # A Change click is answered in code and the coach is not called
     # (`_change_reply`); every other move is the model's to write.
     written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
-                                                    or _goal_target_reply(phase, plan))
+                                                    or _goal_target_reply(phase, plan) or _offer_reply(phase, plan))
     try:
         # No time limit here (T70): the node's limit is the engine's `TimeoutPolicy`, and its
         # handler composes the answer when it fires.
@@ -3091,6 +3139,21 @@ async def executor(
     # element keeps its status from before the turn, no read-back is offered, and the reply written in
     # code is the Belt's whole answer.
     refused = filtered or level_4 is not None
+    # DEF-098 (R15, G-196; ADR-0002): a value the coach captured for ANOTHER element, one not confirmed, is kept
+    # as an offer in that element's own entry — nothing is stored; when the element comes up it is read back
+    # (`moves.from_offer`). The element in focus and the fields of this turn's read-back are this turn's own.
+    if not refused and plan is not None:
+        own = {plan.focus_field, *((pending or {}).get("fields") or [])}
+        elements = {f for f, _ in moves.positions(phase)}
+        for f, value in captured.items():
+            if f in own or f not in elements or f in prior_artifacts or value in (None, "", [], {}):
+                continue
+            entry = dict(field_status.get(f) or {})
+            if entry.get("status") in (moves.CONFIRMED, moves.ANSWERED):
+                continue
+            field_status[f] = {**entry, "offered": {"value": value}}
+            logger.info("%s.executor: `%s` offered from this answer — read back when it comes up (DEF-098)",
+                        phase, f)
     resend = bool(not refused and fell_back and move == moves.READ_BACK and pending is not None and plan
                   and plan.focus_field and short)
     if refused and plan is not None and plan.focus_field:
@@ -3606,8 +3669,18 @@ async def validation_stack(
     # (cheapest first, §9.2). One verdict per element, pass/fail with the
     # reason; a failure never reaches `gate_review`'s pause — the report goes
     # back to coaching with the failed criteria named. Shares the cap of 3.
+    kept_status: Optional[dict[str, dict[str, Any]]] = None
     if passed and phase == "define":
-        verdict = await grade_define(dict(state.get("artifacts") or {}))
+        # DEF-224 (G-225): the verdicts kept per element from earlier submissions; an unchanged answer keeps its
+        # verdict with no model call, and this submission's model verdicts are kept beside the elements they judged.
+        from backend.validation.rubric import kept_verdicts as gate_kept
+        status_now = {f: dict(v) for f, v in (state.get("field_status") or {}).items()}
+        held = {cid: v for entry in status_now.values() for cid, v in (entry.get("gate") or {}).items()}
+        artifacts = dict(state.get("artifacts") or {})
+        verdict = await grade_define(artifacts, kept=held)
+        for cid, v in gate_kept(artifacts, verdict).items():
+            status_now.setdefault(v["field"], {}).setdefault("gate", {})[cid] = v
+        kept_status = status_now
         failed = [{"criterion": v.criterion, "feedback": v.feedback} for v in verdict.failed]
         if failed:
             attempts = int(state.get("gate_attempts") or 0) + 1
@@ -3652,6 +3725,7 @@ async def validation_stack(
                 status="validated_v1", layer="2b",
                 passed=passed, missing=len(missing), attempts=attempts,
             )],
+            **({"field_status": kept_status} if kept_status is not None else {}),     # DEF-224
         },
     )
 

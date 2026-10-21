@@ -167,7 +167,7 @@ and only it carries the baseline and the target.
 > **What it is:** The project team: who leads, who sponsors, who owns the process, and who does the work — each with a name, a role and what they will do.
 > **Why it matters:** A project needs people before it needs work. The champion clears obstacles and the process owner keeps the result after the project ends; without them a good fix fades.
 > **Show (illustration — not your data):** *"Leader: Anna (Green Belt, runs the project). Champion: Mark, Finance Director (approves, removes blockers). Process owner: Jo, Billing Manager (owns the process). Members: two billing clerks (know the work). Training: the clerks need a half-day on data collection before Measure."*
-> **Ask:** Who leads the project? Who is the champion who can approve and clear obstacles? Who owns the process? Who else is on the team — and does anyone need training to take part fully?
+> **Ask:** Who leads the project? Who is the champion who can approve and clear obstacles? Who owns the process? Who else is on the team — and does anyone need training to take part fully? If you already have the team in a list, you can upload it as a file instead.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `champion` — names a champion (sponsor) by name (p. 82)
 > - `process-owner` — names the process owner by name (p. 82)
