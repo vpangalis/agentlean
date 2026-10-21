@@ -5580,7 +5580,8 @@
    "effort": "L",
    "priority_override": {
     "rank_tier": 1,
-    "reason": "founder 2026-10-21: find problems at the source; the eval set checks the remaining packages as they are built"
+    "reason": "founder 2026-10-21: find problems at the source; the eval set checks the remaining packages as they are built",
+    "sequence": 2
    },
    "phase": "define",
    "stage": "coached",
@@ -8993,6 +8994,40 @@
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
+  },
+  {
+   "id": "DEF-253",
+   "description": "A live slice tests one changed element live: a run-through's recorded answers replayed up to it (earlier elements seeded as confirmed, no model call), only its turns run live, with calls, cost and checks recorded",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_a_live_slice_replays_up_to_the_element_and_runs_only_it",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder ruling 2026-10-21 evening, item 4; docs/LESSONS.md 2026-10-20"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T103",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-21 evening: the P0b live slice ranks first (order: P0b slice, P29 harness and candidates, P5, DEF-238, P11, P14 and on by rank)",
+    "sequence": 1
+   },
    "phase": "build",
    "stage": "build",
    "layer": "tooling",

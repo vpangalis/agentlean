@@ -281,3 +281,11 @@ def test_the_status_block_is_built_from_the_staged_tree(tmp_path, monkeypatch) -
         args, 0, stdout=str(ROOT) if "rev-parse" in args else "", stderr=""))
     cont.main(["--staged"])
     assert built and built[0] == str(tmp_path), f"the block was built from {built}, not the staged tree"
+
+
+def test_a_live_slice_replays_up_to_the_element_and_runs_only_it() -> None:
+    """DEF-253 — T103 (founder ruling 2026-10-21, the lesson of 2026-10-20): a live slice tests one changed element
+    live — the recorded answers of a run-through replayed up to that element (its earlier elements seeded as
+    confirmed, no model call) and only that element's turns run live, with their calls, cost and checks recorded."""
+    from backend.tests.test_define_e2e import _not_written
+    _not_written("DEF-253")

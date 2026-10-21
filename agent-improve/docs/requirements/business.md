@@ -419,7 +419,7 @@ The user is identified by the customer's single sign-on — Microsoft Entra ID f
 Agent Improve stores no passwords. A case is visible only to its team; roles project lead, team
 member, Champion. The project lead adds team members by their company identity (e-mail).
 
-**R8a Access without single sign-on** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-01 · MoSCoW: Must · Design: none
+**R8a Access without single sign-on** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-01 · MoSCoW: Must · Design: ADR-0105
 Where single sign-on is not available, only the people the project lead registered on the team can
 open the case (W17). Entering a registered name is allowed in development and demos only; before any
 customer data is used, each team member enters through a personal invite (a link or one-time code

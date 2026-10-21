@@ -134,7 +134,7 @@ Generated from each file's status line; never typed.
 | [0088](0088-element-values-parsed-and-checked-in-code.md) | Element values are parsed and checked in code by one parser per kind — lists, durations, dates — and an element's required parts are checked before its read-back and its Confirm | ACCEPTED | refines 0071, 0086 |
 | [0089](0089-case-location-country-and-site.md) | A case carries its location — country and site — chosen from lists the customer ships as configuration | PROPOSED | — |
 | [0090](0090-the-people-on-a-case.md) | One person record for everyone on a case, kept in the case record and written on every team change; Define's team element refers to it | ACCEPTED | — |
-| [0091](0091-basic-access-check-by-registered-e-mail.md) | A basic access check — sign-in by a registered e-mail, a per-case session the server checks on every request, approval by the session's person | ACCEPTED | — |
+| [0091](0091-basic-access-check-by-registered-e-mail.md) | A basic access check — sign-in by a registered e-mail, a per-case session the server checks on every request, approval by the session's person | ACCEPTED | refined by 0105 |
 | [0092](0092-unique-case-numbers-and-a-safe-case-list.md) | A case number is reserved by a create-only-if-absent write and retried on conflict; the case list is updated by a conditional write | ACCEPTED | — |
 | [0093](0093-element-templates-and-the-gate-view.md) | Element templates and the Gate view — each element read back and shown in the Gate as its criteria, one row each, with the value and its source; drawn in code | ACCEPTED | — |
 | [0094](0094-a-partial-file-is-read-back-as-a-draft.md) | An upload that covers an element only partly is read back as a draft with its gaps; a message pointing at the file is never judged as a typed answer; an upload starts its own turn | ACCEPTED | — |
@@ -146,4 +146,7 @@ Generated from each file's status line; never typed.
 | [0100](0100-how-analyse-and-improve-use-practice.md) | How Analyse and Improve use practice | ACCEPTED | — |
 | [0101](0101-a-turns-storage-does-not-block-it.md) | The coach's inner agent is not checkpointed, and the Blob checkpointer writes without blocking the turn | ACCEPTED | refines 0080 |
 | [0103](0103-a-failed-approval-is-approved-again.md) | The approval node writes both records, has no error handler and no retry policy; a failed approval is approved again | ACCEPTED | — |
+| [0104](0104-the-upload-interpretation-binds-structured-output.md) | The upload interpretation binds structured output — pattern 2 gains exactly one path exclusion | ACCEPTED | — |
+| [0105](0105-one-time-codes.md) | A personal one-time code opens a case; the thread comes from the session | ACCEPTED | refines 0091 |
+| [0106](0106-read-upload-is-the-ninth-universal-tool.md) | read_upload(blob_path) is the ninth universal tool | ACCEPTED | — |
 <!-- END ADR INDEX -->
