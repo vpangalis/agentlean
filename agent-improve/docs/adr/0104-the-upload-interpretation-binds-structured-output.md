@@ -28,3 +28,7 @@ is not listed. The facts were drafted for Desktop on 2026-10-21
 - Keep parsing JSON: violates §4.3 and silently loses the interpretation.
 - `create_agent` for a non-agent call: §4.6 scopes `response_format=` to agents.
 - Moving the code into an excluded package to suit the guard.
+
+## Notes
+
+Note (founder, 2026-10-21): correction (Desktop's error) — the image read keeps its five fields as its typed schema, not one field: extracted_text, document_type, process_steps, sipoc_columns, metrics_found. A one-field schema would drop the SIPOC and the process steps the code reads from an image (found by DEF-238's assumption check).

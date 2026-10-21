@@ -19,3 +19,7 @@ asks for this review before a ninth universal tool.
 3. It returns the file's text, labelled evidence or artefact, capped in length.
 4. It is built like `load_evidence_series`: the text is re-read from the case's own blob, nothing is stored.
 5. It is offered on upload and teaching turns only (ADR-0069's turn types).
+
+## Notes
+
+Note (founder, 2026-10-21): the 16-tool ceiling counts the tools ONE model call offers, per turn type (ADR-0069) — "never offer more than 16 tools in one model call" replaces "never exceed 16 tools on a phase executor" in .claude/rules/tools.md. Reason: the limit protects tool choice, which depends on what one call offers; with read_upload Measure registers 17 (eight universal ratified, nine with this one, plus eight computation tools), and no turn type offers more than six.

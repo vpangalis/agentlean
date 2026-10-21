@@ -207,34 +207,28 @@ def test_per_phase_totals_are_9_16_13_9_13() -> None:
     assert {p: bound(p) for p in COMPUTATION_TOOLS_BY_PHASE} == EXPECTED_TOTALS
 
 
-def test_no_phase_exceeds_the_sixteen_tool_ceiling() -> None:
-    """§30 — and Measure now sits ON the ceiling at 16, not under it.
+def test_no_model_call_offers_more_than_sixteen_tools() -> None:
+    """The ceiling counts what ONE model call offers, per turn type (ADR-0069) — founder ruling
+    2026-10-21, ADR-0106's note: the limit protects tool choice, which depends on what one call
+    offers. It replaced "never exceed 16 tools on a phase executor"; a phase may register more.
 
-    **This test argued against its own outcome before the ruling was taken.**
-    It used to assert the headroom too, on the reasoning that *"a binding that
-    sat exactly on 16 would pass a ceiling check while leaving no room for the
-    amendment process to be the thing that adds the seventeenth tool."* On
-    2026-09-09 `load_evidence_series` made the universal set eight and took
-    Measure from 15 to 16 (Part AR1), so **that is now the state, and the
-    warning it carried is now a fact rather than a hypothetical.**
-
-    The assertion is kept and inverted rather than deleted: it pins that
-    Measure is exactly on the ceiling, so **a ninth universal tool fails this
-    test on the day it is added** rather than passing quietly and being
-    discovered at bind time. ⚠ Revisit the ceiling before adding one, not
-    after — and see `test_the_three_tool_counts_that_must_not_drift`, where
-    G-33's collision is now one PAST the cap rather than at it.
+    Every phase's ratified registration (universal + its computation tools + `load_skill`) is run
+    through `turn_tools.offered` for every turn type, and the turn type's own name set is held to
+    the ceiling too, so a tool added to a turn set fails here whatever the phase registers.
     """
-    for phase in COMPUTATION_TOOLS_BY_PHASE:
-        assert bound(phase) <= PHASE_TOOL_CEILING, (
-            f"{phase} binds {bound(phase)} tools, over §30's ceiling of "
-            f"{PHASE_TOOL_CEILING} — that needs an amendment, not a commit"
-        )
-    assert max(bound(p) for p in COMPUTATION_TOOLS_BY_PHASE) == 16, (
-        "Measure sits ON §30's ceiling since 2026-09-09. If this fails at 17 "
-        "a ninth universal tool was added without settling the ceiling first"
-    )
-    assert "measure" == max(COMPUTATION_TOOLS_BY_PHASE, key=bound)
+    from backend.middleware.turn_tools import TOOLS_BY_TURN, offered
+
+    universal = [t.name for t in UNIVERSAL_TOOLS] + ["check_gate_status", "request_human_approval"]
+    for phase, comp in COMPUTATION_TOOLS_BY_PHASE.items():
+        registered = [{"name": n} for n in [*universal, *(t.name for t in comp), "load_skill"]]
+        for turn in TOOLS_BY_TURN:
+            n = len(offered(turn, registered))
+            assert n <= PHASE_TOOL_CEILING, (
+                f"a {turn} turn in {phase} offers {n} tools, over the ceiling of "
+                f"{PHASE_TOOL_CEILING} for one model call"
+            )
+    for turn, names in TOOLS_BY_TURN.items():
+        assert len(names) <= PHASE_TOOL_CEILING, f"the {turn} turn set names {len(names)} tools"
 
 
 def test_the_universal_eight_is_eight_and_six_are_built() -> None:

@@ -1,9 +1,9 @@
 {
- "source_hash": "75d72f5dfd364eec",
- "commit": "cc38609",
+ "source_hash": "a863c97427246229",
+ "commit": "e06495f",
  "commit_matches_source": false,
  "full_run_hash": "5c7233766bf278e3",
- "recorded_at": "2026-10-21T14:22:26+00:00",
+ "recorded_at": "2026-10-21T16:15:27+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -324,6 +324,7 @@
   "backend/tests/test_computation.py::test_linear_regression_with_an_intercept": "passed",
   "backend/tests/test_computation.py::test_measure_binds_no_chart_limit_tool": "passed",
   "backend/tests/test_computation.py::test_no_mode_argument_grouping": "passed",
+  "backend/tests/test_computation.py::test_no_model_call_offers_more_than_sixteen_tools": "passed",
   "backend/tests/test_computation.py::test_no_phase_exceeds_the_sixteen_tool_ceiling": "passed",
   "backend/tests/test_computation.py::test_no_tool_raises_on_unparseable_input": "passed",
   "backend/tests/test_computation.py::test_p_chart_clips_the_lower_limit_at_zero": "passed",

@@ -57,10 +57,9 @@ owned by `COMPUTATION_TOOLS_BY_PHASE` in `knowledge/computation.py`; each
 executor gets `UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]`. Read the
 sets and totals there.
 
-**No phase exceeds 16 tools.** Measure is at the ceiling with no margin; a
-new tool that would push a phase past 16 is an amendment to
-`../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), not a routine addition —
-revisit the ceiling before a ninth universal tool, not after.
+**No model call offers more than 16 tools**, counted per turn type (ADR-0069; founder
+ruling 2026-10-21, ADR-0106's note): the limit protects tool choice, which depends on what
+one call offers. A phase may register more — Measure registers 17 with `read_upload`.
 
 **`imr_chart_limits` is the right chart whenever the Belt has one
 measurement per period.** Never coach a Belt into inventing subgroups to fit
@@ -104,7 +103,7 @@ multiple organisations, this tool must filter by tenant.
 *§14's bans that belong to this file — 6 of 95, each landing in exactly one rule file. Verbatim, with their citations.*
 
 - Never add deepagents as a dependency while it is pre-1.0
-- Never exceed 16 tools on a phase executor
+- Never offer more than 16 tools in one model call (counted per turn type, ADR-0069)
 - Never parameterise the computation tools into mode-argument groups
 - Never delete or bind the four cross-agent tools (`search_resolve_*`,
   `search_flow_vsm`) — present, unbound, and binding one is an amendment

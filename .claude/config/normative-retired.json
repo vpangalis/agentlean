@@ -420,6 +420,12 @@
    "from": ".claude/rules/planning.md",
    "class": "obsolete",
    "reason": "founder ruling 2026-10-21 (speed, item 1): packages chain in rank order, and the day's packages share its one run-through and land together — .claude/rules/planning.md, 'Packages are fixed in the feature list'"
+  },
+  {
+   "sentence": "Never exceed 16 tools on a phase executor",
+   "from": ".claude/rules/tools.md",
+   "class": "equivalent",
+   "reason": "founder ruling 2026-10-21 (ADR-0106's note): restated per model call — .claude/rules/tools.md, 'Never offer more than 16 tools in one model call (counted per turn type, ADR-0069)'; the limit protects tool choice, which depends on what one call offers"
   }
  ]
 }

@@ -63,7 +63,7 @@ Generated from each file's status line; never typed.
 | [0017](0017-checkpointer-on-the-parent-only.md) | The checkpointer and the store attach to the parent graph only | PROPOSED | — |
 | [0018](0018-azure-blob-checkpointer.md) | A custom Azure Blob checkpointer with conditional writes | PROPOSED | — |
 | [0019](0019-store-for-cross-phase-artifacts.md) | The Store carries artifacts across phases | PROPOSED | — |
-| [0020](0020-step-log-audit-trail.md) | `step_log` is the audit trail, with deterministic keys | PROPOSED | — |
+| [0020](0020-step-log-audit-trail.md) | `step_log` is the audit trail, with deterministic keys | PROPOSED | refined by 0107 |
 | [0021](0021-one-compiled-graph.md) | One compiled graph is the only runtime path | PROPOSED | — |
 | [0022](0022-five-node-phase-cycle.md) | A phase subgraph is a cycle of five nodes | PROPOSED | — |
 | [0023](0023-routing-static-or-command.md) | A node routes by static edges or by `Command`, never both | SUPERSEDED by 0063 | — |
@@ -109,7 +109,7 @@ Generated from each file's status line; never typed.
 | [0063](0063-one-runtime-graph-with-phase-entry.md) | One compiled runtime graph that enters at the current phase | ACCEPTED | refined by 0066, 0087 |
 | [0064](0064-process-performance-data.md) | The as-is process carries its performance, and the problem points at its steps | ACCEPTED | — |
 | [0065](0065-state-schema-versioning.md) | Checkpoints carry a state schema version; every state change ships a migration | ACCEPTED | — |
-| [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063 |
+| [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063; refined by 0108 |
 | [0067](0067-input-guard-scope-and-modes.md) | What the input guard screens for, how it answers, and how it runs without Content Safety | ACCEPTED | refines 0057 |
 | [0068](0068-no-lookups-on-answer-turns.md) | The coach looks up the method on teaching turns only | ACCEPTED | refines 0059; refined by 0069 |
 | [0069](0069-answer-turns-bind-no-tools.md) | Answer turns bind no tools; upload turns count as teaching turns | ACCEPTED | refines 0068; refined by 0070 |
@@ -149,4 +149,6 @@ Generated from each file's status line; never typed.
 | [0104](0104-the-upload-interpretation-binds-structured-output.md) | The upload interpretation binds structured output — pattern 2 gains exactly one path exclusion | ACCEPTED | — |
 | [0105](0105-one-time-codes.md) | A personal one-time code opens a case; the thread comes from the session | ACCEPTED | refines 0091 |
 | [0106](0106-read-upload-is-the-ninth-universal-tool.md) | read_upload(blob_path) is the ninth universal tool | ACCEPTED | — |
+| [0107](0107-step-log-upserts-on-its-key.md) | step_log upserts on its key — a replayed step leaves one entry | ACCEPTED | refines 0020 |
+| [0108](0108-kept-verdicts-have-their-own-channel.md) | The kept verdicts have their own PhaseState channel, not a copy in every reply's phase record | ACCEPTED | refines 0066 |
 <!-- END ADR INDEX -->

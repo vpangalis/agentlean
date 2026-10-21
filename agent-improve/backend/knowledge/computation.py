@@ -1319,11 +1319,9 @@ def post_improvement_cpk(
 #: universal tool breaks §30 for Measure on the day it is added.
 UNIVERSAL_TOOL_COUNT = 8
 
-#: §30 — the ceiling the per-phase binding exists to respect. Tool-selection
-#: quality degrades past roughly 10–15 tools per agent, which is the whole
-#: reason tool sets are per phase rather than universal. **A new tool that
-#: would push a phase past this requires an amendment, not a routine
-#: addition.**
+#: §30 — the most tools ONE model call may offer, counted per turn type (ADR-0069;
+#: founder ruling 2026-10-21, ADR-0106's note). Tool-selection quality degrades
+#: past roughly 10–15 tools offered at once; a phase may register more.
 PHASE_TOOL_CEILING = 16
 
 #: §30's binding table, restated as the partition itself (§60.6's inventory
