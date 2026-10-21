@@ -1,0 +1,80 @@
+{
+ "kind": "live_slice",
+ "element": "issues_and_barriers",
+ "case_id": "IMPR-2026-7TBF32",
+ "from_record": "define_runthrough_20261021T105808.json",
+ "recorded_product_hash": "57de38000fa8a19a",
+ "product_hash": "f19a089b6ea87e42",
+ "seeded": [
+  "baseline_estimate",
+  "benefits_analysis",
+  "business_case",
+  "computation_results",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "process_map_sipoc",
+  "project_scope",
+  "secondary_metrics",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 30,
+   "belt": "Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "issues_and_barriers",
+   "recorded_move": "read_back"
+  },
+  {
+   "n": 31,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": null,
+   "recorded_move": "store_and_advance"
+  }
+ ],
+ "checks": {
+  "the element's recorded turns were found": true,
+  "a turn stored the element and moved on": true,
+  "the element is in the case record": true
+ },
+ "passed": true,
+ "model_calls": 5,
+ "cost": {
+  "usd": 0.0374,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0366,
+   "gpt-4o-mini-2024-07-18": 0.0008
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 18.94,
+  "calls": 65,
+  "case": {
+   "seconds": 0.4,
+   "calls": 6
+  },
+  "store": {
+   "seconds": 0.3,
+   "calls": 6
+  },
+  "checkpoint": {
+   "seconds": 18.24,
+   "calls": 53
+  }
+ },
+ "started": "20261021T140329"
+}

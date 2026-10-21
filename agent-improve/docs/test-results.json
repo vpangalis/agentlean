@@ -1,9 +1,9 @@
 {
- "source_hash": "e1a0c9499dc1c44b",
- "commit": "57e3376",
+ "source_hash": "6c0f480cc2a141a7",
+ "commit": "2057089",
  "commit_matches_source": false,
  "full_run_hash": "5c7233766bf278e3",
- "recorded_at": "2026-10-21T13:55:31+00:00",
+ "recorded_at": "2026-10-21T14:08:38+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1727,7 +1727,7 @@
   "backend/tests/test_timing.py::test_the_timing_log_appends_and_sums_only_its_window": "passed",
   "backend/tests/test_tooling_p0.py::test_a_docs_only_commit_does_not_rebuild_the_board": "passed",
   "backend/tests/test_tooling_p0.py::test_a_hook_whose_dependency_is_missing_refuses_with_the_reason": "passed",
-  "backend/tests/test_tooling_p0.py::test_a_live_slice_replays_up_to_the_element_and_runs_only_it": "skipped",
+  "backend/tests/test_tooling_p0.py::test_a_live_slice_replays_up_to_the_element_and_runs_only_it": "passed",
   "backend/tests/test_tooling_p0.py::test_a_passing_full_run_is_reused_when_the_source_is_unchanged": "passed",
   "backend/tests/test_tooling_p0.py::test_search_index_schemas_have_a_registered_owner": "passed",
   "backend/tests/test_tooling_p0.py::test_t67s_child_process_writes_utf8_whatever_the_shell": "passed",

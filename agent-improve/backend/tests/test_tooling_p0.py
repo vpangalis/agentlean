@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -287,5 +288,44 @@ def test_a_live_slice_replays_up_to_the_element_and_runs_only_it() -> None:
     """DEF-253 — T103 (founder ruling 2026-10-21, the lesson of 2026-10-20): a live slice tests one changed element
     live — the recorded answers of a run-through replayed up to that element (its earlier elements seeded as
     confirmed, no model call) and only that element's turns run live, with their calls, cost and checks recorded."""
-    from backend.tests.test_define_e2e import _not_written
-    _not_written("DEF-253")
+    import sys
+    sys.path.insert(0, str(PROJECT))
+    from scripts import live_slice
+    record: list[dict[str, Any]] = [
+        {"kind": "turn", "n": 1, "belt": "Hi", "action": None, "move": "teach", "field": "business_case"},
+        {"kind": "turn", "n": 2, "belt": "The case words", "action": None, "move": "read_back", "field": "business_case"},
+        {"kind": "turn", "n": 3, "belt": "Confirm", "action": "confirm", "move": "store_and_advance", "field": "team"},
+        {"kind": "turn", "n": 4, "belt": "The team words", "action": None, "move": "challenge", "field": "team"},
+        {"kind": "turn", "n": 5, "belt": "The team, again", "action": None, "move": "read_back", "field": "team"},
+        {"kind": "turn", "n": 6, "belt": "Confirm", "action": "confirm", "move": "store_and_advance", "field": "voc_summary"},
+        {"kind": "turn", "n": 7, "belt": "The customers", "action": None, "move": "read_back", "field": "voc_summary"},
+        {"kind": "final_case", "define_structured": {"business_case": "B", "team": [{"name": "Priya"}],
+                                                     "voc_summary": "V", "critical_to_quality": ["c"]}},
+        {"kind": "summary", "product_hash": "p0"}]
+    plan = live_slice.plan_slice(record, "team")
+    # replayed (seeded, no model call): every element before `team`, confirmed, with its own helper keys only
+    assert plan["structured"] == {"business_case": "B"}, plan["structured"]
+    assert plan["field_status"] == {"business_case": {"status": "confirmed"}, "team": {"status": "asked"}}
+    # live: only team's turns — those sent while team was in focus, through its Confirm
+    assert [(x["belt"], x["action"]) for x in plan["turns"]] == [
+        ("The team words", None), ("The team, again", None), ("Confirm", "confirm")], plan["turns"]
+    later = live_slice.plan_slice(record, "voc_summary")
+    assert "critical_to_quality" not in later["structured"], "a helper key of the element itself was seeded"
+
+    sent: list = []
+
+    class Client:
+        def post(self, url, json):
+            sent.append((url, json.get("message"), json.get("action")))
+            move = "store_and_advance" if json.get("action") == "confirm" else "read_back"
+
+            class R:
+                status_code = 200
+
+                @staticmethod
+                def json():
+                    return {"move": move, "move_field": "voc_summary" if move == "store_and_advance" else "team"}
+            return R()
+    out = live_slice.replay(Client(), "IMPR-X", plan)
+    assert [s[1] for s in sent] == ["The team words", "The team, again", "Confirm"], sent
+    assert out["passed"] and out["turns"][-1]["move"] == "store_and_advance", out
