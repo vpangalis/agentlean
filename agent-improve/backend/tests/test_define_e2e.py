@@ -2263,8 +2263,42 @@ def test_the_ui_loads_nothing_from_outside_the_product() -> None:
 
 
 def test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3() -> None:
-    """DEF-142 — T86 (ADR-0061, PROPOSED): lands only when ADR-0061 is ACCEPTED (rule 19)."""
-    _not_written("DEF-142")
+    """DEF-142 — T86 (ADR-0061, ACCEPTED 2026-09-28): an offline eval set of 20–50 Define tasks from real failures in
+    evals/define/, graded by code, then the rubric model, with a human sample, reporting pass^3
+    (scripts/define_evals.py). Here: the code grader and the rubric stage on given outcomes; pass^k; the human
+    sample; every task loads and cites a registered defect. The dataset is final only when the founder has marked
+    every task keep, change or drop (testing rule §12.1: authored jointly, not generated) — until then this fails."""
+    import json
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(root))
+    from scripts import define_evals as ev
+
+    task = {"id": "T", "status": "keep", "source": "G-1", "element": "team", "why": "w",
+            "messages": [{"text": "a"}, {"text": "a"}],
+            "expect": {"move": "read_back", "stored": False, "moves_equal": True, "reply_not_contains": ["68,040"],
+                       "card_row": {"id": "training", "contains": "none"}, "card_confirm": True, "rubric_pass": True}}
+    good = {"replies": [{"move": "read_back"}, {"move": "read_back", "answer": "Your team.",
+                                                "readback_card": {"confirm": True, "rows": [
+                                                    {"id": "training", "value": "none needed"}]}}],
+            "stored": False, "rubric": ["passed", "passed"]}
+    assert ev.grade(task, good) == {"passed": True, "failed": []}
+    bad = {**good, "replies": [{"move": "challenge"}, {"move": "read_back", "answer": "That is £68,040 a year.",
+                                                       "readback_card": {"confirm": False, "rows": []}}],
+           "stored": True, "rubric": ["failed"]}
+    failed = ev.grade(task, bad)["failed"]
+    assert len(failed) == 6 and any("moves differ" in f for f in failed) and any("rubric" in f for f in failed), failed
+    assert ev.pass_k([{"passed": True}] * 3) and not ev.pass_k([{"passed": True}, {"passed": False}, {"passed": True}])
+    assert ev.human_sample({"A": True, "B": False, "C": True}, every=2) == ["A", "B"]
+
+    tasks = ev.load()
+    defects = {d["id"] for d in json.loads((root / "docs" / "defects.json").read_text(encoding="utf-8"))["defects"]}
+    assert 20 <= len(tasks) <= 50 and len({t["id"] for t in tasks}) == len(tasks), len(tasks)
+    assert all(t["source"] in defects for t in tasks), [t["source"] for t in tasks if t["source"] not in defects]
+    unmarked = [t["id"] for t in tasks if t["status"] not in ev.MARKS]
+    assert not unmarked, f"the founder has not marked these tasks keep / change / drop yet: {unmarked}"
+    assert 20 <= sum(t["status"] == "keep" for t in tasks) <= 50
 
 
 def test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence() -> None:
