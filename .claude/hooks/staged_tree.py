@@ -216,17 +216,22 @@ def run_fast(root: Path = ROOT) -> tuple[int, str]:
     tests = [t for t in tests if (wt / PROJECT / t).is_file()]
     if not tests:
         return 0, "fast (0 test files in the staged tree): nothing to run" + chr(10)
-    base = [venv_python(root), "-m", "pytest", *tests, "-q", "--no-header", "-p", "no:cacheprovider",
-            "-m", "not wallclock", "-n", "auto" if len(tests) > 12 else "0",
-            *(["--dist", "worksteal"] if len(tests) > 12 else [])]
-    r = run(base, wt, root, AGENT_IMPROVE_FAST_RUN="1")
+    # DEF-251 (founder ruling 2026-10-21): the full run's two passes, whatever the number of files — one
+    # process for a few files was slower than the whole suite (a 4-file fast run 241 s, the suite's parallel
+    # pass 167 s). Everything but `serial` in parallel, then the `serial` tests alone; the recorder carries
+    # forward what a pass did not run (AGENT_IMPROVE_FAST_RUN=1), so the two merge into one record.
+    base = [venv_python(root), "-m", "pytest", *tests, "-q", "--no-header", "-p", "no:cacheprovider"]
+    par = run([*base, "-n", "auto", "--dist", "worksteal", "-m", "not serial and not wallclock"], wt, root,
+              AGENT_IMPROVE_FAST_RUN="1")
+    ser = run([*base, "-n", "0", "-m", "serial and not wallclock"], wt, root, AGENT_IMPROVE_FAST_RUN="1")
     record = wt / PROJECT / "docs" / "test-results.json"
     if record.is_file():
         shutil.copyfile(record, root / PROJECT / "docs" / "test-results.json")
-    text = (r.stdout or "") + (r.stderr or "")
-    last = result_line(text)
-    code = 0 if r.returncode in (0, 5) else r.returncode
-    return code, text + chr(10) + f"fast ({len(tests)} test files): {last}" + chr(10)
+    text = (par.stdout or "") + (par.stderr or "") + (ser.stdout or "") + (ser.stderr or "")
+    codes = [c for c in (par.returncode, ser.returncode) if c not in (0, 5)]
+    last = result_line((par.stdout or "") + (par.stderr or ""))
+    serial = result_line((ser.stdout or "") + (ser.stderr or ""))
+    return (codes[0] if codes else 0), text + chr(10) + f"fast ({len(tests)} test files): {last} | serial: {serial}" + chr(10)
 
 
 if __name__ == "__main__":

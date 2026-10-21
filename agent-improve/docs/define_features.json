@@ -8916,6 +8916,36 @@
    "stage": "build",
    "layer": "tooling",
    "package": "P0b"
+  },
+  {
+   "id": "DEF-251",
+   "description": "A commit's fast run runs its tests in parallel and the serial ones alone, whatever the number of files (one process for 12 files or fewer was slower than the suite)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_tooling_p0.py::test_the_fast_run_runs_its_tests_in_parallel_and_the_serial_ones_alone",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder ruling 2026-10-21, item 4 (the fast run)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T99",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "build",
+   "stage": "build",
+   "layer": "tooling",
+   "package": "P0b"
   }
  ]
 }

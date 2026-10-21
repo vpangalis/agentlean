@@ -226,3 +226,36 @@ def test_a_docs_only_commit_does_not_rebuild_the_board() -> None:
     block = hook[hook.index('t_log adr-index "$T0"'):hook.index('t_log control-board "$T0"')]
     guard = next(line for line in block.splitlines() if '"$CONTROL"' in line and line.lstrip().startswith("if"))
     assert '"$RAN"' in guard and "board_waiting" in guard, guard
+
+
+def test_the_fast_run_runs_its_tests_in_parallel_and_the_serial_ones_alone(tmp_path, monkeypatch) -> None:
+    """DEF-251 (founder ruling 2026-10-21, item 4): a commit's fast run is not one process for a few files — on
+    2026-10-20/21 a 4-file fast run took 241 s while the whole suite's parallel pass took 167 s. Whatever the number
+    of files, it runs the full run's two passes over them: everything but `serial` in parallel (worksteal), then
+    the `serial` tests alone."""
+    import subprocess
+    staged_tree = _hook_module("staged_tree.py", "staged_tree_fast")
+    files = ["backend/tests/test_a.py", "backend/tests/test_b.py", "backend/tests/test_c.py"]
+    for f in files:
+        (tmp_path / "agent-improve" / f).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / "agent-improve" / f).write_text("", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, wt, root=None, timeout=900, **extra):
+        calls.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, stdout="3 passed in 1.00s\n", stderr="")
+    monkeypatch.setattr(staged_tree, "fast_tests", lambda root=None: files)
+    monkeypatch.setattr(staged_tree, "sync", lambda *a, **k: tmp_path)
+    monkeypatch.setattr(staged_tree, "run", fake_run)
+    monkeypatch.setattr(staged_tree, "venv_python", lambda root=None: "python")
+    code, out = staged_tree.run_fast(tmp_path)
+    assert code == 0, out
+    assert len(calls) == 2, calls
+    par, ser = calls
+
+    def opt(cmd: list[str], flag: str) -> str:
+        return cmd[len(cmd) - 1 - cmd[::-1].index(flag) + 1]          # the last one: "-m pytest" comes first
+    assert opt(par, "-n") == "auto" and opt(par, "--dist") == "worksteal", par
+    assert opt(par, "-m") == "not serial and not wallclock", par
+    assert opt(ser, "-n") == "0" and opt(ser, "-m") == "serial and not wallclock", ser
+    assert all(f in par and f in ser for f in files), calls
