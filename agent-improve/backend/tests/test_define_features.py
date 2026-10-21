@@ -34,7 +34,7 @@ FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane"
           "phase", "stage", "layer"}
 #: Carried by M2 features only: the founder's pilot cut (2026-09-30), true | false (rank.py --check).
 #: `package` and `merged_into`: founder ruling 2026-10-20 (fixed packages; merged duplicates).
-OPTIONAL = {"pilot", "run_criteria", "package", "merged_into"}
+OPTIONAL = {"pilot", "run_criteria", "package", "merged_into", "track"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -401,7 +401,8 @@ def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:
     for f in real:
         if f["id"] in out:
             assert (f.get("phase", "define") != "define" or f.get("merged_into")
-                    or (reqs.get(f["requirement"]) or {}).get("moscow") == "Won't-now"), f["id"]
+                    or (reqs.get(f["requirement"]) or {}).get("moscow") == "Won't-now"
+                    or f.get("track") == "platform"), f["id"]          # founder ruling 2026-10-21
     # Founder ruling 2026-10-20: Won't-now is out of the count too (DEF-140 cites T68, Won't-now).
     assert not F.counted({**fs[0], "requirement": "T68"}, {"T68": {"moscow": "Won't-now"}})
     assert F.counted(fs[0], {"R1": {"moscow": "Must"}})
@@ -442,3 +443,25 @@ def test_a_run_criterion_is_a_live_run_check_and_holds_back_its_feature(feats, m
     refused, _ = F.ratchet_refusal(["DEF-X"], [feature], {"outcomes": passed}, defects=set())
     assert refused and "DEF-X" in refused[0]
     assert F.ratchet_refusal(["DEF-X"], [feature], {"outcomes": passed}, defects={"DEF-X"})[1] == ["DEF-X"]
+
+
+def test_a_platform_track_feature_is_neither_counted_nor_ranked() -> None:
+    """Founder ruling 2026-10-21, item 6: P25, P27, P28 (DEF-173 excepted), P30, P31, P32 and P34 move to the platform
+    track — required before the first customer, not before Measure. A feature with `track: "platform"` does not count
+    toward Define (R12 amended: "every Define feature passes, platform-track features excepted") and is not ranked
+    while Define runs; P29 and DEF-173 stay on the Define track."""
+    import rank
+    fs = [{**_rf(i, "R1"), "clause": "c", "sources": {}, "provenance": {"capability_rows": []}} for i in ("A1", "A2")]
+    fs[1]["track"] = "platform"
+    assert [f["id"] for f in fs if F.counted(f, {"R1": {"moscow": "Must"}})] == ["A1"]
+    assert [r["id"] for r in rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must"))] == ["A1"]
+    assert any("track 'x'" in p for p in rank.problems([{**fs[0], "track": "x", "belt_impact": "none",
+                                                          "rework_risk": "low", "effort": "S", "phase": "define",
+                                                          "stage": "coached", "layer": "api"}]))
+    real = F.load()
+    moved = {"P25", "P27", "P28", "P30", "P31", "P32", "P34"}
+    for f in real:
+        if f.get("package") in moved and f["id"] != "DEF-173":
+            assert f.get("track") == "platform", f["id"]
+        elif f.get("package") == "P29" or f["id"] == "DEF-173":
+            assert f.get("track", "define") == "define", f["id"]

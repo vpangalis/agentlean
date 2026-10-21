@@ -42,6 +42,9 @@ MILESTONES = {"M1": 1, "M2": 2, "M3": 3}
 PHASES = ("define", "measure", "analyse", "improve", "control", "build")
 #: Not ranked while Define runs (founder ruling 2026-10-20).
 LATER_PHASES = ("measure", "analyse", "improve", "control")
+#: Founder ruling 2026-10-21: the platform track — required before the first customer, not before Measure; not
+#: counted toward Define and not ranked while Define runs.
+TRACKS = ("define", "platform")
 STAGES = ("open_case", "coached", "report", "approve", "record_written", "next_phase", "build")
 LAYERS = ("screen", "api", "coaching", "gate", "persistence", "platform", "tooling")
 
@@ -60,6 +63,8 @@ def problems(features: list[dict]) -> list[str]:
         for key, allowed in (("phase", PHASES), ("stage", STAGES), ("layer", LAYERS)):
             if f.get(key) not in allowed:
                 out.append(f"{fid}: {key} {f.get(key)!r} is not one of {list(allowed)}")
+        if f.get("track", "define") not in TRACKS:
+            out.append(f"{fid}: track {f.get('track')!r} is not one of {TRACKS}")
         # The pilot cut (board redesign, 2026-09-30): absent until the founder rules it, then a bool.
         if "pilot" in f and not isinstance(f["pilot"], bool):
             out.append(f"{fid}: pilot {f['pilot']!r} is not true or false")
@@ -125,7 +130,8 @@ def rank(features: list[dict] | None = None, res: dict | None = None,
     # later DMAIC phase is not ranked while Define runs (founder ruling 2026-10-20: Measure starts only when Define
     # is done) — `build` (the tooling) is ranked like Define.
     failing = {i for i, s in st.items() if s == "failing" and not by_id[i].get("merged_into")
-               and by_id[i].get("phase", "define") not in LATER_PHASES}
+               and by_id[i].get("phase", "define") not in LATER_PHASES
+               and by_id[i].get("track", "define") != "platform"}         # founder ruling 2026-10-21
     dependents = _dependents(features, failing)
     hold = held(features, reqs)
 

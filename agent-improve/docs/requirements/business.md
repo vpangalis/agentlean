@@ -48,7 +48,6 @@ no release split. DRAFT and TO WRITE are out of scope until ratified.
 | # | Question | Proposal |
 |---|---|---|
 | 1 | W4 prerequisites: is the proposed set right? | Benefits analysis after business case; objective and scope after problem statement; secondary metrics after primary metric; process performance (R17) after the SIPOC steps; all else free |
-| 2 | R8c: may the project lead hand the lead role to another team member? | Yes — the current lead hands over; the handover is recorded (R16) |
 | 3 | R10 document formats | Word, PDF and images (images only once the vision read has a test); no Visio |
 | 5 | M1 open questions | Excel and CSV (the parsers exist); size and first KPIs decided with the Measure review |
 
@@ -230,8 +229,10 @@ benefits estimate (Control verifies realised savings against it).
 
 **g Done when**
 
-**R12 Define is done** · ACCEPTED 2026-09-27, amended 2026-09-30 and 2026-10-20 · MoSCoW: Must · Design: none
-Define is done when every Define feature in docs/define_features.json passes, Won't-now excepted, and
+**R12 Define is done** · ACCEPTED 2026-09-27, amended 2026-09-30, 2026-10-20 and 2026-10-21 · MoSCoW: Must · Design: none
+Define is done when every Define feature in docs/define_features.json passes, Won't-now and platform-track
+features excepted (the platform track — `track: "platform"` — is required before the first customer, not before
+Measure; founder ruling 2026-10-21), and
 one live run-through on a fresh case reaches an approved Define report within 40 turns, no turn over
 45 s, at most USD 1.50. Measure starts only then. (Founder ruling 2026-10-20; replaces the run-only
 finish line.)
@@ -441,9 +442,10 @@ A new person named in Define element 2 is stored as a proposed member; element 2
 lead confirms proposed members in the team panel, and a proposed member cannot sign in until confirmed with an
 e-mail. With single sign-on, name, e-mail, function and department come from the identity provider.
 
-**R8c Handing over the lead** · ACCEPTED 2026-09-27 · open decision 2 · MoSCoW: Should · Design: none
-The project lead can hand the role to another team member; the handover is recorded in the audit
-trail (R16).
+**R8c Handing over the lead** · ACCEPTED 2026-09-27, open decision 2 answered 2026-10-21 · MoSCoW: Should · Design: none
+The project lead can hand the role to another registered member of the team; the handover is recorded in the
+Store's cross-phase audit — who, to whom, when, why — and the case record's lead is updated (founder ruling
+2026-10-21).
 
 ---
 

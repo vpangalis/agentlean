@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Headline** | 115 of 221 Define features pass, 31 more proven on earlier code (core 112 of 212) — A 42/89 · B 37/41 · C 29/64 · integrator 7/27 · M1: 49 proven · 23 awaiting fresh run · 4 open |
+| **Headline** | 115 of 210 Define features pass, 31 more proven on earlier code (core 112 of 201) — A 42/85 · B 37/41 · C 29/63 · integrator 7/21 · M1: 49 proven · 23 awaiting fresh run · 5 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
-| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
+| **Next — lane integrator** | DEF-142 — T86: an offline eval set of 20–50 Define tasks from real failures lives in evals/define/, is graded by code, then the rubric model, with a h |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |

@@ -188,6 +188,8 @@ def counted(feature: dict, reqs: dict[str, dict] | None = None) -> bool:
     passes, Won't-now excepted. `reqs` is `requirements()`, read here when not given."""
     if feature.get("phase", "define") != "define" or feature.get("merged_into"):
         return False
+    if feature.get("track", "define") == "platform":       # founder ruling 2026-10-21: R12 excepts the platform track
+        return False
     reqs = requirements() if reqs is None else reqs
     return (reqs.get(feature.get("requirement", "")) or {}).get("moscow") != "Won't-now"
 

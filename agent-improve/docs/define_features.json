@@ -656,7 +656,8 @@
    "stage": "coached",
    "layer": "coaching",
    "pilot": false,
-   "package": "P34"
+   "package": "P34",
+   "track": "platform"
   },
   {
    "id": "DEF-016",
@@ -4128,7 +4129,8 @@
    "stage": "open_case",
    "layer": "platform",
    "pilot": false,
-   "package": "P32"
+   "package": "P32",
+   "track": "platform"
   },
   {
    "id": "DEF-097",
@@ -4317,7 +4319,8 @@
    "stage": "open_case",
    "layer": "api",
    "pilot": false,
-   "package": "P25"
+   "package": "P25",
+   "track": "platform"
   },
   {
    "id": "DEF-103",
@@ -4738,7 +4741,8 @@
    "stage": "open_case",
    "layer": "screen",
    "pilot": false,
-   "package": "P25"
+   "package": "P25",
+   "track": "platform"
   },
   {
    "id": "DEF-115",
@@ -4949,7 +4953,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "package": "P28"
+   "package": "P28",
+   "track": "platform"
   },
   {
    "id": "DEF-122",
@@ -5041,7 +5046,8 @@
    "stage": "coached",
    "layer": "platform",
    "pilot": false,
-   "package": "P27"
+   "package": "P27",
+   "track": "platform"
   },
   {
    "id": "DEF-125",
@@ -5069,7 +5075,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "package": "P27"
+   "package": "P27",
+   "track": "platform"
   },
   {
    "id": "DEF-126",
@@ -5097,7 +5104,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "persistence",
-   "package": "P28"
+   "package": "P28",
+   "track": "platform"
   },
   {
    "id": "DEF-127",
@@ -5154,7 +5162,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "package": "P30"
+   "package": "P30",
+   "track": "platform"
   },
   {
    "id": "DEF-129",
@@ -5212,7 +5221,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "package": "P30"
+   "package": "P30",
+   "track": "platform"
   },
   {
    "id": "DEF-131",
@@ -5568,7 +5578,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-10-21: find problems at the source; the eval set checks the remaining packages as they are built"
+   },
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
@@ -5606,7 +5619,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "package": "P31"
+   "package": "P31",
+   "track": "platform"
   },
   {
    "id": "DEF-144",

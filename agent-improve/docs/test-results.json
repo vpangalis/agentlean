@@ -1,9 +1,9 @@
 {
- "source_hash": "0d28003ba0237e24",
- "commit": "529eed0",
+ "source_hash": "1ca9d6325ddc877b",
+ "commit": "5affd86",
  "commit_matches_source": false,
  "full_run_hash": "5c7233766bf278e3",
- "recorded_at": "2026-10-21T11:42:50+00:00",
+ "recorded_at": "2026-10-21T12:19:23+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -615,6 +615,7 @@
   "backend/tests/test_define_e2e.py::test_values_for_other_elements_in_one_answer_are_read_back": "passed",
   "backend/tests/test_define_e2e.py::test_without_sign_on_only_registered_team_members_enter": "skipped",
   "backend/tests/test_define_features.py::test_a_feature_lands_only_when_it_and_its_dependencies_pass": "passed",
+  "backend/tests/test_define_features.py::test_a_platform_track_feature_is_neither_counted_nor_ranked": "passed",
   "backend/tests/test_define_features.py::test_a_regressed_run_through_feature_is_exempt_only_with_a_registered_defect": "passed",
   "backend/tests/test_define_features.py::test_a_run_criterion_is_a_live_run_check_and_holds_back_its_feature": "passed",
   "backend/tests/test_define_features.py::test_a_wallclock_test_is_read_from_the_run_through_stage": "passed",
