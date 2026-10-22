@@ -70,3 +70,7 @@ confirmed. Measure (C6) needs these as numbers, per step, to replace with measur
 - Route test: a problem naming a step without problem notes, and a step with problems the statement ignores,
   each turn the read-back into a challenge naming the step; answered again, the read-back goes ahead.
 - Migration test: a version-7 SIPOC with text steps loads as step entries.
+
+## Notes
+
+Note (founder, 2026-10-22): point 5's matching, for a "from → to" location (DEF-211, finding 61): code finds the start step and the end step, takes every step between, and reads them back in code ("The problem occurs in steps 1–5: is that right?") for one Confirm, with Change as usual; an end step not found makes the coach ask which step it starts or ends at. No ticking and no new screen interaction. The flow's located and flagged marks follow from it.

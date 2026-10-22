@@ -19,18 +19,20 @@ Brief Part F5 (founder, 2026-09-27); the rule is ADR-0058. Process 1 is the
   business.md or platform.md: it reports the finding to Desktop as a proposed change; the
   founder rules; then process 1 runs (guard rule 20 refuses an edit without `Ruling:`).
 
-## Prompt cycle time — effective 2026-09-28 (brief Part F9)
+## Prompt cycle (brief Part F9, 2026-09-28)
+
+- Define's scope is frozen (founder, 2026-10-22): no new feature or requirement. A problem found is a
+  defect fixed in its feature; one needing a new feature is reported on a post-Define list, not
+  built, unless it breaks a Must.
 
 - Packages are fixed in the feature list (`package`); `rank.py` picks the next. They chain
   (founder, 2026-10-21): when a package's area tests pass, the next starts; stop only for a design
   decision, a conflict with an accepted ADR or a failing live run. Packages built on the same day
   share that day's run-through; they land together after it — one push, one report.
-- One commit per feature, or several features in one commit when they share their code
-  change; a commit may name several DEF ids and lands only if all of them and their
-  dependencies pass.
+- One commit per feature, or one for features sharing a code change; it lands only if every
+  DEF it names and their dependencies pass.
 - Questions are asked at the start, together, never mid-run.
-- Before coding a package, list its assumptions (framework behaviour, accepted ADRs, repo rules);
-  each gets a probe test or a cited ADR line first. A failed one stops the package, reported before code.
+- Before coding a package, list its assumptions (framework, accepted ADRs, repo rules), each probed
+  by a test or a cited ADR line; a failed one stops the package, reported before code.
 - The day's one report lists what its live run found, each with its escape class; the count should fall.
 - Area tests while working; the full suite only in the hook. Never rerun a passing suite.
-- Each prompt is logged (`.claude/hooks/prompt_record.py`); the report's timing line reads it.

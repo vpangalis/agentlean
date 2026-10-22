@@ -2650,8 +2650,9 @@ Per-phase binding keeps every coach inside the tractable range.
 
 **20 computation tools total.** 1 + 8 + 5 + 1 + 5 = 20.
 
-**No phase exceeds 16 tools**, and the actual maximum is 15 (Measure). A new
-tool that would push a phase past 16 requires an amendment, not a routine
+**No model call is offered more than 16 tools** (counted per turn type, ADR-0069; founder ruling 2026-10-21,
+ADR-0106's note); a phase may register more — Measure registers 17 with `read_upload`. A new
+tool that would make one call offer more than 16 requires an amendment, not a routine
 addition.
 
 ### Each of the 20 is a separate named tool

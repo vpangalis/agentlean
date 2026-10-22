@@ -1,6 +1,6 @@
 # ADR-0108: The kept verdicts have their own PhaseState channel, not a copy in every reply's phase record
 
-Status: ACCEPTED (founder and Desktop, 2026-10-21 night; drafted by Claude Code from the ruling)
+Status: SUPERSEDED by 0109 (founder and Desktop, 2026-10-22)
 Requirements: R13; DEF-219 (G-220), DEF-224, DEF-098
 Refines: ADR-0066 (unfinished phase work lives in the checkpoint only)
 

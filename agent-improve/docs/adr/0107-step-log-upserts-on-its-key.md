@@ -20,3 +20,7 @@ writes already carries a key (`step_key(phase, turn, node)`). Facts drafted for 
 4. Every entry must carry a key: a test fails on a keyless entry.
 5. The stored shape is unchanged (a list of dicts), so there is no schema bump; a replay test proves an old
    checkpoint replays the same.
+
+## Notes
+
+Note (founder, 2026-10-22): with Desktop, option (a) of the probe (`agent-improve/Claude outputs/FINDINGS_P6_ADR-0107_0108_assumptions.md`) — a rejection run writes planner, validation_stack, gate_review and gate_apply twice under one key; the pass after a rejection is a repeat by design (decision 3) and carries `:r1`, `:r2` … in its key, counted from `len(rejection_feedback)`.

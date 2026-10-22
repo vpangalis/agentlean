@@ -105,7 +105,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T57 | A capability tool refuses until a stability check has passed | §69 | Should | ADR-0035 | none |
 | T58 | Knowledge lookups always include the `general` methodology | §24 | Must | ADR-0030 | none |
 | T59 | An upload's `phase` and `uploaded_at` are set by the server | §65 | Must | none | none |
-| T60 | Evidence series are re-parsed at use and never stored in state | §60 | Must | none | none |
+| T60 | Evidence series are re-parsed at use and their values never stored in state: `load_evidence_series`' stored result carries no values; a computation tool's arguments are kept, as the calculation's audit (ARCHITECTURE.md §4.1, `computation_results.inputs`). Wording amended 2026-10-22 (founder and Desktop) | §60 | Must | none | none |
 | T61 | Each skill description stays under 2,000 tokens | §32 | Should | ADR-0036 | none |
 ### Gates and validation
 

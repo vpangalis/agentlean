@@ -30,3 +30,7 @@ is still being read back, and the confirmed picture and the report picture must 
 
 - The run-through checks that the read-back replies at elements 5, 7, 8 and 12 carry their visual,
   and that the gate document shows the same visuals.
+
+## Notes
+
+Note (founder, 2026-10-22): a drawing may show on teach turns too (DEF-211, G-212): the SIPOC example is a structured file in the skill, drawn by code — the same drawing path as the read-back, not a picture typed by the model.

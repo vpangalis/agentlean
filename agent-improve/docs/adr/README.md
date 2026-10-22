@@ -109,7 +109,7 @@ Generated from each file's status line; never typed.
 | [0063](0063-one-runtime-graph-with-phase-entry.md) | One compiled runtime graph that enters at the current phase | ACCEPTED | refined by 0066, 0087 |
 | [0064](0064-process-performance-data.md) | The as-is process carries its performance, and the problem points at its steps | ACCEPTED | — |
 | [0065](0065-state-schema-versioning.md) | Checkpoints carry a state schema version; every state change ships a migration | ACCEPTED | — |
-| [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063; refined by 0108 |
+| [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063; refined by 0108, 0109 |
 | [0067](0067-input-guard-scope-and-modes.md) | What the input guard screens for, how it answers, and how it runs without Content Safety | ACCEPTED | refines 0057 |
 | [0068](0068-no-lookups-on-answer-turns.md) | The coach looks up the method on teaching turns only | ACCEPTED | refines 0059; refined by 0069 |
 | [0069](0069-answer-turns-bind-no-tools.md) | Answer turns bind no tools; upload turns count as teaching turns | ACCEPTED | refines 0068; refined by 0070 |
@@ -150,5 +150,6 @@ Generated from each file's status line; never typed.
 | [0105](0105-one-time-codes.md) | A personal one-time code opens a case; the thread comes from the session | ACCEPTED | refines 0091 |
 | [0106](0106-read-upload-is-the-ninth-universal-tool.md) | read_upload(blob_path) is the ninth universal tool | ACCEPTED | — |
 | [0107](0107-step-log-upserts-on-its-key.md) | step_log upserts on its key — a replayed step leaves one entry | ACCEPTED | refines 0020 |
-| [0108](0108-kept-verdicts-have-their-own-channel.md) | The kept verdicts have their own PhaseState channel, not a copy in every reply's phase record | ACCEPTED | refines 0066 |
+| [0108](0108-kept-verdicts-have-their-own-channel.md) | The kept verdicts have their own PhaseState channel, not a copy in every reply's phase record | SUPERSEDED by 0109 | refines 0066 |
+| [0109](0109-kept-verdicts-ride-on-the-reply-that-changed-them.md) | The kept verdicts ride only on the reply whose turn changed them | ACCEPTED | refines 0066 |
 <!-- END ADR INDEX -->
