@@ -457,6 +457,23 @@ def ratchet_refusal(required: list[str], features: list[dict], res: dict,
     return refused, exempt
 
 
+#: G-247 (audit wave 1 item 5; founder ruling 2026-10-20, "drop xfail once passed"): the deterministic feature-test
+#: modules. Their tests carry no blanket xfail; conftest.py marks only `measured_tests` xfail at collection, so a
+#: feature test that has passed once fails the run when it regresses. test_define_runthrough.py is not here: it
+#: reads a live run, and a stale record or a registered regression there is exempt by ruling (`ratchet_refusal`).
+STRICT_FEATURE_MODULES: tuple[str, ...] = ("backend/tests/test_define_e2e.py", "backend/tests/test_tooling_p0.py",
+                                           "backend/tests/test_executor.py")
+
+
+def measured_tests(features: list[dict] | None = None, passed: list[str] | None = None) -> set[str]:
+    """G-247: the node ids still MEASURED (non-strict xfail) — the test and every run criterion of each feature
+    that has not passed yet (not in the ratchet). Every other test runs strict."""
+    features = load() if features is None else features
+    done = set(ratchet() if passed is None else passed)
+    return {node_id(t) for f in features if f["id"] not in done and f.get("test")
+            for t in [f["test"], *(f.get("run_criteria") or [])]}
+
+
 def update_ratchet(features: list[dict] | None = None, res: dict | None = None,
                    path: Path = RATCHET) -> list[str]:
     """Add every feature passing now; never remove one. Returns the new ids."""

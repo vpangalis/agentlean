@@ -637,8 +637,10 @@ Leave out any the Belt has not stated; never estimate one. This does not change 
 #: calculation: the coach explains the calculation before any figure exists; code will run it.
 CALCULATION_TEACH = (
     "THIS ELEMENT HAS A CALCULATION — teach it now, before any figure exists. Explain, in plain "
-    "words, how the cost of the gap is worked out: (the baseline rate − the target rate) × how many "
-    "units go through in a year × what one defect costs. Then ask for the two figures it needs: "
+    "words, the two figures it gives, never one for the other (G-246): the cost of the gap is what the problem "
+    "costs today: the baseline rate × how many units go through in a year × what one defect costs; the expected "
+    "saving is (the baseline rate − the target rate) × how many units go through in a year × what one defect "
+    "costs. Then ask for the two figures it needs: "
     "the cost of one defect (with its currency) and the yearly volume. Do not work out a figure "
     "yourself: once the Belt has given both, the calculation is run in code and shown to them."
 )

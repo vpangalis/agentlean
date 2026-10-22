@@ -566,6 +566,11 @@ def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
                 f"in {base_unit} — ask for the target in {base_unit}, naming both units")))
     if baseline and baseline["value"] is not None and baseline["value"] == target["value"]:
         return None
+    side = parse.wrong_side((baseline or {}).get("value"), target, artifacts.get("goal_statement"))
+    if side:
+        # G-245 (audit D2): the element's `direction` criterion, decided in code by the gate's own check.
+        return _checked_criterion(phase, field, SufficiencyJudgment(
+            verdict="insufficient", failed_criterion="direction", reason=f"decided in code (G-245): {side}"))
     logger.info("%s.planner: target judged in code (G-120): %s %s%s, the baseline's unit",
                 phase, target["direction"], target["value"], target["unit"])
     return SufficiencyJudgment(verdict="sufficient", reason=(
@@ -1973,7 +1978,12 @@ def _without_repeated_blocks(text: str, example: str, prompt: str, explanation: 
     `text` comes back unchanged only when even that leaves nothing. G-185: a list item or a paragraph that
     holds the Belt's own words (`belt`) never goes whole — only its repeated question does."""
     ex, ask, why = _block_words(example), _block_words(prompt), _block_words(explanation)
-    own = _plain(belt)
+    own, asked = _plain(belt), _plain(prompt)
+
+    def repeats_ask(s: str) -> bool:
+        # G-247: the question block's own sentence, written as a request ("Tell me …"), is a repeat too.
+        p = _plain(s)
+        return (s.rstrip().endswith("?") and _repeats(s, ask)) or (len(p) > 15 and p in asked)
 
     def belts(lines: list[str]) -> bool:
         return bool(own) and any(len(p) > 15 and p in own
@@ -1993,11 +2003,10 @@ def _without_repeated_blocks(text: str, example: str, prompt: str, explanation: 
         lines = []
         for item in items:
             if _LIST_ITEM.match(item[0]) and not belts(item) and any(
-                    s.rstrip().endswith("?") and _repeats(s, ask) for s in _SENTENCE_END.split(" ".join(item))):
+                    repeats_ask(s) for s in _SENTENCE_END.split(" ".join(item))):
                 continue
             for line in item:
-                sentences = [s for s in _SENTENCE_END.split(line)
-                             if not (s.rstrip().endswith("?") and _repeats(s, ask))]
+                sentences = [s for s in _SENTENCE_END.split(line) if not repeats_ask(s)]
                 if sentences or not line.strip():
                     lines.append(" ".join(sentences))
                 elif lines and lines[-1].rstrip().endswith(":"):
@@ -4070,13 +4079,11 @@ async def gate_apply(
         )
     artifacts = dict(state.get("artifacts") or {})
     if decision["decision"] == APPROVE:
-        final: dict[str, Any] = {}
-        try:
-            final = GATE_SPECS[phase].assemble(
-                artifacts, list(state.get("citations") or []),
-                list(state.get("uploads") or []), []).model_dump()
-        except Exception as exc:                    # noqa: BLE001 — the route re-assembles
-            logger.error("%s.gate_apply: assembly failed after approval: %s", phase, exc)
+        # G-242 (audit A1/W1, founder wave 1 item 1): a gate document that cannot be assembled RAISES — never an
+        # empty `final`, which the approval node would write over the case record's values and advance on.
+        final: dict[str, Any] = GATE_SPECS[phase].assemble(
+            artifacts, list(state.get("citations") or []),
+            list(state.get("uploads") or []), []).model_dump()
         return Command(
             goto=cast(Literal["planner", "__end__"], END),
             update={"final": {**final, "_approved": {k: decision[k] for k in ("actor", "at")}},

@@ -496,3 +496,72 @@ def test_the_screen_offers_approve_and_reject_only_while_paused() -> None:
     incomplete = _actions({"awaiting_decision": False}, {**rep, "complete": False})
     assert "disabled" in incomplete
     assert _actions({"awaiting_decision": True}, rep, passed=True) == "", "a passed gate is read-only"
+
+
+@pytest.mark.degraded_expected
+def test_g242_a_failed_assembly_at_approval_writes_nothing_and_answers_503(env, monkeypatch) -> None:
+    """G-242 (audit 2026-10-22, A1/W1; founder wave 1, item 1): a gate document that cannot be assembled at approval
+    raises — gate_apply never returns an empty `final`, so nothing is written: no Store record, no empty record over
+    the case record's values, the phase does not advance; the route answers 503 with the approval message."""
+    from backend.core import graph as graph_mod
+    from backend.core.store import get_store
+    from backend.phases.gate_registry import GATE_SPECS
+    from backend.phases.mappers_common import read_gate_document
+
+    _submit(env)
+    before = dict(env.case.phases["define"].structured or {})
+
+    def broken(*a, **k):
+        raise ValueError("assembly failed")
+    monkeypatch.setitem(GATE_SPECS, "define", GATE_SPECS["define"]._replace(assemble=broken))
+    r = _decide(env, decision="approve")
+    assert r.status_code == 503 and r.json()["detail"] == graph_mod.APPROVAL_FAILED, r.text
+    assert env.written == [], env.written
+    assert dict(env.case.phases["define"].structured or {}) == before, "the case record's values were overwritten"
+    assert env.case.current_phase == "define" and not env.case.phases["define"].gate_passed
+    assert not read_gate_document(get_store(), CASE_ID, "define")
+
+
+def test_g242_the_case_write_refuses_an_empty_approved_record(monkeypatch) -> None:
+    """G-242 (audit A1, blob.py): an approval never writes an empty record over the case record's values — the case
+    write refuses structured={} before it loads or saves anything."""
+    import asyncio
+
+    from backend.storage import blob
+
+    touched: list = []
+
+    async def load(case_id):
+        touched.append(case_id)
+    monkeypatch.setattr(blob, "load_case", load)
+    with pytest.raises(ValueError, match="empty"):
+        asyncio.run(blob.write_phase_gate(case_id="C1", phase="define", structured={}, submitted_by="Ana", summary=""))
+    assert touched == [], "the case was read for a write that must never happen"
+
+
+def test_g243_only_a_missing_case_reads_as_not_found(monkeypatch) -> None:
+    """G-243 (audit W2; founder wave 1, item 2): load_case answers None only for a case that does not exist; any other
+    read error (the network, a corrupt record) raises — so an approval can never take a failed read for "no case" and
+    write an empty upload list over the case's own."""
+    import asyncio
+
+    from azure.core.exceptions import ResourceNotFoundError, ServiceRequestError
+
+    from backend.storage import blob
+
+    async def missing(path):
+        raise ResourceNotFoundError("missing")
+    monkeypatch.setattr(blob, "_download", missing)
+    assert asyncio.run(blob.load_case("C1")) is None
+
+    async def down(path):
+        raise ServiceRequestError("the storage service is not reachable")
+    monkeypatch.setattr(blob, "_download", down)
+    with pytest.raises(ServiceRequestError):
+        asyncio.run(blob.load_case("C1"))
+
+    async def corrupt(path):
+        return "{not json"
+    monkeypatch.setattr(blob, "_download", corrupt)
+    with pytest.raises(ValueError):
+        asyncio.run(blob.load_case("C1"))

@@ -84,25 +84,27 @@ def _parse_date(value: Any) -> Optional[dt.date]:
 def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[CriterionVerdict]:
     """A verdict when code can settle the criterion (or fail its code half);
     None when the criterion still needs the model's judgment."""
+    # G-244 (audit A2, A3; founder ruling G-129): the parts the element check and the gate both hold are checked by
+    # ONE function, the element check's own (parse.missing_parts) — a confirmed element never fails here in code.
+    from backend.phases.define.parse import missing_parts
     if cid == "DEF-R02":
         team = [e for e in (a.get("team") or []) if isinstance(e, dict)]
-        roles = " ".join(_text(e.get("role")) + " " + _text(e.get("function")) for e in team).lower()
-        missing = [name for name, pat in (("a champion", r"champion|sponsor"),
-                                          ("a process owner", r"process owner|owner of the process"))
-                   if not re.search(pat, roles)]
-        if missing:
-            return _fail(cid, "The team does not name " + "; ".join(missing) + ".")
+        missing = missing_parts("team", team)
+        if not team or missing:
+            return _fail(cid, "The team does not state " + ("; ".join(missing) or "its members") + ".")
         # Training written as "train…" settles it; said in other words ("needs a half-day on data
         # collection"), it is the grader's to judge against the element's criteria (G-133).
         return _pass(cid) if any("train" in _text(e).lower() for e in team) else None
     if cid == "DEF-R03":
         ctqs = [c for c in (a.get("critical_to_quality") or []) if isinstance(c, dict)]
-        if not ctqs or any(not _text(c.get("requirement")) for c in ctqs):
-            return _fail(cid, "State at least one CTQ as a measurable requirement.")
+        missing = missing_parts("critical_to_quality", ctqs)
+        if not ctqs or missing:
+            return _fail(cid, "The CTQs do not state " + ("; ".join(missing) or "any requirement") + ".")
         return None
     if cid == "DEF-R04":
-        blank = _blank_keys(a.get("problem_5w2h"), ("what", "where", "when", "who", "why", "how", "how_much"))
-        return _fail(cid, "The 5W2H leaves unanswered: " + ", ".join(blank) + ".") if blank else None
+        fivew = a.get("problem_5w2h")
+        missing = missing_parts("problem_5w2h", fivew) if isinstance(fivew, dict) else ["the seven 5W2H answers"]
+        return _fail(cid, "The 5W2H leaves unanswered " + "; ".join(missing) + ".") if missing else None
     if cid == "DEF-R05":
         registry = [m for m in (a.get("metric_definitions") or []) if isinstance(m, dict)]
         if not registry:
@@ -123,6 +125,9 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
                               "state the target in the baseline's unit.")
         if target["value"] == baseline["value"]:
             return _fail(cid, "The target equals the baseline — it sets no improvement.")
+        from backend.phases.define.parse import wrong_side
+        if side := wrong_side(baseline["value"], target, a.get("goal_statement")):        # G-245
+            return _fail(cid, f"The target is on the wrong side of the baseline: {side}.")
         return _pass(cid)
     if cid == "DEF-R09":
         date = _parse_date(a.get("target_date"))

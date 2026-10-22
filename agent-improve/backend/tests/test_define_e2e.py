@@ -6,7 +6,8 @@ id exists (founder ruling 2026-09-26, Part C) and the feature honestly reads
 failing. The lane that takes the feature replaces the stub with the real test —
 the route-level fake harness to copy is `test_wiring.py`'s `three_turns` fixture.
 
-Feature tests record the measurement, never block a commit: non-strict xfail.
+A feature not passed yet is measured (non-strict xfail, attached by conftest.py); once its feature is in the
+ratchet its test runs strict, so a regression fails the run (G-247, founder ruling 2026-10-20).
 """
 from __future__ import annotations
 
@@ -14,8 +15,6 @@ import asyncio
 from typing import Any, cast
 
 import pytest
-
-pytestmark = pytest.mark.xfail(strict=False, reason="a Define feature test — its outcome is the measurement")
 
 
 def _not_written(fid: str) -> None:
@@ -3633,9 +3632,14 @@ def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeyp
     from backend.phases import nodes_common
     from backend.tests.test_wiring import _FakeCoach
 
-    example = ("In: UK invoice generation, from order received to invoice sent. Out: payment collection, "
-               "non-UK regions, the pricing database.")
-    question = "Where does your process start and end? What is deliberately out of scope?"
+    from backend.middleware.skills import teaching_blocks
+
+    # Since G-170 the example block is the script's worked example, inserted by code: the coach repeats THAT
+    # (and the script's question) in its message. Audit wave 1 item 5 (G-247): this test asserted the coach's
+    # own example as the block, read xfail from 85b2d24 on, and the mask hid it.
+    script = teaching_blocks("define", "business_case")
+    example = script["example"].split(": ", 1)[-1]
+    question = script["prompt"]
     message = ("A business case says why the project is worth doing for the organisation.\n\n"
                "Here's an illustration to show what a good answer looks like:\n\n"
                f"\"{example}\"\n\nNow, over to you:\n{question}")
@@ -3652,9 +3656,9 @@ def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeyp
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["answer"].startswith("A business case says why"), body["answer"]
-    assert "UK invoice generation" not in body["answer"], body["answer"]
-    assert "deliberately out of scope" not in body["answer"] and "over to you" not in body["answer"], body["answer"]
-    assert "UK invoice generation" in body["example"] and "out of scope" in body["prompt"]
+    assert "returned for correction" not in body["answer"], body["answer"]
+    assert "worth doing?" not in body["answer"] and "over to you" not in body["answer"], body["answer"]
+    assert "returned for correction" in body["example"] and "worth doing?" in body["prompt"]
 
 
 def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch, caplog) -> None:

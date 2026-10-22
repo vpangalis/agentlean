@@ -468,6 +468,32 @@ def is_estimate(text: str) -> bool:
     return bool(_ESTIMATE.search(text or ""))
 
 
+#: G-245: the goal's verb names the side of the baseline the target lies on.
+_GOAL_DOWN = re.compile(r"(?<![a-zäöüß])(reduce|reducing|cut|cutting|lower|lowering|decrease|decreasing|shorten|"
+                        r"halve|drop|bring down|fewer|less)(?![a-zäöüß])", re.I)
+_GOAL_UP = re.compile(r"(?<![a-zäöüß])(increase|increasing|raise|raising|grow|growing|lift|boost|double|more|"
+                      r"at least)(?![a-zäöüß])", re.I)
+
+
+def wrong_side(baseline: Optional[float], target: dict[str, Any], goal: Any = "") -> Optional[str]:
+    """G-245 (audit D2; SKILL.md `direction`): why the target lies on the wrong side of the baseline, or None. The side
+    is the target's own limit ("under" / "at least") or, with none, the goal's verb ("reduce" / "increase"); with
+    neither, or with no number, nothing is refused. The ONE check, for the element and the gate."""
+    value = target.get("value")
+    if baseline is None or value is None:
+        return None
+    limit = target.get("direction")
+    goal_text = str(goal or "")
+    side = ("down" if limit == "<=" else "up" if limit == ">=" else
+            "down" if _GOAL_DOWN.search(goal_text) and not _GOAL_UP.search(goal_text) else
+            "up" if _GOAL_UP.search(goal_text) and not _GOAL_DOWN.search(goal_text) else None)
+    if side == "down" and value >= baseline:
+        return f"the target ({value:g}) is not below the baseline ({baseline:g}), although the goal brings it down"
+    if side == "up" and value <= baseline:
+        return f"the target ({value:g}) is not above the baseline ({baseline:g}), although the goal raises it"
+    return None
+
+
 def metric_value(text: Any, *, target: bool = False, unit: str = "") -> dict[str, Any]:
     """The Belt's words as a MetricValue dict. `unit` is the primary metric's (for a target: the
     baseline's) unit, when known: a baseline takes the first figure written in it (G-132); a

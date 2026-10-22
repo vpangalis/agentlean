@@ -3019,10 +3019,106 @@
     "B"
    ],
    "escape_class": "assumption"
+  },
+  {
+   "id": "G-242",
+   "symptom": "A FAILED GATE-DOCUMENT ASSEMBLY AT APPROVAL WIPES THE DEFINE RECORD AND REPORTS 'APPROVED'. Audit wave 1 (Claude outputs/AUDIT_DEFINE_CODE.md, founder ruling 2026-10-22) item 1, audit finding 1 (A1/W1): gate_apply caught the assembly's exception and an empty record was written as approved over the case record (phases/nodes_common.py gate_apply; storage/blob.py write_phase_gate); the route answered 'approved'. D4 OCCURRENCE: the assembly's failure was answered by a fallback that kept going with an empty document. D4 ESCAPE: the handler answered the failure, so the result looked well-formed; no test broke the assembly at approval. D5 FIX: gate_apply lets the assembly raise (no try/except); blob.write_phase_gate refuses an empty record before any load (ValueError); the decision route answers 503 with APPROVAL_FAILED when the approval's result is degraded; nothing is written. D6 VERIFY: test_gate_acceptance.py 15 passed. D7 PREVENT: test_gate_acceptance.py::test_g242_a_failed_assembly_at_approval_writes_nothing_and_answers_503, ::test_g242_the_case_write_refuses_an_empty_approved_record.",
+   "requirement": [
+    "T23"
+   ],
+   "feature": [
+    "DEF-170"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "error_routine"
+  },
+  {
+   "id": "G-243",
+   "symptom": "LOAD_CASE TURNS EVERY ERROR INTO 'NOT FOUND'; AT APPROVAL THIS ERASES THE UPLOADS. Audit wave 1 (Claude outputs/AUDIT_DEFINE_CODE.md, founder ruling 2026-10-22) item 2, audit finding 2 (W2): storage/blob.py load_case's catch-all returned None for any exception, so a transient read error read as a missing case and the approval wrote the record without the case's uploads. D4 OCCURRENCE: a catch-all except returned the 'not found' value. D4 ESCAPE: the fallback answered the failure; every test's fake storage either had the case or did not. D5 FIX: only ResourceNotFoundError returns None; any other error re-raises. D6 VERIFY: test_gate_acceptance.py 15 passed. D7 PREVENT: test_gate_acceptance.py::test_g243_only_a_missing_case_reads_as_not_found.",
+   "requirement": [
+    "T13"
+   ],
+   "feature": [
+    "DEF-117"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "error_routine"
+  },
+  {
+   "id": "G-244",
+   "symptom": "THE ELEMENT CHECK AND THE GATE DISAGREE ON THE SAME ELEMENT (breaks founder ruling G-129, 'the element check and the gate cannot disagree'). Audit wave 1 (Claude outputs/AUDIT_DEFINE_CODE.md, founder ruling 2026-10-22) item 3, audit finding 3 (A2, A3): validation/rubric.py's code halves of DEF-R02/R03/R04 kept their own patterns (process owner over role + function only) while phases/define/parse.py's element check used its own (_OWNER over every field); 'Jo, owns the process' passed the element check, was confirmed, then failed DEF-R02 in code. D4 OCCURRENCE: one criterion had two owners. D4 ESCAPE: each check was tested alone; the join between them was not. D5 FIX: the gate's code halves call parse.missing_parts, the element check's function: one check. D6 VERIFY: the audit's two examples give the same verdict in both. D7 PREVENT: test_define_rubric.py::test_g244_the_element_check_and_the_gate_share_one_check.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-159"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "join"
+  },
+  {
+   "id": "G-245",
+   "symptom": "A TARGET ON THE WRONG SIDE OF THE BASELINE PASSES THE ELEMENT AND THE GATE. Audit wave 1 (Claude outputs/AUDIT_DEFINE_CODE.md, founder ruling 2026-10-22) item 4, audit finding 4 (D2): SKILL.md says the target lies on the goal's side of the baseline; no code checked it (nodes_common.py _judged_in_code; rubric.py DEF-R08). D4 OCCURRENCE: the direction was a sentence in the skill, never a check. D4 ESCAPE: the skill said it was covered and nothing checked the saying. D5 FIX: parse.wrong_side(baseline, target, goal), the side from the target's limit (<= down, >= up), else from the goal's verb; the element check challenges (failed_criterion 'direction') and DEF-R08 fails in code. D6 VERIFY: test_define_rubric.py passed. D7 PREVENT: test_define_rubric.py::test_g245_the_target_lies_on_the_goals_side_of_the_baseline.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-076"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "claim"
+  },
+  {
+   "id": "G-246",
+   "symptom": "THE BELT IS TAUGHT A WRONG 'COST OF THE GAP'. Audit wave 1 (Claude outputs/AUDIT_DEFINE_CODE.md, founder ruling 2026-10-22) item 6, audit finding 5 (D1): three definitions, in SKILL.md:285 (the worked example), core/prompts.py:640 (CALCULATION_TEACH) and knowledge/computation.py; the texts taught the saving as the cost of the gap. Ruled: the cost of the gap is baseline x volume x unit cost (EUR 15.1k in the example), the expected saving (baseline - target) x volume x unit cost (EUR 11.3k). D4 OCCURRENCE: each text was written alone. D4 ESCAPE: the computation was tested, the texts that teach it were not; the join between them was not. D5 FIX: SKILL.md's worked example and CALCULATION_TEACH state both figures as ruled. D6 VERIFY: the computation gives 15120 and the texts carry 15.1k and 11.3k. D7 PREVENT: test_define_rubric.py::test_g246_the_cost_of_the_gap_and_the_saving_are_two_figures_everywhere.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-225"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "join"
+  },
+  {
+   "id": "G-247",
+   "symptom": "EVERY DEFINE FEATURE TEST WAS NON-STRICT XFAIL, SO A REGRESSION FAILED NO RUN. Audit wave 1 (Claude outputs/AUDIT_DEFINE_CODE.md, founder ruling 2026-10-22) item 5, audit finding 6 (X1, X2): test_define_e2e.py and test_tooling_p0.py (module pytestmark) and test_executor.py's DEF-161 test carried xfail(strict=False) whether or not their feature had passed: 229 tests. It hid G-248 from 85b2d24 (2026-10-13) until now. D4 OCCURRENCE: the marker was module-wide by design (step 6.66) and was never removed once a feature passed (founder ruling 2026-10-20, 'drop xfail once passed'). D4 ESCAPE: a newly failing test read as xfail, not failed. D5 FIX: the blanket markers removed; conftest.py's pytest_collection_modifyitems marks xfail only features.measured_tests() (the test and run criteria of each feature not in the ratchet) within features.STRICT_FEATURE_MODULES; 199 tests now strict, 30 measured. test_define_runthrough.py stays measured: it reads a live run whose stale record or registered regression is exempt by ruling (2026-09-26; ruling 5, 2026-09-28). D6 VERIFY: the three modules 266 passed, 30 xfailed, 0 failed.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "escape_class": "xfail_mask",
+   "control": "backend/tests/conftest.py::pytest_collection_modifyitems with tools/control_board/features.py::measured_tests; test_define_features.py::test_g247_a_feature_test_that_has_passed_carries_no_xfail"
+  },
+  {
+   "id": "G-248",
+   "symptom": "THE REPLY REPEATS THE QUESTION BLOCK WHEN THE SCRIPT'S ASK IS A REQUEST, NOT A QUESTION. Found by G-247 (audit wave 1 item 5): test_define_e2e.py::test_g171_the_message_never_repeats_the_example_or_the_question read xfail from 85b2d24 (G-170, 2026-10-13) on. With G-170 the example block is the script's worked example, so the test's premise moved; re-pinned to it, the message still showed 'Now, over to you: Tell me what is going wrong, where and since when, how big it is today, and roughly what it costs.', the business case's question block, its second sentence a request. D4 OCCURRENCE: _without_repeated_blocks removed only sentences ending in '?' that repeat the ask. D4 ESCAPE: the test that would have caught it was masked by xfail (G-247). D5 FIX: a sentence that is the question block's own words (verbatim, more than 15 characters) is a repeat too, '?' or not; its lead-in line goes with it. D6 VERIFY: the test passes strict. D7 PREVENT: the same test, now strict (G-247).",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-005"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "xfail_mask"
   }
  ],
  "escape_controls": {
   "_about": "R-B change 2 (founder, 2026-10-20): the D7 action that now prevents each escape class recurring. Two defects in one class with no D7 here -> that D7 is owed before the next feature (tools/control_board/defects.py says which).",
-  "error_routine": "R-B change 1, 2026-10-20: in tests T29's degraded-reply handler re-raises the node's failure unless the test is marked degraded_expected (backend/tests/conftest.py::_degraded_reply_raises)"
+  "error_routine": "R-B change 1, 2026-10-20: in tests T29's degraded-reply handler re-raises the node's failure unless the test is marked degraded_expected (backend/tests/conftest.py::_degraded_reply_raises)",
+  "xfail_mask": "G-247, audit wave 1 item 5 (founder ruling 2026-10-20, 'drop xfail once passed'): a feature test is xfail only until its feature enters the ratchet (backend/tests/conftest.py::pytest_collection_modifyitems, tools/control_board/features.py::measured_tests); from then on its regression fails the run"
  }
 }

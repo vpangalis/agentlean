@@ -483,3 +483,28 @@ def test_a_post_define_feature_is_neither_counted_nor_ranked() -> None:
     assert real["DEF-107"].get("track") == "post_define"
     listed = (Path(__file__).resolve().parents[2] / "docs" / "post_define.md").read_text(encoding="utf-8")
     assert "DEF-107" in listed and "Team overview" in listed
+
+
+def test_g247_a_feature_test_that_has_passed_carries_no_xfail() -> None:
+    """G-247 — audit wave 1 item 5 (founder ruling 2026-10-20, "drop xfail once passed"): a Define feature test
+    is measured (non-strict xfail) only until its feature enters the ratchet; from then on a regression fails
+    the run. The run-through module stays measured: its record is a live run, and a stale or registered
+    regression there is exempt by ruling (2026-09-26; ruling 5, 2026-09-28)."""
+    feats: list[dict] = [{"id": "DEF-900", "test": "backend/tests/test_define_e2e.py::test_done"},
+             {"id": "DEF-901", "test": "backend/tests/test_define_e2e.py::test_open",
+              "run_criteria": ["backend/tests/test_define_runthrough.py::test_run_open"]}]
+    measured = F.measured_tests(feats, ["DEF-900"])
+    assert "backend/tests/test_define_e2e.py::test_done" not in measured
+    assert {"backend/tests/test_define_e2e.py::test_open",
+            "backend/tests/test_define_runthrough.py::test_run_open"} <= measured
+    # The deterministic feature modules carry no blanket xfail: the marker is attached per test at collection.
+    for name in F.STRICT_FEATURE_MODULES:
+        assert "pytestmark = pytest.mark.xfail" not in (_PROJECT / name).read_text(encoding="utf-8"), name
+    # On the tree: every ratcheted feature whose test lives in a strict module is collected without xfail.
+    out = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", "-n", "0", "-p", "no:cacheprovider",
+                          *F.STRICT_FEATURE_MODULES, "--co", "-m", "xfail"],
+                         cwd=_PROJECT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    collected_xfail = {l.strip() for l in out.stdout.splitlines() if "::" in l}
+    assert out.returncode == 0 and collected_xfail, out.stdout[-2000:] + out.stderr[-2000:]
+    done = {F.node_id(f["test"]) for f in F.load() if f["id"] in set(F.ratchet())}
+    assert not (collected_xfail & done), sorted(collected_xfail & done)

@@ -271,8 +271,10 @@ async def load_case(case_id: str) -> Optional[CaseDocument]:
     except StateSchemaVersionError:
         raise
     except Exception as e:
+        # G-243 (audit W2): only a missing case is "not found"; any other failure raises — a failed read taken for
+        # "no case" let an approval write an empty upload list over the case's own.
         logger.error("load_case %s failed: %s", case_id, e)
-        return None
+        raise
 
 
 async def save_case(case: CaseDocument) -> None:
@@ -385,6 +387,9 @@ async def write_phase_gate(
     again. The stamp records when the gate LAST became passed, which is what it
     is for.
     """
+    if not structured:
+        # G-242 (audit A1): an approved record with no values is never written over the case record's own.
+        raise ValueError(f"An empty {phase} record cannot be written as approved for {case_id}")
     case = await load_case(case_id)
     if case is None:
         raise ValueError(f"Case {case_id} not found")

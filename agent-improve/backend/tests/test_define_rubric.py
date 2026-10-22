@@ -353,3 +353,86 @@ def test_g241_each_criterion_is_judged_on_the_values_it_reads() -> None:
     r03 = sections["DEF-R03 — the values it reads"]
     assert "voc_summary:" in r03 and "critical_to_quality:" in r03 and "business_case:" not in r03, r03
     assert "on its own section" in GATE_GRADER_PROMPT
+
+
+def test_g244_the_element_check_and_the_gate_share_one_check() -> None:
+    """G-244 (audit A2, A3; founder wave 1, item 3; founder ruling G-129): one check function — parse.missing_parts —
+    for every criterion the element check and the gate both hold, so a confirmed element never fails the gate in code.
+    The audit's two examples: a process owner stated as "owns the process" in a member's function; a CTQ list whose
+    second row has no requirement while the first is measurable."""
+    import datetime as dt
+
+    from backend.phases.define.parse import missing_parts
+    from backend.validation import rubric
+
+    team = [{"name": "Priya Shah", "role": "Project lead", "function": "Green Belt", "training": "none"},
+            {"name": "Tom Okafor", "role": "Champion", "function": "Finance Director", "training": "none"},
+            {"name": "Jo Lane", "role": "Billing manager", "function": "owns the process", "training": "half a day"}]
+    ctqs = [{"customer": "suppliers", "need": "paid on time", "requirement": "95% paid within 30 days"},
+            {"customer": "ward managers", "need": "stock keeps arriving", "requirement": ""}]
+    today = dt.date(2026, 10, 22)
+    for field, cid, value in (("team", "DEF-R02", team), ("critical_to_quality", "DEF-R03", ctqs)):
+        assert missing_parts(field, value) == [], (field, missing_parts(field, value))
+        v = rubric._code_half(cid, {field: value, "voc_summary": "suppliers and ward managers"}, today)
+        assert v is None or v.status == "pass", (cid, v)
+    # And a part the element check misses, the gate misses in the same words.
+    bare = [{"name": "Priya Shah", "role": "Project lead", "function": "Green Belt", "training": "none"}]
+    v = rubric._code_half("DEF-R02", {"team": bare}, today)
+    assert v is not None and v.status == "fail"
+    for part in missing_parts("team", bare):
+        assert part in v.feedback, (part, v.feedback)
+
+
+def test_g245_the_target_lies_on_the_goals_side_of_the_baseline() -> None:
+    """G-245 (audit D2; founder wave 1, item 4; SKILL.md `direction` — "differs from the baseline in the direction the
+    goal states"): a target on the wrong side of the baseline is refused in code, by one check, at the element (the
+    planner's judgment of the target) and at the gate (DEF-R08). The side comes from the target's own limit ("under",
+    "at least") or, failing that, the goal's verb ("reduce", "increase"); with neither, nothing is refused."""
+    import datetime as dt
+
+    from backend.phases import nodes_common
+    from backend.phases.define import parse
+    from backend.validation import rubric
+
+    reduce_goal = "Reduce the invoice error rate from 12% to 3% by 30 June next year."
+    assert parse.wrong_side(12.0, parse.metric_value("15%", target=True), reduce_goal)
+    assert parse.wrong_side(12.0, parse.metric_value("at least 10%", target=True), "")
+    assert parse.wrong_side(80.0, parse.metric_value("70%", target=True), "Increase first-time fix to 90%.")
+    assert not parse.wrong_side(12.0, parse.metric_value("under 3%", target=True), reduce_goal)
+    assert not parse.wrong_side(12.0, parse.metric_value("3%", target=True), reduce_goal)
+    assert not parse.wrong_side(12.0, parse.metric_value("15%", target=True), "")          # no side stated
+
+    a = {"metric_definitions": [{"name": "Invoice error rate", "unit": "%"}], "baseline_estimate": "12%",
+         "goal_statement": reduce_goal, "target_value": "15%"}
+    v = rubric._code_half("DEF-R08", a, dt.date(2026, 10, 22))
+    assert v is not None and v.status == "fail" and "side" in v.feedback, v
+    within = rubric._code_half("DEF-R08", {**a, "target_value": "3%"}, dt.date(2026, 10, 22))
+    assert within is not None and within.status == "pass", within
+
+    state: Any = {"artifacts": {k: v for k, v in a.items() if k != "target_value"}}
+    j = nodes_common._judged_in_code("define", state, "target_value", "", "15%")
+    assert j is not None and j.verdict == "insufficient" and j.failed_criterion == "direction", j
+    ok = nodes_common._judged_in_code("define", state, "target_value", "", "under 3%")
+    assert ok is not None and ok.verdict == "sufficient", ok
+
+
+def test_g246_the_cost_of_the_gap_and_the_saving_are_two_figures_everywhere() -> None:
+    """G-246 (audit D1; founder ruling 2026-10-22, wave 1 item 6; DEF-225): the cost of the gap is what the problem costs
+    today, at the baseline (baseline rate × volume × unit cost); the expected saving is (baseline − target) × volume ×
+    unit cost. The teach text names both with these formulas; the worked example (SKILL.md and its mirror) names both
+    figures, as the calculation itself gives them for its inputs (12% → 3%, 4,200 invoices, €30 each)."""
+    from backend.core.prompts import CALCULATION_TEACH
+    from backend.knowledge.computation import calculate_expected_savings
+    from backend.middleware.skills import SKILLS_ROOT
+
+    teach = " ".join(CALCULATION_TEACH.split())
+    assert "the cost of the gap is what the problem costs today: the baseline rate × how many units" in teach, teach
+    assert "the expected saving is (the baseline rate − the target rate) × how many units" in teach, teach
+    out = calculate_expected_savings.invoke({"baseline_value": "12%", "target_value": "3%",
+                                             "unit_cost": "€30 per invoice", "annual_volume": "4200"})
+    assert out["cost_of_gap"].startswith("15120") and out["annual_savings"].startswith("11340"), out
+    for name in ("SKILL.md", "coaching_script.md"):
+        text = (SKILLS_ROOT / "dmaic-define-phase" / name).read_text(encoding="utf-8")
+        show = next(line for line in text.splitlines() if "Cost of the gap: about" in line)
+        assert "Cost of the gap: about €15.1k a year" in show and "Expected saving: about €11.3k a year" in show, \
+            (name, show)

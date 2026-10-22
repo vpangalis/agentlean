@@ -556,6 +556,27 @@ def pytest_configure(config):
                                        "is answered, not re-raised")
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    """G-247 (audit wave 1 item 5; founder ruling 2026-10-20, "drop xfail once passed"): in the deterministic
+    feature-test modules only a feature that has not passed yet is measured (non-strict xfail); a test whose
+    feature is in the ratchet, and every other test there, runs strict. Before `-m` selects (tryfirst)."""
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[2] / "tools" / "control_board"))
+    try:
+        from features import STRICT_FEATURE_MODULES, measured_tests  # type: ignore[import-not-found]
+    finally:
+        _sys.path.pop(0)
+    measured = measured_tests()
+    mark = pytest.mark.xfail(strict=False, reason="a Define feature not passed yet — its outcome is the measurement")
+    for item in items:
+        nodeid = item.nodeid.replace("\\", "/")
+        if nodeid.startswith(STRICT_FEATURE_MODULES) and (nodeid in measured or nodeid.split("[")[0] in measured):
+            item.add_marker(mark)
+
+
 def pytest_sessionstart(session):
     import time as _time
     _SESSION_START.append(_time.monotonic())

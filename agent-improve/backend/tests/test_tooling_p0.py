@@ -17,8 +17,7 @@ ROOT = Path(__file__).resolve().parents[3]
 PROJECT = ROOT / "agent-improve"
 HOOKS = ROOT / ".claude" / "hooks"
 
-#: A feature test's outcome is the measurement (as in test_define_e2e.py): failing, it reads xfail.
-pytestmark = pytest.mark.xfail(strict=False, reason="a Define feature test — its outcome is the measurement")
+#: A feature not passed yet reads xfail, attached by conftest.py; once passed it runs strict (G-247).
 
 
 def test_the_commit_hook_regenerates_the_generated_documents_before_it_runs_the_tests() -> None:

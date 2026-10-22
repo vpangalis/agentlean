@@ -1895,6 +1895,11 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         logger.error("decide_gate() error: %s — the approval did not go through; nothing changed", e)
         raise HTTPException(503, _graph.APPROVAL_FAILED)
 
+    if request.decision == "approve" and (getattr(_last_ai(result), "additional_kwargs", None) or {}).get("degraded"):
+        # G-242: an approval whose run failed (its gate document could not be assembled) changed nothing — the
+        # approval message, so the lead approves again.
+        from backend.core import graph as _graph
+        raise HTTPException(503, _graph.APPROVAL_FAILED)
     _refuse_degraded(result)                                   # T29 (DEF-122)
     if request.decision == "approve":
         # ADR-0087 decision 2: the approval node wrote both records — the Store's and the case's; the route

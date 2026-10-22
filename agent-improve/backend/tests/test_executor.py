@@ -1279,7 +1279,6 @@ def test_adr_0069_a_confirmed_sipoc_is_drawn_in_code(stub_coach) -> None:
     assert diagram and diagram["draft"] is False and diagram["customers"], reply.additional_kwargs
 
 
-@pytest.mark.xfail(strict=False, reason="a Define feature test — its outcome is the measurement")
 def test_g130_a_code_written_reply_never_shows_a_script_placeholder() -> None:
     """DEF-161 — G-130: the reply written in code (the fallback) takes the script's Ask line; a
     placeholder in it (`{baseline_estimate}`) is filled from the stored values or left out — never
