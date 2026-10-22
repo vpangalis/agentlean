@@ -48,6 +48,14 @@ class PersonRemoval(BaseModel):
     actor: str
 
 
+class LeadHandover(BaseModel):
+    """DEF-105 (R8c): the lead (`actor`) hands the lead role `to` a registered member, saying why."""
+
+    actor: str
+    to: str
+    reason: str = ""
+
+
 class AskRequest(BaseModel):
     """One conversational turn from the team."""
 
@@ -86,6 +94,9 @@ class CitationOut(BaseModel):
     index_name: str
     document_id: str
     relevance_summary: str
+    #: DEF-110 (W13): the file and the PDF page a reply drew on — read in code from the turn's tools.
+    source_file: str = ""
+    page: Optional[int] = None
 
 
 class CapturedField(BaseModel):
@@ -160,9 +171,19 @@ class SignInInfo(BaseModel):
 
 
 class SignInIn(BaseModel):
-    """ADR-0091 decision 2: the company e-mail the lead registered."""
+    """ADR-0091 decision 2: the company e-mail the lead registered; ADR-0105: with the person's one-time code (an
+    e-mail alone signs in only in development and demos)."""
 
     email: str
+    code: str = ""
+
+
+class CodeIssued(BaseModel):
+    """ADR-0105 decision 2: the one-time code, shown once to the lead, and when it expires."""
+
+    full_name: str
+    code: str
+    expires_at: str
 
 
 class SessionOut(BaseModel):

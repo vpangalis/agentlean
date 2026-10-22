@@ -252,6 +252,15 @@ def migrate_v12_to_v13(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+
+def migrate_v13_to_v14(values: Mapping[str, Any]) -> dict[str, Any]:
+    """Two additions of 2026-10-21, one version. (1) DEF-224 / DEF-098: an element's `field_status` entry may keep
+    the planner's verdict (`judged`), the gate rubric's per criterion (`gate`) and a value offered from another
+    answer (`offered`) — landed in 529eed0 without this bump, which T88's practice asks for (noted 2026-10-21).
+    (2) ADR-0105 (DEF-103): a person record carries a one-time code's HMAC, issue time and failed attempts. A no-op:
+    an entry or a person without them reads as having none."""
+    return dict(values)
+
 def case_people_v12(case: Mapping[str, Any]) -> dict[str, Any]:
     """ADR-0090 decision 6: a version-11 case record's typed `leader` becomes the lead's person record and each
     `team` entry ({name, role}) a member's, all without an e-mail — the lead completes them on the next open.
@@ -278,7 +287,7 @@ MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3:
                                     4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7,
                                     7: migrate_v7_to_v8, 8: migrate_v8_to_v9, 9: migrate_v9_to_v10,
                                     10: migrate_v10_to_v11, 11: migrate_v11_to_v12,
-                                    12: migrate_v12_to_v13}
+                                    12: migrate_v12_to_v13, 13: migrate_v13_to_v14}
 
 
 def current() -> int:

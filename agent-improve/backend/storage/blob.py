@@ -601,12 +601,22 @@ async def upload_file(
     return blob_path
 
 
+async def delete_upload(blob_path: str) -> None:
+    """W7 (DEF-109): delete an uploaded file's blob. A blob already gone counts as deleted, so a removal that
+    failed half-way can be tried again."""
+    try:
+        await _container().delete_blob(blob_path)
+    except ResourceNotFoundError:
+        logger.info("delete_upload: %s was already gone", blob_path)
+
+
 __all__ = [
     "REGISTRY_BLOB_PATH",
     "aclose",
     "append_turn",
     "case_path",
     "create_case",
+    "delete_upload",
     "download_bytes",
     "load_case",
     "load_registry",

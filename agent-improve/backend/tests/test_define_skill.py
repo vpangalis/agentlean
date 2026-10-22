@@ -57,7 +57,9 @@ def test_r2_every_element_explains_shows_asks_and_lists_its_criteria() -> None:
     sipoc = " ".join(_sections(blocks["process_map_sipoc"][1])["Show"])
     for question in ("What", "Where", "When", "Who", "Why", "How", "How much"):
         assert f"| {question} |" in fivew, question
-    assert "| Suppliers | Inputs | Process | Outputs | Customers |" in sipoc
+    # DEF-211 (founder note under ADR-0070, 2026-10-22): the SIPOC's example is the skill's structured file, drawn
+    # by code — the script shows the model no table.
+    assert "| Suppliers |" not in sipoc and "drawn below" in sipoc, sipoc
     assert "each process step starts with a verb" in sipoc, "how each part is formulated"
     # And every worked example is refused as the Belt's own data (§22).
     assert len(worked_examples("define")) >= len(DEFINE_FIELD_ORDER)

@@ -32,8 +32,8 @@ from backend.gateway.schemas import (
 )
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
 from backend.gateway import access
-from backend.gateway.schemas import (PeopleResponse, PersonChange, PersonOut, PersonRemoval, SessionOut, SignInIn,
-                                     SignInInfo)
+from backend.gateway.schemas import (CodeIssued, LeadHandover, PeopleResponse, PersonChange, PersonOut, PersonRemoval,
+                                     SessionOut, SignInIn, SignInInfo)
 from backend.gateway.schemas import GateDecisionRequest, GateDecisionResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
@@ -950,6 +950,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
                 index_name=c.get("index_name", ""),
                 document_id=c.get("document_id", ""),
                 relevance_summary=c.get("relevance_summary", ""),
+                source_file=str(c.get("source_file") or ""),
+                page=c.get("page") if isinstance(c.get("page"), int) else None,
             )
             for c in (extra.get("citations") or [])
         ],
@@ -1050,10 +1052,45 @@ async def sign_in(case_id: str, body: SignInIn, response: Response) -> SessionOu
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
-    who = access.sign_in(case, body.email, response)
+    who, outcome = access.sign_in(case, body.email, response, body.code)
     head = access.lead_name(case)
+    if outcome in ("ok", "wrong", "expired") and body.code.strip():
+        # ADR-0105 decisions 5 and 6: the code spent at the first sign-in, a wrong try counted (5 void it), an expired
+        # code voided — written to the case record as every team change is (ADR-0090 decision 2).
+        from backend.storage import people as people_mod
+        await blob.update_people(case_id, lambda ps: people_mod.code_used(ps, who.email, outcome,
+                                                                          access.CODE_ATTEMPTS))
+    if outcome not in ("ok", ""):
+        raise HTTPException(403, (access.CODE_NEEDED if outcome == "none" else access.CODE_REFUSED).format(lead=head))
     return SessionOut(case_id=case.case_id, full_name=who.full_name, email=who.email, role=who.role,
                       is_lead=who.full_name == head)
+
+
+@router.post("/cases/{case_id}/people/{who}/code", response_model=CodeIssued)
+async def issue_code(case_id: str, who: str, body: PersonRemoval, http: Request) -> CodeIssued:
+    """ADR-0105 decisions 1-4 (DEF-103): the lead issues a one-time code for one confirmed member — shown once, here;
+    only its HMAC-SHA256 is stored, in the person entry; a re-issue voids the earlier code; recorded in the access
+    trail."""
+    import datetime as _dt
+
+    from backend.storage import people as people_mod
+    _bind(case_id, None)
+    case = await _as_lead(case_id, body.actor, http)
+    person = people_mod.find(case.people, who)
+    if person is None:
+        raise HTTPException(404, f"{who} is not on this case.")
+    code = access.new_code()
+    now = _dt.datetime.now(_dt.timezone.utc)
+    try:
+        await blob.update_people(case_id, lambda ps: people_mod.set_code(
+            ps, who, access.code_digest(case_id, person.email, code), now.isoformat(timespec="seconds")))
+    except LookupError:
+        raise HTTPException(404, f"{who} is not on this case.")
+    except ValueError as e:
+        raise HTTPException(422, f"{e}.")
+    access._trail(case_id, "code_issued", person.email, "people", f"by {body.actor}")
+    return CodeIssued(full_name=person.full_name, code=code,
+                      expires_at=(now + _dt.timedelta(hours=access.CODE_HOURS)).isoformat(timespec="seconds"))
 
 
 @router.get("/cases/{case_id}/people", response_model=PeopleResponse)
@@ -1118,6 +1155,35 @@ async def remove_person(case_id: str, who: str, body: PersonRemoval, http: Reque
     except ValueError as e:
         raise HTTPException(422, f"{e}.")
     assert case is not None
+    return _people_out(case)
+
+
+@router.post("/cases/{case_id}/lead", response_model=PeopleResponse)
+async def hand_over_lead(case_id: str, body: LeadHandover, http: Request) -> PeopleResponse:
+    """DEF-105 (R8c, founder ruling 2026-10-21): the lead hands the role to another registered member. The case
+    record's lead is updated (the people list, written as every team change is — ADR-0090 decision 2), and the
+    handover is recorded in the Store's cross-phase audit (`step_log`): who, to whom, when, why."""
+    import secrets
+    import time
+    from backend.core.store import get_store
+    from backend.storage import people as people_mod
+    _bind(case_id, None)
+    before = await _as_lead(case_id, body.actor, http)
+    head = people_mod.lead(before.people)
+    try:
+        case = await blob.update_people(case_id, lambda ps: people_mod.hand_over(ps, body.to))
+    except LookupError:
+        raise HTTPException(404, f"{body.to} is not on this case.")
+    except ValueError as e:
+        raise HTTPException(422, f"{e}.")
+    assert case is not None
+    new = people_mod.lead(case.people)
+    get_store().put(("projects", case_id, "step_log"), f"lead:{int(time.time() * 1000)}:{secrets.token_hex(3)}",
+                    {"layer": "people", "event": "lead_handover", "from": head.full_name if head else body.actor,
+                     "to": new.full_name if new else body.to, "why": body.reason.strip(),
+                     "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+    logger.info("lead handed over on %s: %s -> %s", case_id, head.full_name if head else body.actor,
+                new.full_name if new else body.to)
     return _people_out(case)
 
 
@@ -1571,16 +1637,15 @@ async def upload_file(
 
 
 @router.delete("/files/{case_id}/{file_id}")
-async def delete_case_file(case_id: str, file_id: str, http: Request):
-    """Remove a file record from the case.
+async def delete_case_file(case_id: str, file_id: str, http: Request, by: str = ""):
+    """W7 (DEF-109): remove an uploaded file — its blob, its `improve_evidence_index` document (by the id the
+    upload kept; an artefact has none) and its record on the case — and keep in the case's audit trail (the
+    Store's `step_log`) its name, digest, the date and who removed it: the signed-in person, else `by`, the
+    name the page sends (as an upload's `uploaded_by`).
 
-    The upload record is removed from the case; **the blob itself is left
-    orphaned.** `storage/blob.py` owns `uploads/{case_id}/{file}` and exposes
-    no delete, so nothing here can remove it. This was already the behaviour:
-    the previous code probed `getattr(blob_client, "delete_blob", None)` on a
-    class that never defined one, so the branch never ran. Step 3.5 preserved
-    the behaviour and dropped the probe rather than adding a deleter, which
-    would be a new capability and not a structural refactor."""
+    Storage and the index first, the case record last: if either refuses, the file stays on the case and
+    nothing is recorded as removed, so the removal can be tried again (a blob or index document already gone
+    counts as removed)."""
     _bind(case_id, None)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
@@ -1589,27 +1654,58 @@ async def delete_case_file(case_id: str, file_id: str, http: Request):
     if case is None:
         raise HTTPException(404, "Case not found")
     who = access.person(http, case, 'delete file')          # ADR-0091 decision 3
+    removed_by = who.full_name if who is not None else (by.strip() or "unknown")
 
-    # Find and remove the upload from whichever phase contains it
-    removed_blob_path = None
+    found = None
     for phase_data in case.phases.values():
         uploads = getattr(phase_data, "uploads", []) or []
         for i, u in enumerate(uploads):
-            fid = _case_file_id(case_id, u.filename, u.uploaded_at)
-            if fid == file_id:
-                removed_blob_path = u.blob_path
-                uploads.pop(i)
+            if _case_file_id(case_id, u.filename, u.uploaded_at) == file_id:
+                found = (uploads, i, u)
                 break
-        if removed_blob_path is not None:
+        if found is not None:
             break
-
-    if removed_blob_path is None:
+    if found is None:
         raise HTTPException(404, "File not found")
+    uploads, i, upload = found
 
-    # The blob at `removed_blob_path` is intentionally left in place — see
-    # the docstring. Only the case record is updated.
+    try:
+        await blob.delete_upload(upload.blob_path)
+        if upload.evidence_index_id:
+            await _unindex_upload(upload.evidence_index_id)
+    except Exception as exc:  # noqa: BLE001 — the Belt is told; the file stays on the case
+        logger.error("delete file: %s could not be removed: %s", upload.filename, exc)
+        raise HTTPException(502, f"We could not remove {upload.filename} just now; it is still on the case. "
+                                 "Please try again.")
+
+    uploads.pop(i)
     await blob.save_case(case)
+    at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    try:
+        from backend.core.store import get_store as _store   # read at call time
+        _store().put(("projects", case_id, "step_log"), f"file-removed:{file_id}:{at}",
+                     {"layer": "files", "event": "removed", "filename": upload.filename,
+                      "content_digest": upload.content_digest, "blob_path": upload.blob_path,
+                      "evidence_index_id": upload.evidence_index_id, "removed_at": at, "removed_by": removed_by})
+    except Exception as exc:  # noqa: BLE001 — the file is gone; the failed record is logged loudly
+        logger.error("delete file: the removal of %s could not be recorded: %s", upload.filename, exc)
     return {"deleted": True, "file_id": file_id}
+
+
+async def _unindex_upload(doc_id: str) -> None:
+    """W7 (DEF-109): remove one upload's document from `improve_evidence_index` by its id — the one
+    `_index_upload` returned and the upload record keeps."""
+    from azure.search.documents.aio import SearchClient
+    from azure.core.credentials import AzureKeyCredential
+    from backend.core.config import settings
+
+    async with SearchClient(
+        endpoint=settings.AZURE_SEARCH_ENDPOINT,
+        index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
+        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
+    ) as search_client:
+        await search_client.delete_documents([{"id": doc_id}])
+    logger.info("Removed improve_evidence_index doc %s", doc_id)
 
 
 async def _index_upload(case_id: str, upload_record: dict, *,

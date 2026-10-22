@@ -233,10 +233,12 @@ def saved_case(name: str, title: str) -> str:
 
 
 def _loads_migrated(client: Any, case_id: str) -> bool:
-    """The saved case (schema 8) opens in this release (schema 9): migrated on load, nothing refused."""
+    """The saved case (schema 8) opens in this release: migrated on load to the current schema, nothing refused."""
     from backend.core import migrations
     r = client.get(f"/cases/{case_id}")
-    return r.status_code == 200 and migrations.current() == 9 and 8 in migrations.MIGRATIONS
+    # The saved case is schema 8; it loads through every migration from 8 to the current schema (14 since
+    # 2026-10-22 — the check said "== 9" and went stale at the first bump after the slices landed).
+    return r.status_code == 200 and all(v in migrations.MIGRATIONS for v in range(8, migrations.current()))
 
 
 def slice_1_upload(client: Any) -> dict[str, Any]:
@@ -256,7 +258,7 @@ def slice_1_upload(client: Any) -> dict[str, Any]:
     st = _case_state(client, case_id)
     names = {str(m.get("name") or "") for m in st["structured"].get("team") or [] if isinstance(m, dict)}
     sources = [e.get("source") for e in st["field_log"] if e.get("field") == "team"]
-    checks = {"the saved case loads through the v9 migrations": loaded,
+    checks = {"the saved case loads through the migrations to the current schema": loaded,
               "the upload lands": up.status_code == 200,
               "the upload turn names the file": filename in str(seen.get("answer") or ""),
               "the upload turn reads the team back": seen.get("move") == "read_back" and seen.get("move_field") == "team",
@@ -298,7 +300,7 @@ def slice_2_gate(client: Any) -> dict[str, Any]:
     final = dict((_latest_final(case_id) or {}).get("final") or {})
     t23 = t23_check(client, case_id)
     turns.append({"n": 3, "why": "a second approval", "http": t23["second_approval_http"]})
-    checks = {"the saved case loads through the v9 migrations": loaded,
+    checks = {"the saved case loads through the migrations to the current schema": loaded,
               "T14: the validated report pauses the graph": sub.status_code == 200 and bool(body.get("awaiting_acceptance")),
               "T14: nothing is written before the decision": not before
               and not ((case_before.get("phases") or {}).get("define") or {}).get("gate_passed"),
@@ -337,7 +339,7 @@ def slice_3_grader(client: Any, good: dict[str, str]) -> dict[str, Any]:
         norm = lambda x: " ".join(str(x).replace("“", "").replace("”", "").replace('"', "").lower().split())  # noqa: E731
         return len(norm(ev)) >= 8 and norm(ev) in norm(reply)
     fails = [(t["n"], f) for t in graded for f in t.get("failed") or []]
-    checks = {"the saved case loads through the v9 migrations": loaded,
+    checks = {"the saved case loads through the migrations to the current schema": loaded,
               "five turns answered": len(turns) == 5 and all(t["http"] == 200 for t in turns),
               "every coached reply has a G1–G5 verdict in step_log": bool(graded)
               and all(t.get("status") for t in graded),

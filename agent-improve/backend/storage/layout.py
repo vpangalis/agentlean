@@ -100,6 +100,11 @@ EVIDENCE_SELECT: tuple[str, ...] = (
     "description", "content_digest", "shape_match",
 )
 
+#: DEF-165 (T95; founder and Desktop 2026-10-22, option a): the `status` of a completed case, the only value
+#: past-case search returns. ADR-0102's writer (T98) writes it on the Control gate's approval.
+CASE_STATUS_COMPLETED = "completed"
+CASE_COMPLETED_FILTER = "status eq 'completed'"
+
 #: `improve_case_index` (§23.3). Created by `scripts/create_indexes.py`, read by
 #: `search_cases`; no code writes it yet (inventory Z07).
 CASE_INDEX: tuple[dict[str, Any], ...] = (
@@ -167,7 +172,7 @@ def search_fields(spec: tuple[dict[str, Any], ...]) -> list:
 
 
 __all__ = [
-    "BLOB_PATHS", "CASE_BLOB", "CASE_INDEX", "CASE_RECORD_KEY", "CASE_SELECT",
+    "BLOB_PATHS", "CASE_BLOB", "CASE_COMPLETED_FILTER", "CASE_INDEX", "CASE_STATUS_COMPLETED", "CASE_RECORD_KEY", "CASE_SELECT",
     "CHECKPOINT_HISTORY", "CHECKPOINT_LATEST", "CHECKPOINT_NAMESPACED", "CHECKPOINT_THREAD",
     "CHECKPOINT_WRITES", "EVIDENCE_INDEX", "EVIDENCE_SELECT", "KIND_ARTIFACTS", "KIND_CASE",
     "KIND_STEP_LOG", "REGISTRY_BLOB", "STORE_BLOB", "STORE_NAMESPACES", "STORE_PREFIX",

@@ -196,6 +196,15 @@ def worked_examples(phase: str) -> tuple[str, ...]:
                      if "---" not in row
                      for c in row.lstrip("> ").strip("|").split("|"))
             for m in _SHOW_TABLE.finditer(body)]
+    # DEF-211 (founder note under ADR-0070, 2026-10-22): a worked example kept as a structured file beside the script
+    # (`*_example.json`, drawn by code, never shown to the model as text) is a worked example all the same.
+    import json
+    for path in sorted((SKILLS_ROOT / SKILL_DIRS.get(phase, "")).glob("*_example.json")):
+        try:
+            example = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        raw.append(_flatten({k: v for k, v in example.items() if not str(k).startswith("_")}))
     return tuple(n for n in (_norm(r) for r in raw) if len(n) >= EXAMPLE_MIN_CHARS)
 
 

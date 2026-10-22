@@ -96,6 +96,59 @@ def read_token(value: str, case_id: str, now: Optional[float] = None) -> Optiona
     return str(data.get("e") or "") or None
 
 
+#: ADR-0105 decision 2: a one-time code is 8 characters from this 31-character alphabet — no 0, O, 1, I or L.
+CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+CODE_LENGTH = 8
+#: Decision 3: a code expires 72 hours from issue (R8a). Decision 5: 5 wrong tries void it.
+CODE_HOURS = 72
+CODE_ATTEMPTS = 5
+OTHER_CASE = "This session is for another case. Sign in to {case} to work on it."
+CODE_NEEDED = "Enter the one-time code {lead} gave you, with your company e-mail."
+CODE_REFUSED = "That code is not valid. Ask {lead} for a new one."
+
+
+def new_code() -> str:
+    """Decision 2: a fresh code, shown once to the lead and never stored."""
+    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
+
+
+def code_digest(case_id: str, email: str, code: str) -> str:
+    """Decision 4: what is stored — the HMAC-SHA256 of the code under SESSION_SECRET, bound to the case and person."""
+    body = f"{case_id}:{email.strip().lower()}:{code.strip().upper()}".encode("utf-8")
+    return hmac.new(_secret(), body, hashlib.sha256).hexdigest()
+
+
+def check_code(case_id: str, person: Any, code: str, now: Optional[float] = None) -> str:
+    """Decisions 3 and 5: "ok", or why not — "none" (no code open), "expired", "wrong". Constant-time comparison."""
+    if not person.code_hash:
+        return "none"
+    try:
+        issued = datetime.fromisoformat(person.code_issued_at).timestamp()
+    except ValueError:
+        return "expired"
+    if (now if now is not None else time.time()) - issued > CODE_HOURS * 3600:
+        return "expired"
+    return "ok" if hmac.compare_digest(code_digest(case_id, person.email, code), person.code_hash) else "wrong"
+
+
+def development() -> bool:
+    """R8a / decision 8: e-mail-only sign-in is allowed in development and demos only."""
+    from backend.core.config import settings
+    return str(getattr(settings, "GUARD_MODE", "strict")).strip().lower() == "development"
+
+
+def session_case(value: str) -> Optional[str]:
+    """The case a validly SIGNED session names (expired or not) — None when the signature does not hold."""
+    try:
+        part, sig = value.rsplit(".", 1)
+        body = base64.urlsafe_b64decode(part + "=" * (-len(part) % 4))
+        if not hmac.compare_digest(_sign(body), sig):
+            return None
+        return str(json.loads(body).get("c") or "") or None
+    except (ValueError, TypeError):
+        return None
+
+
 def required(case: Any) -> bool:
     """Ruling b: a case asks for sign-in once every confirmed member (the lead too) has an e-mail."""
     members = [p for p in case.people if p.status == "member"]
@@ -121,9 +174,14 @@ def _trail(case_id: str, status: str, email: str, where: str, why: str = "") -> 
 def person(http: Optional[Request], case: Any, where: str) -> Optional[Any]:
     """Decision 3: the person a request is from. None when the case does not ask for sign-in yet (it opens as
     today). A request without a valid session for the case is refused (401) in W17's words and changes nothing."""
+    value = http.cookies.get(cookie_name(case.case_id)) if http is not None else None
+    other = session_case(value) if value else None
+    if other is not None and other != case.case_id:
+        # ADR-0105 decision 7 (DEF-116, T12): the thread is the session's case — a request naming another is refused.
+        _trail(case.case_id, "refused", "", where, f"a session for {other}")
+        raise HTTPException(403, OTHER_CASE.format(case=case.case_id))
     if not required(case):
         return None
-    value = http.cookies.get(cookie_name(case.case_id)) if http is not None else None
     email = read_token(value, case.case_id) if value else None
     who = people_mod.find(case.people, email) if email else None
     if who is not None and people_mod.may_sign_in(who):
@@ -132,9 +190,11 @@ def person(http: Optional[Request], case: Any, where: str) -> Optional[Any]:
     raise HTTPException(401, SIGN_IN_NEEDED.format(lead=lead_name(case)))
 
 
-def sign_in(case: Any, email: str, response: Response) -> Any:
-    """Decision 2: a sign-in by the company e-mail the lead registered — exact, capital letters ignored. Sets the
-    case's session cookie and returns the person; refuses in W17's words otherwise."""
+def sign_in(case: Any, email: str, response: Response, code: str = "") -> tuple[Any, str]:
+    """ADR-0091 decision 2 and ADR-0105: a sign-in by the company e-mail the lead registered, with the person's
+    one-time code — e-mail alone only in development and demos (decision 8). Returns (the person, the code's
+    outcome: "ok" | "wrong" | "expired" | "none" | "" for no code checked); sets the session only on success. The
+    caller writes the code's spending or its failed attempt to the case record (a team change, ADR-0090)."""
     lead = lead_name(case)
     who = people_mod.find(case.people, email) if "@" in email else None
     if who is None:
@@ -143,9 +203,15 @@ def sign_in(case: Any, email: str, response: Response) -> Any:
     if not people_mod.may_sign_in(who):
         _trail(case.case_id, "refused", email.strip(), "sign-in", "proposed member")
         raise HTTPException(403, NOT_YET_CONFIRMED.format(name=who.full_name, lead=lead))
+    outcome = ""
+    if code.strip() or not development():
+        outcome = check_code(case.case_id, who, code) if code.strip() else "none"
+        if outcome != "ok":
+            _trail(case.case_id, "refused", who.email, "sign-in", f"code {outcome}")
+            return who, outcome
     set_session(response, case.case_id, who.email)
-    _trail(case.case_id, "signed_in", who.email, "sign-in")
-    return who
+    _trail(case.case_id, "signed_in", who.email, "sign-in", "one-time code" if outcome == "ok" else "e-mail (development)")
+    return who, outcome or "ok"
 
 
 def set_session(response: Response, case_id: str, email: str) -> None:

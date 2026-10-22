@@ -86,6 +86,7 @@ from backend.knowledge.tool_args import (
     LoadEvidenceSeriesArgs,
     ProposeDiagramArgs,
     ProposeTemplateArgs,
+    ReadUploadArgs,
 )
 from backend.knowledge.retriever import (
     get_knowledge_vectorstore,
@@ -327,7 +328,8 @@ async def rag_lookup_case_history(
     team should do. A coach that presents precedent as instruction teaches the
     Belt to copy rather than to reason.
 
-    Source: improve_case_index, completed cases.
+    Source: improve_case_index, filtered to completed cases only (`status eq 'completed'`,
+    DEF-165); no other filter.
 
     Args:
         query: The problem or approach you want precedent for.
@@ -765,6 +767,58 @@ async def load_evidence_series(
     )
 
 
+#: ADR-0106 decision 3: how much of a file read_upload returns — enough to quote from, never a whole archive.
+READ_UPLOAD_MAX_CHARS = 12000
+
+
+@tool(args_schema=ReadUploadArgs, response_format="content_and_artifact")
+async def read_upload(blob_path: str) -> tuple[str, dict]:
+    """Read the text of ONE file the team uploaded to THIS project, to quote from it.
+
+    USE THIS when you need what a specific upload actually says — a line of a process map, a passage of a plan or a
+    report — and quote it. It reads uploads labelled EVIDENCE (what is) and ARTEFACT (what the team designed, e.g. a
+    to-be process map); the label comes back with the text, so never present an artefact as a fact about today.
+    Search (`rag_lookup_evidence`) finds evidence by meaning; this reads one named file.
+
+    `blob_path` comes from the uploads manifest at the top of your context. Only this project's files are readable.
+    Long files are cut to the first part; the reply says so.
+    """
+    from backend.core.request_context import get_case_id
+    from backend.storage import blob as blob_store
+    from backend.storage import layout
+    from backend.upload import classifier
+    from backend.upload.parsers import parse_upload
+
+    case_id = get_case_id() or ""
+    prefix = layout.UPLOAD_BLOB.format(case_id=case_id, filename="")
+    if not case_id or not (blob_path or "").startswith(prefix):
+        logger.warning("read_upload: refused %s — not a file of the current case %s", blob_path, case_id)
+        return ("That file is not one of this project's uploads. Pick one from the uploads list you were shown.",
+                {"ok": False, "reason": "not this case"})
+    filename = blob_path.rsplit("/", 1)[-1]
+    try:
+        raw = await blob_store.download_bytes(blob_path)
+    except Exception as exc:  # noqa: BLE001 — a missing file is a coaching fact
+        logger.warning("read_upload: cannot read %s: %s", blob_path, exc)
+        return (f"That file could not be opened ({filename}). Ask the Belt to upload it again.",
+                {"ok": False, "reason": "unreadable"})
+    parsed = parse_upload(filename, raw, _content_type_for(filename))
+    if not parsed.get("parsed"):
+        return (f"That file could not be read: {parsed.get('refusal_reason')}", {"ok": False, "reason": "unparseable"})
+    case = await blob_store.load_case(case_id)
+    record = next((u for ph in (case.phases.values() if case else []) for u in (ph.uploads or [])
+                   if u.blob_path == blob_path), None)
+    kind = str(getattr(record, "kind", "") or classifier.EVIDENCE)
+    body = str(parsed.get("text") or "")
+    truncated = len(body) > READ_UPLOAD_MAX_CHARS
+    shown = body[:READ_UPLOAD_MAX_CHARS]
+    head = (f"file: {filename} · kind: {kind}" + (" (what the team designed — not a fact about today)"
+                                                  if kind == classifier.ARTEFACT else "")
+            + (f" · the first {READ_UPLOAD_MAX_CHARS} characters of {len(body)}" if truncated else ""))
+    return (head + chr(10) + shown, {"ok": True, "filename": filename, "blob_path": blob_path, "kind": kind,
+                                   "truncated": truncated, "chars": len(body)})
+
+
 def _content_type_for(filename: str) -> str:
     """The parser bucket for a filename, without a mime type to go on."""
     from backend.upload.classifier import classify_content_type
@@ -870,4 +924,5 @@ UNIVERSAL_TOOLS: list[BaseTool] = [
     propose_template,
     propose_diagram,
     load_evidence_series,
+    read_upload,                # ADR-0106: the ninth universal tool (offered on teaching and upload turns only)
 ]

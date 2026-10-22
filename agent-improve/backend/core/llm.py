@@ -128,6 +128,11 @@ ROLE_TIMEOUTS: dict[str, float] = {
     "intent": 8.0,
 }
 
+#: Founder ruling 2026-10-22 midday, item 1 (option a): the two upload calls — the interpretation
+#: (`extraction`) and the image read (`vision`) — pass this as `get_llm(..., timeout=)`. A file's
+#: reading runs longer than a lookup's query variants, which keep the extraction role's 8 s.
+UPLOAD_TIMEOUT: float = 30.0
+
 
 #: G-157 / DEF-093 (ADR-0080): what a model client raises when its request timeout runs out (max_retries=0,
 #: so the SDK does not retry it first). A judge catches it BY NAME and records "not checked (time)".
@@ -251,6 +256,7 @@ def get_llm(
     role: str,
     temperature: float | None = None,
     max_tokens: int | None = None,
+    timeout: float | None = None,
 ) -> AzureChatOpenAI:
     """Resolve one of the eleven §21 roles to a cached model.
 
@@ -258,7 +264,9 @@ def get_llm(
 
     `temperature` defaults to the role's ratified value (§21); pass one only
     to override deliberately. `max_tokens` of None leaves the Azure default
-    in place — pass 1500 for coaching turns.
+    in place — pass 1500 for coaching turns. `timeout` of None keeps the
+    role's request timeout (`ROLE_TIMEOUTS`); only the upload calls pass one
+    (`UPLOAD_TIMEOUT`, ruling 2026-10-22).
 
     Raises `ValueError` for a name that is not one of the eleven roles. §21
     requires an amendment to add a role, so an unrecognised name is a bug at
@@ -277,7 +285,8 @@ def get_llm(
         temperature = role_temperature(role)
 
     with _BUILD_LOCK:
-        return _build_llm(deployment, temperature, max_tokens, ROLE_TIMEOUTS[role])
+        return _build_llm(deployment, temperature, max_tokens,
+                          ROLE_TIMEOUTS[role] if timeout is None else timeout)
 
 
 def get_fallback_llm(role: str = "coach", max_tokens: int | None = 1500) -> AzureChatOpenAI:

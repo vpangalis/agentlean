@@ -11,9 +11,10 @@ import asyncio
 import re
 from typing import Any
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.core.prompts import UPLOAD_INTERPRET_DATA, UPLOAD_INTERPRET_SYSTEM
+from backend.storage.models import UploadInterpretation
 from backend.upload import agent
 from backend.upload.parsers import parse_upload
 from scripts.define_runthrough import UPLOAD_CSV
@@ -40,9 +41,12 @@ def test_the_interpretation_is_sent_as_system_then_the_file_in_the_labelled_bloc
     sent: list[Any] = []
 
     class _Recorder:
-        async def ainvoke(self, messages: Any, *a: Any, **k: Any) -> AIMessage:
+        def with_structured_output(self, schema: Any, **kw: Any) -> "_Recorder":
+            return self   # ADR-0104: the interpretation binds UploadInterpretation
+
+        async def ainvoke(self, messages: Any, *a: Any, **k: Any) -> UploadInterpretation:
             sent.append(messages)
-            return AIMessage(content='{"summary": "Monthly late-payment counts.", "supports": [], "caveats": []}')
+            return UploadInterpretation(summary="Monthly late-payment counts.")
 
     monkeypatch.setattr(agent, "get_llm", lambda role, **kw: _Recorder())
     parsed = parse_upload("ap_late_payments_jan_jun_2026.csv", UPLOAD_CSV.encode(), "spreadsheet")

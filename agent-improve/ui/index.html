@@ -1039,6 +1039,7 @@ async function showSignIn(caseId){
     <div style="font-size:12px;line-height:1.6;margin-bottom:8px">Only team members added by the project lead can open this project.<br>
       Project lead: <b>${escapeHtml(info.lead)}</b><br>Enter your company e-mail as the project lead registered it.</div>
     <div class="join-row"><input type="email" id="sign-in-email" placeholder="name@company.com">
+      <input type="text" id="sign-in-code" placeholder="One-time code" maxlength="8" style="width:120px;text-transform:uppercase">
       <button class="btn-primary" id="sign-in-go" style="padding:8px 14px;width:auto" onclick="submitSignIn('${escapeHtml(info.case_id)}')">Sign in</button></div>
     <div id="sign-in-error" style="font-size:11px;color:var(--red,#b91c1c);margin-top:6px"></div>
     <div style="font-size:11px;color:var(--text2);margin-top:6px">${escapeHtml(info.not_on_team)}</div></div>`;
@@ -1047,9 +1048,12 @@ async function showSignIn(caseId){
 async function submitSignIn(caseId){
   const email=document.getElementById('sign-in-email').value.trim();
   if(!email){document.getElementById('sign-in-error').textContent='Please enter your company e-mail.';return;}
+  // ADR-0105 (DEF-103): with the one-time code the project lead gave you.
+  const codeEl=document.getElementById('sign-in-code');
+  const code=codeEl?codeEl.value.trim().toUpperCase():'';
   try{
     const who=await apiJSON(`${API}/cases/${caseId}/session`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email})});
+      body:JSON.stringify({email,code})});
     S.user=who.full_name;
     const w=document.getElementById('sign-in-window');if(w)w.remove();
     await openWorkspace(caseId);
@@ -1228,7 +1232,7 @@ function renderTeamPanel(data){
       <td>${p.email?escapeHtml(p.email):'<span style="color:var(--text2)">no e-mail yet</span>'}</td>
       <td>${p.status==='proposed'?(isLead?`<input type="email" id="tp-email-${i}" placeholder="Company e-mail" style="width:150px">
         <button class="btn-secondary" id="tp-confirm-${i}" onclick="teamConfirm(${i})">Confirm</button>`:'proposed — the lead confirms')
-        :'member'}${manage(p,i)?` <button class="btn-secondary" id="tp-remove-${i}" onclick="teamRemove(${i})">Remove</button>`:''}</td>
+        :'member'}${manage(p,i)?` <button class="btn-secondary" id="tp-remove-${i}" onclick="teamRemove(${i})">Remove</button>`:''}${manage(p,i)&&p.status==='member'?` <button class="btn-secondary" id="tp-lead-${i}" onclick="teamHandOver(${i})">Hand over the lead</button>`:''}${manage(p,i)&&p.status==='member'&&p.email?` <button class="btn-secondary" id="tp-code-${i}" onclick="teamCode(${i})">One-time code</button>`:''}</td>
     </tr>`).join('');
   const add=isLead?`<div class="add-member-form show" style="margin-top:10px">
       <div class="field" style="flex:1"><input type="text" id="tp-new-name" placeholder="Full name"></div>
@@ -1278,6 +1282,29 @@ async function teamRemove(i){
     const data=await apiJSON(`${API}/cases/${S.case.case_id}/people/${encodeURIComponent(p.full_name)}`,
       {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({actor:S.user})});
     S.case.people=data.people;renderTeamPanel(data);renderWorkspaceTeam();
+  }catch(e){toast((e&&e.message)||String(e),5000);}
+}
+
+// ADR-0105 (DEF-103): the lead issues a one-time code for a confirmed member — shown once, here, to hand over in person.
+async function teamCode(i){
+  const p=S.people.people[i];
+  try{
+    const got=await apiJSON(`${API}/cases/${S.case.case_id}/people/${encodeURIComponent(p.full_name)}/code`,
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actor:S.user})});
+    window.alert(`One-time code for ${got.full_name}: ${got.code}\n\nHand it over in person. It is shown only now, `
+      +`works once, and expires on ${got.expires_at.replace('T',' ').slice(0,16)} (UTC). A new code voids this one.`);
+  }catch(e){toast((e&&e.message)||String(e),5000);}
+}
+
+// DEF-105 (R8c): the lead hands the lead role to a confirmed member, saying why; the handover is recorded.
+async function teamHandOver(i){
+  const p=S.people.people[i];
+  const reason=(window.prompt(`Hand the project lead to ${p.full_name}? Say why (it is recorded):`)||'').trim();
+  if(!reason){toast('The handover needs a reason — nothing was changed.');return;}
+  try{
+    const data=await apiJSON(`${API}/cases/${S.case.case_id}/lead`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({actor:S.user,to:p.full_name,reason})});
+    S.case.people=data.people;S.case.leader=data.lead;renderTeamPanel(data);renderWorkspaceTeam();
   }catch(e){toast((e&&e.message)||String(e),5000);}
 }
 
@@ -1754,7 +1781,7 @@ async function deleteCaseFile(fileId, filename) {
   if (!confirm('Remove "' + filename + '" from this case?')) return;
   try {
     const d = await apiJSON(
-      `${API}/files/${S.case.case_id}/${fileId}`,
+      `${API}/files/${S.case.case_id}/${fileId}?by=${encodeURIComponent(S.user || '')}`,   // W7: who removes it
       { method: 'DELETE' }
     );
     if (d && d.deleted) {
@@ -4709,19 +4736,77 @@ function defineReportHtml(rep, isPassed) {
   // status, a History link — its rows drawn by elementRowsHtml, the same code as the read-back card.
   const gate = rep.gate || {sections: [], still_to_confirm: []};
   const chip = st => `<span class="el-chip ${st === 'confirmed' ? 'ok' : 'open'}">${escapeHtml(st)}</span>`;
+  // DEF-176..178 (gate_view_mockup.html, sections A–C): a confirmed card's `view` is the mockup's layout — one team
+  // table; the business case and the benefits as a definition list (the two money figures marked); the statement
+  // highlighted with the 5W2H table under it; scope as two labelled boxes. Every value escaped; "—" when none.
+  const dash = v => (v === null || v === undefined || String(v).trim() === '') ? '—' : escapeHtml(String(v));
+  const viewWhy = w => w ? `<div class="field-why" style="font-size:9.5px;color:#8A93A0;margin:2px 0 0">${escapeHtml(w)}</div>` : '';
+  const viewTable = (t, cls) => `<div class="el-scroll"><table class="${cls}" style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0">
+      <tr>${(t.columns || []).map(h => `<th style="text-align:left;padding:4px 6px;border-bottom:1px solid #E4E2DC;color:#5B6B7C;font-weight:600">${escapeHtml(h)}</th>`).join('')}</tr>${
+      (t.rows || []).map(r => `<tr>${r.map(x => `<td>${dash(x)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+  const kvItems = (items, cls) => (items || []).map(i =>
+    `<dt${cls ? ` class="${cls}"` : ''}>${escapeHtml(i[0])}</dt><dd>${dash(i[1])}${viewWhy(i[2])}</dd>`).join('');
+  // DEF-180 (section E): the baseline bar and the target bar on the chart's own scale (0–100 for a share, with its
+  // quarter ticks); the target bar "open" until the target is confirmed.
+  const chartHtml = ch => {
+    const top = Number(ch.scale) || 1, unit = escapeHtml(ch.unit || '');
+    const bar = (key, label, value, colour) => `<div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+      <span style="width:60px;font-size:10px;color:#5B6B7C">${escapeHtml(label)}</span>${value == null
+        ? `<div data-bar="${key}" data-open="true" style="flex:1;height:12px;border:1px dashed #C9C6BE;border-radius:3px"></div><span style="width:60px;font-size:10px;color:#9A6B12;font-style:italic">open</span>`
+        : `<div style="flex:1;background:#F0EEE8;border-radius:3px"><div data-bar="${key}" style="width:${Math.max(1, Math.min(100, Math.round(100 * Number(value) / top)))}%;height:12px;border-radius:3px;background:${colour}"></div></div><span style="width:60px;font-size:11px;font-weight:600">${escapeHtml(String(value))}${unit}</span>`}</div>`;
+    const axis = (ch.ticks || []).length ? `<div class="gate-axis" style="display:flex;align-items:center;gap:6px"><span style="width:60px"></span><div style="flex:1;display:flex;justify-content:space-between;font-size:9.5px;color:#8A93A0">${
+      ch.ticks.map(t => `<span>${escapeHtml(String(t))}${unit}</span>`).join('')}</div><span style="width:60px"></span></div>` : '';
+    return `<div class="gate-chart" style="margin:6px 0">${bar('today', 'Today', ch.baseline, '#B3261E')}${
+      bar('target', 'Target', ch.target, '#1E6B3A')}${axis}</div>`;
+  };
+  const viewHtml = v => {
+    if (v.kind === 'table') return viewTable(v, v.columns && v.columns[0] === 'Customer' ? 'gate-ctq' : 'gate-team') + viewWhy(v.why);
+    if (v.kind === 'kv') return `<dl class="kv" style="display:grid;grid-template-columns:minmax(110px,170px) 1fr;gap:4px 12px;margin:6px 0;font-size:11px">${
+      kvItems(v.figures, 'figure')}${kvItems(v.items, '')}</dl>` + (v.chart ? chartHtml(v.chart) : '');
+    if (v.kind === 'boxes') return `<div class="scope-boxes" style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0">${
+      (v.boxes || []).map(b => `<div class="scope-box" style="flex:1;min-width:160px;border:1px solid #E4E2DC;border-radius:6px;padding:6px 8px;font-size:11px">
+        <span class="lbl" style="display:block;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#5B6B7C">${escapeHtml(b[0])}</span>${dash(b[1])}</div>`).join('')}</div>` + viewWhy(v.why);
+    if (v.kind === 'sipoc') {
+      // DEF-181 (section F): the columns, the numbered flow with arrows (time · how often; located steps highlighted,
+      // other steps with problem notes marked), the legend, then the performance table.
+      const col = (label, items) => `<div class="gate-sipoc-col" style="flex:1;min-width:110px;border:1px solid #E4E2DC;border-radius:6px;padding:6px">
+        <div style="font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#5B6B7C;margin-bottom:4px">${escapeHtml(label)}</div>${
+        (items || []).map(x => `<div style="font-size:10.5px;background:#F7F9FB;border-radius:4px;padding:3px 5px;margin:2px 0">${escapeHtml(String(x))}</div>`).join('')}</div>`;
+      const step = s => `<div data-mark="${escapeHtml(s.mark || 'none')}" style="border:${s.mark === 'located' ? '2px solid #C77700;background:#FFF4D6' : s.mark === 'flagged' ? '1px dashed #B3261E' : '1px solid #0070BA'};border-radius:6px;padding:4px 6px;font-size:10.5px">
+        <div style="font-weight:600">${escapeHtml(String(s.n))} ${escapeHtml(s.name)}</div><div style="font-size:9.5px;color:#5B6B7C">${escapeHtml(s.time)} · ${escapeHtml(s.often)}</div></div>`;
+      const flow = (v.steps || []).map(step).join('<div style="text-align:center;color:#0070BA;font-size:11px;line-height:1">↓</div>');
+      const c = v.columns || {};
+      const perf = v.table || {columns: [], rows: [], marks: []};
+      return `<div class="gate-flow"><div class="el-scroll"><div style="display:flex;gap:6px;min-width:620px;margin:6px 0">${col('Suppliers', c.suppliers)}${col('Inputs', c.inputs)}
+        <div class="gate-sipoc-col" style="flex:1.5;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:6px"><div style="font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#5B6B7C;margin-bottom:4px">Process</div>${flow}</div>
+        ${col('Outputs', c.outputs)}${col('Customers', c.customers)}</div></div>
+        <div class="gate-legend" style="display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:#5B6B7C;margin:4px 0">${(v.located || []).length
+          ? '<span><span style="display:inline-block;width:10px;height:10px;border:2px solid #C77700;background:#FFF4D6;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Step named in the problem statement</span>' : ''}${
+          (v.steps || []).some(s => s.mark === 'flagged') ? '<span><span style="display:inline-block;width:10px;height:10px;border:1px dashed #B3261E;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Problems noted at another step</span>' : ''}${
+          v.measured ? `<span>Measured on the outputs: ${escapeHtml(v.measured)}</span>` : ''}</div>${viewWhy(v.why)}${viewWhy(v.measured_why)}</div>
+        <div class="el-scroll"><table class="gate-perf" style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0">
+        <tr>${(perf.columns || []).map(h => `<th style="text-align:left;padding:4px 6px;border-bottom:1px solid #E4E2DC;color:#5B6B7C;font-weight:600">${escapeHtml(h)}</th>`).join('')}</tr>${
+        (perf.rows || []).map((r, i) => `<tr${(perf.marks || [])[i] === 'located' ? ' data-mark="located" style="background:#FFF4D6"' : ''}>${r.map(x => `<td>${dash(x)}</td>`).join('')}</tr>`).join('')}</table></div>`;
+    }
+    if (v.kind === 'list') return `<ol class="gate-issues" style="margin:6px 0;padding-left:20px;font-size:11px">${
+      (v.items || []).map(x => `<li>${escapeHtml(String(x))}</li>`).join('')}</ol>` + viewWhy(v.why);
+    if (v.kind === 'statement') return (v.table ? viewTable(v.table, 'gate-5w2h') + viewWhy(v.why) : '');
+    return '';
+  };
   const elCard = c => {
     const hist = (c.history || []).length ? `<details class="el-history" style="font-size:11px;margin-top:4px">
         <summary class="hist" style="cursor:pointer;color:#0070BA">History</summary>${c.history.map(h =>
         `<div class="hist-line" style="color:#5C5A55;margin:2px 0">${escapeHtml(h)}</div>`).join('')}</details>` : '';
     const body = c.status === 'confirmed'
-      ? (c.statement ? `<div class="el-statement" style="font-size:11px;line-height:1.6;background:#F4F8FC;
-          border-left:3px solid #0070BA;padding:6px 8px;margin:6px 0">${escapeHtml(c.statement)}</div>` +
+      ? (c.statement ? `<p class="statement" style="font-size:11px;line-height:1.6;background:#F4F8FC;
+          border-left:3px solid #0070BA;padding:6px 8px;margin:6px 0">${escapeHtml(c.statement)}</p>` +
           (c.statement_why ? `<div class="field-why" style="font-size:9.5px;color:#8A93A0;margin:-1px 0 3px">${escapeHtml(c.statement_why)}</div>` : '') : '') +
-        elementRowsHtml(c.rows) +
-        (c.answer ? `<div class="el-answer"><b>In your answer</b> — ${escapeHtml(c.answer)}</div>` : '')
-      : `<div class="el-pending" style="font-size:11px;color:#9A6B12;margin-top:4px">${escapeHtml(c.status)} — ${escapeHtml((c.needs || []).join(', ').toLowerCase())}</div>`;
+        (c.view ? viewHtml(c.view) : elementRowsHtml(c.rows)) +
+        (c.answer && (!c.view || c.view.kind === 'kv') ? `<div class="el-answer"><b>In your answer</b> — ${escapeHtml(c.answer)}</div>` : '')
+      : `<div class="el-pending" style="font-size:11px;color:#9A6B12;margin-top:4px">${escapeHtml(c.status)} — ${escapeHtml((c.needs || []).join(', ').toLowerCase())}</div>` +
+        (c.view ? viewHtml(c.view) : '');   // DEF-176: the people on the case, while element 2 is open
     return `<div class="el-card gate-el" data-element="${c.n}" data-status="${escapeHtml(c.status)}">
-      <div class="el-head"><span><span class="el-num">Element ${c.n}</span> · <strong>${escapeHtml(c.name)}</strong></span>${chip(c.status)}</div>${hist}${body}</div>`;
+      <div class="el-head"><span><span class="el-num">Element ${c.n}</span> · <strong>${escapeHtml(c.name)}</strong>${c.view && c.view.note ? ` · <span class="el-note" style="color:#5B6B7C">${escapeHtml(c.view.note)}</span>` : ''}</span>${chip(c.status)}</div>${hist}${body}</div>`;
   };
   const section = (i, extra) => {
     const g = (gate.sections || [])[i] || {letter: '', title: '', elements: [], status: 'open'};
@@ -4754,18 +4839,20 @@ function defineReportHtml(rep, isPassed) {
        Define report${p.title ? ' — ' + escapeHtml(p.title) : ''}</div>
      <div style="font-size:10px;color:#6B7A8D;margin-bottom:12px">Phase 1 of 5 ·
        assembled from the values you confirmed — nothing here is proposed by the coach</div>` + progress,
-    section(0, line('Project', p.title) + line('Project lead', s1.project_lead || p.leader, 'project_lead') +
-      line('Champion', s1.champion ? s1.champion.name : 'not named in the team yet', 'champion') +
-      line('Belt level', p.belt_level) +
-      line('Department', p.department) +
-      ((s1.people || []).length ? `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin:6px 0 2px">The people on the case</div>` +
-        table(s1.people, [['name', 'Name'], ['role', 'Role'], ['department', 'Department'], ['site', 'Site'], ['status', 'Status']]) : '')),
+    // DEF-176 (founder, 2026-10-22): the lead, the Champion, the belt level and the people on the case are folded
+    // into element 2's one team table (its card, below); the department stays one case-level line (Desktop).
+    section(0, line('Project', p.title) + line('Department', p.department)),
     section(1, vis.benefit_timeline ? benefitTimelineHtml(vis.benefit_timeline) + read('benefit_timeline') : ''),
     section(2, vis.mindmap_5w2h ? `<div id="report-mindmap"></div>` + read('mindmap_5w2h') : ''),
     section(3, ''),
-    section(4, vis.baseline_target ? `<div id="report-target"></div>` + read('baseline_target') : ''),
-    section(5, why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +
-      line('Measured on the outputs', sipoc.process_metrics, 'process_metrics')),
+    // DEF-180: the chart sits in element 5's card; the section draws it only when that card has none.
+    section(4, vis.baseline_target ? (((gate.sections || [])[4] || {elements: []}).elements.some(c => c.view && c.view.chart)
+      ? '' : `<div id="report-target"></div>`) + read('baseline_target') : ''),
+    // DEF-181: the SIPOC is drawn in element 12's card; the section draws it only when that card has none.
+    section(5, ((gate.sections || [])[5] || {elements: []}).elements.some(c => c.view && c.view.kind === 'sipoc')
+      ? read('sipoc')
+      : why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +
+        line('Measured on the outputs', sipoc.process_metrics, 'process_metrics')),
     section(6, ''),
   ];
   // "Still to confirm", with the element numbers (ADR-0093 decision 4).
@@ -6108,6 +6195,9 @@ function renderLiveViz() {
   // DEF-222: a turn that carries the baseline-to-target chart shows it (the pane had no case for it).
   const targetChart = liveTargetChart(lastAsk);
   if (targetChart) { vizEl.innerHTML = targetChart; return; }
+  // DEF-211: a turn that carries a SIPOC drawing (the worked example on the teaching turn, the read-back's flow with
+  // its marks) shows it — the work-product switch below reads v1 keys and never reached it.
+  if (lastAsk.sipoc_diagram) { renderSipocDiagram(lastAsk.sipoc_diagram, 'viz-live'); return; }
 
   // Render only the active work product visual
   switch(workProduct) {
@@ -6243,7 +6333,8 @@ function renderHistoryTurns(history, localChat){
 function renderTurn(turn){
   if(turn.role==='failed') return failedTurnHtml(turn);       // DEF-055 / DEF-081
   if(turn.role==='ai'){
-    const cites=(turn.citations||[]).map(c=>`<div class="src-pill"><i class="ti ti-link" style="font-size:11px"></i>${c.agent_origin||'Agent Improve'} · ${c.index_name||''}</div>`).join('');
+    // DEF-110 (W13) — the file and the PDF page the reply drew on, when the turn's tools named them.
+    const cites=(turn.citations||[]).map(c=>`<div class="src-pill"><i class="ti ti-link" style="font-size:11px"></i>${c.source_file?escapeHtml(c.source_file)+(c.page?`, PDF page ${c.page}`:''):`${c.agent_origin||'Agent Improve'} · ${c.index_name||''}`}</div>`).join('');
     // Step 10.0 — §50.1's blocks, in order, from the TURN, so a turn rebuilt
     // from conversation_history renders as it did live (G-79). An empty block
     // renders as absent, never as a gap in the layout.
@@ -7157,7 +7248,19 @@ function renderSipocDiagram(sipoc, containerId) {
   if (!required.some(k => sipoc[k]?.length)) return;
 
   const isDraft = sipoc.draft !== false;
+  const isExample = sipoc.example === true;      // DEF-211: the skill's worked example on the teaching turn
   const source = sipoc.source || 'generated';
+  // DEF-211 (founder note under ADR-0078): the steps numbered; the steps the problem statement places the problem in
+  // marked "located", the steps with problem notes outside them "flagged". Every value escaped.
+  const located = new Set(sipoc.located || []), flagged = new Set(sipoc.flagged || []);
+  const item = (k, v, j, style) => {
+    if (k !== 'process_steps') return `<div style="${style}">${escapeHtml(String(v))}</div>`;
+    const n = j + 1, mark = located.has(n) ? 'located' : flagged.has(n) ? 'flagged' : '';
+    const look = mark === 'located' ? 'background:#FFF4D6;border-left:3px solid #C77700;padding-left:4px;font-weight:600;'
+      : mark === 'flagged' ? 'border-left:3px dashed #B3261E;padding-left:4px;' : '';
+    return `<div${mark ? ` data-mark="${mark}"` : ''} style="${style};${look}">${n} ${escapeHtml(String(v))}${
+      mark === 'flagged' ? ' <span style="font-size:9px;color:#B3261E">problems noted</span>' : ''}</div>`;
+  };
   const labels = {
     suppliers: 'Suppliers',
     inputs: 'Inputs',
@@ -7170,7 +7273,10 @@ function renderSipocDiagram(sipoc, containerId) {
   if (!container) return;
   const activeTab = container.dataset.sipocTab || 'table';
 
-  const draftBadge = isDraft
+  const draftBadge = isExample
+    ? `<span style="background:#EEF2F7;color:#2C3E50;font-size:9px;
+        padding:1px 6px;border-radius:10px;margin-left:6px">Example — not your data</span>`
+    : isDraft
     ? `<span style="background:#FFF0E6;color:#A04800;font-size:9px;
         padding:1px 6px;border-radius:10px;margin-left:6px">Draft</span>`
     : `<span style="background:#E1F5EE;color:#085041;font-size:9px;
@@ -7213,8 +7319,7 @@ function renderSipocDiagram(sipoc, containerId) {
       const cellColor = hasVals ? '#00305A' : 'var(--text3,#99978F)';
       const cellStyle = hasVals ? '' : 'font-style:italic';
       const rows = hasVals
-        ? vals.map(v => `<div style="padding:2px 0;font-size:11px;
-            color:${cellColor};${cellStyle}">${v}</div>`).join('')
+        ? vals.map((v, j) => item(k, v, j, `padding:2px 0;font-size:11px;color:${cellColor};${cellStyle}`)).join('')
         : `<div style="padding:2px 0;font-size:11px;color:${cellColor};
             font-style:italic">not yet captured</div>`;
       return `<div style="flex:1;min-width:0">
@@ -7242,8 +7347,7 @@ function renderSipocDiagram(sipoc, containerId) {
       const bodyBg = hasVals ? '#EAF4FC' : '#fff';
       const bodyColor = hasVals ? '#00305A' : 'var(--text3,#99978F)';
       const items = hasVals
-        ? vals.map(v => `<div style="padding:2px 0;font-size:10px;
-            line-height:1.4">${v}</div>`).join('')
+        ? vals.map((v, j) => item(k, v, j, 'padding:2px 0;font-size:10px;line-height:1.4')).join('')
         : `<div style="font-size:10px;color:var(--text3,#99978F);
             font-style:italic">not yet captured</div>`;
       const col = `<div style="flex:1;min-width:0">
@@ -7272,7 +7376,9 @@ function renderSipocDiagram(sipoc, containerId) {
     background:#FFF0E6;border-radius:4px;padding:5px 8px;margin-top:8px;
     display:flex;align-items:center;gap:5px">
     <i class="ti ti-info-circle" style="font-size:12px"></i>
-    ${isDraft
+    ${isExample
+      ? 'A worked example of the shape to aim for — your own process comes next'
+      : isDraft
       ? 'This is an AI-generated draft — confirm each column with your team'
       : 'SIPOC confirmed by the team'}
   </div>`;

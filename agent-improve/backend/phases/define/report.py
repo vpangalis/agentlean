@@ -284,7 +284,7 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
     return {"sections": sections, "complete": not missing, "missing": missing,
             "elements": elements, "history": history, "visuals": visuals, "explain": FIELD_EXPLAIN,
             "read": {k: VISUAL_READ[k] for k in visuals if k in VISUAL_READ},
-            "gate": gate_view(a, field_status, field_log)}
+            "gate": gate_view(a, field_status, field_log, case=frame | {"people": (case or {}).get("people") or []})}
 
 
 def _sipoc_columns(sipoc: dict[str, Any]) -> dict[str, list[str]]:

@@ -61,16 +61,22 @@ def _people(values: dict[str, Any]) -> Read:
     return ({"columns": ["Name", "Role", "Function"], "rows": rows} if rows else None), None
 
 
+def _member_training(m: dict[str, Any]) -> Optional[str]:
+    """The training a team entry states, or None."""
+    # G-236: the member's own training entry, in whatever words ("none" included); else a column that says it.
+    hit = str(m.get("training") or "").strip() or next(
+        (str(v) for k, v in m.items() if k not in ("name", "role", "function")
+         and parse._TRAINING.search(str(v or ""))), None)
+    if hit is None:
+        # Training stated inside the name, role or function: the clause that states it, not the whole entry.
+        hit = next((c.strip() for c in re.split(r"[;,.]", _text(m)) if parse._TRAINING.search(c)), None)
+    return hit or None
+
+
 def _training(values: dict[str, Any]) -> Read:
     said = []
     for m in _team(values):
-        # G-236: the member's own training entry, in whatever words ("none" included); else a column that says it.
-        hit = str(m.get("training") or "").strip() or next(
-            (str(v) for k, v in m.items() if k not in ("name", "role", "function")
-             and parse._TRAINING.search(str(v or ""))), None)
-        if hit is None:
-            # Training stated inside the name, role or function: the clause that states it, not the whole entry.
-            hit = next((c.strip() for c in re.split(r"[;,.]", _text(m)) if parse._TRAINING.search(c)), None)
+        hit = _member_training(m)
         if hit:
             said.append(f"{m.get('name') or m.get('role') or '—'}: {hit}")
     return ("; ".join(said) or None), not parse.missing_parts("team", _team(values)) or bool(said)
@@ -207,6 +213,18 @@ def _all_six(values: dict[str, Any]) -> Read:
     return ("all six filled" if not gone else "missing: " + ", ".join(c.replace("_", " ") for c in gone)), not gone
 
 
+def _step_time(st: dict[str, Any]) -> str:
+    """A step's time as words: the average, then its range (DEF-172, G-179: one end of the range reads in words —
+    never "(? to 20 days)"); "—" when none is given."""
+    def text(v: Any) -> str:
+        return parse.metric_text(v) if isinstance(v, dict) else "—"
+    d = st.get("duration") or {}
+    rng = (f" ({text(d['min'])} to {text(d['max'])})" if d.get("min") and d.get("max") else
+           f", at most {text(d['max'])}" if d.get("max") else
+           f", at least {text(d['min'])}" if d.get("min") else "")
+    return (text(d["avg"]) if d.get("avg") else "—") + rng
+
+
 def _performance(values: dict[str, Any]) -> Read:
     s = _sipoc(values)
     steps = parse.process_steps(s.get("process_steps"))
@@ -217,15 +235,9 @@ def _performance(values: dict[str, Any]) -> Read:
         return parse.metric_text(v) if isinstance(v, dict) else "—"
     rows = []
     for st in steps:
-        d = st.get("duration") or {}
-        # DEF-172 (G-179): one end of the range reads in words — never "(? to 20 days)".
-        rng = (f" ({text(d['min'])} to {text(d['max'])})" if d.get("min") and d.get("max") else
-               f", at most {text(d['max'])}" if d.get("max") else
-               f", at least {text(d['min'])}" if d.get("min") else "")
         seen = "; ".join(f"{p['note']} ({p['said_by']})" if p.get("said_by") else str(p.get("note") or "")
                          for p in st.get("problems") or [] if isinstance(p, dict)) or "—"
-        rows.append([f"{'⚠ ' if st.get('problems') else ''}{st['id']} · {st['name']}",
-                     (text(d["avg"]) if d.get("avg") else "—") + rng,
+        rows.append([f"{'⚠ ' if st.get('problems') else ''}{st['id']} · {st['name']}", _step_time(st),
                      text(st.get("runs_per_period")) if st.get("runs_per_period") else "—", seen])
     raw_perf = s.get("process_performance")
     perf: dict[str, Any] = raw_perf if isinstance(raw_perf, dict) else {}
@@ -548,12 +560,215 @@ def gate_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any
     return out
 
 
+#: DEF-176: a team entry's column for the time on the project, whatever the file called it (DEF-229 keeps them all).
+_TIME = re.compile(r"time|hours|commitment|availab|capacity", re.I)
+_LEAD = re.compile(r"\blead(?:er)?\b", re.I)
+_DASH = "—"
+
+
+def _time_of(m: dict[str, Any]) -> str:
+    v = m.get("time_commitment") or next((m[k] for k in m if k not in ("name", "role", "function", "training")
+                                          and _TIME.search(str(k)) and str(m[k] or "").strip()), "")
+    return str(v or "").strip() or _DASH
+
+
+def _team_table(artifacts: dict[str, Any], case: dict[str, Any]) -> dict[str, Any]:
+    """DEF-176 (gate_view_mockup.html, section A; founder 2026-10-22, the older people block folded in): ONE table,
+    Name | Role | Function | Time | Training | Status — the project lead first under the case's one name for the
+    lead (ADR-0090 decision 4), then the champion (named as such), the process owner and the members, each as
+    their confirmed entry states it, with member / proposed from their person record; then anyone on the case
+    element 2 does not name. "—" where nothing states a value. The department is one case-level line above the
+    table (Desktop, 2026-10-22), not a column."""
+    def _norm(t: Any) -> str:
+        return " ".join(str(t or "").lower().split())
+    team = _team(artifacts)
+    people = [p for p in case.get("people") or [] if isinstance(p, dict)]
+    record = next((p for p in people if _norm(p.get("role")) == "project lead"), None)
+    lead = str(case.get("leader") or (record or {}).get("full_name") or "").strip()
+
+    def named(name: Any, full: Any) -> bool:
+        """`name` is `full`, or a shorter form whose words begin it (ADR-0090: "Priya" for "Priya Shah")."""
+        n, f = _norm(name).split(), _norm(full).split()
+        return bool(n) and f[:len(n)] == n
+
+    def record_of(name: Any) -> Optional[dict[str, Any]]:
+        hits = [p for p in people if named(name, p.get("full_name"))]
+        return hits[0] if len(hits) == 1 else None          # never a guess between two
+
+    def status(p: Optional[dict[str, Any]]) -> str:
+        return {"member": "Member", "proposed": "Proposed"}.get(str((p or {}).get("status") or "member"), _DASH) \
+            if p else _DASH
+
+    def is_lead(m: dict[str, Any]) -> bool:
+        if lead and named(m.get("name"), lead):
+            return True
+        return bool(_LEAD.search(str(m.get("role") or ""))) and not lead
+    entry = next((m for m in team if is_lead(m)), None)
+    rows: list[list[str]] = []
+    shown: list[Optional[dict[str, Any]]] = [record] if record else []
+    if lead or entry:
+        e = entry or {}
+        belt = str(case.get("belt_level") or "").strip()
+        rows.append([lead or str(e.get("name") or _DASH), "Project lead",
+                     str(e.get("function") or (record or {}).get("function") or "").strip()
+                     or (f"{belt.capitalize()} Belt" if belt else _DASH),
+                     _time_of(e) if e else _DASH, (_member_training(e) if e else None) or _DASH,
+                     status(record) if record else _DASH])
+    rest = [m for m in team if m is not entry]
+    champions = [m for m in rest if parse._CHAMPION.search(str(m.get("role") or ""))]
+    order = champions + [m for m in rest if parse._OWNER.search(str(m.get("role") or ""))
+                         and not parse._CHAMPION.search(str(m.get("role") or ""))]
+    order += [m for m in rest if all(m is not o for o in order)]
+    for m in order:
+        p = record_of(m.get("name"))
+        shown.append(p)
+        role = str(m.get("role") or "").strip()
+        if champions and m is champions[0] and "champion" not in role.lower():
+            role = f"{role} (Champion)" if role else "Champion"        # DEF-100: the report names the Champion
+        rows.append([str(m.get("name") or "").strip() or _DASH, role or _DASH,
+                     str(m.get("function") or "").strip() or _DASH, _time_of(m),
+                     _member_training(m) or _DASH, status(p)])
+    for p in people:                                   # on the case, not named in element 2
+        if any(p is q for q in shown):
+            continue
+        rows.append([str(p.get("full_name") or "").strip() or _DASH, str(p.get("role") or "").strip() or _DASH,
+                     str(p.get("function") or "").strip() or _DASH, _DASH, _DASH, status(p)])
+    return {"kind": "table", "columns": ["Name", "Role", "Function", "Time", "Training", "Status"], "rows": rows}
+
+
+#: DEF-178: the 5W2H table's row labels in the Gate (gate_view_mockup.html, section C).
+_FIVE_W_LABELS = {"what": "What", "where": "Where", "when": "When", "who": "Who is affected",
+                  "why": "Why it matters", "how": "How it shows up", "how_much": "How much"}
+
+
+def _chart(artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """DEF-180 (gate_view_mockup.html, section E): the baseline-to-target chart in element 5's card — the report's
+    own drawing (visuals.draw, confirmed values only: no target until the target is confirmed), on a 0–100 scale
+    with its quarter ticks for a share, else on the larger of the two figures."""
+    from backend.phases.define.visuals import draw
+    v = draw("baseline_target", artifacts, confirmed=True, field="target_value")
+    if not v:
+        return None
+    share = v.get("unit") == "%"
+    top = 100 if share else max(float(v.get("baseline") or 0), float(v.get("target") or 0)) or 1
+    return {"metric": v.get("metric"), "unit": v.get("unit") or "", "baseline": v.get("baseline"),
+            "target": v.get("target"), "target_date": v.get("target_date"), "scale": top,
+            "ticks": [0, 25, 50, 75, 100] if share else None}
+
+
+def _sipoc_view(artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """DEF-181 (gate_view_mockup.html, section F): the confirmed SIPOC as the mockup draws it — suppliers, inputs,
+    outputs and customers as columns; the steps as a numbered flow, each with its time and how often it runs, marked
+    `located` (the steps the problem statement places the problem in: `parse.located_steps`, DEF-211) or `flagged`
+    (problem notes outside them); what is measured on the outputs; the step count, lead time and frequency for the
+    element's name; and the performance table. Every figure is the stored MetricValue's own words."""
+    from backend.core.diagrams import sipoc_columns
+    from backend.phases.define.report import FIELD_EXPLAIN
+    s = _sipoc(artifacts)
+    steps = parse.process_steps(s.get("process_steps"))
+    if not steps:
+        return None
+
+    def text(v: Any) -> str:
+        return parse.metric_text(v) if isinstance(v, dict) else ""
+    fivew = _fivew(artifacts)
+    hit = set(parse.located_steps(fivew.get("steps"), s)["located"]) if fivew.get("steps") else set()
+    drawn, rows = [], []
+    for i, st in enumerate(steps, 1):
+        problems = [p for p in st.get("problems") or [] if isinstance(p, dict)]
+        mark = "located" if st["id"] in hit else "flagged" if problems else ""
+        often = text(st.get("runs_per_period")) or _DASH
+        time = _step_time(st)
+        drawn.append({"n": i, "name": st["name"], "time": time, "often": often, "mark": mark,
+                      "problems": [{"note": str(p.get("note") or ""), "said_by": str(p.get("said_by") or "")}
+                                   for p in problems]})
+        said = list(dict.fromkeys(str(p.get("said_by") or "").strip() for p in problems if p.get("said_by")))
+        rows.append([f"{i} {st['name']}", time, often,
+                     "; ".join(str(p.get("note") or "") for p in problems) or _DASH, ", ".join(said) or _DASH])
+    perf: dict[str, Any] = parse.process_performance(s.get("process_performance")) or {}
+    note = " · ".join(x for x in (f"{len(steps)} step{'s' if len(steps) != 1 else ''}",
+                                   f"lead time {text(perf.get('lead_time'))}" if text(perf.get("lead_time")) else "",
+                                   text(perf.get("runs_per_period"))) if x)
+    measured = s.get("process_metrics")
+    if isinstance(measured, list):
+        measured = "; ".join(str(m.get("name") or m) if isinstance(m, dict) else str(m) for m in measured)
+    columns = sipoc_columns(s)
+    return {"kind": "sipoc", "columns": {k: columns[k] for k in ("suppliers", "inputs", "outputs", "customers")},
+            "steps": drawn, "note": note, "measured": str(measured or "").strip() or None,
+            "located": [d["n"] for d in drawn if d["mark"] == "located"],
+            "table": {"columns": ["Step", "Time · average (range)", "How often", "Problems the team sees", "Said by"],
+                      "rows": rows, "marks": [d["mark"] for d in drawn]},
+            "why": FIELD_EXPLAIN["sipoc"], "measured_why": FIELD_EXPLAIN["process_metrics"]}
+
+
+def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """DEF-176..178: how a confirmed element's card is laid out in the Gate (gate_view_mockup.html, sections A–C),
+    read from the card's own rows and the stored values — never a value they do not hold. None: the rows."""
+    from backend.phases.define.report import FIELD_EXPLAIN, _savings
+    by_id = {r["id"]: r for r in card.get("rows") or []}
+
+    def item(label: str, cid: str) -> list[Any]:
+        r = by_id.get(cid) or {}
+        return [label, r.get("value"), *([r["why"]] if r.get("why") else [])]
+    if field == "team":
+        return {**_team_table(artifacts, case), "why": FIELD_EXPLAIN["team"]}
+    if field == "business_case":
+        return {"kind": "kv", "items": [item("What", "what"), item("Where and since when", "where-when"),
+                                        item("Size", "baseline"), item("Cost", "cost")]}
+    if field == "benefits_analysis":
+        from backend.phases.calculations import expected_saving_text
+        raw = artifacts.get("benefits_analysis")
+        b: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        saving = expected_saving_text(_savings(artifacts))
+        return {"kind": "kv",
+                "figures": [["Cost of the gap today", _text(b.get("cost_of_gap")) or None, FIELD_EXPLAIN["cost_of_gap"]],
+                            ["Expected saving at the target", f"{saving} a year" if saving else None]],
+                "items": [item("Sustainable or one-off", "impact-type"), item("When it lands", "realisation"),
+                          item("Finance contact", "finance-contact")]}
+    if field == "problem_statement":
+        fw = _fivew(artifacts)
+        return {"kind": "statement", "why": FIELD_EXPLAIN["five_w_two_h"],
+                **({"table": {"columns": ["5W2H", "Answer"],
+                              "rows": [[label, str(fw.get(k) or "").strip() or _DASH]
+                                       for k, label in _FIVE_W_LABELS.items()]}} if fw else {})}
+    if field == "goal_statement":
+        return {"kind": "statement"}
+    if field == "process_map_sipoc":
+        return _sipoc_view(artifacts)
+    if field == "issues_and_barriers":
+        # DEF-182: the issues in the Belt's order and words (ADR-0088's one list parser), numbered once; no owner.
+        issues = parse.list_items(artifacts.get("issues_and_barriers"), "Issues and barriers")
+        return {"kind": "list", "items": issues, "why": FIELD_EXPLAIN["issues"]} if issues else None
+    if field == "voc_summary":
+        table, _met = _ctq_table(artifacts)
+        if not table:
+            return None
+        n = len(table["rows"])
+        return {"kind": "table", **table, "note": f"{n} CTQ{'s' if n != 1 else ''}", "why": FIELD_EXPLAIN["ctqs"]}
+    if field == "baseline_estimate":
+        p = _primary(artifacts)
+        name, _ok = _primary_name(artifacts)
+        meaning = str(p.get("meaning") or "").strip()
+        base = artifacts.get("baseline_estimate")
+        return {"kind": "kv", "items": [
+            ["Metric", " — ".join(x for x in (name, meaning) if x) or None, FIELD_EXPLAIN["primary"]],
+            item("Business measure it feeds", "kpi-link"),
+            ["Baseline", plain(base) or None, FIELD_EXPLAIN["baseline_target"]]],
+            **({"chart": chart} if (chart := _chart(artifacts)) else {})}
+    if field == "project_scope":
+        boxes, _met = _scope(artifacts)
+        return {"kind": "boxes", "boxes": boxes["boxes"], "why": FIELD_EXPLAIN["scope"]} if boxes else None
+    return None
+
+
 def gate_view(artifacts: dict[str, Any], field_status: dict[str, Any] | None = None,
-              field_log: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+              field_log: list[dict[str, Any]] | None = None, case: dict[str, Any] | None = None) -> dict[str, Any]:
     """ADR-0093 decision 4 (gate_view_mockup.html): sections A–G (R5's seven, in order), each with its elements'
     cards in the report's order and a status ("confirmed", "k of m confirmed", "open"); "Still to confirm" at the
-    end with the element numbers. One numbering with the chat and the progress view (the coached order)."""
-    from backend.phases.define.report import element_of
+    end with the element numbers. One numbering with the chat and the progress view (the coached order).
+    A confirmed card of sections A–C carries its `view`, the mockup's layout (DEF-176..178); `case` gives the
+    project lead's one name (ADR-0090)."""
+    from backend.phases.define.report import FIELD_EXPLAIN, element_of
     field_status = dict(field_status or {})
     sections = []
     for i, (_n, title, fields) in enumerate(REPORT_SECTIONS):
@@ -563,6 +778,13 @@ def gate_view(artifacts: dict[str, Any], field_status: dict[str, Any] | None = N
             if e in TEMPLATES and e not in elements:
                 elements.append(e)
         cards = [gate_card(e, artifacts, field_status, field_log) for e in elements]
+        for c in cards:
+            view = (_view(c["field"], artifacts, c, case or {}) if c["status"] == "confirmed" else
+                    # DEF-176: the people on the case are case data — listed while element 2 is still open.
+                    {**_team_table({}, case or {}), "why": FIELD_EXPLAIN["team"]}
+                    if c["field"] == "team" and (case or {}).get("people") else None)
+            if view:
+                c["view"] = view
         done = sum(1 for c in cards if c["status"] == "confirmed")
         sections.append({"letter": SECTION_LETTERS[i], "title": title, "elements": cards,
                          "status": ("confirmed" if done == len(cards) else "open" if not done

@@ -5276,7 +5276,7 @@
    "rework_risk": "low",
    "effort": "M",
    "priority_override": null,
-   "phase": "define",
+   "phase": "measure",
    "stage": "coached",
    "layer": "coaching",
    "package": "P13"

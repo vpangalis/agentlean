@@ -1,6 +1,6 @@
 # 0035. Computation tools are pure, bound per phase, under a ceiling
 
-**Status:** PROPOSED (architecture sort, 2026-09-26)
+**Status:** ACCEPTED (founder and Desktop, 2026-10-22)
 
 **Source:** [ARCHITECTURE.md](../../ARCHITECTURE.md) §30, §31, §69
 
@@ -10,8 +10,10 @@ Too many tools degrade tool choice; statistics done by the model are unreliable.
 
 ## Decision
 
-Statistics are pure functions that never raise and return strings. Each phase binds its own subset; no phase exceeds sixteen tools. One tool is the single authority for each metric.
+Statistics are pure functions that never raise and return strings. Each phase binds its own subset; no model call is offered more than sixteen tools, counted per turn type (the
+ceiling as worded in ADR-0106's note). One tool is the single authority for each metric.
 
 ## Consequences
 
-The model chooses among few tools. A tool precondition (e.g. stability before capability) is still untested (T-list gaps).
+The model chooses among few tools. A tool precondition (e.g. stability before capability) is still untested (T-list gaps); DEF-132 (T57) is a Measure
+step and left the Define count (2026-10-22).

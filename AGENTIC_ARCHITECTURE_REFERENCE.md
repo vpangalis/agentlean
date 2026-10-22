@@ -1113,7 +1113,7 @@ Each phase subgraph contains **exactly five nodes**.
                      ▼                                  │           │
               ┌──────────────┐                          │           │
               │   executor   │  create_agent            │           │
-              │              │  ReAct loop, ≤5 hops     │           │
+              │              │  ReAct loop, ≤3 hops     │           │
               │  ┌────────┐  │  capped by RemainingSteps│ not clean │
               │  │ tools  │  │  7 universal +           │           │
               │  │  8–15  │  │  phase computation       │           │
@@ -2311,8 +2311,8 @@ not replace them.
 **Specification:** the guard is behaviour B1 of **§58.18 — S-F09**. Note the state field it
 reads is undeclared — **SPEC-GAP G-04**.
 
-**Five hops per Belt turn.** Beyond five the model is usually lost or looping,
-and cutting it off is correct behaviour.
+**Three hops per Belt turn** (ADR-0032, ruled 2026-10-22: the value code and tests pin; it fits the 45 s turn).
+Beyond that the model is usually lost or looping, and cutting it off is correct behaviour.
 
 **`RemainingSteps` rather than `recursion_limit`** — the reasoning, and the two
 ways `recursion_limit` fails in a hierarchy, are in §16. The property that

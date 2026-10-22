@@ -1,0 +1,22 @@
+{
+  "_about": "Element 12's worked example (illustration, not the Belt's data): SKILL.md's two SIPOC tables, unchanged in content, as one structured value the product draws on the teaching turn (DEF-211; founder note under ADR-0070, 2026-10-22). Shape: ADR-0078's process_map_sipoc.",
+  "suppliers": ["Sales team", "Pricing database", "Client"],
+  "inputs": ["Signed order", "Price list", "Client details"],
+  "process_steps": [
+    {"name": "Receive order", "duration": {"avg": "10 min", "min": "5 min", "max": "30 min"},
+     "runs_per_period": "about 120 a day",
+     "problems": [{"note": "orders arrive without a PO number", "said_by": "Anna"}]},
+    {"name": "Look up prices"},
+    {"name": "Generate invoice", "duration": {"avg": "2 h", "min": "1 h", "max": "6 h"},
+     "runs_per_period": "about 120 a day",
+     "problems": [{"note": "prices taken from an old list", "said_by": "Marco"}]},
+    {"name": "Review and approve", "duration": {"avg": "1 day", "min": "2 h", "max": "3 days"},
+     "runs_per_period": "about 120 a day",
+     "problems": [{"note": "approver away, nobody covers", "said_by": "Anna"}]},
+    {"name": "Send to client"}
+  ],
+  "outputs": ["Invoice (PDF)", "Payment request", "Audit record"],
+  "customers": ["Client finance team", "Credit control"],
+  "process_metrics": "invoice error rate, cycle time",
+  "process_performance": {"lead_time": "about 3 days", "runs_per_period": "about 600 invoices a week"}
+}

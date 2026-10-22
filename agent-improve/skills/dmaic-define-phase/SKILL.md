@@ -314,27 +314,8 @@ and only it carries the baseline and the target.
 **[12 · process_map_sipoc · required · as-is, from a shown demo]**
 > **What it is:** A SIPOC — a one-page, high-level map of the process as it runs today: Suppliers give Inputs; the Process, in four to eight main steps from start to end, turns them into Outputs, which go to Customers; and what is measured on those outputs. With it, how the process performs today: for each step, how long it takes (average, shortest and longest, with the unit), how often it runs, and the problems the team sees there and who said so; for the whole process, the end-to-end lead time and how often it runs. Estimates are fine here — Measure replaces them with measured data.
 > **Why it matters:** It puts the whole process on one page, so the team agrees where it starts and ends and who it serves. It maps the process as it IS, not as it should be — an ideal map hides the problem. The step times and problems show where the problem statement's pain sits, and give Measure its first figures to check.
-> **Show (the completed SIPOC, as a table — illustration, not your data):**
->
-> | Suppliers | Inputs | Process | Outputs | Customers |
-> |---|---|---|---|---|
-> | Sales team | Signed order | 1. Receive order | Invoice (PDF) | Client finance team |
-> | Pricing database | Price list | 2. Look up prices | Payment request | Credit control |
-> | Client | Client details | 3. Generate invoice | Audit record | |
-> | | | 4. Review and approve | | |
-> | | | 5. Send to client | | |
->
-> How each part is formulated: suppliers are who provides; inputs and outputs are things (nouns); each process step starts with a verb; customers are who receives the outputs. Measured on the outputs: invoice error rate, cycle time.
->
-> **Show (how it performs today — illustration, not your data):**
->
-> | Step | Time: average (shortest–longest) | How often | Problems the team sees (who said it) |
-> |---|---|---|---|
-> | 1. Receive order | 10 min (5–30 min) | about 120 a day | orders arrive without a PO number (Anna) |
-> | 3. Generate invoice | 2 h (1–6 h) | about 120 a day | prices taken from an old list (Marco) |
-> | 4. Review and approve | 1 day (2 h–3 days) | about 120 a day | approver away, nobody covers (Anna) |
->
-> Whole process: lead time about 3 days from order to invoice sent; about 600 invoices a week.
+> **Show (the completed SIPOC and how it performs today — illustration, not your data):** the worked example is drawn below: an invoicing process in five steps, from receiving the order to sending the invoice, with each step's time, how often it runs and the problems the team sees there.
+> How each part is formulated: suppliers are who provides; inputs and outputs are things (nouns); each process step starts with a verb; customers are who receives the outputs.
 > **Ask:** Let's build yours as it runs today: the main steps from start to end, then who supplies what goes in, what comes out, and who receives it. What do you measure on those outputs? Then, for each step: roughly how long it takes — average, shortest and longest — how often it runs, and what problems the team sees there, and who said so. Last, the whole process: how long from start to end, and how often it runs. You can also upload a map if you have one.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `as-is` — maps the process as it runs today, not the ideal (p. 80)

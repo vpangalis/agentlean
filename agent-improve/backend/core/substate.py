@@ -621,6 +621,29 @@ def merge_field_log(
     return list(merged.values())
 
 
+
+def merge_step_log(
+    left: list[dict[str, Any]] | None,
+    right: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """The `step_log` reducer — ADR-0107: an upsert on `key`, like `merge_field_log`.
+
+    A node re-run (a retry, a resume after an interrupt, a restart) writes its entry again under the same
+    deterministic key (`nodes_common.step_key`), and the later entry replaces the earlier in its first
+    position. Entries repeated BY DESIGN carry their repeat in the key — the grader's iteration, and the pass
+    after a gate rejection (`:r1`, `:r2` …, ADR-0107's note) — so they are never collapsed.
+
+    **Every entry must carry a key**: a keyless one is refused (ValueError), because an entry without its
+    identity can be neither replaced on a replay nor told apart from another. An old checkpoint is unaffected:
+    LangGraph restores a stored channel value as it is, and this runs only on new writes."""
+    merged: dict[str, dict[str, Any]] = {}
+    for entry in [*(left or []), *(right or [])]:
+        key = str((entry or {}).get("key") or "").strip()
+        if not key:
+            raise ValueError(f"a step_log entry carries no key (ADR-0107): {entry!r}")
+        merged[key] = dict(entry)
+    return list(merged.values())
+
 def value_history(field_log: list[dict[str, Any]] | None,
                   phase: str | None = None) -> dict[str, dict[str, Any]]:
     """R6 (docs/requirements/business.md) — per field, the FIRST confirmed value
@@ -714,7 +737,8 @@ class PhaseState(TypedDict):
     # The audit trail: HOW each thing was captured, as against WHAT, which is
     # `artifacts`. The two must stay separate. Dicts only — tuples are
     # banned (§10.3).
-    step_log:           Annotated[list[dict[str, Any]], operator.add]
+    # ADR-0107 — an upsert on the entry's key: a replayed step leaves one entry.
+    step_log:           Annotated[list[dict[str, Any]], merge_step_log]
 
     # WHEN each captured value changed, and what it was before — §56
     # amendment, ratified 2026-09-21, built at step 6.33. One entry per
@@ -890,6 +914,7 @@ __all__ = [
     "field_log_key",
     "is_empty_capture",
     "merge_field_log",
+    "merge_step_log",
     "value_history",
     "split_captures",
     "PhaseState",

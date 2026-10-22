@@ -18,19 +18,12 @@ ONE CALL PER UPLOAD, NOT ONE PER QUESTION
     upload record. Nothing downstream re-derives it, which is what bounds the
     cost of the channel to one operational-tier call per file.
 
-WHY THE STRUCTURED RESULT IS PARSED RATHER THAN BOUND
-    Both model calls here return JSON and are validated into a Pydantic model
-    afterwards. **`with_structured_output` would be the better binding and is
-    blocked in this package**: §4.6 scopes the builder-style call to "a plain
-    model invocation inside a tool, middleware, or validator", plus the phase
-    planner, and `deprecated_patterns.yaml` pattern-2 excludes exactly those
-    paths. `backend/upload/**` is a fifth site of the same class and is not on
-    the list — the registry's own comment calls this out twice, that "the
-    exclusion list simply predated the files". Widening it is a governance
-    change and §8 forbids amending a rule in passing during a feature change,
-    so this step parses instead and the widening is left to be argued on its
-    own. `UploadInterpretation(**payload)` still validates; only the binding
-    is weaker.
+BOTH CALLS BIND STRUCTURED OUTPUT (ADR-0104)
+    The interpretation binds `with_structured_output(UploadInterpretation)` and the image read
+    `with_structured_output(ImageRead)` — its five typed fields (ADR-0104's note). §4.6 scopes the
+    builder-style call to a plain model invocation; pattern 2 excludes exactly this file. Nothing
+    is parsed out of the model's text (§4.3), so an unreadable reply can no longer be lost silently
+    as an empty JSON object: it fails the call and takes the stated fallback.
 """
 from __future__ import annotations
 
@@ -42,12 +35,12 @@ from typing import Any
 
 from backend.core import content_safety, guard_messages, pii
 from backend.upload import parsers
-from backend.core.llm import get_llm, block_text
+from backend.core.llm import UPLOAD_TIMEOUT, get_llm
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.core.prompts import (UPLOAD_ELEMENT_CHECK, UPLOAD_INTERPRET_DATA, UPLOAD_INTERPRET_SYSTEM,
                                   VISION_EXTRACT_PROMPT)
-from backend.storage.models import ElementCheck, UploadInterpretation
+from backend.storage.models import ElementCheck, ImageRead, UploadInterpretation
 from backend.upload.classifier import (
     classify_content_type,
     classify_kind,
@@ -61,32 +54,6 @@ logger = logging.getLogger(__name__)
 #: given the measured structure in full and only a window of the contents —
 #: it is being asked what the file means, not to read all of it.
 INTERPRET_SAMPLE_CHARS = 4_000
-
-
-def _json_object(text: str) -> dict[str, Any]:
-    """The first JSON object in `text`, or `{}`.
-
-    Shared by both model calls in this module so the fence-stripping and
-    brace-finding exist once. Returns `{}` rather than raising: every caller
-    here has a stated degradation for an unreadable reply, and none of them
-    should turn a formatting slip into a lost upload.
-    """
-    body = (text or "").strip()
-    if body.startswith("```"):
-        parts = body.split("```")
-        if len(parts) > 1:
-            body = parts[1]
-            if body.startswith("json"):
-                body = body[4:]
-    body = body.strip()
-    start, end = body.find("{"), body.rfind("}") + 1
-    if start < 0 or end <= start:
-        return {}
-    try:
-        loaded = json.loads(body[start:end])
-    except json.JSONDecodeError:
-        return {}
-    return loaded if isinstance(loaded, dict) else {}
 
 
 async def process_upload(
@@ -254,20 +221,17 @@ async def _interpret(
             element=guard_messages.element_name(phase, str(element)), field=element,
             criteria="\n".join(f"- {cid}: {text}" for cid, text in criteria))})
     try:
-        llm = get_llm("extraction")
+        llm = get_llm("extraction", timeout=UPLOAD_TIMEOUT).with_structured_output(UploadInterpretation)
         # G-143: the instructions are the system message, the file only the user message (in T72's
         # labelled block) — as one user message the deployment's jailbreak filter refused it.
         instructions = (SystemMessage(content_blocks=system) if len(system) > 1  # type: ignore[arg-type]
                         else SystemMessage(content=UPLOAD_INTERPRET_SYSTEM))
         result = await llm.ainvoke([instructions, HumanMessage(content=data)])
-        payload = _json_object(block_text(result))
-        if payload.get("summary"):
+        if isinstance(result, UploadInterpretation) and result.summary.strip():
+            check = result.element_check.model_dump() if result.element_check else None
             return UploadInterpretation(
-                summary=str(payload.get("summary") or ""),
-                supports=[str(x) for x in (payload.get("supports") or [])],
-                caveats=[str(x) for x in (payload.get("caveats") or [])],
-                element_check=_element_check(payload.get("element_check"), str(element or ""),
-                                             [cid for cid, _ in criteria]),
+                summary=result.summary, supports=result.supports, caveats=result.caveats,
+                element_check=_element_check(check, str(element or ""), [cid for cid, _ in criteria]),
                 **citation,
             )
         logger.warning(
@@ -374,7 +338,7 @@ async def _extract_from_image(
         phase=phase,
         what=case_meta.get("what", "process improvement"),
     )
-    llm = get_llm("vision", temperature=0.0)
+    llm = get_llm("vision", temperature=0.0, timeout=UPLOAD_TIMEOUT).with_structured_output(ImageRead)
     from langchain_core.messages import HumanMessage
     message = HumanMessage(
         content=[
@@ -388,14 +352,15 @@ async def _extract_from_image(
             {"type": "text", "text": prompt},
         ]
     )
-    extracted: dict[str, Any] = {}
+    extracted = ImageRead(extracted_text="")
     try:
         result = await llm.ainvoke([message])
-        extracted = _json_object(block_text(result))
+        if isinstance(result, ImageRead):
+            extracted = result
     except Exception as e:
         logger.error("Vision extraction failed: %s", e)
 
-    body = (extracted.get("extracted_text") or "").strip()
+    body = extracted.extracted_text.strip()
     if not body:
         return {
             "parsed": False,
@@ -407,18 +372,18 @@ async def _extract_from_image(
             "column_types": {}, "column_ranges": {}, "text": "",
         }
 
-    raw_sipoc = extracted.get("sipoc_columns")
+    raw_sipoc = extracted.sipoc_columns.model_dump() if extracted.sipoc_columns else None
     return {
         "parsed": True,
         "refusal_reason": None,
-        "structure": extracted.get("document_type") or "image",
+        "structure": extracted.document_type or "image",
         "columns": [],
         "row_count": None,
         "column_types": {},
         "column_ranges": {},
         "text": body,
-        "process_steps": extracted.get("process_steps") or [],
-        "metrics_found": extracted.get("metrics_found") or [],
+        "process_steps": extracted.process_steps,
+        "metrics_found": extracted.metrics_found,
         "sipoc_columns": raw_sipoc if raw_sipoc and any(
             v for v in raw_sipoc.values() if v
         ) else None,

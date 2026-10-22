@@ -478,8 +478,8 @@ def test_load_skill_is_not_in_any_allowed_tools_list(phase: str) -> None:
 
 
 @pytest.mark.parametrize("phase, ratified, live", [
-    ("define", 9, 7), ("measure", 16, 14), ("analyse", 13, 11),
-    ("improve", 9, 7), ("control", 13, 11),
+    ("define", 10, 8), ("measure", 17, 15), ("analyse", 14, 12),
+    ("improve", 10, 8), ("control", 14, 12),
 ])
 def test_the_three_tool_counts_that_must_not_drift(
     phase: str, ratified: int, live: int
@@ -488,9 +488,14 @@ def test_the_three_tool_counts_that_must_not_drift(
 
     | | Define | Measure | Analyse | Improve | Control |
     |---|---|---|---|---|---|
-    | §30 ratified | 9 | 16 | 13 | 9 | 13 |
-    | live (2 owed) | 7 | 14 | 11 | 7 | 11 |
-    | + `load_skill` | 8 | 15 | 12 | 8 | 12 |
+    | §30 ratified | 10 | 17 | 14 | 10 | 14 |
+    | live (2 owed) | 8 | 15 | 12 | 8 | 12 |
+    | + `load_skill` | 9 | 16 | 13 | 9 | 13 |
+
+    **Moved again 2026-10-21** (ADR-0106): `read_upload` made the universal set nine, and the ceiling
+    now counts what ONE model call offers, per turn type (ADR-0106's note) — so Measure registering
+    17 is allowed; `test_computation.py::test_no_model_call_offers_more_than_sixteen_tools` holds the
+    per-call limit. The paragraphs below are the history of the per-phase reading it replaced.
 
     **The ratified row moved on 2026-09-09** when `load_evidence_series` made
     the universal set eight (Part AR1). **Measure's ratified total is now 16 —
@@ -519,12 +524,8 @@ def test_the_three_tool_counts_that_must_not_drift(
 
     assert ratified + 1 == live + 3, "the two owed tools, and load_skill"
     if phase == "measure":
-        # Was 16 — "at the ceiling" — while the universal set was seven.
-        assert ratified == 16, "Measure sits ON §30's ceiling since 2026-09-09"
-        assert ratified + 1 == 17, (
-            "G-33's collision is now one PAST the cap, not at it — the "
-            "ceiling must be settled before load_skill is ever bound"
-        )
+        # 16 with eight universal tools; 17 with read_upload (ADR-0106). The ceiling is per call.
+        assert ratified == 17, "Measure registers 17 since ADR-0106 — the ceiling counts one call"
 
 
 def test_skills_are_read_from_the_git_versioned_tree() -> None:

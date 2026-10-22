@@ -403,3 +403,33 @@ def test_g136_a_passive_captured_claim_is_removed_and_a_read_back_intro_kept() -
                                 "captured. Here is what I've captured for your baseline.")
     assert "successfully captured" not in got
     assert "Nothing was stored yet." in got and "what I've captured" in got
+
+
+def test_located_steps_is_the_one_matching_for_r18_and_the_flow() -> None:
+    """DEF-211 (founder note under ADR-0078, 2026-10-22): `parse.located_steps` — a "from → to" location is every
+    step from its start step to its end step; an end found at no step, or at more than one, is returned, never
+    guessed; named steps keep ADR-0078 point 5's matching. `link_mismatch` reads the same matching."""
+    from backend.phases.define import parse
+
+    names = ["Log complaint", "Schedule technician visit", "Technician visit and repair",
+             "Close complaint in ticket system", "Inform customer"]
+    sipoc = {"process_steps": [{"name": n, "problems": [{"note": "x", "said_by": "A"}] if i != 3 else []}
+                               for i, n in enumerate(names)]}
+    ids = [s["id"] for s in parse.process_steps(sipoc["process_steps"])]
+
+    ranged = parse.located_steps("Technician visit and repair → Close complaint in ticket system", sipoc)
+    assert ranged["range"] and ranged["located"] == ids[2:4] and ranged["ends"] == [], ranged
+    assert parse.located_steps(["Inform customer -> Log complaint"], sipoc)["located"] == ids, "ends in either order"
+    lost = parse.located_steps("Archive → Inform customer", sipoc)
+    assert lost["located"] == [] and lost["ends"] == [{"end": "start", "name": "Archive", "found": []}], lost
+    two = parse.located_steps("Log complaint → Technician", sipoc)
+    assert two["ends"] == [{"end": "end", "name": "Technician",
+                            "found": ["Schedule technician visit", "Technician visit and repair"]}], two
+    named = parse.located_steps(["Close complaint in ticket system"], sipoc)
+    assert not named["range"] and named["located"] == ids[3:4] and named["unmatched"] == [], named
+
+    gap = parse.link_mismatch("Technician visit and repair → Close complaint in ticket system", sipoc)
+    assert gap == {"unmatched": [], "ends": [], "quiet": [],
+                   "ignored": ["Log complaint", "Schedule technician visit", "Inform customer"]}, gap
+    assert parse.link_mismatch(["Close complaint in ticket system"], sipoc)["quiet"] == [
+        "Close complaint in ticket system"], "a located step without problem notes"

@@ -1317,7 +1317,9 @@ def post_improvement_cpk(
 #: and it reads a blob; the universal set is already where the I/O-performing
 #: tools live. **Measure now sits at 16, the ceiling below EXACTLY** — a ninth
 #: universal tool breaks §30 for Measure on the day it is added.
-UNIVERSAL_TOOL_COUNT = 8
+#: **NINE since 2026-10-21** — `read_upload` (ADR-0106); Measure registers 17, allowed because the
+#: ceiling below counts one model call, not a phase's registration (ADR-0106's note).
+UNIVERSAL_TOOL_COUNT = 9
 
 #: §30 — the most tools ONE model call may offer, counted per turn type (ADR-0069;
 #: founder ruling 2026-10-21, ADR-0106's note). Tool-selection quality degrades

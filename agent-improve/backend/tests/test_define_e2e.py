@@ -11,7 +11,7 @@ Feature tests record the measurement, never block a commit: non-strict xfail.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -414,9 +414,86 @@ def test_an_upload_lands_once_and_is_indexed(env, monkeypatch) -> None:
         "the create form offers a file picker whose files are never uploaded (G-73; W5: not until R10)"
 
 
-def test_the_coach_quotes_an_uploaded_document() -> None:
-    """DEF-057 — The coach can read a document the Belt uploaded and quote a line from it (e.g. from an uploaded process map)."""
-    _not_written('DEF-057')
+def test_the_coach_quotes_an_uploaded_document(monkeypatch) -> None:
+    """DEF-057 — R1, ADR-0106 (ACCEPTED 2026-10-21): the coach can read a document the Belt uploaded and quote a line
+    from it (e.g. an uploaded process map). read_upload(blob_path), the ninth universal tool: offered on teaching and
+    upload turns only (ADR-0069); reads only files of the current case (the request's case, never an argument);
+    returns the file's text labelled evidence or artefact, capped in length; built like load_evidence_series — the
+    text is re-read from the case's own blob, nothing stored. The probe (below) showed rag_lookup_evidence cannot
+    reach an artefact at all."""
+    import asyncio
+
+    from backend.core import request_context
+    from backend.knowledge import tools
+    from backend.middleware import turn_tools
+    from backend.storage import blob
+    from backend.storage.models import CaseDocument, UploadRecord
+    from backend.upload import classifier
+
+    assert "read_upload" in [t.name for t in tools.UNIVERSAL_TOOLS]
+    for turn, offered in ((turn_tools.TEACHING, True), (turn_tools.UPLOAD, True), (turn_tools.ANSWER, False)):
+        assert ("read_upload" in [t.name for t in turn_tools.offered(turn, tools.UNIVERSAL_TOOLS)]) == offered, turn
+
+    line = "Step 4: the AP clerk re-keys the invoice into SAP when the PO number is missing."
+    text = chr(10).join(["AP process map (to-be draft)", "Step 3: the invoice arrives by e-mail.", line, "Step 5: approval."])
+    path = "uploads/C1/ap_process_map.txt"
+    case = CaseDocument.new(case_id="C1", title="t", belt_level="green", leader="Priya", department="Finance",
+                            target_date="2027-03-31", team=[])
+    case.phases["define"].uploads = [UploadRecord(filename="ap_process_map.txt", blob_path=path, uploaded_by="Priya",
+                                                  uploaded_at="2026-10-21T08:00:00+00:00",
+                                                  classification="purpose=Process map", kind=classifier.ARTEFACT)]
+    read: list[str] = []
+
+    async def download_bytes(p):
+        read.append(p)
+        return (text if p == path else "x" * 20000).encode("utf-8")
+
+    async def load_case(cid):
+        return case if cid == "C1" else None
+    monkeypatch.setattr(blob, "download_bytes", download_bytes)
+    monkeypatch.setattr(blob, "load_case", load_case)
+    request_context.set_case_id("C1")
+    try:
+        content, art = asyncio.run(cast(Any, tools.read_upload).coroutine(blob_path=path))
+        assert line in content and "artefact" in content and art["kind"] == classifier.ARTEFACT, content
+        other, art2 = asyncio.run(cast(Any, tools.read_upload).coroutine(blob_path="uploads/C2/theirs.txt"))
+        assert not art2["ok"] and "uploads/C2/theirs.txt" not in read, "another case's file was read"
+        case.phases["define"].uploads.append(UploadRecord(filename="big.txt", blob_path="uploads/C1/big.txt",
+                                                          uploaded_by="Priya", uploaded_at="2026-10-21T08:00:00+00:00",
+                                                          classification="purpose=Data file"))
+        big, art3 = asyncio.run(cast(Any, tools.read_upload).coroutine(blob_path="uploads/C1/big.txt"))
+        assert art3["truncated"] and len(big) < 20000 and "evidence" in big, art3
+    finally:
+        request_context.set_case_id(None)
+
+
+def test_probe_def057_what_rag_lookup_evidence_gives_the_coach(monkeypatch) -> None:
+    """DEF-057's probe (founder ruling 2026-10-21, item 3: "test first whether rag_lookup_evidence's excerpt lets the
+    coach quote a line from an uploaded document"). Not the feature's test — what the tool returns today:
+    (a) an EVIDENCE upload: the record's excerpt is the document's whole indexed text, so any line can be quoted;
+    (b) an ARTEFACT (a process map — DEF-057's own example; ruling 3, classifier.ARTEFACT_PURPOSES): the tool searches
+        evidence only (search_evidence's default kind), so the coach cannot reach it at all (G-82)."""
+    import asyncio
+
+    from backend.knowledge import tools
+    from backend.upload import classifier
+    line = "Step 4: the AP clerk re-keys the invoice into SAP when the PO number is missing."
+    text = chr(10).join(["Invoice process, as-is.", "Step 3: the invoice arrives by e-mail.", line, "Step 5: approval."])
+    asked: list = []
+
+    def search_evidence(query, case_id, k=4, kind=classifier.EVIDENCE):
+        asked.append(kind)
+        return [{"content": text, "role": "data", "kind": kind, "filename": "ap_process.txt",
+                 "blob_path": "uploads/C1/ap_process.txt"}] if kind == classifier.EVIDENCE else []
+
+    async def direct(query, search, top_k):            # no query-variant model call
+        return search(query)[:top_k]
+    monkeypatch.setattr(tools, "search_evidence", search_evidence)
+    monkeypatch.setattr(tools, "run_multi_query", direct)
+    content, docs = asyncio.run(cast(Any, tools.rag_lookup_evidence).coroutine(query="re-keying", case_id="C1"))
+    assert line in content, "(a) the excerpt does not carry the document's lines"
+    assert asked == [classifier.EVIDENCE], "(b) the tool asked for something other than evidence"
+    assert "Process map" in classifier.ARTEFACT_PURPOSES, "(b) a process map is no longer an artefact"
 
 
 
@@ -1171,25 +1248,30 @@ def test_the_define_report_has_the_visual_of_every_section(env) -> None:
     assert sorted(card) == list(range(1, 8)), sorted(card)
     # 1 — the team table with roles; the lead and the Champion named
     assert ">Role</th>" in card[1] and ">Function</th>" in card[1], "section 1: the team table"
-    assert "Project lead:" in card[1] and "Champion:" in card[1] and "not named in the team yet" not in card[1]
+    # DEF-176 (founder 2026-10-22): the lead and the Champion are named in the one team table, not on lines above it.
+    assert "<td>Project lead</td>" in card[1] and "<td>Champion</td>" in card[1], card[1][:1500]
     # 2 — the cost of the gap and the benefit, with its realisation timeline
     assert "benefit_timeline" in report["visuals"] and 'class="benefit-timeline"' in card[2], "section 2: the timeline"
     # 3 — the 5W2H mind map; in and out of scope side by side
     assert 'id="report-mindmap"' in card[3] and "mindmap_5w2h" in report["visuals"], "section 3: the 5W2H mind map"
-    assert "In scope:" in card[3] and "Out of scope:" in card[3] and "display:flex" in card[3]
+    assert ">In scope</span>" in card[3] and ">Out of scope</span>" in card[3] and "display:flex" in card[3]  # DEF-178
     # 4 — customer need → CTQ
     assert ">Need</th>" in card[4] and ">CTQ (measurable)</th>" in card[4], "section 4: the CTQ table"
     # 5 — the baseline → target chart; the secondaries listed
-    assert 'id="report-target"' in card[5] and "baseline_target" in report["visuals"], "section 5: the chart"
+    assert 'class="gate-chart"' in card[5] and "baseline_target" in report["visuals"], "section 5: the chart"  # DEF-180: in element 5's card
     assert "Secondary metrics" in card[5] and "Element 11" in card[5]
     # 6 — the SIPOC, with step times and frequency, the problem steps marked
-    assert 'id="report-sipoc"' in card[6] and "sipoc" in report["visuals"], "section 6: the SIPOC"
-    assert ">Time (range)</th>" in card[6] and ">How often</th>" in card[6] and ">Problems seen</th>" in card[6]
-    assert "⚠ S2 · Approve invoice" in card[6] and "waits for the budget holder (Lena)" in card[6], \
+    # DEF-181: the SIPOC is drawn in element 12's card (gate_view_mockup.html section F), problem steps marked.
+    assert 'class="gate-flow"' in card[6] and "sipoc" in report["visuals"], "section 6: the SIPOC"
+    assert ">Time · average (range)</th>" in card[6] and ">How often</th>" in card[6] and \
+        ">Problems the team sees</th>" in card[6] and ">Said by</th>" in card[6]
+    flow = card[6].split('class="gate-flow"')[1].split('class="gate-perf"')[0]
+    assert flow.count('data-mark="flagged"') == 1 and "2 Approve invoice" in flow.split('data-mark="flagged"')[1], \
         "the problem step is not marked"
-    assert "⚠ S1" not in card[6] and "6 days" in card[6] and "400 per month" in card[6]
+    assert "<td>waits for the budget holder</td><td>Lena</td>" in card[6], "the problem and who said it"
+    assert "6 days" in card[6] and "400 per month" in card[6]
     # 7 — the issues as a list, no owner in Define
-    assert "<ul" in card[7] and "<li>" in card[7], "section 7: the issues as a list"
+    assert "<ol" in card[7] and "<li>" in card[7], "section 7: the issues as a list"  # DEF-182: numbered
     assert "owner" not in card[7].lower(), "Define names no owner (R5 amended 2026-10-12)"
 
 
@@ -1506,9 +1588,92 @@ def test_the_user_comes_from_single_sign_on() -> None:
     _not_written('DEF-102')
 
 
-def test_without_sign_on_only_registered_team_members_enter() -> None:
-    """DEF-103 — Without single sign-on only the team members the lead registered can open the case; a personal invite before any customer data is used."""
-    _not_written('DEF-103')
+def _p5_case(env) -> None:
+    """P5's case: the lead (ACTOR) and Lena Hart, both confirmed members with an e-mail — the case asks for sign-in
+    (ADR-0091 ruling b); Max Berg proposed."""
+    from backend.storage.models import PersonRecord
+    env.case.people = [PersonRecord(full_name=ACTOR, email="priya@example.com", role="project lead"),
+                       PersonRecord(full_name="Lena Hart", email="lena@example.com", role="Process owner"),
+                       PersonRecord(full_name="Max Berg", role="Analyst", status="proposed")]
+    env.case.leader = ACTOR
+
+
+def test_without_sign_on_only_registered_team_members_enter(env, monkeypatch) -> None:
+    """DEF-103 — R8a (amended 2026-10-01), ADR-0105 (ACCEPTED 2026-10-21): without single sign-on only the team members
+    the lead registered open the case, each with a personal one-time code the lead hands over. On the real routes:
+    only the lead issues a code, only for a confirmed member; 8 characters from the 31-character alphabet, shown once;
+    only its HMAC-SHA256 is stored, in the person entry — never the code; outside development an e-mail alone does not
+    sign in; 5 wrong tries void the code; a re-issue voids the earlier one; the code is spent at the first sign-in;
+    it expires 72 hours from issue; every issue, sign-in and refusal is in the access trail. In development an e-mail
+    alone still signs in; SESSION_SECRET is required outside development."""
+    import datetime as dt
+
+    from backend.core import config
+    from backend.core.store import get_store
+    from backend.gateway import access
+    from backend.storage import people as people_mod
+
+    _p5_case(env)
+    monkeypatch.setattr(config.settings, "GUARD_MODE", "strict")
+    url = f"/cases/{CASE_ID}/people/Lena Hart/code"
+
+    def as_person(email: str) -> None:                  # the case asks for sign-in: each request carries a session
+        env.client.cookies.clear()                      # (a sign-in's own cookie would be sent beside this one)
+        env.client.cookies.set(access.cookie_name(CASE_ID), access.token(CASE_ID, email))
+
+    def issue():
+        as_person("priya@example.com")
+        return env.client.post(url, json={"actor": ACTOR})
+    as_person("lena@example.com")
+    assert env.client.post(url, json={"actor": "Lena Hart"}).status_code == 403          # only the lead issues
+    as_person("priya@example.com")
+    assert env.client.post(f"/cases/{CASE_ID}/people/Max Berg/code", json={"actor": ACTOR}).status_code == 422
+    first = issue()
+    assert first.status_code == 200, first.text
+    code = first.json()["code"]
+    assert len(code) == 8 and set(code) <= set(access.CODE_ALPHABET) and len(access.CODE_ALPHABET) == 31, code
+    assert not set("0O1IL") & set(access.CODE_ALPHABET)
+    lena = people_mod.find(env.case.people, "Lena Hart")
+    assert lena is not None and len(lena.code_hash) == 64 and code not in env.case.model_dump_json(), \
+        "the code is stored in plain text"
+
+    def sign(email: str, code: str | None = None):
+        return env.client.post(f"/cases/{CASE_ID}/session", json={"email": email, **({"code": code} if code else {})})
+    assert sign("lena@example.com").status_code == 403, "an e-mail alone signed in outside development"
+    for _ in range(access.CODE_ATTEMPTS):
+        assert sign("lena@example.com", "ZZZZZZZZ").status_code == 403
+    assert sign("lena@example.com", code).status_code == 403, "five wrong tries did not void the code"
+
+    second = issue().json()["code"]
+    third = issue().json()["code"]
+    assert sign("lena@example.com", second).status_code == 403, "a re-issue did not void the earlier code"
+    ok = sign("lena@example.com", third)
+    assert ok.status_code == 200 and access.cookie_name(CASE_ID) in ok.cookies, ok.text
+    assert sign("lena@example.com", third).status_code == 403, "the code was not spent at the first sign-in"
+
+    late = issue().json()["code"]
+    issued = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=access.CODE_HOURS + 1)
+    env.case.people = [p.model_copy(update={"code_issued_at": issued.isoformat(timespec="seconds")})
+                       if p.full_name == "Lena Hart" else p for p in env.case.people]
+    assert sign("lena@example.com", late).status_code == 403, "an expired code signed in"
+
+    trail = [i.value.get("status") for i in get_store().search(("projects", CASE_ID, "step_log"), limit=200)
+             if (i.value or {}).get("layer") == "access"]
+    assert {"code_issued", "signed_in", "refused"} <= set(trail), trail
+
+    monkeypatch.setattr(config.settings, "GUARD_MODE", "development")
+    env.case.people = [p.model_copy(update={"code_hash": ""}) for p in env.case.people]
+    assert sign("lena@example.com").status_code == 200, "development lost the e-mail sign-in"
+    # T88 (ADR-0065): version 14, a no-op migration from 13 — a version-13 person and element entry load unchanged.
+    from backend.core import migrations
+    from backend.storage.models import PersonRecord
+    v13: dict[str, Any] = {"field_status": {"team": {"status": "confirmed"}}, "people": [{"full_name": "Ana", "role": "x"}]}
+    assert migrations.current() >= 14 and migrations.MIGRATIONS[13](v13) == v13
+    assert PersonRecord.model_validate(v13["people"][0]).code_hash == ""
+    from types import SimpleNamespace
+    s = {name: "set" for name in config.REQUIRED_CREDENTIALS}
+    assert "SESSION_SECRET" in config.missing_credentials(cast(Any, SimpleNamespace(**s, SESSION_SECRET="", GUARD_MODE="strict")))
+    assert config.missing_credentials(cast(Any, SimpleNamespace(**s, SESSION_SECRET="", GUARD_MODE="development"))) == []
 
 
 def test_the_creator_is_the_project_lead_and_alone_manages_the_team(env) -> None:
@@ -1585,9 +1750,70 @@ function toast() {}
     assert "teamRemove(0)" not in got["asLead"], "the lead is offered to remove themselves"
 
 
-def test_the_lead_role_can_be_handed_over_and_is_recorded() -> None:
-    """DEF-105 — The project lead can hand the role to another team member; the handover is recorded in the audit trail."""
-    _not_written('DEF-105')
+def test_the_lead_role_can_be_handed_over_and_is_recorded(env) -> None:
+    """DEF-105 — R8c (open decision 2 answered, founder ruling 2026-10-21): the project lead can hand the role to
+    another registered member of the team; the handover is recorded in the Store's cross-phase audit (who, to whom,
+    when, why) and the case record's lead is updated. On the real routes: only the lead hands over; never to a
+    proposed member or someone not on the case; afterwards the new lead manages the team and the old one cannot; the
+    old lead stays on the team. On the page, the lead is offered the handover on a confirmed member's row only."""
+    import json
+
+    from backend.core.store import get_store
+    from backend.storage import people as people_mod
+    from backend.storage.models import CaseDocument
+
+    env.case.people = CaseDocument.new(case_id=CASE_ID, title="t", belt_level="green", leader=ACTOR,
+                                       department="Finance", target_date="2027-03-31", team=[]).people
+    lena = {"full_name": "Lena Hart", "role": "Process owner", "email": "lena@example.com"}
+    assert env.client.post(f"/cases/{CASE_ID}/people", json={"actor": ACTOR, "person": lena}).status_code == 200
+    assert env.client.post(f"/cases/{CASE_ID}/people", json={"actor": ACTOR, "person": {
+        "full_name": "Max Berg", "role": "Analyst"}}).status_code == 200
+    env.case.people = [p.model_copy(update={"status": "proposed"}) if p.full_name == "Max Berg" else p
+                       for p in env.case.people]
+
+    refused = env.client.post(f"/cases/{CASE_ID}/lead", json={"actor": "Lena Hart", "to": "Lena Hart",
+                                                              "reason": "I take over"})
+    assert refused.status_code == 403 and f"Only the project lead, {ACTOR}" in refused.json()["detail"], refused.text
+    nobody = env.client.post(f"/cases/{CASE_ID}/lead", json={"actor": ACTOR, "to": "Max Berg", "reason": "x"})
+    assert nobody.status_code in (404, 422), nobody.text
+    done = env.client.post(f"/cases/{CASE_ID}/lead", json={"actor": ACTOR, "to": "Lena Hart",
+                                                           "reason": "I move to another site"})
+    assert done.status_code == 200, done.text
+    body = done.json()
+    assert body["lead"] == "Lena Hart" and env.case.leader == "Lena Hart", (body["lead"], env.case.leader)
+    head = people_mod.lead(env.case.people)
+    assert head is not None and head.full_name == "Lena Hart"
+    old = people_mod.find(env.case.people, ACTOR)
+    assert old is not None and old.role == "Team member", "the old lead left the team or kept the lead role"
+
+    trail = [i.value for i in get_store().search(("projects", CASE_ID, "step_log"), limit=100)
+             if (i.value or {}).get("event") == "lead_handover"]
+    assert len(trail) == 1, trail
+    entry = trail[0]
+    assert (entry["from"], entry["to"], entry["why"]) == (ACTOR, "Lena Hart", "I move to another site"), entry
+    assert entry["at"], entry
+
+    # the new lead manages the team; the old one no longer can
+    assert env.client.post(f"/cases/{CASE_ID}/people", json={"actor": ACTOR, "person": {
+        "full_name": "Ana Lima", "role": "Analyst"}}).status_code == 403
+    assert env.client.post(f"/cases/{CASE_ID}/people", json={"actor": "Lena Hart", "person": {
+        "full_name": "Ana Lima", "role": "Analyst"}}).status_code == 200
+
+    people = json.dumps({"case_id": CASE_ID, "lead": "Priya Shah", "people": [
+        {"full_name": "Priya Shah", "role": "project lead", "status": "member", "is_lead": True},
+        {"full_name": "Lena Hart", "role": "Analyst", "status": "member", "is_lead": False},
+        {"full_name": "Tom", "role": "Champion", "status": "proposed", "is_lead": False}]})
+    got = _page_js("escapeHtml", "renderTeamPanel", script=r"""
+const els = {}; function el(id) { return els[id] || (els[id] = {id, innerHTML: '', setAttribute() {}, remove() {}}); }
+const document = {getElementById: el, createElement: () => el('new'), body: {appendChild() {}}};
+let S = {user: 'Priya Shah'};
+renderTeamPanel(""" + people + """); const asLead = els['team-panel'].innerHTML;
+S.user = 'Lena Hart'; renderTeamPanel(""" + people + """); const asMember = els['team-panel'].innerHTML;
+console.log(JSON.stringify({asLead, asMember}));
+""")
+    assert "teamHandOver(1)" in got["asLead"], "the lead is not offered the handover on a confirmed member"
+    assert "teamHandOver(2)" not in got["asLead"] and "teamHandOver(0)" not in got["asLead"], got["asLead"]
+    assert "teamHandOver(" not in got["asMember"], "a member is offered the handover"
 
 
 def test_the_belt_can_pick_any_available_element_or_take_the_recommended_one() -> None:
@@ -1920,14 +2146,162 @@ def test_g236_an_uploaded_team_list_keeps_its_training_column_and_confirm_opens(
     assert team[0]["time_commitment"] == "2 h per month", team[0]
 
 
-def test_removing_a_file_removes_it_from_storage_and_index() -> None:
-    """DEF-109 — Deleting an uploaded file removes it from storage and the search index; the audit log keeps its name, digest, date and who removed it."""
-    _not_written('DEF-109')
+def test_removing_a_file_removes_it_from_storage_and_index(env, monkeypatch) -> None:
+    """DEF-109 — Deleting an uploaded file removes it from storage and the search index; the audit log keeps its name, digest, date and who removed it.
+
+    W7, through the real route (DELETE /files/{case_id}/{file_id}) and the page's own deleteCaseFile: the file's
+    blob is deleted and its improve_evidence_index document removed by its id; the case no longer lists it; the
+    case's audit trail (the Store's step_log) keeps the file's name, digest, the date and who removed it — the
+    signed-in person, else the name the page sends. A file never indexed (an artefact) is removed from storage
+    only. If storage or the index refuses, the file stays on the case and nothing is recorded as removed, so the
+    removal can be tried again. An unknown file is 404 and changes nothing."""
+    import json
+
+    from backend.gateway import routes
+    from backend.storage.models import UploadRecord
+
+    deleted_blobs: list[str] = []
+    unindexed: list[str] = []
+    fail = {"blob": False}
+
+    async def delete_upload(path: str) -> None:
+        if fail["blob"]:
+            raise RuntimeError("storage refused")
+        deleted_blobs.append(path)
+
+    async def unindex(doc_id: str) -> None:
+        unindexed.append(doc_id)
+    # The two removers themselves, over fakes of their clients: a blob already gone counts as deleted; the
+    # index document is deleted by its id.
+    import asyncio
+    from azure.core.exceptions import ResourceNotFoundError
+    import azure.search.documents.aio as search_aio
+    gone: list = []
+
+    class _Container:
+        async def delete_blob(self, path):
+            gone.append(path)
+            if path.endswith("missing.csv"):
+                raise ResourceNotFoundError("gone")
+
+    class _Search:
+        def __init__(self, **kw):
+            gone.append(kw["index_name"])
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def delete_documents(self, docs):
+            gone.append(docs)
+    with monkeypatch.context() as m:
+        m.setattr(routes.blob, "_container", lambda: _Container())
+        m.setattr(search_aio, "SearchClient", _Search)
+        asyncio.run(routes.blob.delete_upload("uploads/C/late.csv"))
+        asyncio.run(routes.blob.delete_upload("uploads/C/missing.csv"))
+        asyncio.run(routes._unindex_upload("doc-9"))
+    from backend.core.config import settings
+    assert gone == ["uploads/C/late.csv", "uploads/C/missing.csv", settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
+                    [{"id": "doc-9"}]], gone
+
+    monkeypatch.setattr(routes.blob, "delete_upload", delete_upload)
+    monkeypatch.setattr(routes, "_unindex_upload", unindex)
+
+    def record(name: str, index_id, digest: str) -> UploadRecord:
+        return UploadRecord(filename=name, blob_path=f"uploads/{CASE_ID}/{name}", uploaded_by="ana",
+                            uploaded_at="2026-10-21T09:00:00+00:00", classification="operational_data",
+                            content_digest=digest, evidence_index_id=index_id,
+                            kind="evidence" if index_id else "artefact")
+    uploads = env.case.phases["define"].uploads
+    uploads[:] = [record("late_payments.csv", "doc-late-1", "d1g35t"), record("sipoc_draft.docx", None, "d2")]
+    fid = routes._case_file_id(CASE_ID, "late_payments.csv", "2026-10-21T09:00:00+00:00")
+
+    def trail() -> list[dict]:
+        store = routes.get_store()
+        return [i.value for i in store.search(("projects", CASE_ID, "step_log"), limit=1000)
+                if (i.value or {}).get("layer") == "files"]
+
+    # Storage refuses: the file stays, nothing recorded as removed.
+    fail["blob"] = True
+    r = env.client.delete(f"/files/{CASE_ID}/{fid}?by=Ana Lima")
+    assert r.status_code == 502, r.text
+    assert [u.filename for u in uploads] == ["late_payments.csv", "sipoc_draft.docx"] and trail() == []
+    fail["blob"] = False
+
+    r = env.client.delete(f"/files/{CASE_ID}/{fid}?by=Ana Lima")
+    assert r.status_code == 200 and r.json()["deleted"] is True, r.text
+    assert deleted_blobs == [f"uploads/{CASE_ID}/late_payments.csv"] and unindexed == ["doc-late-1"]
+    assert [u.filename for u in env.case.phases["define"].uploads] == ["sipoc_draft.docx"]
+    entries = trail()
+    assert len(entries) == 1, entries
+    e = entries[0]
+    assert (e["event"], e["filename"], e["content_digest"], e["removed_by"]) == (
+        "removed", "late_payments.csv", "d1g35t", "Ana Lima"), e
+    assert e["removed_at"][:2] == "20" and "T" in e["removed_at"], e      # the date and time, ISO
+
+    # An artefact, never indexed: storage only.
+    art = routes._case_file_id(CASE_ID, "sipoc_draft.docx", "2026-10-21T09:00:00+00:00")
+    assert env.client.delete(f"/files/{CASE_ID}/{art}?by=Ana Lima").status_code == 200
+    assert unindexed == ["doc-late-1"] and deleted_blobs[-1] == f"uploads/{CASE_ID}/sipoc_draft.docx"
+    assert len(trail()) == 2
+
+    # Unknown: 404, nothing changed.
+    assert env.client.delete(f"/files/{CASE_ID}/nope?by=Ana Lima").status_code == 404
+    assert len(trail()) == 2
+
+    # The page sends who removes it.
+    page = _run_page(("async function deleteCaseFile",), _PAGE_STUBS + """
+const S={case:{case_id:'C1',files:[{file_id:'F1'}]},user:'Ana Lima'};const calls=[];
+function confirm(){return true} function renderPhaseNav(){}
+async function apiJSON(url,opts){calls.push({url,method:opts.method});return {deleted:true}}
+(async()=>{await deleteCaseFile('F1','late.csv');process.stdout.write(JSON.stringify({calls}))})();
+""")
+    assert page["calls"] == [{"url": "/files/C1/F1?by=Ana%20Lima", "method": "DELETE"}], json.dumps(page)
 
 
 def test_a_reply_shows_the_file_and_page_it_used() -> None:
-    """DEF-110 — A reply that draws on the manual or an upload shows the file and page it used."""
-    _not_written('DEF-110')
+    """DEF-110 — W13: a reply that draws on the manual or an upload shows the file and page it used.
+
+    The sources are read IN CODE from this turn's tool results — a retrieval tool's Documents carry
+    `source_file` and `page_number`, `read_upload` (ADR-0106) names its file — never from what the model
+    says it cited. They ride on the reply (`additional_kwargs["citations"]`, which the turn route reads),
+    reach the API as `CitationOut.source_file` / `page`, and the chat shows "file, PDF page n"."""
+    from pathlib import Path
+
+    from langchain_core.documents import Document
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    from backend.gateway.schemas import CitationOut
+    from backend.phases import nodes_common as _nc
+
+    manual = [Document(page_content="A SIPOC lists...", metadata={"id": "m1", "source_file": "BB_eBook.pdf",
+                                                                   "page_number": 47}),
+              Document(page_content="again", metadata={"id": "m2", "source_file": "BB_eBook.pdf", "page_number": 47}),
+              Document(page_content="no source", metadata={"id": "m3"})]
+    messages = [
+        ToolMessage(content="...", tool_call_id="1", name="rag_lookup_methodology", artifact=manual),
+        ToolMessage(content="...", tool_call_id="2", name="read_upload",
+                    artifact={"ok": True, "filename": "ap_process_map.txt", "blob_path": "uploads/C1/ap_process_map.txt",
+                              "kind": "artefact"}),
+        ToolMessage(content="...", tool_call_id="3", name="read_upload", artifact={"ok": False, "reason": "not this case"}),
+        AIMessage(content="Your map's step 4 says the clerk re-keys the invoice."),
+    ]
+    _nc._attach_sources(messages)
+    cites = messages[-1].additional_kwargs["citations"]
+    shown = [(c["source_file"], c.get("page")) for c in cites]
+    assert shown == [("BB_eBook.pdf", 47), ("ap_process_map.txt", None)], "one per file and page, failures left out"
+    assert all(CitationOut(**c).source_file for c in cites)
+
+    # No tool used: nothing is claimed.
+    bare = [AIMessage(content="What is the defect?")]
+    _nc._attach_sources(bare)
+    assert "citations" not in bare[-1].additional_kwargs
+
+    html = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    render = html[html.index("function renderTurn(turn){"):][:1200]
+    assert "c.source_file" in render and "PDF page" in render, "the chat names the file and the page"
 
 
 def test_a_reply_takes_thumbs_and_a_comment_stored_against_its_trace() -> None:
@@ -1951,9 +2325,27 @@ def test_the_sign_in_window_explains_itself_and_names_the_lead() -> None:
 
 
 
-def test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque() -> None:
-    """DEF-116 — `thread_id` comes from an authenticated session, never from the request body (with R8)"""
-    _not_written('DEF-116')
+def test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque(env, monkeypatch) -> None:
+    """DEF-116 — T12, ADR-0105 decision 7: thread_id comes from an authenticated session, never from the request body.
+    A turn's thread is the session's case; a request carrying a valid session for ANOTHER case is refused (403) and
+    runs nothing."""
+    from backend.gateway import access, routes
+
+    _p5_case(env)
+    seen: list[str] = []
+    real = routes._run_turn
+
+    async def spy(graph, state, config, http, deadline=False):
+        seen.append(str(((config or {}).get("configurable") or {}).get("thread_id")))
+        return await real(graph, state, config, http, deadline)
+    monkeypatch.setattr(routes, "_run_turn", spy)
+    _coach_saying(monkeypatch, "Let's look at the business case.")
+    env.client.cookies.set(access.cookie_name(CASE_ID), access.token("IMPR-OTHER-CASE", "lena@example.com"))
+    other = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "x", "message": "Hello"})
+    assert other.status_code == 403 and not seen, (other.status_code, seen)
+    env.client.cookies.set(access.cookie_name(CASE_ID), access.token(CASE_ID, "lena@example.com"))
+    ok = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "x", "message": "Hello"})
+    assert ok.status_code == 200 and seen == [CASE_ID], (ok.status_code, seen)
 
 
 def test_t13_the_case_blob_is_never_written_mid_conversation_only_at_gate_appro(env) -> None:
@@ -2004,14 +2396,73 @@ def test_t17_the_retention_sweep_never_removes_a_paused_thread() -> None:
     assert not hits, hits
 
 
-def test_t21_a_replayed_step_leaves_one_step_log_entry_today_the_channel_append() -> None:
-    """DEF-119 — A replayed step leaves one `step_log` entry (today the channel appends — see the drift list)"""
-    _not_written('DEF-119')
+def test_t21_a_replayed_step_leaves_one_step_log_entry_today_the_channel_append(env) -> None:
+    """DEF-119 — A replayed step leaves one `step_log` entry (today the channel appends — see the drift list)
+
+    ADR-0107 with its note (option a, 2026-10-22): the reducer is `merge_step_log`, an upsert on `key` (the later
+    entry replaces the earlier, in first-appearance order); a pass after a rejection is a repeat by design and
+    carries `:r1`, `:r2` … (from `len(rejection_feedback)`); every entry carries a key; an old checkpoint's log
+    replays the same."""
+    from typing import get_type_hints
+
+    from backend.core import substate
+    from backend.core.substate import PhaseState, merge_step_log
+
+    hints = get_type_hints(PhaseState, include_extras=True)
+    assert hints["step_log"].__metadata__ == (merge_step_log,), "the channel upserts, it does not append"
+
+    a = {"key": "define:0:planner", "node": "planner", "status": "planned"}
+    b = {"key": "define:0:executor", "node": "executor", "status": "ok"}
+    replayed = {**a, "status": "planned", "retry": True}
+    assert merge_step_log([a, b], [replayed]) == [replayed, b], "a replay replaces its own entry, in place"
+    assert merge_step_log([a], [b]) == [a, b], "a new step adds one"
+    with pytest.raises(ValueError):
+        merge_step_log([a], [{"node": "executor"}])        # a keyless entry is refused
+
+    # An old checkpoint replays the same: LangGraph restores a stored channel value as it is — the reducer runs
+    # only on new writes — so a log the appending reducer wrote (duplicates included) comes back unchanged.
+    from langgraph.channels.binop import BinaryOperatorAggregate
+    old = [a, b, {**a, "status": "planned again"}]
+    assert BinaryOperatorAggregate(list, substate.merge_step_log).from_checkpoint(old).get() == old
+
+    # A real rejection run: the gate's entries and the coaching pass after it keep their own keys.
+    _submit(env)
+    _decide(env, decision="reject", elements=["goal_statement"], reason="the target is too timid")
+    parent = env.holder["saver"].get_tuple({"configurable": {"thread_id": CASE_ID, "checkpoint_ns": ""}})
+    keys = list(parent.checkpoint["channel_values"].get("history") or [])
+    assert len(keys) == len(set(keys)), keys
+    assert any(k.endswith(":gate_apply") for k in keys) and any(k.endswith(":gate_apply:r1") for k in keys), keys
+    assert all(k.endswith(":r1") for k in keys[keys.index(next(k for k in keys if k.endswith(":gate_apply"))) + 1:]), keys
 
 
 def test_t22_re_ingesting_a_document_leaves_one_copy_per_chunk_ids_passed_on_ad() -> None:
-    """DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add)"""
-    _not_written('DEF-120')
+    """DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add)
+
+    T22 (ADR-0030, PROPOSED before 0057 — not gated, guard rule 19; founder and Desktop 2026-10-22): the ingest
+    passes a deterministic id per chunk on `add_texts`, so Azure Search upserts on key — the same source ingested
+    twice writes the same ids, never a second copy (LangChain mints a random UUID when no id is passed)."""
+    from backend.core.config import settings
+    from scripts import ingest_knowledge as ik
+
+    index = settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX
+    corpus = [{"id": ik.make_doc_id("BB_eBook.pdf", page, chunk), "content": f"text {page}.{chunk}",
+               "metadata": {"source_file": "BB_eBook.pdf", "page_number": page, "phase_relevance": "define"}}
+              for page in (1, 2) for chunk in (0, 1)]
+    assert ik.make_doc_id("BB_eBook.pdf", 1, 0) == ik.make_doc_id("BB_eBook.pdf", 1, 0), "deterministic"
+    assert len({d["id"] for d in corpus}) == 4, "one id per chunk"
+    written: list[list[str]] = []
+
+    class _Store:
+        def add_texts(self, texts, metadatas=None, ids=None):
+            assert ids is not None and len(ids) == len(texts), "ids passed on add"
+            written.append(list(ids))
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(ik, "get_vectorstore", lambda index_name: _Store())
+        ik.write_corpus(corpus, index)
+        ik.write_corpus(corpus, index)                           # re-ingested
+    half = len(written) // 2
+    first, second = sum(written[:half], []), sum(written[half:], [])
+    assert first == second == [d["id"] for d in corpus], "the re-ingest writes the same keys, so it upserts"
 
 
 def test_t28_turn_latency_p50_and_p99_are_recorded_per_phase() -> None:
@@ -2197,14 +2648,81 @@ def test_t57_a_capability_tool_refuses_until_a_stability_check_has_passed() -> N
 
 
 def test_t58_knowledge_lookups_always_include_the_general_methodology() -> None:
-    """DEF-133 — Knowledge lookups always include the `general` methodology"""
-    _not_written('DEF-133')
+    """DEF-133 — Knowledge lookups always include the `general` methodology
+
+    T58 (ADR-0030, PROPOSED before 0057 — not gated, guard rule 19; founder and Desktop 2026-10-22): every
+    phase-filtered search of the methodology index also matches `phase_relevance eq 'general'`; an unfiltered one
+    searches the whole corpus, `general` included. Checked at the call the index receives."""
+    from backend.knowledge import retriever, tools
+    from backend.phases.mappers_common import PHASE_ORDER
+
+    assert retriever.CROSS_PHASE_RELEVANCE == "general"
+    for phase in PHASE_ORDER:
+        for build in (tools._phase_filter, retriever._phase_filter):
+            assert f"phase_relevance eq '{phase}'" in (build(phase) or ""), (build, phase)
+            assert "phase_relevance eq 'general'" in (build(phase) or ""), (build, phase)
+        assert tools._phase_filter("") is None and retriever._phase_filter(None) is None
+
+    seen: list = []
+
+    class _Store:
+        def similarity_search(self, query, k=4, filters=None):
+            seen.append(filters)
+            return []
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(retriever, "get_knowledge_vectorstore", lambda: _Store())
+        retriever.search_knowledge("what is a SIPOC", phase="measure")
+        retriever.search_knowledge("what is a SIPOC")
+    assert seen == ["phase_relevance eq 'measure' or phase_relevance eq 'general'", None]
 
 
 
-def test_t60_evidence_series_are_re_parsed_at_use_and_never_stored_in_state() -> None:
-    """DEF-135 — Evidence series are re-parsed at use and never stored in state"""
-    _not_written('DEF-135')
+def test_t60_evidence_series_are_re_parsed_at_use_and_never_stored_in_state(stub_coach) -> None:
+    """DEF-135 — Evidence series are re-parsed at use and never stored in state
+
+    T60 as amended 2026-10-22 (founder and Desktop): the series is re-read from the case's blob on every call, and
+    `load_evidence_series`' result is stored WITHOUT its values — the summary (n, mean, sigma, min, max) stays; a
+    computation tool's arguments are kept, as the calculation's audit (ARCHITECTURE.md §4.1)."""
+    import asyncio
+
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    from backend.knowledge import tools as _tools
+    from backend.phases import nodes_common as _nc
+    from backend.storage import blob
+    from backend.tests.test_executor import _state
+
+    # Re-parsed at use: each call downloads and parses the file again.
+    reads: list[str] = []
+
+    async def download_bytes(path):
+        reads.append(path)
+        return "day,minutes\n1,12\n2,15\n3,11\n".replace("\n", chr(10)).encode("utf-8")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(blob, "download_bytes", download_bytes)
+        for _ in range(2):
+            msg = asyncio.run(_tools.load_evidence_series.ainvoke(
+                {"name": "load_evidence_series", "args": {"blob_path": "uploads/C1/t.csv", "column": "minutes"},
+                 "id": "c1", "type": "tool_call"}))
+    assert reads == ["uploads/C1/t.csv"] * 2 and msg.artifact["values"] == ["12.0", "15.0", "11.0"]
+
+    # Never stored: the turn's messages keep the summary, not the values.
+    call = {"name": "load_evidence_series", "args": {"blob_path": "uploads/C1/t.csv", "column": "minutes"},
+            "id": "routed-1", "type": "tool_call"}
+    read = ToolMessage(content="t.csv · column 'minutes': n=3", tool_call_id="routed-1", name="load_evidence_series",
+                       artifact={**{k: v for k, v in msg.artifact.items()}})
+
+    async def routed(state):
+        return [AIMessage(content="", tool_calls=[call]), read]
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(_nc, "_dispatch_routed_read", routed)
+        out = asyncio.run(_nc.executor("define", _state()))
+    stored = [m for m in out["messages"] if isinstance(m, ToolMessage) and m.name == "load_evidence_series"]
+    assert stored, "the routed read is part of the turn"
+    for m in stored:
+        assert "values" not in (m.artifact or {}), m.artifact
+        assert m.artifact["n"] == "3" and m.artifact["column"] == "minutes"
+    assert read.artifact["values"], "the tool's own result object is not mutated"
 
 
 def test_t61_each_skill_description_stays_under_2_000_tokens() -> None:
@@ -4002,8 +4520,11 @@ def test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching(
         assert m, f"the report screen's {fn} is not found"
         assert not re.search(r"<(input|textarea|select)\b|contenteditable", m.group(0)), \
             f"the report screen ({fn}) offers an edit control"
-    html = re.search(r"function defineReportHtml\([\s\S]*?\n}\n", ui)
-    assert html and "'Project lead'" in html.group(0) and "'Champion'" in html.group(0)
+    # DEF-176 (founder 2026-10-22): the report names the lead and the Champion in its one team table (section A).
+    from backend.tests.test_define_report import _render
+    shown = _render(r.json()["report"]).split(">A · ")[1].split(">B · ")[0]
+    lead_row = shown.split('class="gate-team"')[1].split("</tr>")[1]
+    assert f"<td>{ACTOR}</td><td>Project lead</td>" in lead_row and "<td>Tom</td><td>Champion</td>" in shown, shown[:1500]
 
 
 @pytest.mark.degraded_expected
@@ -4526,8 +5047,8 @@ def test_e2e_the_gate_screen_draws_the_report_the_server_sent(env) -> None:
     html = _render(review.json()["report"])
     # ADR-0093 decision 4: R5's seven sections, lettered A–G (gate_view_mockup.html).
     assert all(f">{x} · " in html for x in "ABCDEFG"), "a section is missing from the screen"
-    assert "How does it show up?" in html and "how_much answer" in html, "the 5W2H diagram"
-    assert 'id="report-sipoc"' in html, "the SIPOC diagram's host"
+    assert "<td>How it shows up</td>" in html and "how_much answer" in html, "the 5W2H table"  # DEF-178: the mockup's labels
+    assert 'class="gate-flow"' in html, "the SIPOC diagram (DEF-181: in element 12's card)"
     assert "paid within 30 days" in html, "the CTQ table"
     assert "Late payment rate (%)" in html and "23% → 5%" in html, "one primary, baseline to target"
     assert "&lt;b&gt;sponsor" in html and "<b>sponsor</b>" not in html, "the Belt's text is escaped"
@@ -5390,8 +5911,34 @@ def test_the_problem_statement_and_the_process_steps_are_linked_both_ways(env, m
 
 
 def test_t95_past_case_search_returns_completed_cases_only() -> None:
-    """DEF-165 — T95: past-case search returns completed cases only (before customers)."""
-    _not_written('DEF-165')
+    """DEF-165 — T95: past-case search returns completed cases only (before customers).
+
+    Founder and Desktop 2026-10-22, option (a): the search filters `status eq 'completed'` on `improve_case_index`;
+    ADR-0102's writer (T98) adopts that value. The value is the index layout's own (`layout.CASE_STATUS_COMPLETED`),
+    the filter reaches the search call, and the tool's docstring states it (tools.md §5.4)."""
+    from backend.knowledge import retriever, tools
+    from backend.storage import layout
+
+    assert layout.CASE_STATUS_COMPLETED == "completed"
+    assert layout.CASE_COMPLETED_FILTER == "status eq 'completed'"
+    assert any(f["name"] == "status" and f.get("filterable") for f in layout.CASE_INDEX)
+    seen: list[dict] = []
+
+    class _Client:
+        def search(self, **kw):
+            seen.append(kw)
+            return iter([{"id": "c1", "content_text": "done case", "case_id": "IMPR-1", "title": "t"}])
+
+    class _Embed:
+        def embed_query(self, q):
+            return [0.0]
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(retriever, "get_search_client", lambda name: _Client())
+        mp.setattr(retriever, "get_embeddings", lambda: _Embed())
+        rows = retriever.search_cases("late payments")
+    assert seen and seen[0]["filter"] == "status eq 'completed'", seen
+    assert rows[0]["case_id"] == "IMPR-1"
+    assert "completed" in (tools.rag_lookup_case_history.description or "").lower()
 
 
 def _a8_at_goal_read_back(env, monkeypatch, goal: str) -> None:
@@ -5503,39 +6050,332 @@ def test_the_scripts_worked_examples_carry_no_past_date() -> None:
 # ── founder Define test 2026-10-15: findings registered (step 0, founder 2026-10-16) ──
 
 
+def _a99_gate(team: list | None = None, case: dict | None = None, extra: dict | None = None,
+              drop: tuple = ()) -> tuple[dict, str]:
+    """DEF-176..178: IMPR-2026-A99's confirmed values (test_templates.A99, as gate_view_mockup.html shows them),
+    the founder's team file's time and training columns kept (DEF-229), the expected saving calculated in code
+    (DEF-225); the Define report the server returns, and the page's own defineReportHtml drawing it."""
+    from backend.knowledge.computation import calculate_expected_savings
+    from backend.phases.define.report import define_report
+    from backend.tests.test_define_report import _render
+    from backend.tests.test_templates import A99, BUSINESS_CASE
+
+    row = {"tool": "calculate_expected_savings", "inputs": {}, "result": calculate_expected_savings.invoke(
+        {"baseline_value": "38%", "target_value": "10%", "unit_cost": "€45 per unit", "annual_volume": "1200"})}
+    artifacts = {**A99, "computation_results": [row], "team": team if team is not None else [
+        {"name": "Vassilis Pangalis", "role": "Project lead", "function": "Green Belt"},
+        {"name": "Elena Gruber", "role": "Team member", "function": "Field Technician Coordinator",
+         "time_commitment": "4 h per week", "training": "half a day on data collection"},
+        {"name": "Markus Steiner", "role": "Process owner", "function": "Service Desk Lead Vienna",
+         "time_commitment": "4 h per week", "training": "none"},
+        {"name": "Katharina Huber", "role": "Project Sponsor", "function": "Head of Field Service Austria",
+         "time_commitment": "2 h per month", "training": "none"},
+        {"name": "Sabine Hofer", "role": "Team member", "function": "Quality and Complaints Manager",
+         "time_commitment": "3 h per week", "training": "none"}]}
+    artifacts = {k: v for k, v in {**artifacts, **(extra or {})}.items() if k not in drop}
+    spans = {"what": "38% of complaints in the Austrian field service close later than 10 working days",
+             "where-when": "Since January 2026", "baseline": "About 1,200 complaints a year",
+             "cost": "each late one costs about €45 extra handling, about €20,000 a year"}
+    assert all(s in BUSINESS_CASE for s in spans.values())
+    status = {"business_case": {"status": "confirmed", "spans": spans},
+              "baseline_estimate": {"status": "confirmed", "spans": {"kpi-link": "feeds the monthly service-level KPI"}}}
+    case = case if case is not None else {
+        "title": "Complaint closure time", "leader": "Vassilis Pangalis", "belt_level": "green",
+        "people": [{"full_name": "Vassilis Pangalis", "role": "project lead", "function": "Green Belt"}]}
+    report = define_report(artifacts, case, [], status)
+    return report, _render(report)
+
+
+def _gate_section(report: dict, letter: str) -> dict:
+    return next(s for s in report["gate"]["sections"] if s["letter"] == letter)
+
+
+def _html_section(html: str, letter: str) -> str:
+    nxt = "ABCDEFG"["ABCDEFG".index(letter) + 1] if letter != "G" else None
+    part = html.split(f">{letter} · ")[1]
+    return part.split(f">{nxt} · ")[0] if nxt else part
+
+
 def test_gate_view_section_a_follows_the_mockup() -> None:
-    """DEF-176 — Gate view section A · Project and team: the team table with time on project and training as their own columns, one name for the lead (gate_view_mockup.html; G-198)"""
-    _not_written('DEF-176')
+    """DEF-176 — Gate view section A · Project and team: the team table with time on project and training as their own columns, one name for the lead (gate_view_mockup.html; G-198)
+
+    The Gate's element 2 card carries ONE table — Name | Role | Function | Time | Training | Status — into which
+    the older people block is folded (founder, 2026-10-22; Desktop the same day: the department is ONE case-level
+    line above the table, as in the mockup): the project lead first (the case's one name for the lead, ADR-0090
+    decision 4, role "Project lead"; the case's belt level as the lead's function when nothing else states it),
+    then the champion (named as such), the process owner and the members, each with the time and training their
+    confirmed entry states and, from their person record, whether they are a member or proposed; a person on the
+    case whom element 2 does not name is listed too. The lead named in the team is not listed twice; a missing
+    value is "—". The section keeps one "Department:" line and no longer carries the Project lead / Champion /
+    Belt level lines or "The people on the case" table. The page draws the one table, escaped."""
+    people = [{"full_name": "Vassilis Pangalis", "role": "project lead", "status": "member"},
+              {"full_name": "Katharina Huber", "role": "Champion", "department": "Field Service",
+               "location": {"country": "AT", "site": "Vienna"}, "status": "member"},
+              {"full_name": "Elena Gruber", "role": "Team member", "status": "proposed"},
+              {"full_name": "Max Berg", "role": "Analyst", "status": "proposed"}]
+    case = {"title": "Complaint closure time", "leader": "Vassilis Pangalis", "belt_level": "green",
+            "department": "Field Service Austria", "people": people}
+    report, html = _a99_gate(case=case)
+    team = _gate_section(report, "A")["elements"][0]
+    assert team["field"] == "team" and team["status"] == "confirmed", team
+    view = team["view"]
+    assert view["kind"] == "table" and view["columns"] == [
+        "Name", "Role", "Function", "Time", "Training", "Status"], view
+    assert view["rows"] == [
+        ["Vassilis Pangalis", "Project lead", "Green Belt", "—", "—", "Member"],
+        ["Katharina Huber", "Project Sponsor (Champion)", "Head of Field Service Austria", "2 h per month", "none",
+         "Member"],
+        ["Markus Steiner", "Process owner", "Service Desk Lead Vienna", "4 h per week", "none", "—"],
+        ["Elena Gruber", "Team member", "Field Technician Coordinator", "4 h per week",
+         "half a day on data collection", "Proposed"],
+        ["Sabine Hofer", "Team member", "Quality and Complaints Manager", "3 h per week", "none", "—"],
+        ["Max Berg", "Analyst", "—", "—", "—", "Proposed"]], view["rows"]
+    # One name for the lead: the team naming the lead by first name only still gives one lead row, the case's name;
+    # the belt level is the lead's function when nothing else states one.
+    short, _ = _a99_gate(team=[{"name": "Vassilis", "role": "Lead"},
+                               {"name": "Katharina Huber", "role": "Champion", "function": "Head of Field Service",
+                                "time_commitment": "2 h per month", "training": "none"}],
+                         case={"leader": "Vassilis Pangalis", "belt_level": "black",
+                               "people": [{"full_name": "Vassilis Pangalis", "role": "project lead"}]})
+    rows = _gate_section(short, "A")["elements"][0]["view"]["rows"]
+    assert [r[:3] for r in rows] == [["Vassilis Pangalis", "Project lead", "Black Belt"],
+                                     ["Katharina Huber", "Champion", "Head of Field Service"]], rows
+    # The page: the one table, its headers, every person once; the older block folded away.
+    a = _html_section(html, "A")
+    table = a.split('class="gate-team"')[1].split("</table>")[0]
+    for th in view["columns"]:
+        assert f">{th}</th>" in table, (th, table[:400])
+    assert table.count("Vassilis Pangalis") == 1 and "Project lead" in table, table[:1500]
+    assert "half a day on data collection" in table and "2 h per month" in table and "<td>Proposed</td>" in table
+    assert table.index("Vassilis Pangalis") < table.index("Katharina Huber") < table.index("Elena Gruber")
+    for gone in ("Project lead:", "Champion:", "Belt level:", "The people on the case"):
+        assert gone not in a, (gone, a[:1500])
+    above = a.split('class="gate-team"')[0]
+    assert above.count("Department:</span> Field Service Austria") == 1, above[-1200:]   # one case-level line
 
 
 def test_gate_view_section_b_follows_the_mockup() -> None:
-    """DEF-177 — Gate view section B · Business case and benefits: the business case by its template (What/Where/Since when/Size/Cost), cost of the gap and expected saving as two labelled figures (gate_view_mockup.html; G-198)"""
-    _not_written('DEF-177')
+    """DEF-177 — Gate view section B · Business case and benefits: the business case by its template (What/Where/Since when/Size/Cost), cost of the gap and expected saving as two labelled figures (gate_view_mockup.html; G-198)
+
+    Element 1's card is a definition list in the template's order — What, Where and since when, Size, Cost —
+    each the Belt's own words (the verified spans its Confirm kept); element 10's card shows the cost of the gap
+    (the Belt's confirmed figure) and the expected saving (calculated in code, DEF-225) as two labelled figures,
+    then the rest of the benefits; the page draws both as <dl class="kv">, the two figures marked as figures."""
+    report, html = _a99_gate()
+    b = _gate_section(report, "B")
+    case, benefits = b["elements"]
+    assert (case["field"], benefits["field"]) == ("business_case", "benefits_analysis")
+    kv = case["view"]
+    assert kv["kind"] == "kv", kv
+    assert [(i[0], i[1]) for i in kv["items"]] == [
+        ("What", "38% of complaints in the Austrian field service close later than 10 working days"),
+        ("Where and since when", "Since January 2026"),
+        ("Size", "About 1,200 complaints a year"),
+        ("Cost", "each late one costs about €45 extra handling, about €20,000 a year")], kv["items"]
+    fig = benefits["view"]
+    assert fig["kind"] == "kv" and [(i[0], i[1]) for i in fig["figures"]] == [
+        ("Cost of the gap today", "About €20,500 a year today"),
+        ("Expected saving at the target", "€15,120 a year")], fig
+    assert [i[0] for i in fig["items"]] == ["Sustainable or one-off", "When it lands", "Finance contact"], fig["items"]
+    # The page.
+    sec = _html_section(html, "B")
+    one = sec.split('data-element="1"')[1].split('data-element="10"')[0]
+    assert '<dl class="kv' in one, one[:600]
+    for label in ("What", "Where and since when", "Size", "Cost"):
+        assert f"<dt>{label}</dt>" in one, (label, one[:800])
+    assert "<dd>Since January 2026" in one
+    ten = sec.split('data-element="10"')[1]
+    assert '<dt class="figure">Cost of the gap today</dt>' in ten and "€15,120 a year" in ten, ten[:800]
+    assert '<dt class="figure">Expected saving at the target</dt>' in ten
+    assert "<dt>Finance contact</dt>" in ten and "Martina Koller" in ten
 
 
 def test_gate_view_section_c_follows_the_mockup() -> None:
-    """DEF-178 — Gate view section C · Problem, goal and scope: the composed statement highlighted with the 5W2H table under it, the goal as a highlighted block, scope as two labelled boxes (gate_view_mockup.html; G-198)"""
-    _not_written('DEF-178')
+    """DEF-178 — Gate view section C · Problem, goal and scope: the composed statement highlighted with the 5W2H table under it, the goal as a highlighted block, scope as two labelled boxes (gate_view_mockup.html; G-198)
+
+    Element 4's card: the composed statement highlighted, the 5W2H table under it — seven rows labelled What,
+    Where, When, Who is affected, Why it matters, How it shows up, How much, each the Belt's confirmed answer;
+    element 7's card: the goal highlighted; element 6's card: In scope and Out of scope as two labelled boxes."""
+    from backend.tests.test_templates import A99
+
+    report, html = _a99_gate()
+    cards = {c["field"]: c for c in _gate_section(report, "C")["elements"]}
+    problem, goal, scope = cards["problem_statement"], cards["goal_statement"], cards["project_scope"]
+    assert problem["statement"] == A99["problem_statement"] and problem["view"]["kind"] == "statement"
+    fw = A99["problem_5w2h"]
+    assert problem["view"]["table"] == {"columns": ["5W2H", "Answer"], "rows": [
+        ["What", fw["what"]], ["Where", fw["where"]], ["When", fw["when"]], ["Who is affected", fw["who"]],
+        ["Why it matters", fw["why"]], ["How it shows up", fw["how"]], ["How much", fw["how_much"]]]}, problem["view"]
+    assert goal["statement"] == A99["goal_statement"] and goal["view"]["kind"] == "statement", goal.get("view")
+    assert scope["view"]["kind"] == "boxes" and scope["view"]["boxes"] == [
+        ["In scope", A99["project_scope"]["in_scope"]], ["Out of scope", A99["project_scope"]["out_scope"]]]
+    # The page.
+    sec = _html_section(html, "C")
+    four = sec.split('data-element="4"')[1].split('class="el-card gate-el"')[0]
+    assert four.index('class="statement"') < four.index('class="gate-5w2h"'), four[:600]
+    assert A99["problem_statement"][:60] in four.split('class="statement"')[1].split("</p>")[0]
+    table = four.split('class="gate-5w2h"')[1].split("</table>")[0]
+    assert table.count("<tr") == 8, table          # the header and seven rows
+    for label in ("What", "Where", "When", "Who is affected", "Why it matters", "How it shows up", "How much"):
+        assert f"<td>{label}</td>" in table, (label, table[:600])
+    seven = sec.split('data-element="7"')[1].split('class="el-card gate-el"')[0]
+    assert 'class="statement"' in seven and "from 38% to under 10%" in seven, seven[:600]
+    six = sec.split('data-element="6"')[1].split('class="el-card gate-el"')[0]
+    assert six.count('class="scope-box"') == 2, six[:800]
+    labels = [part.split(">", 1)[1].split("</span>")[0] for part in six.split('<span class="lbl"')[1:]]
+    assert labels == ["In scope", "Out of scope"], (labels, six[:800])
+    assert "Warranty claims" in six.split(">Out of scope</span>")[1]
+    assert "In your answer" not in six and "In your answer" not in seven, "the boxes and the goal said twice"
 
 
 def test_gate_view_section_d_follows_the_mockup() -> None:
-    """DEF-179 — Gate view section D · Voice of the customer and CTQs: the need-to-CTQ table with the rows as stated (gate_view_mockup.html; G-198)"""
-    _not_written('DEF-179')
+    """DEF-179 — Gate view section D · Voice of the customer and CTQs: the need-to-CTQ table with the rows as stated (gate_view_mockup.html; G-198)
+
+    Element 3's card carries ONE table, Customer | Need | CTQ (measurable), one row per row the Belt stated (in
+    their order, never a cross product — DEF-184), and the count beside the element's name ("2 CTQs"); the page
+    draws that table, escaped."""
+    from backend.tests.test_templates import A99
+
+    report, html = _a99_gate()
+    voc = _gate_section(report, "D")["elements"][0]
+    assert voc["field"] == "voc_summary" and voc["status"] == "confirmed", voc
+    view = voc["view"]
+    stated = A99["critical_to_quality"]
+    assert view["kind"] == "table" and view["columns"] == ["Customer", "Need", "CTQ (measurable)"], view
+    assert view["rows"] == [[r["customer"], r["need"], r["requirement"]] for r in stated], view["rows"]
+    assert view["note"] == "2 CTQs", view
+    # Three customers stated against one need each stay three rows (never customers × needs).
+    three = [{"customer": f"Customer {i}", "need": f"Need {i}", "requirement": f"Requirement {i}"} for i in (1, 2, 3)]
+    other, _ = _a99_gate(extra={"critical_to_quality": three})
+    assert [r[0] for r in _gate_section(other, "D")["elements"][0]["view"]["rows"]] == [
+        "Customer 1", "Customer 2", "Customer 3"]
+    # The page.
+    d = _html_section(html, "D")
+    assert "2 CTQs" in d.split('data-element="3"')[1].split("</div>")[0], d[:600]
+    table = d.split('class="gate-ctq"')[1].split("</table>")[0]
+    for th in ("Customer", "Need", "CTQ (measurable)"):
+        assert f">{th}</th>" in table, (th, table[:400])
+    assert table.count("<tr") == 3, table                  # the header and the two rows stated
+    assert "<td>Closed within 5 working days of logging, for ≥ 95% of complaints</td>" in table, table
 
 
 def test_gate_view_section_e_follows_the_mockup() -> None:
-    """DEF-180 — Gate view section E · Metrics: the primary metric by its display name, a chart scaled 0–100 % for shares, the target pending until confirmed (gate_view_mockup.html; G-198)"""
-    _not_written('DEF-180')
+    """DEF-180 — Gate view section E · Metrics: the primary metric by its display name, a chart scaled 0–100 % for shares, the target pending until confirmed (gate_view_mockup.html; G-198)
+
+    Element 5's card: Metric (the display name with its unit and meaning, never the registry id), the business
+    measure it feeds and the baseline in the Belt's words, then a chart: the baseline as a bar on a 0–100 % scale
+    (a share), the target bar "open" until the target is confirmed, then drawn to the same scale."""
+    report, html = _a99_gate(drop=("target_value",), extra={"metric_definitions": [
+        {"id": "late_closure_rate", "name": "late_closure_rate", "unit": "%",
+         "meaning": "share of complaints closed later than 10 working days after logging"}]})
+    five = next(c for c in _gate_section(report, "E")["elements"] if c["field"] == "baseline_estimate")
+    view = five["view"]
+    assert view["kind"] == "kv", view
+    items = {i[0]: i[1] for i in view["items"]}
+    assert items["Metric"] == ("Late closure rate (%) — share of complaints closed later than 10 working days "
+                               "after logging"), items
+    assert "late_closure_rate" not in str(view), "the registry id shown"
+    assert items["Business measure it feeds"] == "feeds the monthly service-level KPI", items
+    assert items["Baseline"].startswith("38% · January–June 2026"), items
+    chart = view["chart"]
+    assert (chart["baseline"], chart["target"], chart["unit"], chart["scale"]) == (38.0, None, "%", 100), chart
+    assert chart["ticks"] == [0, 25, 50, 75, 100], chart
+    # The page: the baseline bar a share of 100, the target open.
+    e = _html_section(html, "E")
+    card = e.split('data-element="5"')[1].split('class="el-card gate-el"')[0]
+    assert "<dt>Metric</dt>" in card and "Late closure rate (%)" in card, card[:600]
+    drawn = card.split('class="gate-chart"')[1]
+    assert 'data-bar="today" style="width:38%' in drawn, drawn[:800]
+    assert 'data-bar="target" data-open="true"' in drawn and ">open<" in drawn, drawn[:800]
+    assert all(f">{t}%<" in drawn for t in (0, 25, 50, 75, 100)), drawn[:1200]
+    # The target confirmed: drawn on the same 0–100 scale.
+    done, html2 = _a99_gate()
+    chart2 = next(c for c in _gate_section(done, "E")["elements"] if c["field"] == "baseline_estimate")["view"]["chart"]
+    assert (chart2["baseline"], chart2["target"], chart2["scale"]) == (38.0, 10.0, 100), chart2
+    card2 = _html_section(html2, "E").split('data-element="5"')[1].split('class="el-card gate-el"')[0]
+    drawn2 = card2.split('class="gate-chart"')[1]
+    assert 'data-bar="target" style="width:10%' in drawn2 and ">open<" not in drawn2, drawn2[:800]
 
 
 def test_gate_view_section_f_follows_the_mockup() -> None:
-    """DEF-181 — Gate view section F · High-level process: the numbered flow with arrows, per-step time and frequency, the R18 step highlighted, the performance table (gate_view_mockup.html; G-198)"""
-    _not_written('DEF-181')
+    """DEF-181 — Gate view section F · High-level process: the numbered flow with arrows, per-step time and frequency, the R18 step highlighted, the performance table (gate_view_mockup.html; G-198)
+
+    Element 12's card, from the confirmed SIPOC and problem statement (the founder's process, located "from → to",
+    DEF-211): suppliers, inputs, outputs and customers as columns; the steps as a numbered flow with arrows, each
+    with its time and how often it runs; the steps the problem statement places the problem in highlighted, the
+    other steps with problem notes marked; what is measured on the outputs; the step count, lead time and
+    frequency beside the element's name; then the performance table — Step | Time · average (range) | How often |
+    Problems the team sees | Said by — the located rows highlighted. The page draws it, escaped."""
+    from backend.tests.test_templates import A99
+
+    fivew = {**A99["problem_5w2h"], "steps": "Technician visit and repair → Close complaint in ticket system"}
+    sipoc = {**SIPOC_A99, "process_performance": {"lead_time": "8 working days", "runs_per_period": "100 per month"}}
+    sipoc["process_steps"] = [dict(s) for s in SIPOC_A99["process_steps"]]
+    sipoc["process_steps"][0] = {**sipoc["process_steps"][0], "duration": {"avg": "15 min", "min": "5 min",
+                                                                           "max": "40 min"}}
+    report, html = _a99_gate(extra={"process_map_sipoc": sipoc, "problem_5w2h": fivew})
+    card = _gate_section(report, "F")["elements"][0]
+    assert card["field"] == "process_map_sipoc" and card["status"] == "confirmed", card
+    view = card["view"]
+    assert view["kind"] == "sipoc", view
+    assert view["columns"]["suppliers"] == ["Business customers", "Service desk", "Field technicians"], view["columns"]
+    assert [(s["n"], s["name"], s["mark"]) for s in view["steps"]] == [
+        (1, "Log complaint", "flagged"), (2, "Schedule technician visit", "flagged"),
+        (3, "Technician visit and repair", "located"), (4, "Close complaint in ticket system", "located"),
+        (5, "Inform customer", "flagged")], view["steps"]
+    assert view["steps"][0]["time"] == "15 minutes (5 minutes to 40 minutes)" and view["steps"][0]["often"] == \
+        "100 per month", view["steps"][0]
+    assert view["note"] == "5 steps · lead time 8 working days · 100 per month", view["note"]
+    assert view["measured"] == "time from logging to closure", view
+    assert view["table"]["columns"] == ["Step", "Time · average (range)", "How often", "Problems the team sees",
+                                        "Said by"], view["table"]
+    assert view["table"]["rows"][3] == ["4 Close complaint in ticket system", "4 days", "100 per month",
+                                        "visit reports arrive late", "Sabine Hofer"], view["table"]["rows"]
+    # The page.
+    f = _html_section(html, "F")
+    assert "5 steps · lead time 8 working days · 100 per month" in f.split('data-element="12"')[1].split("</div>")[0]
+    flow = f.split('class="gate-flow"')[1].split('class="gate-perf"')[0]
+    order = [flow.index(f"{n} {s['name']}") for n, s in enumerate(SIPOC_A99["process_steps"], 1)]
+    assert order == sorted(order) and flow.count("↓") == 4, flow[:1500]
+    assert flow.count('data-mark="located"') == 2 and flow.count('data-mark="flagged"') == 3, flow[:1500]
+    assert "15 minutes (5 minutes to 40 minutes) · 100 per month" in flow, flow[:1500]
+    assert "Step named in the problem statement" in flow and "Measured on the outputs: time from logging to closure" \
+        in flow, flow[-800:]
+    for col in ("Suppliers", "Inputs", "Outputs", "Customers"):
+        assert f">{col}<" in flow, col
+    table = f.split('class="gate-perf"')[1].split("</table>")[0]
+    for th in ("Step", "Time · average (range)", "How often", "Problems the team sees", "Said by"):
+        assert f">{th}</th>" in table, th
+    assert table.count('<tr data-mark="located"') == 2 and "<td>Sabine Hofer</td>" in table, table[:1500]
 
 
 def test_gate_view_section_g_follows_the_mockup() -> None:
-    """DEF-182 — Gate view section G · Issues and barriers: the issues as the Belt numbered them, no owner (gate_view_mockup.html; G-198)"""
-    _not_written('DEF-182')
+    """DEF-182 — Gate view section G · Issues and barriers: the issues as the Belt numbered them, no owner (gate_view_mockup.html; G-198)
+
+    Element 13's card: the issues as one numbered list in the Belt's order and words (the one list parser,
+    ADR-0088, the label and the Belt's own numbers dropped, so nothing is numbered twice); "none identified at
+    this stage" is shown as the answer it is (DEF-036); no owner column or label — owners belong to Improve's
+    action plan (R5 amended 2026-10-12). The page draws it as <ol class="gate-issues">, escaped."""
+    report, html = _a99_gate(extra={"issues_and_barriers": (
+        "Issues and barriers: (1) Month-end peak in the service desk; (2) Ticket system change freeze until "
+        "January; (3) Two <key> accounts already escalated")})
+    g = _gate_section(report, "G")
+    card = g["elements"][0]
+    assert card["field"] == "issues_and_barriers" and card["status"] == "confirmed", card
+    assert card["view"] == {"kind": "list", "items": [
+        "Month-end peak in the service desk", "Ticket system change freeze until January",
+        "Two <key> accounts already escalated"], "why": card["view"]["why"]}, card["view"]
+    assert "owner" not in str(card["view"]).lower()
+    none, none_html = _a99_gate(extra={"issues_and_barriers": "none identified at this stage"})
+    assert _gate_section(none, "G")["elements"][0]["view"]["items"] == ["none identified at this stage"]
+    # The page.
+    sec = _html_section(html, "G")
+    listed = sec.split('<ol class="gate-issues"')[1].split("</ol>")[0]
+    assert listed.count("<li>") == 3, listed
+    assert listed.index("Month-end peak") < listed.index("Ticket system") < listed.index("Two &lt;key&gt;"), listed
+    assert "(1)" not in listed and "1." not in listed, "numbered twice"
+    assert "owner" not in sec.lower(), sec[:800]
+    assert "<li>none identified at this stage</li>" in _html_section(none_html, "G")
 
 
 def test_list_elements_are_split_as_the_belt_numbered_them(env, monkeypatch) -> None:
@@ -6451,7 +7291,7 @@ def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, 
     # T88: a version-12 status without spans migrates unchanged; its rows show the whole answer once.
     v12 = {"field_status": {"business_case": {"status": moves.CONFIRMED}}, migrations.VERSION_KEY: 12}
     moved = migrations.migrate(v12, 12)
-    assert moved["field_status"] == v12["field_status"] and migrations.current() == 13
+    assert moved["field_status"] == v12["field_status"] and migrations.current() >= 13          # 14 since 2026-10-21 (ADR-0105)
     gate = templates.card("business_case", {"business_case": answer},
                           spans=moved["field_status"]["business_case"].get("spans"))
     assert gate["answer"] == answer and all(r["source"] in (templates.IN_ANSWER, templates.YOUR_ANSWER)
@@ -6542,9 +7382,88 @@ def test_the_team_ask_mentions_the_upload() -> None:
     assert "upload" in ask.lower() and ("file" in ask.lower() or "list" in ask.lower()), ask
 
 
-def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps() -> None:
-    """DEF-208 — A file that covers an element only partly is read back as a draft table with its gaps marked (G-209; founder test findings 25)"""
-    _not_written('DEF-208')
+def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps(env, monkeypatch) -> None:
+    """DEF-208 — G-209 (founder test findings 25), ADR-0094 decisions 2 and 4 (ACCEPTED 2026-10-21): a file that
+    covers an element only partly is read back as a DRAFT table with its gaps marked. Through the routes and graph:
+    the team file has no training column; the upload turn reads the five people back as a draft — the card marks
+    training as missing and Confirm is closed, nothing is stored; a Confirm is refused; the Belt adds the training
+    in a message; the read-back is made again with it, Confirm opens, and the team is stored with the training."""
+    from backend.core import prompts as P
+    from backend.gateway import routes
+    from backend.middleware.skills import acceptance_criteria
+    from backend.phases import moves
+    from backend.storage.models import ElementCheck, UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    filename = "team_no_training.csv"
+    csv = chr(10).join(TEAM_FIELD_SERVICE.splitlines()[i].rsplit(",", 1)[0] for i in range(6)) + chr(10)
+    people = [line.split(",")[:3] for line in csv.splitlines()[1:]]
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/0/{filename}"
+
+    async def index(*a, **k):
+        return "idx-team-2"
+
+    async def interpret(filename_, parsed, case_meta, phase, element=None):
+        return UploadInterpretation(summary="The project team, without training.", element_check=ElementCheck(
+            element=element, value=chr(10).join(f"{n} — {r}, {f}" for n, r, f in people),
+            missing=["the training needed"],
+            criteria=[{"criterion": cid, "result": "not_covered" if cid == "training" else "supported"}
+                      for cid, _ in acceptance_criteria("define", element)]))
+
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    _shields(monkeypatch)
+    _coach_saying(monkeypatch, "Here is your team from the file, as a draft. Is this right?", captured=[
+        {"field_name": "team", "source": "upload",
+         "value": [{"name": n, "role": r, "function": f} for n, r, f in people]}])
+    env.case.phases["define"].structured = {"business_case": "Late field-service closures cost us repeat visits."}
+    env.case.phases["define"].field_status = {"business_case": {"status": moves.CONFIRMED}}
+
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": (filename, csv.encode(), "text/csv")})
+    assert r.status_code == 200, r.text
+    draft = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                          "message": f"📎 {filename}"}).json()
+    assert draft["move"] == "read_back" and draft["move_field"] == "team", (draft["move"], draft.get("move_field"))
+    card = draft["readback_card"]
+    training = next(row for row in card["rows"] if row["id"] == "training")
+    assert training["required"] and not training["met"], card["rows"]
+    assert not card["confirm"], "Confirm is open on a draft with a gap"
+    assert P.UPLOAD_DRAFT_ASK in draft["answer"] or P.UPLOAD_DRAFT_ASK in (draft.get("prompt") or ""), draft["answer"]
+    stored = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]
+    assert "team" not in stored, "a draft was stored"
+
+    refused = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                            "message": "Confirm", "action": "confirm"}).json()
+    assert refused["move"] != "store_and_advance", refused["move"]
+    assert "team" not in env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]
+
+    words = "Elena Gruber and Thomas Wagner need half a day on data collection before Measure; the others none."
+    _coach_saying(monkeypatch, "Here is your team with the training added. Is this right?", captured=[
+        {"field_name": "team", "source": "belt",
+         "value": [{"name": n, "role": r, "function": f,
+                    "training": "half a day on data collection before Measure" if n in ("Elena Gruber", "Thomas Wagner")
+                    else "none"} for n, r, f in people]}])
+    added = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": words}).json()
+    assert added["move"] == "read_back", added["move"]
+    assert next(row for row in added["readback_card"]["rows"] if row["id"] == "training")["met"], added["readback_card"]
+    done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                         "message": "Confirm", "action": "confirm"}).json()
+    assert done["move"] == "store_and_advance", done["move"]
+    team = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]["team"]
+    assert {m["name"]: m.get("training") for m in team}["Elena Gruber"].startswith("half a day"), team
+
+    # the rule itself
+    up: dict[str, Any] = {"filename": filename, "element_check": {"element": "team", "value": "Katharina Huber — Sponsor",
+          "missing": ["the training needed"], "criteria": [{"criterion": "training", "result": "not_covered"}]}}
+    assert moves.covering_upload("team", up) is None
+    assert moves.partial_upload("team", up) == {"filename": filename, "value": "Katharina Huber — Sponsor",
+                                                 "missing": ["the training needed"]}
+    assert moves.partial_upload("business_case", up) is None                       # another element
+    assert moves.partial_upload("team", {**up, "element_check": {**up["element_check"], "value": ""}}) is None
 
 
 def test_a_message_pointing_at_the_file_is_not_judged(env, monkeypatch, stub_planner) -> None:
@@ -6576,14 +7495,216 @@ def test_a_message_pointing_at_the_file_is_not_judged(env, monkeypatch, stub_pla
     assert stub_planner.calls == calls + 1, "an answer with content of its own was not judged"
 
 
-def test_a_how_to_question_is_answered_and_the_element_resumes() -> None:
-    """DEF-210 — A how-to question in any element is answered from the method, and the element resumes (G-211; founder test findings 56)"""
-    _not_written('DEF-210')
+def test_a_how_to_question_is_answered_and_the_element_resumes(env, monkeypatch, stub_planner) -> None:
+    """DEF-210 — A how-to question in any element is answered from the method, and the element resumes (G-211; founder test findings 56)
+
+    Through the routes and graph, in three elements of different kinds (a figure, a table, the SIPOC): the element
+    is taught; the Belt asks how to do it, judged not an answer (founder item 18). The turn's move is RESPOND on
+    the same element; the coach is given, in that turn's input, the move telling it to answer from section 2 —
+    and section 2 holds the element's own method block — then to ask again; the reply is the coach's, never the
+    degraded one or the element's teaching repeated by code; nothing is stored and the question does not join the
+    Belt's answer. The next message is judged as an answer to the same element (it resumes). Whether the
+    judgment model calls each how-to question "not an answer" is the live how-to eval set's (item 18), not this
+    test's."""
+    import re
+
+    from backend.core.graph import DEGRADED_REPLY
+    from backend.core.substate import SufficiencyJudgment
+    from backend.gateway import routes as _routes
+    from backend.middleware.skills import _field_blocks, _sections
+    from backend.phases import moves
+    from backend.tests.conftest import DEFAULT_JUDGMENT
+    from backend.tests.test_wiring import _FakeCoach
+
+    seen: list[str] = []
+    generate = _FakeCoach._generate
+
+    def spy(self, messages, *a, **k):
+        # What the coach model is given this turn — every section of its input.
+        seen.append(" ".join(m.text if hasattr(m, "text") else str(m.content) for m in messages))
+        return generate(self, messages, *a, **k)
+    monkeypatch.setattr(_FakeCoach, "_generate", spy)
+    monkeypatch.setattr(_routes, "TURNS_PER_MINUTE", 1000)
+    blocks = _field_blocks("define")
+
+    def plain(lines: list[str]) -> str:
+        text = " ".join(re.sub(r"^>\s*(\*\*[^*]+\*\*:?)?\s*", "", ln) for ln in lines)
+        return re.sub(r"[*_`]", "", text).strip()
+
+    questions = {"baseline_estimate": "How do I find the baseline if we have no clean data?",
+                 "voc_summary": "What makes a good CTQ?",
+                 "process_map_sipoc": "How detailed should the SIPOC be?"}
+    for field, question in questions.items():
+        env.holder["saver"]._container.blobs.clear()
+        env.restart()
+        _at_element(env, field)
+        stub_planner.judgment = DEFAULT_JUDGMENT
+        _coach_saying(monkeypatch, "Here is what this part is.")
+        taught = _askd(env, message="Next, please.")
+        assert taught["move"] == moves.TEACH and taught["move_field"] == field, (field, taught["move"])
+        stored = dict(env.case.phases["define"].structured or {})
+
+        stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks how to do it")
+        explained = f"Good question. Here is how it is done for {field}. Now, your answer?"
+        _coach_saying(monkeypatch, explained)
+        calls = len(seen)
+        r = _askd(env, message=question)
+        assert r["move"] == moves.RESPOND and r["move_field"] == field, (field, r["move"], r.get("move_field"))
+        assert r["answer"].strip() and r["answer"] != DEGRADED_REPLY and explained in r["answer"], (field, r["answer"])
+        assert len(seen) == calls + 1, f"{field}: the coach model was not called on the respond turn"
+        given = re.sub(r"[*_`]", "", seen[-1])
+        assert f"MOVE: RESPOND, then ask again for `{field}`" in seen[-1], (field, seen[-1][-1500:])
+        assert "a question about the method or how to do it from section 2 (this element's block)" in seen[-1], field
+        sections = _sections(blocks[field][1])
+        for name in ("What it is", "Why it matters"):
+            assert plain(sections[name])[:50] in given, (field, name)
+        # Nothing stored; the question is not part of the Belt's answer; the element is still the one asked.
+        assert dict(env.case.phases["define"].structured or {}) == stored, f"{field}: a question stored something"
+        entry = env.case.phases["define"].field_status.get(field) or {}
+        assert entry.get("status") != moves.CONFIRMED and not entry.get("pending"), (field, entry)
+        assert question not in str(entry.get("answer") or ""), (field, entry)
+
+        # The element resumes: the next message is judged as an answer to the same element.
+        stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no figure yet")
+        _coach_saying(monkeypatch, "Thanks — what is missing is the figure itself.")
+        resumed = _askd(env, message="We think it is fairly high.")
+        assert resumed["move"] == moves.CHALLENGE and resumed["move_field"] == field, (field, resumed["move"])
 
 
-def test_the_sipoc_is_taught_and_checked_with_its_flow() -> None:
-    """DEF-211 — The SIPOC is taught and checked with a drawn flow; the R18 check shows every step with problem notes (G-212; founder test findings 59, 61)"""
-    _not_written('DEF-211')
+#: DEF-211 — the founder's process (IMPR-2026-A99, gate_view_mockup.html section F): five steps, problem notes at
+#: every step but the last one named.
+SIPOC_A99: dict[str, Any] = {
+    "suppliers": "Business customers; Service desk; Field technicians",
+    "inputs": "Complaint; Customer and contract data; Visit report",
+    "outputs": "Closed complaint; Closure confirmation to the customer",
+    "customers": "Business customers; Account managers",
+    "process_metrics": "time from logging to closure",
+    "process_steps": [
+        {"name": "Log complaint", "duration": {"avg": "15 min"}, "runs_per_period": "100 per month",
+         "problems": [{"note": "missing contract data", "said_by": "Markus Steiner"}]},
+        {"name": "Schedule technician visit", "duration": {"avg": "2 days"}, "runs_per_period": "100 per month",
+         "problems": [{"note": "no free slots at month end", "said_by": "Elena Gruber"}]},
+        {"name": "Technician visit and repair", "duration": {"avg": "1 day"}, "runs_per_period": "100 per month",
+         "problems": [{"note": "parts not on the van", "said_by": "Elena Gruber"}]},
+        {"name": "Close complaint in ticket system", "duration": {"avg": "4 days"}, "runs_per_period": "100 per month",
+         "problems": [{"note": "visit reports arrive late", "said_by": "Sabine Hofer"}]},
+        {"name": "Inform customer", "duration": {"avg": "1 day"}, "runs_per_period": "100 per month",
+         "problems": [{"note": "customer not told the next step", "said_by": "Thomas Wagner"}]}],
+}
+
+
+def test_the_sipoc_is_taught_and_checked_with_its_flow(env, monkeypatch, stub_planner) -> None:
+    """DEF-211 — The SIPOC is taught and checked with a drawn flow; the R18 check shows every step with problem notes (G-212; founder test findings 59, 61)
+
+    Founder rulings 2026-10-22 (notes under ADR-0070 and ADR-0078), through the routes and graph and the page's own
+    functions:
+    (1a, 2) the SIPOC's teaching turn — taught on its own or after the element before it is confirmed — carries the
+        skill's structured example (skills/dmaic-define-phase/sipoc_example.json) drawn by code, marked as an
+        example; the coach is shown no Markdown table;
+    (3c) a "from → to" location is every step from its start step to its end step: the R18 check names every step
+        with problem notes outside them (steps 1, 2 and 5 — never only one); kept as it is, the read-back says in
+        code "The problem occurs in steps 3–4: is that right?" for one Confirm; an end that matches no step, or
+        more than one, makes the coach ask which step it starts or ends at;
+    (4) the drawn flow marks the located steps and the flagged ones; the page draws the marks, the example badge,
+        and a turn's SIPOC drawing in the chat."""
+    import json
+    from pathlib import Path
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.tests.test_wiring import _FakeCoach
+
+    example = json.loads((Path(__file__).resolve().parents[2] / "skills" / "dmaic-define-phase"
+                          / "sipoc_example.json").read_text(encoding="utf-8"))
+    seen: list[str] = []
+    generate = _FakeCoach._generate
+
+    def spy(self, messages, *a, **k):
+        seen.append(" ".join(m.text if hasattr(m, "text") else str(m.content) for m in messages))
+        return generate(self, messages, *a, **k)
+    monkeypatch.setattr(_FakeCoach, "_generate", spy)
+
+    # (1a, 2) — the teaching turn, on its own.
+    _at_element(env, "process_map_sipoc")
+    _coach_saying(monkeypatch, "Here is what a SIPOC is.")
+    taught = _askd(env, message="Next, please.")
+    assert taught["move"] == moves.TEACH and taught["move_field"] == "process_map_sipoc", taught["move"]
+    drawn = taught["sipoc_diagram"]
+    assert drawn and drawn["example"] is True, drawn
+    assert drawn["process_steps"] == [s["name"] for s in example["process_steps"]], drawn
+    assert drawn["suppliers"] == example["suppliers"] and drawn["customers"] == example["customers"], drawn
+    assert "| Suppliers |" not in seen[-1] and "|---|" not in seen[-1], "the coach was shown the Markdown table"
+    # ... and after the element before it is confirmed (the move that stores element 11 teaches element 12).
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Here is what secondary metrics are.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="two side effects named")
+    watched = "1. Customer satisfaction score 2. First-time fix rate"
+    _coach_saying(monkeypatch, f"Your secondary metrics: {watched}. Is this right?",
+                  captured=[{"field_name": "secondary_metrics", "value": watched, "source": "belt"}])
+    _askd(env, message=watched)
+    _coach_saying(monkeypatch, "Next: the high-level process.")
+    advanced = _askd(env, action="confirm", message="Confirm")
+    assert advanced["move"] == moves.STORE_AND_ADVANCE and advanced["move_field"] == "process_map_sipoc", advanced
+    assert (advanced.get("sipoc_diagram") or {}).get("example") is True, advanced.get("sipoc_diagram")
+
+    # (3c, 4) — the founder's process; the problem located "from → to".
+    def read_back(steps, message: str) -> dict:
+        env.holder["saver"]._container.blobs.clear()
+        env.restart()
+        _at_the_sipoc(env, steps)
+        stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="steps, figures and problems given")
+        _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                      captured=[{"field_name": "process_map_sipoc", "value": SIPOC_A99, "source": "belt"}])
+        return _askd(env, message=message)
+
+    first = read_back("Technician visit and repair → Close complaint in ticket system",
+                      "Log, schedule, visit, close, inform — problems at every step.")
+    assert first["move"] == moves.CHALLENGE, (first["move"], first["answer"])
+    flagged_line = next(s for s in first["answer"].split(". ") if "have problems noted" in s)
+    for name in ("Log complaint", "Schedule technician visit", "Inform customer"):
+        assert name in flagged_line, (name, first["answer"])
+    assert "Technician visit and repair" not in flagged_line and "Close complaint" not in flagged_line, flagged_line
+    marks = first["sipoc_diagram"]
+    assert (marks["located"], marks["flagged"]) == ([3, 4], [1, 2, 5]), marks
+    _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": SIPOC_A99, "source": "belt"}])
+    kept = _askd(env, message="Keep it as it is — the other notes are observations for Analyse.")
+    assert kept["move"] == moves.READ_BACK and "Kept as you said:" in kept["answer"], kept["answer"]
+    assert "The problem occurs in steps 3–4: is that right?" in kept["answer"], kept["answer"]
+    _coach_saying(monkeypatch, "Next: issues and barriers.")
+    _askd(env, action="confirm", message="Confirm")
+    assert len(_define(env)["structured"]["process_map_sipoc"]["process_steps"]) == 5, "not stored with one Confirm"
+
+    # An end that matches no step, or more than one: the coach asks which step it starts or ends at.
+    lost = read_back("Archive → Close complaint in ticket system", "Five steps, problems everywhere.")
+    assert lost["move"] == moves.CHALLENGE and "which step does it start at?" in lost["answer"], lost["answer"]
+    assert "“Archive”" in lost["answer"], lost["answer"]
+    two = read_back("Log complaint → Technician", "Five steps, problems everywhere.")
+    assert two["move"] == moves.CHALLENGE and "which step does it end at?" in two["answer"], two["answer"]
+    assert "Schedule technician visit" in two["answer"] and "Technician visit and repair" in two["answer"], two["answer"]
+
+    # The page: the marks, the example badge, and a turn's drawing in the chat.
+    got = _page(("renderSipocDiagram", "renderLiveViz", "lastVizSource", "liveTargetChart", "baselineTargetHtml",
+                 "detectCurrentWorkProduct"), _DOM + f"""
+const m={json.dumps(marks)};renderSipocDiagram(m,'s1');const table=els['s1'].innerHTML;
+els['s2']={{id:'s2',innerHTML:'',dataset:{{sipocTab:'flow'}}}};renderSipocDiagram(m,'s2');
+const ex={json.dumps(drawn)};renderSipocDiagram(ex,'s3');
+els['chat-messages']={{id:'chat-messages',appendChild(c){{els[c.id]=c}},scrollTop:0,scrollHeight:0}};
+document.createElement=()=>({{id:'',style:{{}},innerHTML:'',dataset:{{}}}});
+const S={{case:{{case_id:'C1',conversation_history:[]}},phase:'define',lastAsk:{{sipoc_diagram:ex}},localChat:[]}};
+function getStructured(){{return {{}}}} function fieldHasValue(v){{return !!v}}
+renderLiveViz();
+process.stdout.write(JSON.stringify({{table,flow:els['s2'].innerHTML,example:els['s3'].innerHTML,
+  live:(els['viz-live']||{{}}).innerHTML||''}}));""")
+    for view in ("table", "flow"):
+        h = got[view]
+        assert h.count('data-mark="located"') == 2 and h.count('data-mark="flagged"') == 3, (view, h[:1500])
+        assert "1 Log complaint" in h and "5 Inform customer" in h, view
+    assert "Example — not your data" in got["example"] and "Draft" not in got["example"], got["example"][:600]
+    assert "Receive order" in got["live"], "the chat did not draw the turn's SIPOC"
 
 
 def test_the_completion_card_and_the_decision_banner() -> None:
@@ -6831,7 +7952,7 @@ def test_only_registered_people_open_a_case_and_the_lead_approves(env, monkeypat
     other = access.token("IMPR-2026-OTHER1", lead_mail)
     env.client.cookies.clear()
     env.client.cookies.set(access.cookie_name(CASE_ID), other)
-    assert env.client.get(f"/cases/{CASE_ID}").status_code == 401, "a session for another case opened this one"
+    assert env.client.get(f"/cases/{CASE_ID}").status_code == 403, "a session for another case opened this one"   # ADR-0105 d. 7
     forged = access.token(CASE_ID, lead_mail)[:-4] + "0000"
     env.client.cookies.set(access.cookie_name(CASE_ID), forged)
     assert env.client.get(f"/cases/{CASE_ID}").status_code == 401, "a forged session was accepted"
@@ -7298,17 +8419,140 @@ def test_an_approved_case_is_written_to_the_case_index() -> None:
     _not_written('DEF-236')
 
 
-def test_a_search_round_with_nothing_new_ends_the_search() -> None:
+def test_a_search_round_with_nothing_new_ends_the_search(env, monkeypatch) -> None:
     """DEF-237 — G-85 (P13): a search round that returns nothing new ends the search; the coach answers with what it has, inside
-    the deadline. (founder ruling 2026-10-20)"""
-    _not_written('DEF-237')
+    the deadline. (founder ruling 2026-10-20)
+
+    T26 (ADR-0032, ACCEPTED; cap three), option (a) of 2026-10-22, through the real routes and graph: the coach
+    searches three times; the first round returns two documents, the second the SAME two — nothing new — so the
+    search ends there: the third lookup runs no search and reads a fixed sentence written in code; the reply
+    arrives; the executor's state slice carries `hop_results`, one line per hop (state.md §10.1 — never a node
+    local)."""
+    from langchain_core.messages import AIMessage
+
+    from backend.core.graph import DEGRADED_REPLY
+    from backend.core.prompts import SEARCH_NOTHING_NEW
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    searched: list[str] = []
+
+    async def same_two(query: str, search: Any, top_k: int) -> list:
+        searched.append(query)
+        return [{"id": "bb-p49", "content": "A business case names the defect.", "source_file": "bb.pdf",
+                 "page_number": 49},
+                {"id": "bb-p51", "content": "Size it with a number.", "source_file": "bb.pdf", "page_number": 51}]
+    monkeypatch.setattr("backend.knowledge.tools.run_multi_query", same_two)
+
+    tool_results: list[str] = []
+    real_tools = nodes_common._budgeted_rag_tools
+
+    def watched_tools(tools, budget, spent, hops=None):
+        out = real_tools(tools, budget, spent, hops)
+        for t in out:
+            if t.name == "rag_lookup_methodology":
+                inner = t.coroutine
+
+                async def seen(*a, _inner=inner, **k):
+                    got = await _inner(*a, **k)
+                    tool_results.append(got[0] if isinstance(got, tuple) else str(got))
+                    return got
+                t.coroutine = seen
+        return out
+    monkeypatch.setattr(nodes_common, "_budgeted_rag_tools", watched_tools)
+
+    slices: list[dict] = []
+    real_executor = nodes_common.executor
+
+    async def executor(*a, **k):
+        out = await real_executor(*a, **k)
+        slices.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "executor", executor)
+
+    def lookup(i: int) -> AIMessage:
+        return AIMessage(content="", tool_calls=[{"name": "rag_lookup_methodology", "id": f"hop{i}",
+                                                  "args": {"query": f"business case wording {i}", "phase": "define"}}])
+    final = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "id": "g85",
+                                               "args": {**REPLY, "message": "Here is what a business case is."}}])
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
+        messages=iter([lookup(1), lookup(2), lookup(3), final])) if role == "coach" else planner(role, **kw))
+    _at_element(env, "business_case")
+    r = _askd_any(env, message="Next, please.")
+
+    assert r["answer"].strip() and r["answer"] != DEGRADED_REPLY, r["answer"]
+    assert len(searched) == 2, ("the third lookup searched again", searched)
+    assert len(tool_results) == 3 and tool_results[-1] == SEARCH_NOTHING_NEW, tool_results
+    hops = slices[-1]["hop_results"]
+    assert hops == ["rag_lookup_methodology: 2 documents, 2 new", "rag_lookup_methodology: 2 documents, 0 new",
+                    "rag_lookup_methodology: not run — the last round found nothing new"], hops
 
 
 
 def test_the_upload_interpretation_uses_structured_output() -> None:
     """DEF-238 — G-48 (P11, T100): the upload interpretation returns its typed result through structured output on an allowed
-    path, never JSON parsed from the model's text. (founder ruling 2026-10-20)"""
-    _not_written('DEF-238')
+    path, never JSON parsed from the model's text. (founder ruling 2026-10-20)
+
+    ADR-0104 with its note: both upload calls bind `with_structured_output` — the interpretation to
+    `UploadInterpretation`, the image read to its five typed fields — `_json_object` is gone, and
+    pattern 2 gains exactly the one path `agent-improve/backend/upload/agent.py`."""
+    import asyncio
+    from pathlib import Path
+
+    import yaml
+    from backend.storage.models import ImageRead, UploadInterpretation
+    from backend.upload import agent
+
+    bound: list[Any] = []
+
+    class _Model:
+        def __init__(self, reply: Any) -> None:
+            self.reply = reply
+
+        def with_structured_output(self, schema: Any, **kw: Any) -> Any:
+            bound.append(schema)
+            reply = self.reply
+
+            class _Bound:
+                async def ainvoke(self, messages: Any, *a: Any, **k: Any) -> Any:
+                    return reply
+            return _Bound()
+
+        async def ainvoke(self, *a: Any, **k: Any) -> Any:
+            raise AssertionError("a plain model call — its text would have to be parsed")
+
+    # The interpretation: the typed result is used, and the citation is the file's, not the model's.
+    typed = UploadInterpretation(summary="Monthly late-payment counts.", supports=["baseline"],
+                                 caveats=[], source_filename="invented.csv")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(agent, "get_llm", lambda role, **kw: _Model(typed))
+        out = asyncio.run(agent._interpret("ap.csv", {"structure": "table", "text": "a,b"},
+                                           {"title": "Late payments"}, "define"))
+    assert bound == [UploadInterpretation]
+    assert out.summary == "Monthly late-payment counts." and out.supports == ["baseline"]
+    assert out.source_filename == "ap.csv"
+
+    # The image read: the five fields, typed, and read into parse_upload's shape.
+    assert set(ImageRead.model_fields) == {"extracted_text", "document_type", "process_steps",
+                                           "sipoc_columns", "metrics_found"}
+    image = ImageRead(extracted_text="Receive invoice -> Approve -> Pay", document_type="process_map",
+                      process_steps=["Receive invoice", "Approve", "Pay"], metrics_found=["3 days"])
+    bound.clear()
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(agent, "get_llm", lambda role, **kw: _Model(image))
+        read = asyncio.run(agent._extract_from_image(b"png", {}, "define"))
+    assert bound == [ImageRead]
+    assert read["parsed"] is True and read["structure"] == "process_map"
+    assert read["process_steps"] == ["Receive invoice", "Approve", "Pay"]
+    assert read["metrics_found"] == ["3 days"] and read["sipoc_columns"] is None
+
+    assert not hasattr(agent, "_json_object"), "ADR-0104 decision 3: _json_object is removed"
+    registry = yaml.safe_load((Path(__file__).resolve().parents[3] / ".claude" / "config" / "deprecated_patterns.yaml")
+                              .read_text(encoding="utf-8"))
+    (p2,) = [x for x in registry["patterns"] if x["id"] == "pattern-2-with-structured-output"]
+    upload = [x for x in p2["path_exclusions"] if "upload" in x]
+    assert upload == ["agent-improve/backend/upload/agent.py"], "exactly one path, not the package"
 
 
 

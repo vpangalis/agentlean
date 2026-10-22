@@ -233,7 +233,13 @@ REQUIRED_CREDENTIALS: tuple[str, ...] = (
 def missing_credentials(s: "Settings | None" = None) -> list[str]:
     """The required credentials that are not set (blank counts as not set)."""
     s = s or settings
-    return [name for name in REQUIRED_CREDENTIALS if not str(getattr(s, name, "") or "").strip()]
+    missing = [name for name in REQUIRED_CREDENTIALS if not str(getattr(s, name, "") or "").strip()]
+    # ADR-0105 decision 8: outside GUARD_MODE=development the sessions and one-time codes are signed with
+    # SESSION_SECRET — without it a restart would void every code and session, so the app does not start.
+    if str(getattr(s, "GUARD_MODE", "strict") or "").strip().lower() != "development" \
+            and not str(getattr(s, "SESSION_SECRET", "") or "").strip():
+        missing.append("SESSION_SECRET")
+    return missing
 
 
 def check_credentials() -> None:

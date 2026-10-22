@@ -157,15 +157,23 @@ def step_key(phase: str, turn_count: int, step_name: str) -> str:
     return f"{phase}:{turn_count}:{step_name}"
 
 
-def _step(phase: str, turn_count: int, step_name: str,
+def _step(phase: str, turn_count: int, step_name: str, *, rejections: int = 0,
           **fields: Any) -> dict[str, Any]:
-    """One `step_log` entry, keyed deterministically. Dicts only — §10.3."""
+    """One `step_log` entry, keyed deterministically. Dicts only — §10.3.
+
+    ADR-0107 (note, option a): the pass after a gate rejection repeats steps of the same run under the same
+    turn, so it carries `:r1`, `:r2` … in its key (`rejections` = `len(rejection_feedback)`, `_rejections`)."""
     return {
-        "key": step_key(phase, turn_count, step_name),
+        "key": step_key(phase, turn_count, step_name) + (f":r{rejections}" if rejections else ""),
         "node": step_name,
         "phase": phase,
         **fields,
     }
+
+
+def _rejections(state: Any) -> int:
+    """How many gate rejections this run has had — the pass number in a `step_log` key (ADR-0107)."""
+    return len((state or {}).get("rejection_feedback") or [])
 
 
 def entry_mode(config: Optional[RunnableConfig]) -> str:
@@ -427,7 +435,7 @@ async def planner(
         )
 
     update["step_log"] = [_step(
-        phase, turn_count, "planner",
+        phase, turn_count, "planner", rejections=_rejections(state),
         goto=goto, route=route,
         status="planned" if entry_fields else "routed",
         reason="G-01 — DP1 is founder-owned; the routing predicate is the "
@@ -783,7 +791,7 @@ _TIMEOUT_MESSAGE = (
     "that rather than searching broadly."
 )
 
-#: What the coach reads when it has spent its five hops. Addressed to the
+#: What the coach reads when it has spent its three hops (ADR-0032). Addressed to the
 #: model, not to the Belt — it is a tool RESULT, and the coach's job on reading
 #: it is to answer from what it already retrieved.
 _HOP_BUDGET_SPENT = (
@@ -1013,9 +1021,9 @@ def _executor_status(hit_cap: bool, off_ramp: bool,
 
 
 def _budgeted_rag_tools(
-    tools: list[Any], budget: int, spent: list[int],
+    tools: list[Any], budget: int, spent: list[int], hops: Optional[list[str]] = None,
 ) -> list[Any]:
-    """§3.7's five-hop cap — per-turn copies of the three `rag_lookup_*` tools.
+    """§3.7's hop cap of three (ADR-0032) — per-turn copies of the three `rag_lookup_*` tools.
 
     **This is where the hop cap lives**, and it is a count of retrieval calls,
     not a step counter. §16 rejects `recursion_limit` for this, and §26's
@@ -1037,7 +1045,18 @@ def _budgeted_rag_tools(
 
     `spent` is a one-element list rather than an `int` because the closure
     mutates it; `nonlocal` cannot reach a caller's local.
+
+    **A round that returns nothing new ends the search** (T26 / G-85, DEF-237): the three copies share the
+    turn's set of document ids already returned; a round that returns documents, none of them new, ends the
+    search, and every later lookup this turn answers `SEARCH_NOTHING_NEW` without searching. A round that
+    returns nothing at all does not end it — the hop cap bounds those. `hops`, when given, is the executor's
+    record of each hop, one line each; the executor returns it as `PhaseState.hop_results` (state.md §10.1:
+    hop results are state, never a node local).
     """
+    from backend.core.prompts import SEARCH_NOTHING_NEW
+    seen: set[str] = set()
+    ended = [False]
+    record: list[str] = hops if hops is not None else []
     budgeted: list[Any] = []
     for original in tools:
         if original not in RAG_LOOKUP_TOOLS:
@@ -1046,21 +1065,44 @@ def _budgeted_rag_tools(
         inner = original.coroutine
 
         async def guarded(_inner: Any = inner, _name: str = original.name, **kwargs: Any) -> Any:
+            if ended[0]:
+                record.append(f"{_name}: not run — the last round found nothing new")
+                return (SEARCH_NOTHING_NEW, [])
             if spent[0] >= budget:
+                record.append(f"{_name}: not run — the {budget} lookups this turn allows are spent")
                 return (_HOP_BUDGET_SPENT.format(budget=budget), [])
             spent[0] += 1
             named = fusion.CALLING_TOOL.set(_name)   # T69: its variant call is counted to it
             try:
-                return await _inner(**kwargs)
+                out = await _inner(**kwargs)
             finally:
                 fusion.CALLING_TOOL.reset(named)
+            docs = out[1] if isinstance(out, tuple) and len(out) == 2 and isinstance(out[1], list) else []
+            ids = [_document_key(d) for d in docs]
+            new = [i for i in dict.fromkeys(ids) if i not in seen]
+            seen.update(ids)
+            record.append(f"{_name}: {len(ids)} document{'s' if len(ids) != 1 else ''}, {len(new)} new")
+            if ids and not new:
+                ended[0] = True
+            return out
 
         budgeted.append(original.model_copy(update={"coroutine": guarded}))
     return budgeted
 
 
+def _document_key(doc: Any) -> str:
+    """A retrieved document's identity within a turn (DEF-237): its index id, else its source and page, else its
+    text."""
+    meta = dict(getattr(doc, "metadata", None) or {}) if not isinstance(doc, dict) else doc
+    if meta.get("id"):
+        return str(meta["id"])
+    if meta.get("source_file") or meta.get("page_number"):
+        return f"{meta.get('source_file')}#{meta.get('page_number')}"
+    return str(getattr(doc, "page_content", "") or meta.get("content") or "")[:200]
+
+
 def _executor_tools(
-    phase: str, hop_budget: int, hops_spent: Optional[list[int]],
+    phase: str, hop_budget: int, hops_spent: Optional[list[int]], hops: Optional[list[str]] = None,
 ) -> list[Any]:
     """What the coach gets to call this turn — the two guards, applied.
 
@@ -1078,7 +1120,7 @@ def _executor_tools(
     if hop_budget <= 0:
         return [t for t in tools if t not in RAG_LOOKUP_TOOLS]
     return _budgeted_rag_tools(tools, hop_budget, hops_spent
-                               if hops_spent is not None else [0])
+                               if hops_spent is not None else [0], hops)
 
 
 @child_span(run_type="chain", name="executor.setup.build_executor",
@@ -1087,6 +1129,7 @@ def _executor_tools(
 def _build_executor(
     phase: str, state: PhaseState, config: Optional[RunnableConfig] = None,
     *, hop_budget: int = COACH_HOP_BUDGET, hops_spent: Optional[list[int]] = None,
+    hop_results: Optional[list[str]] = None,
     script_log: Optional[list[dict[str, Any]]] = None,
     coach_limit: int = TURN_MODEL_CALLS - AFTER_AGENT_CALLS,
     turn_type: str = turn_tools.TEACHING,
@@ -1143,7 +1186,7 @@ def _build_executor(
         # (DEF-040 pauses in a node of its own), and a crashed turn is abandoned (ADR-0080).
         checkpointer=False,
         model=get_llm("coach", max_tokens=1500),
-        tools=_executor_tools(phase, hop_budget, hops_spent),
+        tools=_executor_tools(phase, hop_budget, hops_spent, hop_results),
         response_format=CoachingResponse,   # §20 — never a {Phase}Output
         middleware=[
             # 1 — before_agent. FIRST, and that is a rule, not a preference.
@@ -2065,23 +2108,57 @@ def _r18_link(phase: str, field: Optional[str], store: dict[str, Any],
     """ADR-0078 point 5 (R18, DEF-085): the read-back of the SIPOC against the confirmed problem
     statement, or of the problem statement against the confirmed SIPOC — both directions, in code.
     The mismatch in words, or None when they agree or the other element is not confirmed yet."""
+    pair = _r18_pair(phase, field, store, prior)
+    if pair is None:
+        return None
+    from backend.core.prompts import (LINK_END_AMBIGUOUS, LINK_END_UNMATCHED, LINK_IGNORED, LINK_QUIET,
+                                      LINK_UNMATCHED)
+    from backend.phases.define import parse
+    sipoc, fivew = pair
+    gap = parse.link_mismatch(fivew.get("steps"), sipoc)
+    # DEF-211 (founder note under ADR-0078): an end of a "from → to" location found nowhere, or at more than one
+    # step, is asked about first.
+    parts = [(LINK_END_AMBIGUOUS.format(verb=e["end"], name=e["name"], steps=" or ".join(f"“{n}”" for n in e["found"]))
+              if e["found"] else LINK_END_UNMATCHED.format(verb=e["end"], name=e["name"])) for e in gap["ends"]]
+    parts += [t.format(names=", ".join(f"“{n}”" for n in gap[k]))
+              for k, t in (("unmatched", LINK_UNMATCHED), ("quiet", LINK_QUIET), ("ignored", LINK_IGNORED))
+              if gap[k]]
+    return " ".join(parts) or None
+
+
+def _r18_pair(phase: str, field: Optional[str], store: dict[str, Any],
+              prior: dict[str, Any]) -> Optional[tuple[dict[str, Any], dict[str, Any]]]:
+    """(the SIPOC, the 5W2H) the R18 check compares on this read-back — the element read back against the other
+    one confirmed — or None when there is no pair."""
     if phase != "define":
         return None
-    from backend.core.prompts import LINK_IGNORED, LINK_QUIET, LINK_UNMATCHED
-    from backend.phases.define import parse
     if field == "process_map_sipoc" and isinstance(store.get("process_map_sipoc"), dict) \
             and isinstance(prior.get("problem_5w2h"), dict):
-        sipoc, fivew = store["process_map_sipoc"], prior["problem_5w2h"]
-    elif field == "problem_statement" and isinstance(store.get("problem_5w2h"), dict) \
+        return store["process_map_sipoc"], prior["problem_5w2h"]
+    if field == "problem_statement" and isinstance(store.get("problem_5w2h"), dict) \
             and isinstance(prior.get("process_map_sipoc"), dict):
-        sipoc, fivew = prior["process_map_sipoc"], store["problem_5w2h"]
-    else:
+        return prior["process_map_sipoc"], store["problem_5w2h"]
+    return None
+
+
+def _r18_located(phase: str, field: Optional[str], store: dict[str, Any],
+                 prior: dict[str, Any]) -> Optional[str]:
+    """DEF-211 (founder note under ADR-0078, 2026-10-22): a "from → to" location whose two ends are found — the
+    steps between them read back in code ("The problem occurs in steps 3–4: is that right?"), for the read-back's
+    one Confirm; None otherwise."""
+    pair = _r18_pair(phase, field, store, prior)
+    if pair is None:
         return None
-    gap = parse.link_mismatch(fivew.get("steps"), sipoc)
-    parts = [t.format(names=", ".join(f"“{n}”" for n in gap[k]))
-             for k, t in (("unmatched", LINK_UNMATCHED), ("quiet", LINK_QUIET), ("ignored", LINK_IGNORED))
-             if gap[k]]
-    return " ".join(parts) or None
+    from backend.core.prompts import LINK_LOCATED, LINK_LOCATED_ONE
+    from backend.phases.define import parse
+    sipoc, fivew = pair
+    where = parse.located_steps(fivew.get("steps"), sipoc)
+    if not where["range"] or not where["located"]:
+        return None
+    ids = [s["id"] for s in parse.process_steps(sipoc.get("process_steps"))]
+    numbers = [ids.index(i) + 1 for i in where["located"]]
+    first, last = numbers[0], numbers[-1]
+    return (LINK_LOCATED if last > first else LINK_LOCATED_ONE).format(first=first, last=last)
 
 
 def _with_text(messages: list, text: str) -> list:
@@ -2592,6 +2669,56 @@ def _attach_diagram(messages: list) -> None:
             return
 
 
+#: DEF-110 (W13): the tools whose results name a file a reply drew on — the retrieval tools' Documents
+#: carry `source_file` and `page_number`; `read_upload` (ADR-0106) names the upload it read.
+_SOURCE_TOOLS = frozenset({"rag_lookup_methodology", "rag_lookup_evidence", "rag_lookup_case_history"})
+
+
+def _without_series_values(messages: list) -> list:
+    """DEF-135 (T60): `load_evidence_series` results with the series values taken out of their artifact — a copy,
+    so the tool's own result is untouched; the summary (n, mean, sigma, min, max) is kept."""
+    out = []
+    for m in messages:
+        artifact = getattr(m, "artifact", None)
+        if (isinstance(m, ToolMessage) and m.name == "load_evidence_series"
+                and isinstance(artifact, dict) and "values" in artifact):
+            m = m.model_copy(update={"artifact": {k: v for k, v in artifact.items() if k != "values"}})
+        out.append(m)
+    return out
+
+
+def _attach_sources(messages: list) -> None:
+    """DEF-110 (W13): put the files and pages this turn's tools returned on the reply, as `citations` —
+    read in code from the ToolMessage artifacts, never from what the model says it cited. One per file
+    and page, in the order the tools returned them; a failed read is left out. Mutates in place."""
+    seen: dict[tuple[str, Any], dict] = {}
+    for msg in messages:
+        if not isinstance(msg, ToolMessage):
+            continue
+        artifact = getattr(msg, "artifact", None)
+        if msg.name in _SOURCE_TOOLS and isinstance(artifact, list):
+            for doc in artifact:
+                meta = dict(getattr(doc, "metadata", None) or {})
+                source = str(meta.get("source_file") or "")
+                if source:
+                    seen.setdefault((source, meta.get("page_number")), {
+                        "agent_origin": "agent_improve", "index_name": str(msg.name),
+                        "document_id": str(meta.get("id") or source), "relevance_summary": "",
+                        "source_file": source, "page": meta.get("page_number")})
+        elif msg.name == "read_upload" and isinstance(artifact, dict) and artifact.get("ok"):
+            name = str(artifact.get("filename") or "")
+            seen.setdefault((name, None), {
+                "agent_origin": "agent_improve", "index_name": "read_upload",
+                "document_id": str(artifact.get("blob_path") or name), "relevance_summary": "",
+                "source_file": name, "page": None})
+    if not seen:
+        return
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage):
+            msg.additional_kwargs["citations"] = list(seen.values())
+            return
+
+
 async def executor(
     phase: str,
     state: PhaseState,
@@ -2672,12 +2799,14 @@ async def executor(
             phase, remaining, REMAINING_STEPS_FLOOR, COACH_RECURSION_BACKSTOP,
         )
 
-    # ── guard 2 of 2 — §3.7's five hops, counted in the tools ─────────
+    # ── guard 2 of 2 — §3.7's three hops (ADR-0032), counted in the tools ─
     # A different unit from the one above and not substitutable for it: this
     # counts `rag_lookup_*` CALLS, `remaining_steps` counts graph-node
     # transitions. The list is the sink `_budgeted_rag_tools` mutates, read
     # back below for `step_log`.
     hops_spent: list[int] = [0]
+    # T26 / G-85 (DEF-237): one line per hop, filled by the lookups and returned as `hop_results` (state, §10.1).
+    hop_log: list[str] = []
     # T69 (founder, 2026-09-30) — model calls made inside tools, by tool: recorded, not counted
     # against the coach's limit, capped per lookup by T51.
     tool_model_calls: dict[str, int] = {}
@@ -2715,7 +2844,7 @@ async def executor(
     # T34 / ADR-0082 — every model attempt the retry and the fallback made, for step_log (§4.8).
     attempts: list[dict[str, Any]] = []
     agent, grader_log = _build_executor(
-        phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
+        phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent, hop_results=hop_log,
         script_log=script_log, coach_limit=coach_limit, turn_type=turn_type, attempts=attempts,
     )
     # ── the planner's named call, executed before the model runs ──────
@@ -2900,6 +3029,9 @@ async def executor(
     # DEF-014: the re-ask's quality feedback was for the coach this turn only — never kept in the
     # conversation, where a later turn would read it (it is in step_log).
     new_messages = [m for m in new_messages if not isinstance(m, SystemMessage)]
+    # DEF-135 (T60, amended 2026-10-22): a series is re-read at use, never stored — its values leave the turn's
+    # messages here; the summary stays, and computation arguments stay as the calculation's audit.
+    new_messages = _without_series_values(new_messages)
 
     # 6.57 — what the model wrote in `progress`, kept before the executor
     # writes the computed step over it (below, after the capture merge).
@@ -2966,6 +3098,7 @@ async def executor(
                 consumed += 1
 
     _attach_diagram(new_messages)
+    _attach_sources(new_messages)
 
     # ── 6.33 — the accumulation, and the two ways it used to be lost ──
     #
@@ -3076,6 +3209,7 @@ async def executor(
     # what a confirmation will store, and nothing reaches `artifacts` now.
     carried: dict[str, Any] = {}
     link: Optional[str] = None
+    located_line: Optional[str] = None          # DEF-211: a "from → to" location's steps, read back in code
     copied: list[str] = []
     short: list[str] = []           # G-163: the position's fields a Confirm of this read-back could not store
     unfilled: list[str] = []        # G-174: placeholders in what a Confirm would store
@@ -3118,6 +3252,7 @@ async def executor(
             pending["spans"] = verbatim_spans(pending["spans"], str(pending["field"]),
                                               str(pending.get("belt_words") or ""), store[str(pending["field"])])
         link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
+        located_line = _r18_located(phase, plan.focus_field if plan else None, store, prior_artifacts)
         short = moves.store_missing(pending.get("fields") or [pending.get("field")], prior_artifacts, store)
         unfilled = placeholders(store)
         if unfilled:
@@ -3173,8 +3308,11 @@ async def executor(
     # G-163 (one rule; G-160 is its copied-sample case): a read-back a Confirm could not store is never
     # offered for a Confirm — the element stays asked, the Belt's words kept, and the reply, written in
     # code, says why (below). A code-written read-back keeps G-140's own wording (`resend`).
-    sample_challenge = bool((short or unfilled) and not resend and not refused and move == moves.READ_BACK and pending is not None
-                            and plan and plan.focus_field)
+    # ADR-0094 decision 2 (DEF-208): a file read back as a DRAFT keeps its read-back — its missing parts are marked on
+    # the card, whose Confirm stays closed until they are given (ADR-0093 decision 2); a placeholder still challenges.
+    draft = bool(pending and pending.get("draft"))
+    sample_challenge = bool(((short and not draft) or unfilled) and not resend and not refused
+                            and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
     if sample_challenge and plan is not None and plan.focus_field and pending is not None:
         field_status[plan.focus_field] = {
             "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
@@ -3295,10 +3433,16 @@ async def executor(
                  if move == moves.STORE_AND_ADVANCE and plan is not None and goal_read_back(plan) is not None else
                  visuals.for_field(plan.stored_field, {**prior_artifacts, **kept}, confirmed=True)
                  if move == moves.STORE_AND_ADVANCE and plan is not None else None)
-        if drawn:
+        # DEF-211 (founder note under ADR-0070, 2026-10-22): the element's worked example, drawn on its teaching
+        # turn — taught on its own, or by the move that stores the element before it — from the skill's file.
+        teach_drawing = (visuals.teach_example(plan.focus_field)
+                         if plan is not None and move in (moves.TEACH, moves.STORE_AND_ADVANCE) else None)
+        for visual in (drawn, teach_drawing if teach_drawing and not (drawn and drawn[0] == teach_drawing[0]) else None):
+            if not visual:
+                continue
             for msg in reversed(new_messages):
                 if isinstance(msg, AIMessage):
-                    msg.additional_kwargs[drawn[0]] = drawn[1]
+                    msg.additional_kwargs[visual[0]] = visual[1]
                     break
 
     # ── 10.0 — the four blocks and the grader's warning ride on the reply ──
@@ -3335,6 +3479,14 @@ async def executor(
     elif link and move == moves.READ_BACK and not refused:
         from backend.core.prompts import LINK_KEPT
         new_messages = _with_code_line(new_messages, reply, LINK_KEPT.format(details=link))
+    elif move == moves.READ_BACK and pending and pending.get("draft") and not refused:
+        # ADR-0094 decision 2 (DEF-208): a file read back as a draft — the ask, written in code.
+        from backend.core.prompts import UPLOAD_DRAFT_ASK
+        new_messages = _with_code_line(new_messages, reply, UPLOAD_DRAFT_ASK)
+    if (located_line and move == moves.READ_BACK and pending is not None and not resend and not refused
+            and not sample_challenge and not link_challenge):
+        # DEF-211 (founder note under ADR-0078): the located steps, read back in code, for the read-back's Confirm.
+        new_messages = _with_code_line(new_messages, reply, located_line)
     # The PII line (founder ruling 2026-10-12; T87, ADR-0062): when this turn's lookups read values masked
     # from an upload, the reply says so, in code — the Belt knows what the coach could not see.
     masked = pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)])
@@ -3413,6 +3565,8 @@ async def executor(
     )
     return {
         "messages": new_messages,
+        # T26 / G-85 (DEF-237): what each hop returned, state rather than a node local (state.md §10.1).
+        "hop_results": list(hop_log),
         # `draft` is what THIS turn stored, `artifacts` the accumulation
         # (S-F04's Output). Neither field carries a reducer, so the merge
         # happens here or not at all. **6.61: `kept`, never `captured`** —
@@ -3436,7 +3590,7 @@ async def executor(
         # value they had rather than gaining a derived one (see the helper).
         **({"field_index": next_field} if next_field is not None else {}),
         "step_log": [_step(
-            phase, turn_count, "executor",
+            phase, turn_count, "executor", rejections=_rejections(state),
             status=_executor_status(hit_cap, off_ramp, timed_out, filtered, level_4),
             model_attempts=attempts or None,                     # T34 / ADR-0082 (§4.8)
             unsourced_numbers=unsourced or None,                 # G-173 (ADR-0077)
@@ -3519,7 +3673,7 @@ async def executor(
             # iteration goes into the key should 6.53 ever make more.
             _step(phase, turn_count,
                   "coaching_grader" if int(e.get("iteration") or 1) == 1
-                  else f"coaching_grader:{e['iteration']}", **e)
+                  else f"coaching_grader:{e['iteration']}", rejections=_rejections(state), **e)
             for e in grader_log
         ),
             # 6.46 — did this turn's model calls carry the phase script? One
@@ -3528,11 +3682,11 @@ async def executor(
             # 6.61 — the coach's input as it was sent: the six sections, in
             # order, read off the system message the model received (the skills
             # middleware sees it last), and the move section's own text.
-            _step(phase, turn_count, "coach_input",
+            _step(phase, turn_count, "coach_input", rejections=_rejections(state),
                   sections=list((script_log[0] if script_log else {}).get("sections") or []),
                   move=plan.move if plan else None,
                   field=plan.focus_field if plan else None),
-            _step(phase, turn_count, "coaching_script",
+            _step(phase, turn_count, "coaching_script", rejections=_rejections(state),
                   **{k: v for k, v in (script_log[0] if script_log else script_record(phase)).items()
                      if k != "sections"},
                   delivered=bool(script_log), model_calls=len(script_log)),
@@ -3540,7 +3694,7 @@ async def executor(
             # the coach was DELIVERED (turn start), and what the model wrote
             # in `progress`. A model that counted for itself is on the record,
             # not only on the screen.
-            *([_step(phase, turn_count, "define_position", **define_step,
+            *([_step(phase, turn_count, "define_position", rejections=_rejections(state), **define_step,
                      delivered_label=delivered,
                      reply_progress=model_progress,
                      reply_matches=model_progress == define_step["label"],
@@ -3639,7 +3793,7 @@ async def validation_stack(
         return Command(
             goto="gate_review",
             update={"step_log": [_step(
-                phase, turn_count, "validation_stack",
+                phase, turn_count, "validation_stack", rejections=_rejections(state),
                 status="passthrough", entry=entry,
                 reason="not a gate submission — layers 2c/2d land at stage 7",
             )]},
@@ -3721,7 +3875,7 @@ async def validation_stack(
             # only because each attempt is better informed than the last.
             "validator_feedback": feedback,
             "step_log": [_step(
-                phase, turn_count, "validation_stack",
+                phase, turn_count, "validation_stack", rejections=_rejections(state),
                 status="validated_v1", layer="2b",
                 passed=passed, missing=len(missing), attempts=attempts,
             )],
@@ -3785,7 +3939,7 @@ async def gate_review(phase: str, state: PhaseState) -> dict[str, Any]:
     passage = _gate_passage(phase, state)
     if passage is None:
         return {"step_log": [_step(
-            phase, turn, "gate_review", status="passthrough",
+            phase, turn, "gate_review", status="passthrough", rejections=_rejections(state),
             reason="no validated gate submission to review")]}
     value = interrupt({"kind": "accept_define_report", "phase": phase,
                        "passage": passage.get("key"),
@@ -3794,7 +3948,7 @@ async def gate_review(phase: str, state: PhaseState) -> dict[str, Any]:
     decision = _decision(value)
     logger.info("%s.gate_review: the Define report was %sd by %s",
                 phase, decision["decision"], decision["actor"] or "the Belt")
-    return {"step_log": [_step(phase, turn, "gate_review", status="decided",
+    return {"step_log": [_step(phase, turn, "gate_review", status="decided", rejections=_rejections(state),
                                passage=passage.get("key"), **decision)]}
 
 
@@ -3843,7 +3997,7 @@ async def gate_apply(
     if decision is None:
         return Command(
             goto=cast(Literal["planner", "__end__"], END),
-            update={"step_log": [_step(phase, turn, "gate_apply", status="passthrough",
+            update={"step_log": [_step(phase, turn, "gate_apply", status="passthrough", rejections=_rejections(state),
                                        reason="no decision on a gate submission")]},
         )
     artifacts = dict(state.get("artifacts") or {})
@@ -3859,7 +4013,7 @@ async def gate_apply(
             goto=cast(Literal["planner", "__end__"], END),
             update={"final": {**final, "_approved": {k: decision[k] for k in ("actor", "at")}},
                     "gate_attempts": 0, "validator_feedback": [],
-                    "step_log": [_step(phase, turn, "gate_apply", status="approved",
+                    "step_log": [_step(phase, turn, "gate_apply", status="approved", rejections=_rejections(state),
                                        actor=decision["actor"], at=decision["at"])]},
         )
     elements = [e for e in decision["elements"] if e in DEFINE_FIELD_ORDER]
@@ -3873,7 +4027,7 @@ async def gate_apply(
         update={"field_status": field_status, "validator_feedback": [], "turn_count": 0,
                 "rejection_feedback": [*(state.get("rejection_feedback") or []),
                                        {**decision, "elements": elements}],
-                "step_log": [_step(phase, turn, "gate_apply", status="rejected",
+                "step_log": [_step(phase, turn, "gate_apply", status="rejected", rejections=_rejections(state),
                                    reopened=elements, reason=decision["reason"],
                                    actor=decision["actor"])]},
     )

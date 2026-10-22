@@ -342,7 +342,8 @@ def test_the_executor_returns_no_command(stub_coach) -> None:
     assert set(out) <= {"field_index", "messages", "draft", "artifacts", "citations",
                         "uploads",
                         "turn_count", "step_log", "field_log",
-                        "field_status"}   # 6.61 (R5): the statuses, stored at turn end
+                        "field_status",   # 6.61 (R5): the statuses, stored at turn end
+                        "hop_results"}    # DEF-237 (T26 / G-85): each hop's result, state not a local (§10.1)
     assert "case_id" not in out and "current_phase" not in out, (
         "S-C02 B9 — both are read-only inside the subgraph"
     )
@@ -390,7 +391,7 @@ def test_the_coach_backstop_matches_the_graph_backstop() -> None:
     assert _c.COACH_RECURSION_BACKSTOP == RECURSION_LIMIT
 
 
-def test_the_hop_cap_is_five_retrieval_calls(stub_coach) -> None:
+def test_the_hop_cap_is_three_retrieval_calls(stub_coach) -> None:
     """§3.7 — the cap is a COUNT OF `rag_lookup_*` CALLS, enforced in the tool.
 
     Neither step counter can do this: `recursion_limit` is rejected by §16, and
@@ -416,7 +417,7 @@ def no_search(monkeypatch):
     monkeypatch.setattr("backend.knowledge.tools.run_multi_query", _found_nothing)
 
 
-def test_the_sixth_lookup_answers_instead_of_searching(stub_coach, no_search) -> None:
+def test_the_fourth_lookup_answers_instead_of_searching(stub_coach, no_search) -> None:
     """§3.7 — past the budget the tool ANSWERS; it does not vanish or raise.
 
     That is the graceful half. A tool that disappeared mid-loop, or one that
@@ -433,7 +434,7 @@ def test_the_sixth_lookup_answers_instead_of_searching(stub_coach, no_search) ->
     contents = [content for content, _artifact in results]
 
     assert all("budget for this turn is spent" not in c
-               for c in contents[:-1]), "the first five lookups must search"
+               for c in contents[:-1]), "the first three lookups must search"
     assert "budget for this turn is spent" in contents[-1]
     assert "Do not search again" in contents[-1]
 
@@ -1263,7 +1264,7 @@ def test_adr_0069_an_upload_turn_offers_the_evidence_tools(monkeypatch, stub_coa
     out = _run(_c.executor("define", _state(coaching_plan=plan)))
     assert "TurnTools[upload]" in [type(m).__name__ for m in stub_coach.calls[-1]["middleware"]]
     names = sorted(t.name for t in turn_tools.offered("upload", list(stub_coach.calls[-1]["tools"])))
-    assert names == ["load_evidence_series", "rag_lookup_evidence"], names
+    assert names == ["load_evidence_series", "rag_lookup_evidence", "read_upload"], names  # ADR-0106
     assert next(e for e in out["step_log"] if e.get("turn_type"))["turn_type"] == "upload"
 
 

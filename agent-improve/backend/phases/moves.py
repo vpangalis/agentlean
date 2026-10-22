@@ -107,6 +107,11 @@ REJECTED = "rejected"
 UPLOAD_READ_BACK_REASON = ("Decided in code (ADR-0085): the Belt's file {filename} covers every criterion of this "
                            "element. Read its values back — the answer so far is the file's — and ask the Belt "
                            "to confirm them.")
+#: ADR-0094 decision 2 (DEF-208) — the read-back an upload turn makes of a file that covers the element only partly.
+UPLOAD_DRAFT_REASON = ("Decided in code (ADR-0094): the Belt's file {filename} answers this element only partly — "
+                       "still missing: {missing}. Read back what the file gives as a DRAFT, name what is missing, and "
+                       "ask the Belt to add it or correct anything; nothing is stored until it is complete and "
+                       "confirmed.")
 REJECT_REASON = ("The team rejected the Define report and named this element to "
                  "change — their reason: {reason}. Show the Belt their current "
                  "words and ask what should change.")
@@ -250,6 +255,18 @@ def covering_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> O
     if any(c.get("result") != "supported" for c in criteria) or any(str(m).strip() for m in check.get("missing") or []):
         return None
     return {"filename": str((upload or {}).get("filename") or "the file"), "value": value}
+
+
+def partial_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """ADR-0094 decision 2 (DEF-208, G-209): {filename, value, missing} when the upload this turn reads was checked
+    against `field`, gives its value, and covers it only PARTLY — a criterion not supported, or something missing.
+    None when it covers the element fully (`covering_upload`), gives no value, or was checked against another."""
+    check = (upload or {}).get("element_check") or {}
+    value = str(check.get("value") or "").strip()
+    if not field or check.get("element") != field or not value or covering_upload(field, upload) is not None:
+        return None
+    missing = [str(m).strip() for m in check.get("missing") or [] if str(m).strip()]
+    return {"filename": str((upload or {}).get("filename") or "the file"), "value": value, "missing": missing}
 
 
 def uses_upload(text: str, pending: Optional[dict[str, Any]]) -> bool:
@@ -590,6 +607,19 @@ async def decide(phase: str, artifacts: dict[str, Any],
                         **_attempts(entry)}
         return done(field, fields, status, READ_BACK, answer=words, messages=1, pending=new_pending,
                     reason=UPLOAD_READ_BACK_REASON.format(filename=covered["filename"]))
+    # ADR-0094 decision 2 (DEF-208): a file that covers the element only partly is read back as a DRAFT — its value
+    # with the gaps named; the card marks what is open and keeps Confirm closed until the Belt completes it.
+    partial = partial_upload(field, upload) if action is None else None
+    if partial is not None:
+        words = partial["value"]
+        new_pending = {"field": field, "fields": list(fields), "belt_words": words, "messages": 1,
+                       "upload": partial["filename"], "draft": True, "missing": partial["missing"],
+                       **_earlier_kw(entry, None)}
+        after[field] = {"status": ANSWERED, "answer": words, "messages": 1, "pending": new_pending,
+                        **_attempts(entry)}
+        return done(field, fields, status, READ_BACK, answer=words, messages=1, pending=new_pending,
+                    reason=UPLOAD_DRAFT_REASON.format(filename=partial["filename"],
+                                                      missing="; ".join(partial["missing"]) or "the open parts"))
 
     if status == NOT_TAUGHT:
         after[field] = {"status": ASKED}

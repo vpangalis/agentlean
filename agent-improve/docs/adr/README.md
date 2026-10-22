@@ -75,10 +75,10 @@ Generated from each file's status line; never typed.
 | [0029](0029-model-roles-and-tiers.md) | Model roles and tiers are owned by one factory | PROPOSED | — |
 | [0030](0030-three-indexes.md) | Three search indexes with separate purposes | PROPOSED | — |
 | [0031](0031-multi-query-rrf.md) | Multi-query retrieval fused by Reciprocal Rank Fusion | PROPOSED | — |
-| [0032](0032-hop-cap-counted-in-executor.md) | Multi-hop retrieval is capped by a count in the executor | PROPOSED | — |
+| [0032](0032-hop-cap-counted-in-executor.md) | Multi-hop retrieval is capped by a count in the executor | ACCEPTED | — |
 | [0033](0033-retrieval-failure-semantics.md) | Retrieval failures are errors, not empty results | PROPOSED | — |
 | [0034](0034-no-mcp-data-channel.md) | No MCP: tools are in-process, with a small universal set | PROPOSED | — |
-| [0035](0035-computation-tools-per-phase.md) | Computation tools are pure, bound per phase, under a ceiling | PROPOSED | — |
+| [0035](0035-computation-tools-per-phase.md) | Computation tools are pure, bound per phase, under a ceiling | ACCEPTED | — |
 | [0036](0036-phase-skills.md) | Phase knowledge lives in SKILL.md files, disclosed progressively | PROPOSED | — |
 | [0037](0037-gate-review-and-apply.md) | The gate is two nodes: review pauses, apply writes | PROPOSED | — |
 | [0038](0038-checkpoint-commits-after-approval.md) | Nothing is committed to the case before approval | PROPOSED | refined by 0066 |

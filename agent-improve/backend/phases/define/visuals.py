@@ -80,12 +80,51 @@ def _date(value: Any) -> Optional[str]:
     return found[0] if found else (text or None)
 
 
+def _marks(values: dict[str, Any]) -> dict[str, list[int]]:
+    """DEF-211 (founder note under ADR-0078, point 4): the flow's marks when the problem statement places the
+    problem — `located`, the numbers of the steps it is located in (a "from → to" location: every step between its
+    ends); `flagged`, the numbers of steps with problem notes outside them. `parse.located_steps` is the matching."""
+    from backend.phases.define.parse import located_steps, process_steps
+    raw = values.get("problem_5w2h")
+    fivew: dict[str, Any] = raw if isinstance(raw, dict) else {}
+    where = fivew.get("steps")
+    sipoc: dict[str, Any] = values.get("process_map_sipoc") or {}
+    if not where:
+        return {}
+    steps = process_steps(sipoc.get("process_steps"))
+    hit = set(located_steps(where, sipoc)["located"])
+    return {"located": [i + 1 for i, s in enumerate(steps) if s["id"] in hit],
+            "flagged": [i + 1 for i, s in enumerate(steps) if s["problems"] and s["id"] not in hit]}
+
+
+#: DEF-211 (founder note under ADR-0070, 2026-10-22): the SIPOC's worked example, a structured file in the skill.
+SIPOC_EXAMPLE = "sipoc_example.json"
+
+
+def teach_example(field: Optional[str]) -> Optional[tuple[str, dict[str, Any]]]:
+    """(the reply's UI key, the drawing) of the element's worked example on its teaching turn — the SIPOC's,
+    read from the skill's structured file and drawn by the read-back's own builder, marked as an example; None
+    for an element without one."""
+    if field != "process_map_sipoc":
+        return None
+    import json
+    from backend.middleware.skills import SKILLS_ROOT
+    try:
+        example = json.loads((SKILLS_ROOT / "dmaic-define-phase" / SIPOC_EXAMPLE).read_text(encoding="utf-8"))
+        payload = diagrams.build_sipoc(example, draft=True)
+    except (OSError, ValueError, diagrams.DiagramError):
+        return None
+    return UI_KEY["sipoc"], {**payload, "example": True, "process_metrics": example.get("process_metrics"),
+                             "confirmed": False, "label": "an example — not your data"}
+
+
 def draw(kind: str, values: dict[str, Any], *, confirmed: bool,
          field: Optional[str] = None) -> Optional[dict[str, Any]]:
     """THE drawing function for `kind` from `values`, or None when there is nothing to draw."""
     try:
         if kind == "sipoc" and isinstance(values.get("process_map_sipoc"), dict):
-            payload = diagrams.build_sipoc(values["process_map_sipoc"], draft=not confirmed)
+            payload = {**diagrams.build_sipoc(values["process_map_sipoc"], draft=not confirmed),
+                       **_marks(values)}
         elif kind == "mindmap_5w2h" and isinstance(values.get("problem_5w2h"), dict):
             payload = diagrams.build_mindmap_5w2h(
                 {slot: values["problem_5w2h"].get(k) for k, slot in _5W2H_SLOTS.items()})
@@ -118,4 +157,4 @@ def report_visuals(artifacts: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return out
 
 
-__all__ = ["VISUAL_OF", "UI_KEY", "draw", "for_field", "report_visuals"]
+__all__ = ["VISUAL_OF", "UI_KEY", "SIPOC_EXAMPLE", "draw", "for_field", "report_visuals", "teach_example"]

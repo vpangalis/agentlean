@@ -22,13 +22,15 @@ from langchain_core.messages import BaseMessage
 #: each checkpoint's metadata, each Store record and each case blob. Raised by one with EVERY change
 #: to `SupervisorState`, `PhaseState`, a `{Phase}Output` or a phase record, together with its
 #: migration in `core/migrations.py` and that migration's fixture test. Never lowered.
-STATE_SCHEMA_VERSION = 13
+STATE_SCHEMA_VERSION = 14
 #: History — 1: everything before versioning (ADR-0065). 2: Define's `baseline_estimate` and
 #: `target_value` are MetricValues (ADR-0071, DEF-076). 3: `field_status` may hold "parked" and
 #: the move may be "offer_park" (ADR-0072, DEF-075). 11: `PhaseState` and the phase record gain
 #: `gate_fingerprint`, what the last failed gate submission submitted (ADR-0076, G-192, DEF-192). 12: a case
 #: record's `leader` and `team` become `people`, one PersonRecord each (ADR-0090, G-216, DEF-215). 13: a confirmed
-#: element's `field_status` entry may keep `spans` and `upload`, what its Gate rows read (ADR-0093, DEF-195).
+#: element's `field_status` entry may keep `spans` and `upload`, what its Gate rows read (ADR-0093, DEF-195). 14: an
+#: element's entry may keep `judged`, `gate` and `offered` (DEF-224, DEF-098), and a person record a one-time code's
+#: HMAC, issue time and attempts (ADR-0105, DEF-103).
 
 
 class SupervisorState(TypedDict):

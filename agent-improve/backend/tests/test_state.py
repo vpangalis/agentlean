@@ -248,12 +248,10 @@ def test_notrequired_does_not_disable_the_managed_value() -> None:
     assert builder.managed.get("remaining_steps") is RemainingStepsManager
 
 
-@pytest.mark.parametrize("field", ["messages", "history", "step_log"])
+@pytest.mark.parametrize("field", ["messages", "history"])
 def test_phase_append_only_fields_use_operator_add(field: str) -> None:
-    """S-C02: exactly three fields accumulate via a reducer.
-
-    `step_log` is the audit trail (HOW), separate from `artifacts` (WHAT).
-    """
+    """S-C02: the two append-only channels. `step_log` left this list on 2026-10-22 — ADR-0107 made it an
+    upsert on its key (`merge_step_log`), the audit trail (HOW) still separate from `artifacts` (WHAT)."""
     assert _reducer(PhaseState, field) is operator.add
 
 
@@ -294,7 +292,9 @@ def test_the_field_log_reducer_is_the_upsert_and_not_operator_add() -> None:
     from backend.core.substate import merge_field_log
     assert _reducer(PhaseState, "field_log") is merge_field_log
     assert _reducer(PhaseState, "field_log") is not operator.add
-    assert _reducer(PhaseState, "step_log") is operator.add
+    # ADR-0107 (2026-10-22): `step_log` now upserts on the same deterministic key.
+    from backend.core.substate import merge_step_log
+    assert _reducer(PhaseState, "step_log") is merge_step_log
 
 
 def test_artifacts_and_validator_feedback_carry_no_reducer() -> None:

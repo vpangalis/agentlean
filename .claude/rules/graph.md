@@ -123,7 +123,7 @@ exceed ~200 turns.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §44, §45.*
 
-### 3.7 — Multi-hop is capped at five tool calls per Belt turn
+### 3.7 — Multi-hop: three tool calls per Belt turn (ADR-0032)
 
 **The cap is a count of `rag_lookup_*` calls, kept in the executor.**
 `recursion_limit` is NOT the cap — it is a backstop (50) set on the parent

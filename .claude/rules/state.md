@@ -47,10 +47,10 @@ amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), then to this file
 - **`field_log` is WHEN each value changed and what it was before**, keyed
   `{phase}:{turn}:{field}` (§10.3). **Its reducer is `merge_field_log`, NOT
   `operator.add`** — it upserts so a replayed turn is idempotent. `step_log`
-  has the same key but an appending reducer. A channel with no reducer
+  upserts the same way (`merge_step_log`, ADR-0107). A channel with no reducer
   REPLACES history silently. Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §6.
 - **`remaining_steps` is engine-managed; the input mapper MUST NOT populate
-  it** — undeclared, the five-hop off-ramp never fires (§3.7).
+  it** — undeclared, the hop off-ramp never fires (§3.7).
 - **`coaching_plan` is one typed `CoachingPlan` via `with_structured_output`**,
   overwritten each planner turn — never a bare dict or a list. Read
   `coaching_plan.retrieval_hops`, never `coaching_plan["retrieval_hops"]`.

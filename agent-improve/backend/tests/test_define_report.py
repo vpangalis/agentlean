@@ -226,8 +226,8 @@ def test_the_gate_screen_draws_the_seven_sections_and_both_diagrams() -> None:
     html = _render(define_report(COMPLETE, {"title": "AP"}, []))
     # ADR-0093 decision 4: R5's seven sections, lettered A–G (gate_view_mockup.html).
     assert all(f">{x} · " in html for x in "ABCDEFG"), "a section is missing from the screen"
-    assert "How does it show up?" in html and "how_much answer" in html, "the 5W2H diagram"
-    assert 'id="report-sipoc"' in html, "the SIPOC diagram's host"
+    assert "<td>How it shows up</td>" in html and "how_much answer" in html, "the 5W2H table"  # DEF-178: the mockup's labels
+    assert 'class="gate-flow"' in html, "the SIPOC diagram (DEF-181: in element 12's card)"
     assert "paid within 30 days" in html, "the CTQ table"
     assert "Late payment rate (%)" in html and "23% → 5%" in html, "one primary, baseline to target"
     assert "&lt;b&gt;sponsor" in html and "<b>sponsor</b>" not in html, "the Belt's text is escaped"

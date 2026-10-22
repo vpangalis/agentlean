@@ -74,23 +74,82 @@ def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[st
     return out
 
 
-def latest(messages: Iterable[Any], phase: str) -> dict[str, Any] | None:
-    """The newest record of `phase` carried by a message, or None."""
+#: ADR-0109 — the kept verdicts in an element's `field_status` entry (`validation/kept.py`, DEF-098's offer).
+VERDICT_KEYS = ("judged", "gate", "offered")
+#: ADR-0109 — the reply key that carries them, only on the reply whose turn changed them.
+KEPT_KEY = "kept_verdicts"
+
+
+def split(field_status: dict[str, Any] | None) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """`field_status` without its kept verdicts, and the verdicts alone ({element: {key: value}})."""
+    stripped: dict[str, dict[str, Any]] = {}
+    kept: dict[str, dict[str, Any]] = {}
+    for field, entry in (field_status or {}).items():
+        entry = dict(entry or {})
+        held = {k: entry.pop(k) for k in VERDICT_KEYS if k in entry}
+        stripped[field] = entry
+        if held:
+            kept[field] = held
+    return stripped, kept
+
+
+def latest_kept(messages: Iterable[Any], phase: str) -> dict[str, dict[str, Any]]:
+    """The newest kept verdicts of `phase`: from the newest reply that carries them, or — for a reply written before
+    ADR-0109 — from the newest record holding them inline. `{}` when there are none."""
     for m in reversed(list(messages or [])):
+        extra = getattr(m, "additional_kwargs", None) or {}
+        carried = extra.get(KEPT_KEY)
+        if isinstance(carried, dict) and carried.get("phase") == phase:
+            return {f: dict(v) for f, v in (carried.get("verdicts") or {}).items()}
+        rec = extra.get(KEY)
+        if isinstance(rec, dict) and rec.get("phase") == phase:
+            _, inline = split(rec.get("field_status"))
+            if inline:
+                return inline
+    return {}
+
+
+def _joined(rec: dict[str, Any], kept: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    status = {f: dict(v) for f, v in (rec.get("field_status") or {}).items()}
+    for field, held in kept.items():
+        status.setdefault(field, {}).update(held)
+    return {**rec, "field_status": status}
+
+
+def for_reply(payload: dict[str, Any], messages: Iterable[Any], phase: str) -> dict[str, Any]:
+    """ADR-0109 — the turn's payload as the reply stores it: the record and the turn's `field_status` without the kept
+    verdicts, and the verdicts under `KEPT_KEY` only when they differ from the newest ones before this turn."""
+    out = dict(payload)
+    full = dict(out.get(KEY) or {})
+    stripped, kept = split(full.get("field_status"))
+    out[KEY] = {**full, "field_status": stripped}
+    if isinstance(out.get("field_status"), dict):
+        out["field_status"] = split(out["field_status"])[0]
+    if kept != latest_kept(messages, phase):
+        out[KEPT_KEY] = {"phase": phase, "verdicts": kept}
+    return out
+
+
+def latest(messages: Iterable[Any], phase: str) -> dict[str, Any] | None:
+    """The newest record of `phase` carried by a message, with the newest kept verdicts joined in (ADR-0109), or None."""
+    msgs = list(messages or [])
+    for m in reversed(msgs):
         rec = (getattr(m, "additional_kwargs", None) or {}).get(KEY)
         if isinstance(rec, dict) and rec.get("phase") == phase:
-            return rec
+            return _joined(rec, latest_kept(msgs, phase))
     return None
 
 
 def latest_by_phase(messages: Iterable[Any]) -> dict[str, dict[str, Any]]:
-    """The newest record of every phase the messages carry."""
+    """The newest record of every phase the messages carry, each with its kept verdicts joined in."""
+    msgs = list(messages or [])
     out: dict[str, dict[str, Any]] = {}
-    for m in reversed(list(messages or [])):
+    for m in reversed(msgs):
         rec = (getattr(m, "additional_kwargs", None) or {}).get(KEY)
         if isinstance(rec, dict) and rec.get("phase") and rec["phase"] not in out:
-            out[rec["phase"]] = rec
+            out[rec["phase"]] = _joined(rec, latest_kept(msgs, rec["phase"]))
     return out
 
 
-__all__ = ["KEY", "empty", "merge", "latest", "latest_by_phase"]
+__all__ = ["KEY", "KEPT_KEY", "VERDICT_KEYS", "empty", "merge", "latest", "latest_by_phase", "latest_kept",
+           "split", "for_reply"]

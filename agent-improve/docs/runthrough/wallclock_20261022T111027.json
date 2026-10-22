@@ -1,0 +1,10 @@
+{
+ "kind": "wallclock",
+ "product_hash": "183cdfab0d3cc07c",
+ "recorded_at": "20261022T111027",
+ "exit": 0,
+ "outcomes": {
+  "backend/tests/test_turn_budget.py::test_a_lookup_runs_its_queries_concurrently": "passed",
+  "backend/tests/test_turn_budget.py::test_a_slow_turn_answers_before_the_wall": "passed"
+ }
+}

@@ -122,6 +122,50 @@ def remove(people: list[PersonRecord], who: str) -> list[PersonRecord]:
     return [p for p in people if p is not person]
 
 
+#: DEF-105 (R8c): the role the old lead keeps on the team after handing the lead over.
+FORMER_LEAD_ROLE = "Team member"
+
+
+def hand_over(people: list[PersonRecord], to: str) -> list[PersonRecord]:
+    """DEF-105 (R8c, founder ruling 2026-10-21): the lead hands the role to another registered member — a confirmed
+    member of the case; the old lead stays on the team as a team member. One lead, always."""
+    current, new = lead(people), find(people, to)
+    if new is None:
+        raise LookupError(to)
+    if new is current:
+        raise ValueError(f"{new.full_name} is already the project lead")
+    if new.status != "member":
+        raise ValueError(f"{new.full_name} is a proposed member — the lead confirms them first")
+    return [p.model_copy(update={"role": PROJECT_LEAD}) if p is new else
+            p.model_copy(update={"role": FORMER_LEAD_ROLE}) if p is current else p for p in people]
+
+
+def set_code(people: list[PersonRecord], who: str, digest: str, at: str) -> list[PersonRecord]:
+    """ADR-0105 decisions 1 and 4: a code issued for one confirmed member with an e-mail — only its digest kept; a
+    re-issue replaces (voids) the earlier one and resets the attempts."""
+    person = find(people, who)
+    if person is None:
+        raise LookupError(who)
+    if not may_sign_in(person):
+        raise ValueError(f"{person.full_name} is not a confirmed member with an e-mail — the lead confirms them first")
+    return [p.model_copy(update={"code_hash": digest, "code_issued_at": at, "code_attempts": 0}) if p is person else p
+            for p in people]
+
+
+def code_used(people: list[PersonRecord], who: str, outcome: str, limit: int) -> list[PersonRecord]:
+    """ADR-0105 decisions 5 and 6: after a sign-in attempt with a code — spent on "ok"; one more failure on "wrong",
+    the code voided at `limit`; voided when expired."""
+    def after(p: PersonRecord) -> PersonRecord:
+        if outcome in ("ok", "expired"):
+            return p.model_copy(update={"code_hash": "", "code_issued_at": "", "code_attempts": 0})
+        if outcome == "wrong":
+            tries = p.code_attempts + 1
+            return p.model_copy(update={"code_attempts": tries, **({"code_hash": ""} if tries >= limit else {})})
+        return p
+    person = find(people, who)
+    return [after(p) if p is person else p for p in people]
+
+
 def may_sign_in(person: Optional[PersonRecord]) -> bool:
     """Ruling b: a person signs in only as a member with an e-mail — a proposed member cannot."""
     return person is not None and person.status == "member" and bool(person.email.strip())

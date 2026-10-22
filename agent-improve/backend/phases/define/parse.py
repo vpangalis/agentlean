@@ -784,33 +784,72 @@ def _matches(named: str, step: str) -> bool:
     return bool({w for w in a.split() if len(w) >= 5} & {w for w in b.split() if len(w) >= 5})
 
 
-def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, list[str]]:
-    """R18, both directions (ADR-0078 point 5): `unmatched` — a step the problem names that matches
-    no step; `quiet` — a matching step with no problem notes; `ignored` — a step with problem notes
-    the problem does not name. Empty lists when the two agree."""
-    named = [str(n).strip() for n in (problem_steps if isinstance(problem_steps, list)
-                                      else _STEP_SPLIT.split(str(problem_steps or ""))) if str(n).strip()]
+#: A location written "from → to" (founder note under ADR-0078, 2026-10-22): an arrow between its two ends.
+_RANGE_ARROW = re.compile(r"\s*(?:→|->|=>)\s*")
+
+
+def _found(name: str, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The steps one named step matches, by the rules in order: a step the name contains or that contains it;
+    only when none does, a step that shares a word of five or more letters — "Approve invoice" is not also
+    "Receive invoice"."""
+    a = _key(name)
+    return [s for s in steps if a and (a in _key(s["name"]) or _key(s["name"]) in a)] \
+        or [s for s in steps if _matches(name, s["name"])]
+
+
+def located_steps(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
+    """R18 (ADR-0078 point 5 and the founder's note of 2026-10-22): where the problem statement places the
+    problem in the process — THE matching; `link_mismatch` and the drawn flow's marks both read it.
+
+    A "from → to" location (one arrow between two ends) is every step from its start step to its end step:
+    each end is matched by the rules of `_found`, and an end that matches no step, or more than one, is
+    returned in `ends` (never a guess). Otherwise each named step is matched on its own.
+
+    Returns `{"located": [step ids, in process order], "range": True/False, "unmatched": [names],
+    "ends": [{"end": "start" | "end", "name", "found": [step names]}], "found_by_name": [(name, [steps])]}`."""
     steps = process_steps(sipoc.get("process_steps") if isinstance(sipoc, dict) else None)
-    unmatched: list[str] = []
-    quiet: list[str] = []
-    hit: set[str] = set()
-    for n in named:
-        # The rules in order: a step the name contains or that contains it; only when none does, a step
-        # that shares a word of five or more letters — "Approve invoice" is not also "Receive invoice".
-        a = _key(n)
-        found = [s for s in steps if a and (a in _key(s["name"]) or _key(s["name"]) in a)] \
-            or [s for s in steps if _matches(n, s["name"])]
-        if not found:
-            unmatched.append(n)
-            continue
-        hit.update(s["id"] for s in found)
-        if not any(s["problems"] for s in found):
-            quiet.extend(s["name"] for s in found)
+    parts = problem_steps if isinstance(problem_steps, list) else [problem_steps]
+    texts = [str(p).strip() for p in parts if str(p or "").strip()]
+    ranged = [t for t in texts if len([x for x in _RANGE_ARROW.split(t) if x.strip()]) == 2]
+    if len(texts) == 1 and ranged:
+        start, end = (x.strip() for x in _RANGE_ARROW.split(ranged[0]) if x.strip())
+        ends, at = [], []
+        for which, name in (("start", start), ("end", end)):
+            found = _found(name, steps)
+            if len(found) == 1:
+                at.append(steps.index(found[0]))
+            else:
+                ends.append({"end": which, "name": name, "found": [s["name"] for s in found]})
+        located = [s["id"] for s in steps[min(at):max(at) + 1]] if len(at) == 2 else []
+        return {"located": located, "range": True, "unmatched": [], "ends": ends, "found_by_name": []}
+    named = [n for t in texts for n in _STEP_SPLIT.split(t) if n.strip()] if not isinstance(problem_steps, list) \
+        else texts
+    by_name = [(n, _found(n, steps)) for n in named]
+    hit = {s["id"] for _, found in by_name for s in found}
+    return {"located": [s["id"] for s in steps if s["id"] in hit], "range": False,
+            "unmatched": [n for n, found in by_name if not found], "ends": [], "found_by_name": by_name}
+
+
+def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
+    """R18, both directions (ADR-0078 point 5): `unmatched` — a step the problem names that matches
+    no step; `ends` — an end of a "from → to" location that matches no step or more than one; `quiet` — a
+    located step with no problem notes; `ignored` — a step with problem notes outside the located steps.
+    Empty lists when the two agree. The matching is `located_steps`'."""
+    steps = process_steps(sipoc.get("process_steps") if isinstance(sipoc, dict) else None)
+    where = located_steps(problem_steps, sipoc)
+    hit = set(where["located"])
+    if where["range"]:
+        inside = [s for s in steps if s["id"] in hit]
+        quiet = [s["name"] for s in inside] if inside and not any(s["problems"] for s in inside) else []
+    else:
+        quiet = [s["name"] for _, found in where["found_by_name"] if found and not any(s["problems"] for s in found)
+                 for s in found]
     ignored = [s["name"] for s in steps if s["problems"] and s["id"] not in hit]
-    return {"unmatched": unmatched, "quiet": quiet, "ignored": ignored}
+    return {"unmatched": where["unmatched"], "ends": where["ends"], "quiet": quiet, "ignored": ignored}
 
 
 __all__ = ["unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
            "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit",
            "STEP_KEYS", "DURATION_KEYS", "PROCESS_PERFORMANCE_KEYS", "period_value", "duration_value",
-           "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch"]
+           "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch",
+           "located_steps"]

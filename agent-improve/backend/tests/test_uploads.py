@@ -251,21 +251,65 @@ def test_the_prompt_asks_for_the_json_it_is_parsed_as():
         )
 
 
-def test_a_parsed_reply_becomes_a_real_interpretation():
-    """Fenced JSON is what the model actually returns, so it is what is
-    tested — `_json_object` has to survive the fence."""
-    from backend.upload.agent import _json_object
+def test_a_typed_reply_without_a_summary_takes_the_announced_fallback(monkeypatch):
+    """ADR-0104 — the call is bound to `UploadInterpretation`, so nothing is parsed out of text.
+    What the old parser lost silently (a reply with no summary) still takes the stated fallback,
+    never an empty interpretation."""
+    import asyncio
+    from backend.storage.models import UploadInterpretation
+    from backend.upload import agent
 
-    reply = (
-        '```json' + chr(10)
-        + '{"summary": "Five days of complaint counts.",'
-        + ' "supports": ["baseline"], "caveats": ["no unit stated"]}'
-        + chr(10) + '```'
-    )
-    payload = _json_object(reply)
+    class _Bound:
+        def with_structured_output(self, schema, **kw):
+            return self
 
-    assert payload["summary"].startswith("Five days")
-    assert payload["caveats"] == ["no unit stated"]
+        async def ainvoke(self, messages, *a, **k):
+            return UploadInterpretation(summary="  ")
+
+    monkeypatch.setattr(agent, "get_llm", lambda role, **kw: _Bound())
+    out = asyncio.run(agent._interpret("complaints.csv", {"structure": "table", "columns": ["a"],
+                                                          "row_count": 5, "text": "a"}, {}, "define"))
+    assert out.summary.strip() and out.source_filename == "complaints.csv"
+    assert any("summarised" in c or "interpret" in c.lower() for c in out.caveats), out.caveats
+
+
+def test_the_two_upload_calls_wait_30_s_and_the_lookup_keeps_8_s(monkeypatch):
+    """Founder ruling 2026-10-22 midday, item 1 (option a): `get_llm` takes an optional timeout override, and
+    only the two upload calls — the interpretation and the image read — use 30 s. The extraction role keeps its
+    8 s for the knowledge lookup's query variants (run-through 090236: scenario e's interpretation ran out at 8 s)."""
+    import asyncio
+    from typing import Any
+    from backend.core import llm
+    from backend.storage.models import ImageRead, UploadInterpretation
+    from backend.upload import agent
+
+    built: list[tuple[str, Any]] = []
+
+    class _Bound:
+        def __init__(self, reply):
+            self.reply = reply
+
+        def with_structured_output(self, schema, **kw):
+            return self
+
+        async def ainvoke(self, messages, *a, **k):
+            return self.reply
+
+    def spy(role, **kw):
+        built.append((role, llm.get_llm(role, **kw).request_timeout))
+        reply = ImageRead(extracted_text="Receive, Check, Pay") if role == "vision" else \
+            UploadInterpretation(summary="Five invoices.")
+        return _Bound(reply)
+
+    monkeypatch.setattr(agent, "get_llm", spy)
+    asyncio.run(agent._interpret("complaints.csv", {"structure": "table", "columns": ["a"], "row_count": 5,
+                                                    "text": "a"}, {}, "define"))
+    asyncio.run(agent._extract_from_image(b"\xff\xd8\xff", {}, "define"))
+
+    assert built == [("extraction", 30.0), ("vision", 30.0)], built
+    assert llm.UPLOAD_TIMEOUT == 30.0
+    # The lookup's call (knowledge/fusion.py) passes no override, so the role's 8 s holds.
+    assert llm.get_llm("extraction", temperature=0.2).request_timeout == llm.ROLE_TIMEOUTS["extraction"] == 8.0
 
 
 def test_the_fallback_announces_itself_rather_than_reading_as_a_summary():

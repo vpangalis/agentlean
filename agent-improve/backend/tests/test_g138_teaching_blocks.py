@@ -29,12 +29,14 @@ def test_g138_every_element_has_three_teaching_blocks_in_its_script(field: str) 
 
 
 def test_g138_a_table_example_keeps_its_rows() -> None:
-    """The SIPOC's and the 5W2H's Show is a table: one row per line, as the script has it."""
-    for field, header in (("process_map_sipoc", "| Suppliers | Inputs | Process | Outputs | Customers |"),
-                          ("problem_statement", "| What |")):
+    """The 5W2H's Show is a table: one row per line, as the script has it. (The SIPOC's example is the skill's
+    structured file, drawn by code — DEF-211, founder note under ADR-0070, 2026-10-22 — so its Show is no table.)"""
+    for field, header in (("problem_statement", "| What |"),):
         example = teaching_blocks("define", field)["example"]
         rows = [ln for ln in example.splitlines() if ln.startswith("|")]
         assert len(rows) >= 3 and any(header in r for r in rows), (field, rows[:2])
+    sipoc = teaching_blocks("define", "process_map_sipoc")["example"]
+    assert "drawn below" in sipoc and not [ln for ln in sipoc.splitlines() if ln.startswith("|")], sipoc
 
 
 def _reply(**blocks: str) -> CoachingResponse:

@@ -549,6 +549,9 @@ UPLOAD_CHECK_SHOWS = "For {element} it shows: {items}."
 UPLOAD_CHECK_CONFLICTS = "It does not agree with: {items}."
 UPLOAD_CHECK_MISSING = "It does not cover yet: {items}. Could you add that?"
 UPLOAD_CHECK_COMPLETE = "It covers everything {element} asks for."
+
+#: ADR-0094 decision 2 (DEF-208) — the ask under a file read back as a draft (written in code).
+UPLOAD_DRAFT_ASK = "Add what is missing or correct anything, then Confirm."
 #: ADR-0086 (A8) — after the goal's Confirm, the target it states, read back in code for one Confirm.
 GOAL_TARGET_HEAD = "Your goal already states the target. Here is what I read from it:"
 GOAL_TARGET_NEXT = "The target date comes next."
@@ -700,6 +703,19 @@ LINK_KEPT = "Kept as you said: {details}"
 LINK_UNMATCHED = "The problem statement names {names}, which is not one of the process steps."
 LINK_QUIET = "The step(s) {names} have no problems noted, though the problem statement points there."
 LINK_IGNORED = "The step(s) {names} have problems noted that the problem statement does not mention."
+#: DEF-211 (founder note under ADR-0078, 2026-10-22) — a "from → to" location: an end that matches no step, or more
+#: than one, is asked about; the steps between two found ends are read back for one Confirm.
+LINK_END_UNMATCHED = ("The problem statement says the problem {verb}s at “{name}”, which is not one of the process "
+                      "steps: which step does it {verb} at?")
+LINK_END_AMBIGUOUS = ("The problem statement says the problem {verb}s at “{name}”, which could be {steps}: which "
+                      "step does it {verb} at?")
+#: T26 / G-85 (DEF-237, ADR-0032): what a lookup returns, without searching, once a round this turn returned no
+#: document the turn had not already seen — a tool RESULT, addressed to the coach, like the hop cap's.
+SEARCH_NOTHING_NEW = ("The last search returned nothing you had not already retrieved this turn, so the search "
+                      "has ended. Do not search again. Answer the Belt now from what you have already retrieved and "
+                      "from the conversation, and say what you would look into next turn if something is missing.")
+LINK_LOCATED = "The problem occurs in steps {first}–{last}: is that right?"
+LINK_LOCATED_ONE = "The problem occurs in step {first}: is that right?"
 
 #: Inserted into the judgment prompt while a read-back awaits confirmation.
 PLANNER_JUDGMENT_READING_BACK = """

@@ -169,6 +169,9 @@ patterns:
       # cold. An exclusion for a path that does not exist excludes nothing.
       - 'agent-improve/backend/phases/nodes_common.py'
       - 'agent-improve/backend/validation/**'
+      # ADR-0104 (founder, 2026-10-21): the two plain model calls of an upload — the interpretation
+      # and the image read — bind the builder-style call. Exactly this one file, not backend/upload/**.
+      - 'agent-improve/backend/upload/agent.py'
 
   - id: pattern-5-plain-dict-routing
     regex: 'return\s+\{\s*["\'']next["\'']:'

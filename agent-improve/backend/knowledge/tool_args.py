@@ -338,6 +338,15 @@ class LoadEvidenceSeriesArgs(BaseModel):
     )
 
 
+class ReadUploadArgs(BaseModel):
+    """Args for `read_upload` (ADR-0106, DEF-057)."""
+
+    blob_path: str = Field(
+        description="Which uploaded file to read, exactly as it appears in the uploads manifest at the top of your "
+                    "context. Only this project's files can be read. Do not guess a path."
+    )
+
+
 class ProposeTemplateArgs(BaseModel):
     """Args for `propose_template` (S-F19)."""
 
@@ -373,6 +382,7 @@ class ProposeDiagramArgs(BaseModel):
 
 
 __all__ = [
+    "ReadUploadArgs",
     "ExpectedSavingsArgs",
     "SigmaLevelArgs",
     "CpkArgs",

@@ -6,8 +6,8 @@ model call. Every tool stays registered with `create_agent`; this chooses which 
 Built with the `@wrap_model_call` decorator on a module function, so no class is added outside the
 files that may hold one.
 
-    teaching   lookups, `propose_template`, `load_skill`
-    upload     `rag_lookup_evidence`, `load_evidence_series`
+    teaching   lookups, `propose_template`, `load_skill`, `read_upload`
+    upload     `rag_lookup_evidence`, `load_evidence_series`, `read_upload`
     answer     none — the structured reply only (the response format is not a tool in `request.tools`)
 
 The turn type is decided in code by the executor from the move and the phase state, never by a model,
@@ -22,8 +22,8 @@ from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_
 TEACHING, UPLOAD, ANSWER = "teaching", "upload", "answer"
 TOOLS_BY_TURN: dict[str, frozenset[str]] = {
     TEACHING: frozenset({"rag_lookup_methodology", "rag_lookup_evidence", "rag_lookup_case_history",
-                         "propose_template", "load_skill"}),
-    UPLOAD: frozenset({"rag_lookup_evidence", "load_evidence_series"}),
+                         "propose_template", "load_skill", "read_upload"}),          # ADR-0106: read_upload
+    UPLOAD: frozenset({"rag_lookup_evidence", "load_evidence_series", "read_upload"}),
     ANSWER: frozenset(),
 }
 

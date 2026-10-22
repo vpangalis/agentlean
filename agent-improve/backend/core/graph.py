@@ -243,6 +243,8 @@ def phase_node(phase: str, approval: bool = False) -> Callable[..., Any]:
             payload["gate_fingerprint"] = str(verdict.get("gate_fingerprint") or "")
         # ADR-0066: the merged record travels on the reply, so the checkpoint is its home.
         payload[phase_record.KEY] = phase_record.merge(prior, payload, phase)
+        # ADR-0109: the reply stores the record without the kept verdicts; they ride only when this turn changed them.
+        payload = phase_record.for_reply(payload, state.get("messages") or [], phase)
         if new_messages:
             _attach(new_messages[-1], payload)
         else:

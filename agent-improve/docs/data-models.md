@@ -8,7 +8,7 @@ differs from a fresh generation. Founder ruling 6, 2026-09-29: moved out of ARCH
 
 ### 4.2 Declarations
 
-**State schema version 13** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
+**State schema version 14** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
 
 #### `SupervisorState` — `core/state.py`
 
@@ -36,7 +36,7 @@ class PhaseState(TypedDict):
     field_index:        int
     draft:              dict[str, Any]
     artifacts:          dict[str, Any]
-    step_log:           Annotated[list[dict[str, Any]], operator.add]
+    step_log:           Annotated[list[dict[str, Any]], merge_step_log]
     field_log:          Annotated[list[dict[str, Any]], merge_field_log]
     field_status:       dict[str, dict[str, Any]]
     belt_edits:         dict[str, Any]

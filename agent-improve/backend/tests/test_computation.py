@@ -186,8 +186,10 @@ def test_every_result_value_is_a_string() -> None:
 #: §30's ratified per-phase totals. **Moved 2026-09-09** when the universal
 #: set became eight (DECISIONS Part AR1): every phase gains one, and Measure
 #: lands on §30's ceiling of 16 exactly.
+#: **Moved 2026-10-21** (ADR-0106): `read_upload` made the set nine; Measure registers 17, allowed
+#: because the ceiling counts what one model call offers (ADR-0106's note).
 EXPECTED_TOTALS = {
-    "define": 9, "measure": 16, "analyse": 13, "improve": 9, "control": 13,
+    "define": 10, "measure": 17, "analyse": 14, "improve": 10, "control": 14,
 }
 
 
@@ -196,7 +198,7 @@ def bound(phase: str) -> int:
     return UNIVERSAL_TOOL_COUNT + len(COMPUTATION_TOOLS_BY_PHASE[phase])
 
 
-def test_per_phase_totals_are_9_16_13_9_13() -> None:
+def test_per_phase_totals_are_10_17_14_10_14() -> None:
     """§30's table, and step 5.4's Done-when.
 
     **Renamed 2026-09-11.** It was `test_per_phase_totals_are_8_15_12_8_12`
@@ -266,12 +268,12 @@ def test_the_universal_eight_is_eight_and_six_are_built() -> None:
     now pins the live bind so the next drift is caught by a run rather than by
     an audit.
     """
-    assert UNIVERSAL_TOOL_COUNT == 8, "§30's ratified count — eight since 2026-09-09"
-    assert len(UNIVERSAL_TOOLS) == 6, "five at 6.2, load_evidence_series at 6.12"
+    assert UNIVERSAL_TOOL_COUNT == 9, "§30's ratified count — nine since ADR-0106 (2026-10-21)"
+    assert len(UNIVERSAL_TOOLS) == 7, "five at 6.2, load_evidence_series at 6.12, read_upload (ADR-0106)"
     assert UNIVERSAL_TOOL_COUNT - len(UNIVERSAL_TOOLS) == 2, "two owed"
     assert [t.name for t in UNIVERSAL_TOOLS] == [
         "rag_lookup_methodology", "rag_lookup_evidence", "rag_lookup_case_history",
-        "propose_template", "propose_diagram", "load_evidence_series",
+        "propose_template", "propose_diagram", "load_evidence_series", "read_upload",
     ]
     assert RAG_LOOKUP_TOOLS == UNIVERSAL_TOOLS[:3], (
         "the retrieval third leads the universal list"
@@ -279,8 +281,8 @@ def test_the_universal_eight_is_eight_and_six_are_built() -> None:
 
 
 @pytest.mark.parametrize("phase, live_total", [
-    ("define", 7), ("measure", 14), ("analyse", 11),
-    ("improve", 7), ("control", 11),
+    ("define", 8), ("measure", 15), ("analyse", 12),
+    ("improve", 8), ("control", 12),
 ])
 def test_the_live_per_phase_totals_while_two_tools_are_owed(
     phase: str, live_total: int

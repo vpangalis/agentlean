@@ -1,0 +1,164 @@
+[
+ {
+  "kind": "scenario_slice_1",
+  "passed": false,
+  "checks": {
+   "the saved case loads through the v9 migrations": false,
+   "the upload lands": true,
+   "the upload turn names the file": true,
+   "the upload turn reads the team back": true,
+   "\"use the file\" stores it": true,
+   "the five people are stored": true,
+   "its source is the upload": true
+  },
+  "turns": [
+   {
+    "n": 1,
+    "why": "upload",
+    "http": 200
+   },
+   {
+    "n": 2,
+    "why": "the upload turn",
+    "http": 200,
+    "seconds": 8.9,
+    "move": "read_back",
+    "field": "team",
+    "answer": "I've read your file project_team_ap_late_payments.csv. For Team it shows: names a champion (sponsor) by name; names the process owner by name; each person has a name, a role and a function; says what training anyone needs, or that none is needed. It covers everything Team asks for.\n\nWelcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be",
+    "readback_card": {
+     "field": "team",
+     "n": 2,
+     "met": 4,
+     "total": 4,
+     "rows": [
+      {
+       "id": "champion",
+       "label": "Champion (sponsor)",
+       "required": true,
+       "met": true,
+       "value": "Tom Okafor",
+       "source": "from your file"
+      },
+      {
+       "id": "process-owner",
+       "label": "Process owner",
+       "required": true,
+       "met": true,
+       "value": "Lena Hart",
+       "source": "from your file"
+      },
+      {
+       "id": "people",
+       "label": "Each person: name, role, function",
+       "required": true,
+       "met": true,
+       "value": {
+        "columns": [
+         "Name",
+         "Role",
+         "Function"
+        ],
+        "rows": [
+         [
+          "Priya Shah",
+          "Green Belt (project lead)",
+          "runs the project day to day"
+         ],
+         [
+          "Tom Okafor",
+          "Champion (sponsor)",
+          "Finance Director; signs off and clears blockers"
+         ],
+         [
+          "Lena Hart",
+          "Process owner",
+          "Accounts Payable Manager"
+         ],
+         [
+          "Dev Patel",
+          "Team member",
+          "AP clerk who processes invoices"
+         ],
+         [
+          "Amira Khan",
+          "Team member",
+          "AP clerk who processes invoices"
+         ]
+        ]
+       },
+       "source": "from your file"
+      },
+      {
+       "id": "training",
+       "label": "Training needed",
+       "required": true,
+       "met": true,
+       "value": "Priya Shah: none; Tom Okafor: none; Lena Hart: none; Dev Patel: half a day on data collection before Measure; Amira Khan: half a day on data collection before Measure",
+       "source": "from your file"
+      }
+     ],
+     "confirm": true,
+     "missing": [],
+     "statement": null,
+     "answer": null,
+     "upload": "project_team_ap_late_payments.csv"
+    }
+   },
+   {
+    "n": 3,
+    "why": "use the file",
+    "http": 200,
+    "seconds": 11.1,
+    "move": "store_and_advance",
+    "field": "voc_summary",
+    "answer": "Stored: Team.\n\n- Priya Shah | Green Belt (project lead) | runs the project day to day | training: none\n- Tom Okafor | Champion (sponsor) | Finance Director; signs off and clears blockers | training: none\n- Lena Hart | Process owner | Accounts Payable Manager | training: none\n- Dev Patel | Team member | AP clerk who processes invoices | training: half a day on data collection before Measure\n- Amira",
+    "readback_card": null
+   }
+  ],
+  "model_calls": [
+   "other",
+   "coach",
+   "grader",
+   "coach",
+   "coach",
+   "grader"
+  ],
+  "tokens": {
+   "calls": 6,
+   "input_tokens": 25542,
+   "output_tokens": 1744
+  },
+  "cost": {
+   "usd": 0.0619,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.0607,
+    "gpt-4o-mini-2024-07-18": 0.0012
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  },
+  "case_id": "IMPR-SAVED-40574B"
+ },
+ {
+  "kind": "summary",
+  "source_hash": "c0dbed5087e3489b",
+  "product_hash": "183cdfab0d3cc07c",
+  "started": "20261022T110736",
+  "slices": {
+   "slice_1": false
+  },
+  "model_calls": 6,
+  "langsmith_sends": 0,
+  "cost": {
+   "usd": 0.0619,
+   "by_model": {
+    "gpt-4o-2024-11-20": 0.0607,
+    "gpt-4o-mini-2024-07-18": 0.0012
+   },
+   "ceiling_usd": 1.5,
+   "within_ceiling": true,
+   "prices_taken": "2026-09-30"
+  }
+ }
+]

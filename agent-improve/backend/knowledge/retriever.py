@@ -482,6 +482,8 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
                 # `id` is selected for RRF dedup (S-F17) — a `select` that
                 # omits it makes every document unique to fusion, silently.
                 select=list(layout.CASE_SELECT),
+                # DEF-165 (T95): completed cases only — an unfinished case is never precedent.
+                filter=layout.CASE_COMPLETED_FILTER,
                 top=k,
             ))
             span.end(outputs={"hits": len(results), **_http_summary(ev),

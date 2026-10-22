@@ -37,6 +37,11 @@ class PersonRecord(BaseModel):
     status: Literal["member", "proposed"] = "member"
     added_by: str = ""
     added_at: str = ""
+    # ADR-0105 (DEF-103): the one-time code — only its HMAC-SHA256 under SESSION_SECRET, never the code; empty when
+    # none is open (never issued, spent, voided).
+    code_hash: str = ""
+    code_issued_at: str = ""
+    code_attempts: int = 0
 
 
 class CriterionCheck(BaseModel):
@@ -95,6 +100,30 @@ class UploadInterpretation(BaseModel):
     #: ADR-0074 — None on the fallback, on a phase without acceptance criteria, and on every
     #: record written before schema version 4.
     element_check: Optional[ElementCheck] = None
+
+
+class ImageSipoc(BaseModel):
+    """The five SIPOC columns an image shows, each as a list."""
+
+    suppliers: list[str] = Field(default_factory=list)
+    inputs: list[str] = Field(default_factory=list)
+    process_steps: list[str] = Field(default_factory=list)
+    outputs: list[str] = Field(default_factory=list)
+    customers: list[str] = Field(default_factory=list)
+
+
+class ImageRead(BaseModel):
+    """What the vision call reads off an image — ADR-0104 with its note: five typed fields, the
+    image's only parse (no deterministic structure exists to read)."""
+
+    extracted_text: str = Field(description="All visible text as a single string.")
+    document_type: str = Field(default="other",
+                               description="process_map | sipoc | fishbone | vsm | notes | other")
+    process_steps: list[str] = Field(default_factory=list,
+                                     description="A process map's or flow diagram's steps, in order.")
+    sipoc_columns: Optional[ImageSipoc] = Field(default=None, description="A SIPOC's columns, if it is one.")
+    metrics_found: list[str] = Field(default_factory=list,
+                                     description="Numbers, metrics or KPIs visible in the image.")
 
 
 class UploadRecord(BaseModel):

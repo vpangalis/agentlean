@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 115 of 210 Define features pass, 31 more proven on earlier code (core 112 of 201) — A 42/85 · B 37/41 · C 29/63 · integrator 7/21 · M1: 49 proven · 23 awaiting fresh run · 5 open |
-| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
-| **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
+| **Headline** | 171 of 209 Define features pass (core 163 of 200) — A 76/84 · B 39/41 · C 39/63 · integrator 17/21 · M1: 74 proven · 0 awaiting fresh run · 2 open |
+| **Next — lane A** | DEF-175 — C3: the phase script's worked examples carry no date already past — the goal's and the target date's examples use a future date or no year ( |
+| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
+| **Next — lane C** | DEF-197 — The Gate view follows the approved mockup (gate_view_mockup.html): lettered sections, element cards from templates (G-198; founder test find |
 | **Next — lane integrator** | DEF-142 — T86: an offline eval set of 20–50 Define tasks from real failures lives in evals/define/, is graded by code, then the rubric model, with a h |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
 | **Block regenerated** | 2026-10-22 |
