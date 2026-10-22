@@ -247,8 +247,10 @@ a{text-decoration:none;color:inherit}
 .gate-hint i{font-size:12px;color:var(--teal)}
 .btn-gate{display:flex;align-items:center;gap:5px;padding:6px 14px;background:#0070BA;color:white;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;border:none;transition:background .12s;box-shadow:0 1px 4px rgba(0,112,186,.25)}
 .btn-gate:hover{background:#005A96}
-.typing{display:none;padding:3px 14px;font-size:11px;color:var(--text3);background:var(--surface)}
-.typing.show{display:block}
+.typing{display:none;align-items:center;gap:8px;padding:8px 14px;font-size:12px;font-weight:500;color:#005A96;background:#EAF4FC;border-top:1px solid #A8CDE8}
+.typing.show{display:flex}
+/* Founder ruling 2026-10-22 evening, item 3 (G-214): a visible, animated working indicator while a turn runs. */
+.spinner{width:14px;height:14px;border:2px solid #A8CDE8;border-top-color:#0070BA;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
 
 /* STEPS TAB */
 .step-list{display:flex;flex-direction:column}
@@ -473,6 +475,7 @@ a{text-decoration:none;color:inherit}
           <span style="font-size:11px;color:var(--text2)">Case number</span>
           <span class="case-pill" id="new-case-id">Assigned when the case is created</span>
         </div>
+        <div id="case-created"></div>
         <div class="field-row full">
           <div class="field">
             <label>What is this project about?</label>
@@ -632,7 +635,7 @@ a{text-decoration:none;color:inherit}
       <div class="view" id="view-chat" style="padding:0;gap:0">
         <div class="chat-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0">
           <div class="msgs" id="msgs"></div>
-          <div class="typing" id="typing">AI is thinking...</div>
+          <div class="typing" id="typing" role="status" aria-live="polite"><span class="spinner"></span> The coach is working on your answer…</div>
           <input type="file" id="chat-file-input" style="display:none" onchange="handleChatFile(this)">
           <div class="input-container">
             <!-- W8 (DEF-080): the standing label on the coaching screen -->
@@ -647,6 +650,7 @@ a{text-decoration:none;color:inherit}
               </div>
             </div>
             <div class="gate-row">
+              <span id="svc-status"></span>
               <span class="gate-hint" id="gate-hint"><i class="ti ti-chart-bar"></i>Keep going — answer each question to progress</span>
               <button id="btn-gate" class="btn-gate" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:12px"></i> Submit for gate review</button>
             </div>
@@ -1142,10 +1146,27 @@ async function submitCreateCase(){
     const data=await apiJSON(`${API}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({title,belt_level:S.beltLevel,department:dept||'General',
         target_date:date||new Date().toISOString().split('T')[0],lead,people})});
-    if(data&&data.case_id){document.getElementById('new-case-id').textContent=data.case_id;await openWorkspace(data.case_id);}
+    // DEF-217 (G-218, founder finding 6): the number the server assigned stays on the form, with Copy and Continue;
+    // the workspace opens only when the lead continues.
+    if(data&&data.case_id){document.getElementById('new-case-id').textContent=data.case_id;S.createdCase=data.case_id;
+      document.getElementById('case-created').innerHTML=caseCreatedHtml(data.case_id);}
     else{toast('The server created no case id — nothing was saved.',5000);}
   }catch(e){toast('Could not create case: '+(e.message||e),5000);}
 }
+
+function caseCreatedHtml(id){
+  return `<div class="case-created" style="margin:0 0 12px;padding:10px 12px;border:1px solid #1E6B3A;border-radius:8px;background:#F1F8F3;font-size:12px">
+    <div style="margin-bottom:6px">The case is created. Its number is <strong>${escapeHtml(id)}</strong> — keep it to find the case again.</div>
+    <button class="btn" onclick="copyCaseNumber()">Copy the number</button>
+    <button class="btn btn-primary" onclick="continueToCase()">Continue to the case</button></div>`;
+}
+
+async function copyCaseNumber(){
+  try{await navigator.clipboard.writeText(S.createdCase||'');toast('Case number copied.');}
+  catch(e){toast('The number could not be copied — select it and copy it by hand.',5000);}
+}
+
+async function continueToCase(){if(S.createdCase)await openWorkspace(S.createdCase);}
 
 // ─── SEARCH ───────────────────────────────────────────────────────
 async function doSearch(){
@@ -1189,11 +1210,26 @@ function restoreDraft(){try{const input=document.getElementById('chat-input');co
   if(v&&!input.value)input.value=v;}catch(e){}}
 function clearDraft(){try{localStorage.removeItem(draftKey());}catch(e){}}
 
+// DEF-113 (W16): before the first message, whether the service is reachable and ready — /health, no model call.
+function serviceStatusHtml(h){
+  if(!h)return `<div class="svc-status down" style="font-size:11px;color:#B3261E">● The coach can't be reached right now — your work is saved; try again in a minute.</div>`;
+  if(!h.ready)return `<div class="svc-status warn" style="font-size:11px;color:#9A6B12">● The coach is not ready: ${escapeHtml(h.reason||'')}. Your work is saved.</div>`;
+  return `<div class="svc-status ok" style="font-size:11px;color:#1E6B3A">● Connected — the coach is ready.</div>`;
+}
+
+async function checkService(){
+  let h=null;
+  try{const r=await fetch(`${API}/health`,{credentials:'include'});h=r.ok?await r.json():null;}catch(e){h=null;}
+  const el=document.getElementById('svc-status');
+  if(el)el.innerHTML=serviceStatusHtml(h);
+}
+
 async function openWorkspace(caseId){
   try{
     // A 404 body is `{detail:"Case X not found"}` — assigning it to S.case
     // renders a workspace around an error object, with an undefined title and
     // a phase nav built from nothing (G-66). `apiJSON` throws instead.
+    checkService();                                  // DEF-113: the service's state, before the first message
     const caseData=await apiJSON(`${API}/cases/${caseId}`);
     if(!caseData||!caseData.case_id){throw new Error('The server returned no case record.');}
     S.case=caseData;
@@ -6359,8 +6395,11 @@ function renderTurn(turn){
       :(mv==='offer_park'&&latest)?`<div class="rb-actions">
       <button id="rb-park" class="btn btn-primary" onclick="sendMessage('park')">Park and move on</button>
       <button id="rb-try" class="btn" onclick="sendMessage('try_again')">Try again</button></div>`:'';
+    // DEF-095 (C4): the next steps the server computed, under the latest reply only; choosing one sends its words.
+    const steps=(latest&&(turn.suggestion_chips||[]).length)?`<div class="next-steps" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${
+      turn.suggestion_chips.map(c=>`<button class="chip" onclick="sendPresetMessage(${escapeHtml(JSON.stringify(c))})">${escapeHtml(c)}</button>`).join('')}</div>`:'';
     return `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai">${strip}${prog}<div class="md">${mdHtml(turn.text)}</div>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${warn}${cites}</div></div>`;
+      <div class="bbl bbl-ai">${strip}${prog}<div class="md">${mdHtml(turn.text)}</div>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${steps}${warn}${cites}</div></div>`;
   }else{
     const initials=(turn.user||S.user||'U').split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase();
     return `<div class="msg user"><div class="mav mu">${initials}</div>
@@ -6590,6 +6629,7 @@ async function sendMessage(action, element){
         // ADR-0093 — the card, the strip and the reply's element travel with the turn too.
         readback_card:resp.readback_card||null,confirmed_strip:resp.confirmed_strip||null,reply_element:resp.reply_element||null,
         completion_card:resp.completion_card||null,       // DEF-212
+        suggestion_chips:resp.suggestion_chips||[],       // DEF-095
         // G-79 — the visual travels with the turn too, for the next redraw.
         visualisation:resp.visualisation||null,sipoc_diagram:resp.sipoc_diagram||null};
       S.localChat.push(aiTurn);

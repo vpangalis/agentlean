@@ -78,3 +78,21 @@ def days_in_phase(entry: Any, today: Optional[date] = None) -> int:
     today = today or datetime.now(timezone.utc).date()
     days = days_between(getattr(entry, "phase_started_at", None) or getattr(entry, "created_at", None), today)
     return max(0, days) if days is not None else 0
+
+
+WHERE_WE_STAND = "Where do we stand?"
+
+
+def next_steps(element_name: str, card: Optional[dict[str, Any]]) -> list[str]:
+    """DEF-095 (C4): two or three next steps under a reply, computed in code from what is missing — never a model
+    call, and always about the element the reply works on (W4: choosing another element is on the post-Define list).
+    What the reply's card still misses comes first ("Add …"); with nothing missing, an example of the element or what
+    it needs; "Where do we stand?" always last."""
+    missing = [str(m) for m in ((card or {}).get("missing") or [])]
+    if missing:
+        steps = [f"Add {m.lower()}" for m in missing[:2]]
+    elif element_name:
+        steps = [f"Show me an example for {element_name}", f"What does {element_name} need?"]
+    else:
+        steps = []
+    return [*steps, WHERE_WE_STAND][:3]

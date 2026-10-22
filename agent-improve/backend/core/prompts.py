@@ -767,7 +767,8 @@ DEFINE_RUBRIC = """\
 GATE_GRADER_PROMPT = """\
 You grade ONE {phase} gate document against its rubric, criterion by criterion.
 You do not coach and you do not rewrite anything. Judge only what the document
-says — never what it might mean, and never from anything outside it.
+says — never what it might mean, and never from anything outside it. The document
+has one section per criterion: judge each criterion on its own section only.
 
 THE CRITERIA TO JUDGE (each is Tier 1: it passes or it fails, never "warning"):
 {criteria}

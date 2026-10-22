@@ -287,6 +287,10 @@ class HealthResponse(BaseModel):
     agent: str = "agent-improve"
     port: int = 8020
     version: str = "0.1.0"
+    #: W16 (DEF-113): whether a turn can run — storage configured, no required credential missing; no model call.
+    ready: bool = True
+    #: Why not, in plain words; "" when ready.
+    reason: str = ""
 
 
 # ── case files ────────────────────────────────────────────────────────────

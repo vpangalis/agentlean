@@ -324,6 +324,7 @@ _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
     "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml", "function reportPrintHead"),
     "function renderPhaseNav": ("function gateSubmitState", "function renderGateSubmit"),
     "function renderLiveViz": ("function latestReply",),
+    "async function openWorkspace": ("function serviceStatusHtml", "async function checkService"),
 }
 
 
@@ -858,7 +859,8 @@ initCreate();
 (async()=>{{await submitCreateCase();
  process.stdout.write(JSON.stringify({{shown:document.getElementById('new-case-id').textContent,opened,toasts}}))}})();
 """)
-        assert second["shown"] == case_id and second["opened"] == [case_id], second
+        # DEF-217 (G-218, founder finding 6): the number stays shown; nothing opens until the lead continues.
+        assert second["shown"] == case_id and second["opened"] == [], second
         listed = client.get("/registry").json()
         assert [e for e in listed if e["case_id"] == case_id], "the id shown is not the one the case is listed under"
         assert client.get(f"/cases/{case_id}").status_code == 200
@@ -1621,9 +1623,50 @@ def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_co
         fusion.QueryVariants(variants=[f"v{i}" for i in range(fusion.MIN_VARIANTS - 1)])
 
 
-def test_two_or_three_next_steps_are_suggested_from_the_phase_state() -> None:
-    """DEF-095 — Under each reply the screen offers two or three next steps computed in code from what is missing; they never contradict the element being worked on an"""
-    _not_written('DEF-095')
+def test_two_or_three_next_steps_are_suggested_from_the_phase_state(env, monkeypatch, stub_planner) -> None:
+    """DEF-095 — Under each reply the screen offers two or three next steps computed in code from what is missing; they never contradict the element being worked on an
+
+    C4 through POST /ask, with no model call for them: on a teaching turn the steps are about the element taught; on
+    a reply whose card still misses parts, they name what is missing ("Add …"), first; every step stays on the
+    element the reply works on (W4 — choosing another element is on the post-Define list) and "Where do we stand?"
+    is always one of them; never more than three. The page's own renderTurn draws them under the latest reply only,
+    each sending its words when chosen."""
+    import json
+
+    from backend.core import guard_messages
+    from backend.core.substate import SufficiencyJudgment
+
+    _at_element(env, "voc_summary")
+    _coach_saying(monkeypatch, "Next: the voice of the customer.")
+    taught = _askd(env, message="Next, please.")
+    name = guard_messages.element_name("define", "voc_summary")
+    assert taught["suggestion_chips"] == [f"Show me an example for {name}", f"What does {name} need?",
+                                          "Where do we stand?"], taught["suggestion_chips"]
+    from backend.phases import moves
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "project_scope")
+    env.case.phases["define"].field_status["project_scope"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="in scope given")
+    _coach_saying(monkeypatch, "Here is your scope. Is this right?", captured=[
+        {"field_name": "project_scope", "value": {"in_scope": "PO invoices from receipt to payment"}, "source": "belt"}])
+    short = _askd(env, message="In scope: PO invoices from receipt to payment.")
+    card = short.get("readback_card") or {}
+    assert short.get("move") == "read_back" and card.get("missing"), (short.get("move"), card)
+    chips = short["suggestion_chips"]
+    assert 2 <= len(chips) <= 3 and chips[-1] == "Where do we stand?", chips
+    assert chips[0] == f"Add {card['missing'][0].lower()}", (chips, card["missing"])
+    others = [guard_messages.element_name("define", f) for f in ("team", "problem_statement", "goal_statement")]
+    assert not any(o.lower() in c.lower() for c in chips for o in others), chips
+    turn = {**short, "role": "ai", "text": short["answer"]}
+    got = _run_page(("function mdHtml", "function renderTurn"), _DOM + f"""
+const t={json.dumps(turn)};
+let S={{localChat:[t],user:'Ana'}};
+const latest=renderTurn(t); S={{localChat:[t,{{role:'user',text:'x'}}],user:'Ana'}};
+process.stdout.write(JSON.stringify({{latest, older:renderTurn(t)}}));""")
+    for chip in chips:
+        assert f"sendPresetMessage({json.dumps(chip)})".replace('"', "&quot;") in got["latest"] or             json.dumps(chip) in got["latest"], (chip, got["latest"][-600:])
+    assert 'class="next-steps"' in got["latest"] and 'class="next-steps"' not in got["older"]
 
 
 def test_the_product_reaches_nothing_outside_the_intranet() -> None:
@@ -2459,9 +2502,37 @@ def test_messages_show_their_author_and_a_second_person_is_told() -> None:
     _not_written('DEF-112')
 
 
-def test_the_screen_shows_the_service_is_ready_before_the_first_message() -> None:
-    """DEF-113 — Before the first message the screen shows whether the service is reachable and ready."""
-    _not_written('DEF-113')
+def test_the_screen_shows_the_service_is_ready_before_the_first_message(env, monkeypatch) -> None:
+    """DEF-113 — Before the first message the screen shows whether the service is reachable and ready.
+
+    W16 through GET /health: ready when storage is configured and no required credential is missing — no model
+    call; not ready names why in plain words. The page's own serviceStatusHtml says "ready", "not ready" with the
+    reason, or "can't be reached" when /health does not answer; openWorkspace asks /health when a case opens, before
+    the first message."""
+    import json
+    from pathlib import Path
+
+    from backend.core import config
+    from backend.gateway import routes
+
+    monkeypatch.setattr(config, "missing_credentials", lambda s=None: [])     # the test env holds no real secrets
+    ok = env.client.get("/health").json()
+    assert ok["ready"] is True and ok["reason"] == "", ok
+    monkeypatch.setattr(config, "missing_credentials", lambda s=None: ["AZURE_OPENAI_API_KEY"])
+    down = env.client.get("/health").json()
+    assert down["ready"] is False and "AZURE_OPENAI_API_KEY" in down["reason"], down
+    monkeypatch.setattr(routes.blob, "storage_configured", lambda: False)
+    assert "storage" in env.client.get("/health").json()["reason"]
+    got = _page(("serviceStatusHtml",), _DOM + f"""
+process.stdout.write(JSON.stringify({{ok:serviceStatusHtml({json.dumps(ok)}),down:serviceStatusHtml({json.dumps(down)}),
+  gone:serviceStatusHtml(null)}}));""")
+    assert "ready" in got["ok"].lower() and "not ready" not in got["ok"].lower(), got["ok"]
+    assert "not ready" in got["down"].lower() and "AZURE_OPENAI_API_KEY" in got["down"], got["down"]
+    assert "can't be reached" in got["gone"], got["gone"]
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    body = src[src.index("async function openWorkspace(caseId){"):]
+    end = body.index(chr(10) + "}" + chr(10))
+    assert "checkService()" in body[:end], "a case opens without asking whether the service is ready"
 
 
 def test_the_sign_in_window_explains_itself_and_names_the_lead() -> None:
@@ -8307,6 +8378,32 @@ process.stdout.write(JSON.stringify({{gate:defineReportHtml(rep, false, null),
     assert [b[1].strip() for b in boxes] == list(names.values()), boxes
 
 
+def test_a_visible_working_indicator_shows_while_a_turn_runs() -> None:
+    """Founder ruling 2026-10-22 evening, item 3 (G-214, finding 47: only a small grey "AI is thinking"): while a turn
+    runs the page shows a visible, animated "working" indicator, announced to screen readers, shown when the message is
+    sent and hidden when the answer — or a failure — comes back. The plain-words steps (DEF-213) and the streamed reply
+    (DEF-059) are on the post-Define list with ADR-0097."""
+    import re
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    m = re.search(r'<div class="typing"[^>]*id="typing"[^>]*>(.*?)</div>\s*</div>', src, re.S)
+    assert m, "the indicator is missing"
+    found = re.search(r'<div class="typing"[^>]*id="typing"[^>]*>', src)
+    assert found is not None
+    tag = found.group(0)
+    assert 'role="status"' in tag and 'aria-live="polite"' in tag, tag
+    assert "AI is thinking" not in src and "The coach is working on your answer" in m.group(1), m.group(1)
+    assert 'class="spinner"' in m.group(1)
+    rule = re.search(r"\.typing\{([^}]*)\}", src)
+    assert rule is not None
+    css = rule.group(1)
+    assert "font-size:12px" in css and "var(--text3)" not in css, css
+    send = src[src.index("async function sendMessage("):]
+    send = send[:send.index(chr(10) + "}" + chr(10))]
+    assert send.count("classList.add('show')") >= 1 and send.count("classList.remove('show')") >= 2
+
+
 def test_progress_steps_are_shown_while_a_turn_runs() -> None:
     """DEF-213 — While a turn runs the Belt sees a visible indicator and plain-words steps (G-214; founder test findings 47)
     Merged here (founder ruling 2026-10-20): DEF-092 — While a turn runs the Belt sees its progress steps in plain words (node-level updates on /ask/stream, step 10.1), never a generic 'thinking'; no reply text before coherence and grading ran.
@@ -8624,8 +8721,33 @@ globalThis.fetch=async(url,opts)=>{{calls.push({{url,credentials:(opts||{{}}).cr
 
 
 def test_the_new_case_number_stays_until_the_lead_continues() -> None:
-    """DEF-217 — The new case number stays shown, with a copy button, until the lead continues (G-218; founder test findings 6)"""
-    _not_written('DEF-217')
+    """DEF-217 — The new case number stays shown, with a copy button, until the lead continues (G-218; founder test findings 6)
+
+    Founder finding 6: the page with the new number flashed and the overview opened — submitCreateCase opened the
+    workspace on its next statement. The page's own functions: after the server answers, the number the server
+    assigned stays on the form, with a Copy control and a Continue control; nothing opens until Continue; Copy puts
+    the number on the clipboard and says so; Continue opens that case."""
+    import json
+
+    answer = {"case_id": "IMPR-2026-K7QX4M", "title": "Late supplier payments"}
+    got = _run_page(("function initCreate", "async function submitCreateCase", "function caseCreatedHtml",
+                     "async function copyCaseNumber", "async function continueToCase"), _PAGE_STUBS + f"""
+const S={{user:'Priya Shah',beltLevel:'green',teamMembers:[]}};
+els['create-title']={{value:'Late supplier payments'}};els['create-dept']={{value:'Finance'}};
+els['create-date']={{value:'2027-03-31'}};els['create-lead-name']={{value:'Priya Shah'}};
+const copied=[];const navigator={{clipboard:{{writeText:async t=>{{copied.push(t)}}}}}};
+async function apiJSON(url,opts){{posted.push({{url}});return {json.dumps(answer)}}}
+initCreate();
+(async()=>{{await submitCreateCase();
+ const shown=document.getElementById('new-case-id').textContent, panel=document.getElementById('case-created').innerHTML,
+       before=[...opened];
+ await copyCaseNumber(); await continueToCase();
+ process.stdout.write(JSON.stringify({{shown,panel,before,opened,copied,toasts}}))}})();""")
+    assert got["shown"] == answer["case_id"], got
+    assert got["before"] == [], "the workspace opened before the lead continued"
+    assert answer["case_id"] in got["panel"] and 'onclick="copyCaseNumber()"' in got["panel"]         and 'onclick="continueToCase()"' in got["panel"], got["panel"]
+    assert got["copied"] == [answer["case_id"]] and any("copied" in t.lower() for t in got["toasts"]), got
+    assert got["opened"] == [answer["case_id"]], got["opened"]
 
 
 def test_case_numbers_are_unique_and_the_case_list_keeps_every_case(monkeypatch) -> None:
@@ -8733,9 +8855,72 @@ def test_case_numbers_are_unique_and_the_case_list_keeps_every_case(monkeypatch)
     assert opened.status_code == 200 and opened.json()["case_id"] == "IMPR-2026-E9D", opened.text
 
 
-def test_checkpoint_weight_is_bounded() -> None:
-    """DEF-219 — Checkpoints stay small and are written few times per turn (analysis first) (G-220; founder test findings 76, 79)"""
-    _not_written('DEF-219')
+def test_checkpoint_weight_is_bounded(env, monkeypatch, stub_planner) -> None:
+    """DEF-219 — Checkpoints stay small and are written few times per turn (analysis first) (G-220; founder test findings 76, 79)
+
+    The analysis (2026-10-22, case IMPR-2026-J25YNA): a late checkpoint was 1.48 MB, the conversation's own text 58 kB
+    and per-reply copies of the phase record about 810 kB — every reply carried the whole record. Founder ruling
+    2026-10-22 evening, item 2 (a): the record rides only on the reply that changed it — each reply carries what its
+    turn changed (the ADR-0109 pattern), and the record is read back by folding them. Through POST /ask over several
+    turns: the record read back equals the full record each turn merged; a reply carries only the parts its turn
+    changed and the log entries it added; the replies' record weight stays a small share of full copies."""
+    import json
+
+    from backend.core import graph as graph_mod
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import record
+
+    merged: list[dict] = []
+    real_merge = record.merge
+
+    def spy(prior, payload, phase):
+        out = real_merge(prior, payload, phase)
+        merged.append(out)
+        return out
+    monkeypatch.setattr(record, "merge", spy)
+    attached: list[dict] = []
+    real_attach = graph_mod._attach
+
+    def attach(msg, payload):
+        attached.append(dict(payload))
+        return real_attach(msg, payload)
+    monkeypatch.setattr(graph_mod, "_attach", attach)
+
+    from backend.tests.test_define_report import COMPLETE
+    _at_element(env, "issues_and_barriers")
+    _coach_saying(monkeypatch, "Last one: what could get in the way?")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="named with their effect")
+    issues = COMPLETE["issues_and_barriers"]
+    _coach_saying(monkeypatch, "Your issues, read back. Is this right?",
+                  captured=[{"field_name": "issues_and_barriers", "value": issues, "source": "belt"}])
+    _askd(env, message=issues)
+    _coach_saying(monkeypatch, "Here is where we stand.")
+    _askd(env, message="Where do we stand?")
+    _coach_saying(monkeypatch, "Stored.")
+    _askd(env, message="Confirm", action="confirm")
+    assert len(attached) == len(merged) >= 4, (len(attached), len(merged))
+
+    messages = [type("M", (), {"additional_kwargs": p})() for p in attached]
+    folded = record.latest(messages, "define") or {}
+    full = dict(merged[-1])
+    full["field_status"] = record.split(full["field_status"])[0]
+    folded["field_status"] = record.split(folded["field_status"])[0]
+    for key in ("structured", "field_status", "field_log", "consumed", "citations", "gate_attempts"):
+        assert folded.get(key) == full.get(key), key
+
+    for i, p in enumerate(attached):
+        rec = p.get(record.KEY) or {}
+        prev = merged[i - 1] if i else {"structured": dict(merged[0].get("structured") or {}) and {}}
+        changed = {k for k, v in (merged[i].get("structured") or {}).items()
+                   if (merged[i - 1].get("structured") or {}).get(k) != v} if i else None
+        if changed is not None:
+            assert set((rec.get("structured") or {})) == changed, (i, sorted(rec.get("structured") or {}), changed)
+        before = {json.dumps(e, sort_keys=True) for e in (merged[i - 1].get("field_log") or [])} if i else set()
+        assert all(json.dumps(e, sort_keys=True) not in before for e in (p.get("field_log") or [])), i
+    carried = sum(len(json.dumps(p.get(record.KEY) or {}, default=str)) for p in attached)
+    copies = sum(len(json.dumps(m, default=str)) for m in merged)
+    assert carried * 3 < copies, (carried, copies)
 
 
 def test_the_coach_writes_no_sample_of_its_own(env, monkeypatch) -> None:

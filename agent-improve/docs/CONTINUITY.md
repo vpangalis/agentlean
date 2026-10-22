@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Headline** | 187 of 208 Define features pass (core 179 of 199) — A 78/83 · B 40/41 · C 52/63 · integrator 17/21 · M1: 74 proven · 0 awaiting fresh run · 2 open |
+| **Headline** | 191 of 203 Define features pass (core 183 of 194) — A 78/83 · B 40/40 · C 55/59 · integrator 18/21 · M1: 74 proven · 0 awaiting fresh run · 2 open |
 | **Next — lane A** | every feature passes |
-| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
-| **Next — lane C** | DEF-217 — The new case number stays shown, with a copy button, until the lead continues (G-218; founder test findings 6) |
+| **Next — lane B** | every feature passes |
+| **Next — lane C** | every feature passes |
 | **Next — lane integrator** | DEF-142 — T86: an offline eval set of 20–50 Define tasks from real failures lives in evals/define/, is graded by code, then the rubric model, with a h |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |

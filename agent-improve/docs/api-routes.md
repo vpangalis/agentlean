@@ -9,7 +9,7 @@ hook, `--stage`); never edited by hand. Linked from [ARCHITECTURE.md §3.9](../A
 
 | Method | Path | Handler | Response | Says |
 |---|---|---|---|---|
-| GET | `/health` | `health` | `HealthResponse` | — |
+| GET | `/health` | `health` | `HealthResponse` | W16 (DEF-113): reachable (this answer) and ready — storage configured and every required credential set. No |
 | POST | `/summarise` | `summarise_session` | `SummariseResponse` | Generate a 2-3 sentence AI summary of a session's conversation turns. |
 | POST | `/cases` | `create_case` | `CaseCreateResponse` | Create a new improvement case and register it. |
 | POST | `/ask` | `ask` | `AskResponse` | One coaching turn, through the compiled graph. |

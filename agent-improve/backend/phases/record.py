@@ -116,40 +116,118 @@ def _joined(rec: dict[str, Any], kept: dict[str, dict[str, Any]]) -> dict[str, A
     return {**rec, "field_status": status}
 
 
+#: DEF-219 (founder ruling 2026-10-22 evening, item 2a): a reply carries only what its turn changed in the record —
+#: marked so a reader folds it onto the record before it; a record without the mark (written before) is whole.
+DELTA = "delta"
+_SCALARS = ("gate_attempts", "gate_fingerprint")
+
+
+def diff(prev: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
+    """DEF-219: what `new` changed against `prev` — the changed values, the changed or removed field statuses, the log
+    entries added or changed, the new uploads read and citations, the changed counters. Only `phase` and the mark when
+    nothing changed."""
+    out: dict[str, Any] = {"phase": new.get("phase"), DELTA: True}
+    old_s, new_s = dict(prev.get("structured") or {}), dict(new.get("structured") or {})
+    if changed := {k: v for k, v in new_s.items() if old_s.get(k) != v}:
+        out["structured"] = changed
+    old_f, new_f = dict(prev.get("field_status") or {}), dict(new.get("field_status") or {})
+    if status := {k: v for k, v in new_f.items() if old_f.get(k) != v}:
+        out["field_status"] = status
+    if gone := [k for k in old_f if k not in new_f]:
+        out["field_status_removed"] = gone
+    old_log = list(prev.get("field_log") or [])
+    if log := [e for e in (new.get("field_log") or []) if e not in old_log]:
+        out["field_log"] = log
+    old_c = dict(prev.get("consumed") or {})
+    if consumed := {k: v for k, v in (new.get("consumed") or {}).items() if old_c.get(k) != v}:
+        out["consumed"] = consumed
+    known = {_citation_key(c) for c in prev.get("citations") or []}
+    if cites := [c for c in new.get("citations") or [] if _citation_key(c) not in known]:
+        out["citations"] = cites
+    for key in _SCALARS:
+        if key in new and new.get(key) != prev.get(key):
+            out[key] = new[key]
+    return out
+
+
+def changed(delta: dict[str, Any]) -> bool:
+    """Whether a delta carries any change at all."""
+    return any(k not in ("phase", DELTA) for k in delta)
+
+
+def apply_delta(prev: dict[str, Any] | None, rec: dict[str, Any], phase: str) -> dict[str, Any]:
+    """DEF-219: `rec` folded onto `prev` — a delta adds its changes; a record without the mark replaces `prev` whole."""
+    if not rec.get(DELTA):
+        return {k: v for k, v in rec.items() if k != DELTA}
+    base = prev or empty(phase)
+    status = {f: dict(v) for f, v in (base.get("field_status") or {}).items()
+              if f not in (rec.get("field_status_removed") or [])}
+    status.update({f: dict(v) for f, v in (rec.get("field_status") or {}).items()})
+    out = {**base, "phase": phase,
+           "structured": {**dict(base.get("structured") or {}), **dict(rec.get("structured") or {})},
+           "field_status": status,
+           "field_log": merge_field_log([dict(e) for e in base.get("field_log") or []],
+                                        [dict(e) for e in rec.get("field_log") or []]),
+           "consumed": {**dict(base.get("consumed") or {}), **dict(rec.get("consumed") or {})},
+           "citations": [*(base.get("citations") or []), *(rec.get("citations") or [])]}
+    for key in _SCALARS:
+        if key in rec:
+            out[key] = rec[key]
+    return out
+
+
+def _folded(messages: Iterable[Any], phase: str) -> dict[str, Any] | None:
+    """The record of `phase` as the messages carry it: every reply's record folded on, oldest first."""
+    out: dict[str, Any] | None = None
+    for m in messages:
+        rec = (getattr(m, "additional_kwargs", None) or {}).get(KEY)
+        if isinstance(rec, dict) and rec.get("phase") == phase:
+            out = apply_delta(out, rec, phase)
+    return out
+
+
 def for_reply(payload: dict[str, Any], messages: Iterable[Any], phase: str) -> dict[str, Any]:
     """ADR-0109 — the turn's payload as the reply stores it: the record and the turn's `field_status` without the kept
-    verdicts, and the verdicts under `KEPT_KEY` only when they differ from the newest ones before this turn."""
+    verdicts, and the verdicts under `KEPT_KEY` only when they differ from the newest ones before this turn.
+
+    DEF-219 (ruling 2026-10-22 evening, item 2a): the record rides only as what this turn changed against the record
+    the messages already carry (none when nothing changed); the turn's `field_status` and `field_log` beside it are
+    the changed statuses and the added entries — never whole copies."""
+    msgs = list(messages or [])
     out = dict(payload)
     full = dict(out.get(KEY) or {})
     stripped, kept = split(full.get("field_status"))
-    out[KEY] = {**full, "field_status": stripped}
-    if isinstance(out.get("field_status"), dict):
-        out["field_status"] = split(out["field_status"])[0]
-    if kept != latest_kept(messages, phase):
+    prev = _folded(msgs, phase) or {}
+    prev = {**prev, "field_status": split(prev.get("field_status"))[0]}
+    delta = diff(prev, {**full, "field_status": stripped})
+    out.pop(KEY, None)
+    if changed(delta):
+        out[KEY] = delta
+    out["field_status"] = dict(delta.get("field_status") or {})
+    out["field_log"] = list(delta.get("field_log") or [])
+    if kept != latest_kept(msgs, phase):
         out[KEPT_KEY] = {"phase": phase, "verdicts": kept}
     return out
 
 
 def latest(messages: Iterable[Any], phase: str) -> dict[str, Any] | None:
-    """The newest record of `phase` carried by a message, with the newest kept verdicts joined in (ADR-0109), or None."""
+    """The record of `phase` the messages carry — their records folded, oldest first (DEF-219) — with the newest kept
+    verdicts joined in (ADR-0109), or None."""
     msgs = list(messages or [])
-    for m in reversed(msgs):
-        rec = (getattr(m, "additional_kwargs", None) or {}).get(KEY)
-        if isinstance(rec, dict) and rec.get("phase") == phase:
-            return _joined(rec, latest_kept(msgs, phase))
-    return None
+    rec = _folded(msgs, phase)
+    return _joined(rec, latest_kept(msgs, phase)) if rec is not None else None
 
 
 def latest_by_phase(messages: Iterable[Any]) -> dict[str, dict[str, Any]]:
-    """The newest record of every phase the messages carry, each with its kept verdicts joined in."""
+    """The record of every phase the messages carry, each folded and with its kept verdicts joined in."""
     msgs = list(messages or [])
-    out: dict[str, dict[str, Any]] = {}
-    for m in reversed(msgs):
+    phases = []
+    for m in msgs:
         rec = (getattr(m, "additional_kwargs", None) or {}).get(KEY)
-        if isinstance(rec, dict) and rec.get("phase") and rec["phase"] not in out:
-            out[rec["phase"]] = _joined(rec, latest_kept(msgs, rec["phase"]))
-    return out
+        if isinstance(rec, dict) and rec.get("phase") and rec["phase"] not in phases:
+            phases.append(rec["phase"])
+    return {p: _joined(_folded(msgs, p) or empty(p), latest_kept(msgs, p)) for p in phases}
 
 
-__all__ = ["KEY", "KEPT_KEY", "VERDICT_KEYS", "empty", "merge", "latest", "latest_by_phase", "latest_kept",
+__all__ = ["KEY", "KEPT_KEY", "VERDICT_KEYS", "DELTA", "empty", "merge", "diff", "apply_delta", "latest", "latest_by_phase", "latest_kept",
            "split", "for_reply"]

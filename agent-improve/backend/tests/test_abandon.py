@@ -73,7 +73,7 @@ class FakeGraph:
         self.completed = False
         self.cancelled = False
 
-    async def ainvoke(self, state, config=None):
+    async def ainvoke(self, state, config=None, **kwargs):     # the compiled graph also takes durability (DEF-219)
         self.started = True
         try:
             await asyncio.sleep(self.duration)

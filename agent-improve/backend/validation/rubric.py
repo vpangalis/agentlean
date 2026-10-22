@@ -184,6 +184,26 @@ MODEL_ASKS: dict[str, str] = {
 }
 
 
+def _reads(field: str, cid: str) -> list[str]:
+    """G-241 (ruling 2026-10-22 evening, item 1): the fields a criterion is judged on — its element's captured fields
+    (the CTQs with the voice of the customer, the 5W2H with the problem) and those of the elements in READS."""
+    from backend.phases import moves
+    captured = dict(moves.positions("define"))
+    out: list[str] = []
+    for element in (field, *READS.get(cid, ())):
+        for f in captured.get(element, (element,)):
+            if f not in out:
+                out.append(f)
+    return out
+
+
+def _document_by_criterion(criteria: list[tuple[str, str, str]], a: dict[str, Any]) -> str:
+    """G-241: one section per criterion, holding only the values it reads — a wording change in an element a
+    criterion does not read cannot tip it."""
+    return "\n\n".join(f"[{cid} — the values it reads]\n" + "\n".join(
+        f"{f}: {_text(a.get(f))}" for f in _reads(field, cid) if _text(a.get(f))) for cid, field, _ in criteria)
+
+
 def _document(a: dict[str, Any]) -> str:
     """The confirmed values, one line each — what the grader reads."""
     skip = {"computation_results", "citations", "uploads", "acknowledged_gaps", "phase_metrics"}
@@ -284,7 +304,7 @@ async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
         logger.info("define rubric: %d criterion verdict(s) kept for unchanged answers, %d to judge (DEF-224)",
                     sum(1 for cid, _, _ in DEFINE_CRITERIA if cid in verdicts and cid in kept), len(to_judge))
     if to_judge:
-        document = _document(a)
+        document = _document_by_criterion(to_judge, a)
         # G-241 (1c): three judgments, the majority per criterion — the same document must get the same verdict.
         rounds = [await _judged_once(to_judge, document, judge) for _ in range(GATE_VOTES)]
         for cid, _field, _criterion in to_judge:

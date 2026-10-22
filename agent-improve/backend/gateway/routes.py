@@ -6,7 +6,7 @@ import time
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
@@ -102,7 +102,14 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    return HealthResponse()
+    """W16 (DEF-113): reachable (this answer) and ready — storage configured and every required credential set. No
+    model call: the page asks it when a case opens, before the first message."""
+    from backend.core import config
+    gaps = [] if blob.storage_configured() else ["case storage is not configured"]
+    missing = config.missing_credentials()
+    if missing:
+        gaps.append("missing settings: " + ", ".join(missing))
+    return HealthResponse(ready=not gaps, reason="; ".join(gaps))
 
 
 @router.post("/summarise", response_model=SummariseResponse)
@@ -386,11 +393,16 @@ def _bind(case_id: Any, phase: Any) -> None:
     set_phase(str(phase) if phase else None)
 
 
+#: DEF-219 (founder ruling 2026-10-22 evening, item 2b; ADR-0043): LangGraph's own durability mode for every run of
+#: the graph — a turn and a gate resume. The installed LangGraph's modes: "sync", "async" (its default), "exit".
+GRAPH_DURABILITY: Literal["sync", "async", "exit"] = "async"
+
+
 async def _run_turn_held(graph, state: Any, config: dict, http: Request, deadline: bool = False):
     """`_run_turn`'s body, inside the case's lease. With `deadline` (a coaching turn, DEF-093), the run is
     cancelled — exactly as a disconnect cancels it — when the turn's 45 s, less the closing reserve, are
     spent: `TurnDeadline`."""
-    task = asyncio.create_task(graph.ainvoke(state, config=config))
+    task = asyncio.create_task(graph.ainvoke(state, config=config, durability=GRAPH_DURABILITY))
     watch = asyncio.create_task(_until_disconnect(http))
     left = None
     if deadline:
@@ -542,8 +554,11 @@ def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> No
     if record is None:
         return
     from backend.phases import record as phase_record
-    merged = phase_record.merge({"structured": record.structured, "field_status": record.field_status,
-                                 "field_log": record.field_log}, payload, phase)
+    prior = {"structured": record.structured, "field_status": record.field_status, "field_log": record.field_log}
+    # DEF-219: a reply carries the record as what its turn changed — folded onto the case's record; a payload with
+    # no record (an older caller) merges as before.
+    merged = (phase_record.apply_delta({**phase_record.empty(phase), **prior}, payload[phase_record.KEY], phase)
+              if isinstance(payload.get(phase_record.KEY), dict) else phase_record.merge(prior, payload, phase))
     record.structured = merged["structured"]
     record.field_status = merged["field_status"]
     record.field_log = merged["field_log"]
@@ -863,7 +878,9 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
             )
             for c in (extra.get("citations") or [])
         ],
-        suggestion_chips=_build_chips(request.phase, phase_data),
+        # DEF-095 (C4): in Define, computed from what the reply's element still misses — never another element.
+        suggestion_chips=(_define_next_steps(extra) if request.phase == "define"
+                          else _build_chips(request.phase, phase_data)),
         sipoc_diagram=extra.get("sipoc_diagram"),
         visualisation=extra.get("visualisation"),
         section_completed=extra.get("section_completed"),
@@ -2244,6 +2261,14 @@ def _build_captured_fields(phase_data: dict, phase: str) -> list:
             )
         )
     return fields
+
+
+def _define_next_steps(extra: dict) -> list[str]:
+    """DEF-095: the next steps under a Define reply, from the element it works on and its card (phases/status.py)."""
+    from backend.core import guard_messages
+    from backend.phases.status import next_steps
+    field = str((extra.get("coaching_move") or {}).get("field") or "")
+    return next_steps(guard_messages.element_name("define", field) if field else "", extra.get(conversation.CARD_KEY))
 
 
 def _build_chips(phase: str, phase_data: dict) -> list[str]:

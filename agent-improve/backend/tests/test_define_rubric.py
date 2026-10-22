@@ -323,3 +323,33 @@ def test_g241_each_gate_criterion_is_the_majority_of_three_verdicts() -> None:
         assert v.status == expected and len(calls) == rubric.GATE_VOTES == 3, (r13, v, calls)
         assert (v.feedback == "The barriers are not specific to this project.") is (expected == "fail"), v
         assert not set(rubric.CODE_ONLY) & set(calls[0]), calls[0]
+
+
+def test_g241_each_criterion_is_judged_on_the_values_it_reads() -> None:
+    """G-241 (founder ruling 2026-10-22 evening, item 1): each gate criterion is judged on the fields it reads
+    (rubric.READS and the element's own captured fields), never the whole document — a wording change in an element a
+    criterion does not read cannot tip it. The judge gets one section per criterion holding only those values, and
+    is told to judge each criterion on its own section."""
+    import asyncio
+
+    from backend.core.prompts import GATE_GRADER_PROMPT
+    from backend.tests.test_define_report import COMPLETE
+    from backend.validation import rubric
+    from backend.validation.schemas import CriterionVerdict, GraderVerdict
+
+    seen: list[str] = []
+
+    async def judge(criteria, document):
+        seen.append(document)
+        return GraderVerdict(verdicts=[CriterionVerdict(criterion=c, status="pass", feedback="") for c, _, _ in criteria])
+    asyncio.run(rubric.grade_define(dict(COMPLETE), judge=judge))
+    doc = seen[0]
+    sections = {s.split("]", 1)[0].lstrip("["): s for s in doc.split("\n\n") if s.startswith("[DEF-R")}
+    r13 = sections["DEF-R13 — the values it reads"]
+    for field in ("issues_and_barriers", "business_case", "project_scope", "process_map_sipoc"):
+        assert f"{field}:" in r13, field
+    for field in ("team", "voc_summary", "goal_statement", "secondary_metrics"):
+        assert f"{field}:" not in r13, field
+    r03 = sections["DEF-R03 — the values it reads"]
+    assert "voc_summary:" in r03 and "critical_to_quality:" in r03 and "business_case:" not in r03, r03
+    assert "on its own section" in GATE_GRADER_PROMPT
