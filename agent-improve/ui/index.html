@@ -155,6 +155,12 @@ a{text-decoration:none;color:inherit}
 .pb-active{background:var(--brand-bg);color:var(--brand)}
 .pb-lock{background:var(--surface2);color:var(--text3)}
 .psub{font-size:10px;color:var(--text3);padding:0 14px 4px 31px;line-height:1.4}
+/* DEF-203 (G-204): the element being worked on stands out; confirmed green; open grey; Change small and muted. */
+.def-el-current{font-weight:600;color:#00305A;background:#EAF4FC;border-radius:4px}
+.def-el-confirmed{color:#1E6B3A}
+.def-el-open{color:var(--text3,#99978F)}
+.now-marker{font-size:9px;font-weight:700;color:#0070BA;text-transform:uppercase;letter-spacing:.04em}
+.el-act{font-size:10px;background:none;border:none;padding:0;margin-left:auto;color:var(--text3,#99978F);text-decoration:underline;cursor:pointer}
 .psep{height:1px;background:var(--border);margin:3px 14px}
 .pnav-bot{padding:10px 14px;border-top:1px solid var(--border);margin-top:auto;flex-shrink:0}
 .prog-bar{height:3px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden}
@@ -579,23 +585,23 @@ a{text-decoration:none;color:inherit}
       <div class="pi active" id="pi-define" onclick="navClickPhase('define')">
         <div class="pd"></div><span class="pl">Define</span><span class="pb pb-active">active</span>
       </div>
-      <div class="psub">5W2H · charter · scope</div><div class="psep"></div>
+      <div class="psub"></div><div class="psep"></div>
       <div class="pi locked" id="pi-measure" onclick="navClickPhase('measure')">
         <div class="pd"></div><span class="pl">Measure</span><span class="pb pb-lock">locked</span>
       </div>
-      <div class="psub">Data plan · baseline</div><div class="psep"></div>
+      <div class="psub"></div><div class="psep"></div>
       <div class="pi locked" id="pi-analyse" onclick="navClickPhase('analyse')">
         <div class="pd"></div><span class="pl">Analyse</span><span class="pb pb-lock">locked</span>
       </div>
-      <div class="psub">Cause analysis · Root cause statement</div><div class="psep"></div>
+      <div class="psub"></div><div class="psep"></div>
       <div class="pi locked" id="pi-improve" onclick="navClickPhase('improve')">
         <div class="pd"></div><span class="pl">Improve</span><span class="pb pb-lock">locked</span>
       </div>
-      <div class="psub">Solution design · Pilot · Implementation</div><div class="psep"></div>
+      <div class="psub"></div><div class="psep"></div>
       <div class="pi locked" id="pi-control" onclick="navClickPhase('control')">
         <div class="pd"></div><span class="pl">Control</span><span class="pb pb-lock">locked</span>
       </div>
-      <div class="psub">Control plan · Monitoring · Sustainability</div>
+      <div class="psub"></div>
       <!-- Case files panel — populated by buildCaseFilesNav() -->
       <div id="case-files-nav"></div>
       <div style="flex:1"></div>
@@ -1331,13 +1337,8 @@ async function teamSend(method,url,person){
   }catch(e){toast((e&&e.message)||String(e),5000);}
 }
 
-const PHASE_NAV_SUBTITLES = {
-  define: '5W2H · charter · scope',
-  measure: 'Data plan · baseline',
-  analyse: 'Cause analysis · Root cause statement',
-  improve: 'Solution design · Pilot · Implementation',
-  control: 'Control plan · Monitoring · Sustainability',
-};
+// DEF-203 (G-204, founder finding 16): the legacy line under each phase is gone; Define shows its confirmed figure.
+const PHASE_NAV_SUBTITLES = {define: '', measure: '', analyse: '', improve: '', control: ''};
 
 // Left-nav click handler. Previewing a completed phase opens its gate
 // document via renderGateForPhase() without mutating S.phase. Clicking
@@ -1376,10 +1377,12 @@ function navClickPhase(phase) {
 // DEF-053 — in Define the bar and its label come from the server's define_progress (GET /cases),
 // the function the reply's step label uses: "Define · Step n of 13", the fill moving within Define's
 // share of the bar as elements are confirmed.
+// DEF-204 (W2, W4): the bar reads the one confirmed figure the server computes (project_status) — "n of N
+// confirmed", never a step position; a define_progress object (the older shape) gives the same count.
 function defineProgressBar(p){
   if(!p||!p.of)return null;
-  const done=Math.max(0,Math.min(p.of,(p.position||1)-1));
-  return {width:Math.round(5+17*done/p.of),label:p.label||`Define · Step ${p.position} of ${p.of}`};
+  const done=p.done!=null?p.done:Math.max(0,Math.min(p.of,(p.position||1)-1));
+  return {width:Math.round(5+17*done/p.of),label:`Define · ${done} of ${p.of} confirmed`};
 }
 
 // DEF-053 — the suggested next step names the element the coach is on (define_elements' current
@@ -1401,7 +1404,7 @@ function renderPhaseNav(){
   const highlightPhase = S.previewPhase || S.phase;
   const highlightIdx = phaseOrder.indexOf(highlightPhase);
   const progPct=[5,22,44,66,88];
-  const inDefine=S.phase==='define'&&defineProgressBar(S.case&&S.case.define_progress);
+  const inDefine=S.phase==='define'&&defineProgressBar(S.case&&((S.case.project_status||{}).confirmed||S.case.define_progress));
   document.getElementById('prog-fill').style.width=(inDefine?inDefine.width:(progPct[currentIdx]||5))+'%';
   document.getElementById('prog-label').textContent=inDefine?inDefine.label:`Phase ${currentIdx+1} of 5`;
   renderGateSubmit();                              // DEF-202: Submit opens only when all are confirmed
@@ -1435,12 +1438,11 @@ function renderPhaseNav(){
       if (i < currentIdx) {
         // Completed phase — show gate status (compact)
         if (ph === 'define') {
-          const structured = getStructured('define');
-          const captured = DEFINE_GATE_FIELDS.filter(
-            f => fieldHasValue(structured[f.key])
-          ).length;
+          // DEF-204: the same element statuses the progress view and the Gate count.
+          const rows = (S.case && S.case.define_elements) || [];
+          const done = rows.filter(r => r.status === 'confirmed').length;
           psub.innerHTML =
-            `✓ ${captured}/${DEFINE_GATE_FIELDS.length} · Gate passed`;
+            `✓ ${done} of ${rows.length || 13} confirmed · Gate passed`;
         } else {
           psub.innerHTML = '✓ Gate passed';
         }
@@ -1448,7 +1450,7 @@ function renderPhaseNav(){
         // Active phase — subtitle + dynamic capture progress when wired
         if (ph === 'define') {
           psub.innerHTML =
-            PHASE_NAV_SUBTITLES.define + buildNavDefineElements();
+            defineNavProgress() + buildNavDefineElements();
         } else if (ph === 'measure') {
           psub.innerHTML = buildNavMeasureStatus();
         } else {
@@ -1468,13 +1470,22 @@ function renderPhaseNav(){
 
 // W9 (DEF-079) — the thirteen elements with their statuses, as the server computed them: a Change
 // action on every confirmed element, ADR-0072's marker and Resume on a parked one.
+// DEF-203 / DEF-204: Define's progress in the sidebar — the one confirmed figure the server computes.
+function defineNavProgress(){
+  const c=((S.case||{}).project_status||{}).confirmed;
+  return c?`<div class="def-progress" style="font-size:10px;color:var(--text2,#5C5A55);margin:2px 0 4px">${escapeHtml(c.label)}</div>`:'';
+}
+
 function buildNavDefineElements(){
   const els=(S.case&&S.case.define_elements)||[];
   if(!els.length)return buildNavDefineStatus();
   const icon={confirmed:'✓',parked:'⏸',current:'●',open:'○'};
+  // DEF-203 (G-204, findings 16, 21): the element being worked on highlighted and marked "now"; confirmed with a
+  // tick; open plain; Change a small link, never larger than the list's text.
   return '<div class="def-els">'+els.map(e=>`<div class="def-el def-el-${e.status}" data-field="${e.field}" `
-    +`style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:10px">`
+    +`style="display:flex;align-items:center;gap:4px;padding:2px 4px;font-size:10px">`
     +`<span>${icon[e.status]||'○'}</span><span style="flex:1">${e.n}. ${escapeHtml(e.name)}</span>`
+    +(e.status==='current'?`<span class="now-marker">now</span>`:'')
     +(e.status==='parked'?`<span class="parked-marker" style="color:#A04800">Parked</span>`
       +`<button class="el-act" onclick="reviseElement('${e.field}')">Resume</button>`:'')
     +(e.status==='confirmed'?`<button class="el-act" onclick="reviseElement('${e.field}')">Change</button>`:'')
@@ -1882,6 +1893,15 @@ function selectTab(tab){
 }
 
 // ─── OVERVIEW ─────────────────────────────────────────────────────
+// DEF-214 (W1; founder ruling 2026-10-22 afternoon, item 2): the Define roadmap from the server's overview (the
+// skill's opening and section F) — one step per element, then how Define ends. No overview text is typed here.
+function defineRoadmapSteps(ov) {
+  const els = (ov && ov.elements) || [];
+  return [...els.map(e => ({num: String(e.n), gate: false, action: e.name, tool: '', desc: e.what, time: '', explainer: null})),
+          ...(els.length ? [{num: '✓', gate: true, action: 'Define report', tool: '', desc: ov.ends || '', time: '',
+                             explainer: null}] : [])];
+}
+
 function renderOverview(){
   // Preview mode: when set by navClickPhase, render a completed phase's
   // overview without mutating S.phase (the working phase).
@@ -1923,25 +1943,10 @@ function renderOverview(){
 
   if (viewPhase === 'define') {
     // ── Define phase: enriched orientation content ───────────────────
+    // DEF-214 (W1): how Define is worked, in the skill's own words — no overview text typed here.
     const descHtml = `
       <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
-        margin-bottom:10px">
-        The Define phase is the starting point of your improvement project.
-        Before collecting data or looking for solutions, the team needs to
-        agree on <strong>what problem you are solving</strong>,
-        <strong>why it matters</strong>, and
-        <strong>what success looks like</strong>. This phase produces a
-        shared, documented understanding that guides every decision in
-        later phases.
-      </p>
-      <div style="font-size:11px;color:#0070BA;background:#EAF4FC;
-        border-radius:6px;padding:8px 12px;margin-bottom:20px;line-height:1.5">
-        <i class="ti ti-robot" style="font-size:13px;margin-right:5px"
-          aria-hidden="true"></i>
-        The AI guide walks you through each step in sequence with questions
-        and explanations. You do not need to know Lean Six Sigma to proceed —
-        just answer what you know.
-      </div>`;
+        margin-bottom:20px">${escapeHtml((S.case?.define_overview || {}).how || '')}</p>`;
 
     const uiOrientationHtml = `
       <div style="margin-bottom:28px">
@@ -1986,83 +1991,8 @@ function renderOverview(){
         </div>
       </div>`;
 
-    const steps = [
-      {
-        num: '1', gate: false,
-        action: 'Describe the problem',
-        tool: 'Tool: 5W2H framework',
-        desc: 'Answer 7 guided questions about what is going wrong, where, when, who is affected, why it matters, how it shows up, and how much.',
-        time: '15–20 min',
-        explainer: {
-          label: 'What is 5W2H?',
-          term: '5W2H is a structured way to describe a problem precisely',
-          body: 'The 7 letters stand for: <strong>What</strong> is the problem · <strong>Where</strong> does it happen · <strong>When</strong> did it start · <strong>Who</strong> is affected · <strong>Why</strong> does it matter to the business · <strong>How</strong> does it show up — how is it detected · <strong>How much</strong> — its size today.',
-          example: 'Example: "Since February 2026 billing agents receive 28 complaints a week about unresolved queries; customers chase the status by phone, and the queries cost about €35k a month."',
-        },
-      },
-      {
-        num: '2', gate: false,
-        action: 'Map the process',
-        tool: 'Tool: SIPOC diagram',
-        desc: 'Draw a high-level picture of the process from end to end. You can upload an existing process map and the AI will read it automatically.',
-        time: '20–30 min',
-        explainer: {
-          label: 'What is a SIPOC diagram?',
-          term: 'SIPOC is a one-page map of a process with 5 columns',
-          body: '<strong>S</strong>uppliers — who provides the inputs · <strong>I</strong>nputs — what goes into the process · <strong>P</strong>rocess — the main steps (4–6 is enough) · <strong>O</strong>utputs — what the process produces · <strong>C</strong>ustomers — who receives the output.',
-          example: 'Why it matters: before collecting data or looking for solutions, the whole team needs to agree on what process they are improving. SIPOC ensures everyone is looking at the same thing.',
-        },
-      },
-      {
-        num: '3', gate: false,
-        action: 'Set the goal and boundaries',
-        tool: 'Goal statement & scope',
-        desc: 'Write the goal in one sentence and define what is included in this project and what is deliberately left out.',
-        time: '10–15 min',
-        explainer: {
-          label: 'What is the goal statement and scope?',
-          term: 'The goal statement answers: what will we improve, by how much, by when?',
-          body: 'A good goal has four parts: the metric, the baseline, the target, and the deadline. Example: "Reduce customer complaints from 28 to under 20 per week within 6 months."<br><br>The scope defines the boundaries: <strong>In scope</strong> = what this project covers. <strong>Out of scope</strong> = what it deliberately does not cover. Defining both early prevents scope creep — the tendency for projects to grow beyond what the team can handle.',
-        },
-      },
-      {
-        num: '4', gate: false,
-        action: 'Make the financial case',
-        tool: 'Business case & benefits analysis',
-        desc: 'Capture the current cost of the problem and the expected saving. Split into hard benefits and soft benefits.',
-        time: '15–20 min',
-        explainer: {
-          label: 'What are hard and soft benefits?',
-          term: 'Hard benefits are quantifiable. Soft benefits are real but harder to measure.',
-          body: '<strong>Hard benefits</strong>: savings or revenue you can put a number on. Example: "€20k/month in recovered revenue from reduced churn."<br><br><strong>Soft benefits</strong>: improvements that matter but are harder to quantify. Example: "Improved customer trust, higher agent morale, reduced escalations." Both types matter — management wants the financial return, but sponsors also care about cultural and reputational impact.',
-        },
-      },
-      {
-        num: '5', gate: false,
-        action: 'Plan the team and timeline',
-        tool: 'Project charter',
-        desc: 'Document who is on the team, who is sponsoring the project, which metrics you will track, the target date, and key milestones.',
-        time: '20–30 min',
-        explainer: {
-          label: 'What is a project charter?',
-          term: 'The project charter is the formal communication of the project to the organisation',
-          body: 'It captures everything in one document: the problem, the goal, who owns the process, who is sponsoring it at management level, the team and their roles, the primary metric (the number that defines success), the secondary metric (to watch for side effects), the target completion date, and key milestones for each phase.<br><br>Think of it as the project contract — once approved by the sponsor, the team has a mandate to proceed.',
-          example: 'Milestone example for a Green Belt: Define complete Week 2 · Measure Week 6 · Analyse Week 10 · Improve Week 14 · Control and close Week 18.',
-        },
-      },
-      {
-        num: '✓', gate: true,
-        action: 'Submit for AI gate review',
-        tool: 'Gate tab → Submit button',
-        desc: 'When all 5 sections are complete, open the Gate tab and submit. The AI checks everything and either approves the gate or highlights what still needs work. Once approved, the project advances to Measure.',
-        time: 'AI reviews instantly',
-        explainer: {
-          label: 'What does the AI check?',
-          term: 'The AI reviews the Define gate like a Master Black Belt would',
-          body: 'It checks that all 26 required fields are captured, that the problem statement is specific and measurable, that the goal has a clear metric and deadline, that the SIPOC covers all 5 columns, and that the business case has a financial estimate. If anything is missing or unclear, it will tell you exactly what to fix before approving.',
-        },
-      },
-    ];
+    // DEF-214 (W1): the roadmap is the skill's — thirteen elements and how Define ends — served by the server.
+    const steps = defineRoadmapSteps(S.case?.define_overview);
 
     const roadmapHtml = `
       <div style="margin-bottom:28px">
@@ -2093,12 +2023,12 @@ function renderOverview(){
             <div style="flex:1;padding:4px 0 ${i < steps.length-1 ? '20px' : '0'} 16px">
               <div style="font-size:13px;font-weight:500;
                 color:${s.gate ? '#0070BA' : 'var(--text,#1A1917)'};
-                margin-bottom:2px">${s.action}</div>
-              <div style="font-size:10px;color:#3A90CC;font-weight:500;
-                margin-bottom:5px">${s.tool}</div>
+                margin-bottom:2px">${escapeHtml(s.action)}</div>
+              ${s.tool ? `<div style="font-size:10px;color:#3A90CC;font-weight:500;
+                margin-bottom:5px">${escapeHtml(s.tool)}</div>` : ''}
               <div style="font-size:11px;color:var(--text2,#5C5A55);
-                line-height:1.55;margin-bottom:6px">${s.desc}</div>
-              <span style="display:inline-flex;align-items:center;gap:4px;
+                line-height:1.55;margin-bottom:6px">${escapeHtml(s.desc)}</div>
+              ${s.time ? `<span style="display:inline-flex;align-items:center;gap:4px;
                 font-size:10px;
                 color:${s.gate ? '#0070BA' : 'var(--text3,#99978F)'};
                 background:${s.gate ? '#EAF4FC' : '#F0F2F5'};
@@ -2106,7 +2036,7 @@ function renderOverview(){
                 <i class="ti ${s.gate ? 'ti-sparkles' : 'ti-clock'}"
                   style="font-size:11px" aria-hidden="true"></i>
                 ${s.time}
-              </span>
+              </span>` : ''}
               ${s.explainer ? `
                 <br>
                 <span class="expl-toggle" onclick="toggleExplainer(this)">
@@ -3240,7 +3170,13 @@ function buildProgressNarrative() {
   // simple non-null count for other phases
   let total = 0, captured = 0, groups = [];
 
-  if (phase === 'define') {
+  const status = phase === 'define' ? (S.case.project_status || null) : null;
+  if (status && status.confirmed) {
+    // DEF-204 (W2): Define's figures are the server's one status — the confirmed count, the days, what waits.
+    total = status.confirmed.of;
+    captured = status.confirmed.done;
+    groups = [];
+  } else if (phase === 'define') {
     const fieldsForCount = DEFINE_GATE_FIELDS;
     total = fieldsForCount.length;
     captured = fieldsForCount.filter(f => fieldHasValue(structured[f.key])).length;
@@ -3279,7 +3215,14 @@ function buildProgressNarrative() {
 
   // Narrative sentence — rule-based for define, generic for others
   let narrative = '';
-  if (phase === 'define') {
+  const unit = status ? 'confirmed' : 'fields captured';
+  if (status) {
+    const days = [status.days_since_opened != null ? `${status.days_since_opened} days since the case was opened` : '',
+                  status.days_to_target != null ? `${status.days_to_target} days to the target date (${escapeHtml(status.target_date)})` : ''];
+    narrative = `${escapeHtml(status.confirmed.label)} · ${status.open} open.`
+      + (days.some(Boolean) ? ` ${days.filter(Boolean).join(' · ')}.` : '')
+      + (status.waiting ? ` ${escapeHtml(status.waiting)}` : '');
+  } else if (phase === 'define') {
     const problemDone = groups.find(g=>g.label==='PROBLEM')?.captured ===
       groups.find(g=>g.label==='PROBLEM')?.total;
     const baselineDone = groups.find(g=>g.label==='BASELINE & TARGET')?.captured ===
@@ -3400,7 +3343,7 @@ function buildProgressNarrative() {
         font-size:11px;cursor:not-allowed;display:flex;
         align-items:center;justify-content:center;gap:6px">
         <i class="ti ti-lock" style="font-size:12px"></i>
-        Gate not ready — ${missing} field${missing!==1?'s':''} missing
+        Gate not ready — ${missing} ${status ? 'element' : 'field'}${missing!==1?'s':''} ${status ? 'open' : 'missing'}
       </button>`;
 
   return `
@@ -3413,7 +3356,7 @@ function buildProgressNarrative() {
           <span style="font-size:24px;font-weight:500;color:${fillColor}">${captured}</span>
           <span style="font-size:14px;color:var(--text3,#99978F)"> / ${total}</span>
           <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
-            fields captured
+            ${unit}
           </div>
         </div>
         <div style="text-align:right">
@@ -3421,7 +3364,7 @@ function buildProgressNarrative() {
             ${statusLabel}
           </div>
           <div style="font-size:10px;color:var(--text3,#99978F)">
-            ${allDone ? 'Ready to submit' : missing+' field'+(missing!==1?'s':'')+' remaining'}
+            ${allDone ? 'Ready to submit' : missing+(status ? ' element' : ' field')+(missing!==1?'s':'')+(status ? ' open' : ' remaining')}
           </div>
         </div>
       </div>
@@ -4834,8 +4777,8 @@ function defineReportHtml(rep, isPassed, approvedAt) {
       ? (c.statement ? `<p class="statement" style="font-size:11px;line-height:1.6;background:#F4F8FC;
           border-left:3px solid #0070BA;padding:6px 8px;margin:6px 0">${escapeHtml(c.statement)}</p>` +
           (c.statement_why ? `<div class="field-why" style="font-size:9.5px;color:#8A93A0;margin:-1px 0 3px">${escapeHtml(c.statement_why)}</div>` : '') : '') +
-        (c.view ? viewHtml(c.view) : elementRowsHtml(c.rows)) +
-        (c.answer && (!c.view || c.view.kind === 'kv') ? `<div class="el-answer"><b>In your answer</b> — ${escapeHtml(c.answer)}</div>` : '')
+        (c.view ? viewHtml(c.view) : elementRowsHtml(c.rows))
+        // Founder ruling 2026-10-22 afternoon, item 3: no "In your answer" line on the Gate (not in the approved mockup).
       : `<div class="el-pending" style="font-size:11px;color:#9A6B12;margin-top:4px">${escapeHtml(c.status)} — ${escapeHtml((c.needs || []).join(', ').toLowerCase())}</div>` +
         (c.view ? viewHtml(c.view) : '');   // DEF-176: the people on the case, while element 2 is open
     return `<div class="el-card gate-el" data-element="${c.n}" data-status="${escapeHtml(c.status)}">
@@ -5283,6 +5226,26 @@ function sendToolQuestion(tool){
 }
 
 // ─── CHAT ─────────────────────────────────────────────────────────
+// DEF-200 (W3; G-201, founder findings 11 and 15): the welcome the server assembled in code (GET /cases → welcome),
+// laid out in blocks — the greeting by name, the five phases with Define marked, how Define is worked, what is
+// confirmed (with its value) and what is open, then the element to work on. Shown on opening, without the Belt
+// having to ask. Every value escaped.
+function welcomeHtml(w) {
+  if (!w) return '';
+  const name = w.name || (typeof S !== 'undefined' && S && S.user) || '';
+  const phases = (w.phases || []).map(p => `<li class="wl-phase${p.current ? ' now' : ''}">
+      <strong>${escapeHtml(p.name)}</strong> — ${escapeHtml(p.line)}${p.current ? ' <em>(you are here)</em>' : ''}</li>`).join('');
+  const done = (w.confirmed || []).length ? `<div class="wl-h">Confirmed so far</div><ul class="wl-done">${
+    w.confirmed.map(c => `<li>${c.n} · ${escapeHtml(c.name)} — ${escapeHtml(c.value)}</li>`).join('')}</ul>` : '';
+  const open = (w.returning && (w.open || []).length) ? `<div class="wl-h">Still open</div><ul class="wl-open">${
+    w.open.map(o => `<li>${o.n} · ${escapeHtml(o.name)}</li>`).join('')}</ul>` : '';
+  const next = w.next ? `<div class="wl-next">${w.returning ? 'Next' : 'First'}: <strong>${escapeHtml(w.next.name)}</strong></div>` : '';
+  return `<div class="msg"><div class="mav mai">AI</div><div class="bbl bbl-ai welcome">
+    <div class="wl-greet" style="font-weight:600;margin-bottom:6px">Welcome${name ? ', ' + escapeHtml(name) : ''}.</div>
+    <ol class="wl-phases" style="margin:0 0 8px;padding-left:18px">${phases}</ol>
+    ${w.how ? `<p class="wl-how">${escapeHtml(w.how)}</p>` : ''}${done}${open}${next}</div></div>`;
+}
+
 function renderChat(){
   const p=PHASES[S.phase];
   const msgs = document.getElementById('chat-messages')
@@ -5301,7 +5264,10 @@ function renderChat(){
     : null;
   const lastAI = localAI || historyAI;
 
-  if (lastAI) {
+  if (S.phase === 'define' && S.case && S.case.welcome) {
+    // DEF-200 (W3): the server's welcome, on a fresh case and on every return — after the turns already seen.
+    msgs.innerHTML = renderHistoryTurns(S.case?.conversation_history, S.localChat) + welcomeHtml(S.case.welcome);
+  } else if (lastAI) {
     const structured = getStructured();
     const userName = S.user || S.case?.leader || '';
     const greeting = userName ? `Welcome back, ${userName}.` : 'Welcome back.';
@@ -6165,11 +6131,6 @@ function renderChat(){
   } else {
     // Fresh case (no AI turn yet) — phase-specific opener
     const openers = {
-      define: {
-        greeting: `Hello${S.user ? ', '+S.user : ''}!`,
-        body: 'I am your AI guide for the Define phase. Let\'s start by understanding the problem you are trying to solve.',
-        hint: 'What is the problem happening in your process?',
-      },
       measure: {
         greeting: `Hello${S.user ? ', '+S.user : ''}!`,
         body: 'I am your AI guide for the Measure phase. Let\'s build the data collection plan and establish the process baseline.',
@@ -6191,7 +6152,7 @@ function renderChat(){
         hint: 'What monitoring is currently in place for this process?',
       },
     };
-    const opener = openers[S.phase] || openers.define;
+    const opener = openers[S.phase] || openers.measure;   // DEF-200: Define's welcome comes from the server
     msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
         <div style="font-weight:600;margin-bottom:4px">${opener.greeting}</div>
@@ -6227,18 +6188,23 @@ function lastVizSource(){
   return S.lastAsk||{};
 }
 
+// DEF-201 (G-202, founder findings 12, 20, 40, 54): the reply the pane follows — the live one (S.lastAsk) or, after a
+// reload, the last coach turn of the conversation. Never an older turn that happened to carry a visual.
+function latestReply() {
+  if (S.lastAsk) return S.lastAsk;
+  const turns = [...(S.case?.conversation_history || []), ...(S.localChat || [])];
+  for (let i = turns.length - 1; i >= 0; i--) if (turns[i].role === 'ai') return turns[i];
+  return {};
+}
+
+// DEF-201: the pane shows the visual the latest reply carries — the element it works on, as the server drew it
+// (ADR-0070: the server decides which element has a picture) — and nothing when that reply carries none. Nothing
+// is rebuilt in the browser from stored values.
 function renderLiveViz() {
   if (!S.case || S.phase !== 'define') return;
-
-  const structured = getStructured();
-  const workProduct = detectCurrentWorkProduct(structured);
-  const lastAsk = lastVizSource();
-
-  // Find or create single viz container, placed after last AI bubble
   const chatEl = document.getElementById('chat-messages')
     || document.getElementById('msgs');
   if (!chatEl) return;
-
   let vizEl = document.getElementById('viz-live');
   if (!vizEl) {
     vizEl = document.createElement('div');
@@ -6246,91 +6212,11 @@ function renderLiveViz() {
     vizEl.style.cssText = 'padding:0 12px 8px';
     chatEl.appendChild(vizEl);
   }
-
-  // DEF-222: a turn that carries the baseline-to-target chart shows it (the pane had no case for it).
-  const targetChart = liveTargetChart(lastAsk);
-  if (targetChart) { vizEl.innerHTML = targetChart; return; }
-  // DEF-211: a turn that carries a SIPOC drawing (the worked example on the teaching turn, the read-back's flow with
-  // its marks) shows it — the work-product switch below reads v1 keys and never reached it.
-  if (lastAsk.sipoc_diagram) { renderSipocDiagram(lastAsk.sipoc_diagram, 'viz-live'); return; }
-
-  // Render only the active work product visual
-  switch(workProduct) {
-    case 'problem':
-      if (lastAsk.visualisation?.type === 'mindmap_5w2h') {
-        render5W2HMindmap(lastAsk.visualisation, 'viz-live');
-      } else if (Object.values(structured).some(v => fieldHasValue(v))) {
-        // Build viz from structured data directly
-        const vizData = {
-          type: 'mindmap_5w2h',
-          data: {
-            problem_summary: structured.what || 'Problem being defined…',
-            fields: {
-              what: structured.what,
-              where: structured.where,
-              when: structured.when,
-              who_affected: structured.who_affected,
-              why_it_matters: structured.why_it_matters,
-              how_much_baseline: structured.how_much_baseline,
-              how_goal: structured.how_goal,
-            }
-          },
-          draft: !['what','where','when','who_affected',
-            'why_it_matters','how_much_baseline','how_goal']
-            .every(k => fieldHasValue(structured[k])),
-          captured_count: ['what','where','when','who_affected',
-            'why_it_matters','how_much_baseline','how_goal']
-            .filter(k => fieldHasValue(structured[k])).length,
-          total_count: 7,
-        };
-        render5W2HMindmap(vizData, 'viz-live');
-      }
-      break;
-
-    case 'sipoc':
-      const sipocData = lastAsk.sipoc_diagram
-        || (structured.sipoc
-            ? {...structured.sipoc, draft: false}
-            : null);
-      if (sipocData) {
-        renderSipocDiagram(sipocData, 'viz-live');
-      } else {
-        vizEl.innerHTML = `
-          <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
-            border-radius:8px;padding:12px;text-align:center;
-            color:var(--text3,#99978F);font-size:11px;font-style:italic">
-            SIPOC diagram will appear here as you map the process
-          </div>`;
-      }
-      break;
-
-    case 'goal_scope':
-      renderGoalScopeCard(structured, 'viz-live');
-      break;
-
-    case 'business_case':
-      renderBenefitsCard(structured, 'viz-live');
-      break;
-
-    case 'charter':
-      renderCharterCard(structured, 'viz-live');
-      break;
-
-    case 'complete':
-      vizEl.innerHTML = `
-        <div style="background:#E1F5EE;border:0.5px solid #6FCF97;
-          border-radius:8px;padding:10px 14px;font-size:11px;
-          color:#085041;display:flex;align-items:center;gap:8px">
-          <i class="ti ti-circle-check" style="font-size:14px"></i>
-          All sections complete — open the Gate tab to review
-          and submit.
-        </div>`;
-      break;
-
-    default:
-      vizEl.innerHTML = '';
-  }
-
+  const reply = latestReply() || {};
+  vizEl.innerHTML = '';
+  if (reply.sipoc_diagram) renderSipocDiagram(reply.sipoc_diagram, 'viz-live');           // DEF-211
+  else if ((reply.visualisation || {}).type === 'mindmap_5w2h') render5W2HMindmap(reply.visualisation, 'viz-live');
+  else vizEl.innerHTML = liveTargetChart(reply);                                          // DEF-222, or nothing
   chatEl.scrollTop = chatEl.scrollHeight;
 }
 
@@ -6385,6 +6271,52 @@ function renderHistoryTurns(history, localChat){
     .map(t=>renderTurn(t)).join('');
 }
 
+// DEF-187 (G-187, founder findings 28 and 59): the coach's text as Markdown — bold, italics, lists, numbered lists
+// and tables — ESCAPED FIRST, so nothing in the text is ever markup of its own. No library: the page loads nothing
+// from outside (DEF-141). One paragraph comes back bare; several, each in its <p>.
+function mdHtml(text) {
+  const inline = s => escapeHtml(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?![*\w])/g, '$1<em>$2</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+  const cells = line => line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  let para = [];
+  const flush = () => { if (para.length) { out.push(para.map(inline).join('<br>')); para = []; } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*\|.*\|\s*$/.test(line) && /^\s*\|?\s*:?-{3,}/.test(lines[i + 1] || '')) {
+      flush();
+      const head = cells(line);
+      const rows = [];
+      i += 2;
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { rows.push(cells(lines[i])); i++; }
+      i--;
+      out.push(`<table class="md-table" style="border-collapse:collapse;font-size:12px;margin:4px 0"><tr>${
+        head.map(h => `<th>${inline(h)}</th>`).join('')}</tr>${
+        rows.map(r => `<tr>${r.map(c => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</table>`);
+      continue;
+    }
+    const bullet = /^\s*[-*•]\s+(.*)$/.exec(line);
+    const numbered = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+    if (bullet || numbered) {
+      flush();
+      const tag = bullet ? 'ul' : 'ol';
+      const re = bullet ? /^\s*[-*•]\s+(.*)$/ : /^\s*\d+[.)]\s+(.*)$/;
+      const items = [];
+      while (i < lines.length && re.test(lines[i])) { items.push(re.exec(lines[i])[1]); i++; }
+      i--;
+      out.push(`<${tag}>${items.map(x => `<li>${inline(x)}</li>`).join('')}</${tag}>`);
+      continue;
+    }
+    if (!line.trim()) { flush(); continue; }
+    para.push(line);
+  }
+  flush();
+  return out.length === 1 && !/^<(table|ul|ol)/.test(out[0]) ? out[0] : out.map(b => /^<(table|ul|ol)/.test(b) ? b : `<p>${b}</p>`).join('');
+}
+
 // DEF-212 (G-213): after Define's last Confirm, what the team does next — in order — as its own card.
 function completionCardHtml(card){
   if(!card||!(card.steps||[]).length)return '';
@@ -6401,7 +6333,7 @@ function renderTurn(turn){
     // Step 10.0 — §50.1's blocks, in order, from the TURN, so a turn rebuilt
     // from conversation_history renders as it did live (G-79). An empty block
     // renders as absent, never as a gap in the layout.
-    const blk=(k,label)=>turn[k]?`<div class="blk blk-${k}"><div class="blk-h">${label}</div>${escapeHtml(turn[k])}</div>`:'';
+    const blk=(k,label)=>turn[k]?`<div class="blk blk-${k}"><div class="blk-h">${label}</div>${mdHtml(turn[k])}</div>`:'';   // DEF-187
     // ADR-0093 (DEF-196) — every reply names its element, "Element n of 13 · name"; the step label otherwise.
     const el=turn.reply_element;
     const prog=el?`<div class="blk-progress">Element ${el.n} of ${el.of} · ${escapeHtml(el.name)}</div>`
@@ -6428,11 +6360,11 @@ function renderTurn(turn){
       <button id="rb-park" class="btn btn-primary" onclick="sendMessage('park')">Park and move on</button>
       <button id="rb-try" class="btn" onclick="sendMessage('try_again')">Try again</button></div>`:'';
     return `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai">${strip}${prog}<p>${turn.text}</p>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${warn}${cites}</div></div>`;
+      <div class="bbl bbl-ai">${strip}${prog}<div class="md">${mdHtml(turn.text)}</div>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${warn}${cites}</div></div>`;
   }else{
     const initials=(turn.user||S.user||'U').split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase();
     return `<div class="msg user"><div class="mav mu">${initials}</div>
-      <div class="bbl bbl-user">${turn.text}</div></div>`;
+      <div class="bbl bbl-user">${escapeHtml(turn.text)}</div></div>`;   // DEF-187: the Belt's words, escaped
   }
 }
 
@@ -6584,7 +6516,11 @@ function renderChips(){
   const ask=S.lastAsk;
   const fields=ask&&ask.captured_fields?ask.captured_fields.filter(f=>f.value).length:0;
   const hint=document.getElementById('gate-hint');
-  if(hint){
+  const figure=S.phase==='define'&&((S.case||{}).project_status||{}).confirmed;
+  if(hint&&figure){
+    // DEF-204: in Define the hint reads the one confirmed figure, never the last reply's captured fields.
+    hint.innerHTML=`<i class="ti ti-chart-bar" style="font-size:12px;color:var(--teal)"></i>${escapeHtml(figure.label)} — keep answering to complete Define`;
+  }else if(hint){
     const phaseLabel = PHASES[S.phase]?.label || 'this phase';
     if(fields>0){
       hint.innerHTML=`<i class="ti ti-chart-bar" style="font-size:12px;color:var(--teal)"></i>${fields} field${fields===1?'':'s'} captured — keep answering to complete ${phaseLabel}`;
@@ -6662,7 +6598,8 @@ async function sendMessage(action, element){
       // W9 (DEF-079) — the progress view's element statuses, recomputed by the server after the turn.
       // DEF-053 — and the progress bar's step, so it moves turn by turn.
       try{const c=await apiJSON(`${API}/cases/${S.case.case_id}`);if(c&&c.define_elements)S.case.define_elements=c.define_elements;
-        if(c&&c.define_progress)S.case.define_progress=c.define_progress;}catch(e){}
+        if(c&&c.define_progress)S.case.define_progress=c.define_progress;
+        if(c&&c.project_status)S.case.project_status=c.project_status;}catch(e){}   // DEF-204
       renderPhaseNav();
       renderDiagram();
       renderSteps();

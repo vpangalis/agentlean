@@ -10,7 +10,7 @@ module grades a Define gate document against them:
      and process owner. Four criteria are decided entirely here (DEF-R02,
      DEF-R08, DEF-R09, DEF-R10); a code failure of a mixed one (DEF-R03,
      DEF-R04, DEF-R05, DEF-R12) is final, with no model call;
-  2. ONE `grader` call (temperature 0.1, §4.7), builder-style structured
+  2. ONE `grader` call (temperature 0 — G-241; §4.7), builder-style structured
      output (§4.6: a plain model call inside a validator), for what needs
      judgment — "no cause or solution speculation", "as-is, not the ideal",
      "real data, not a best guess". No retrieval (§9: never during gate
@@ -190,9 +190,27 @@ def _document(a: dict[str, Any]) -> str:
     return "\n".join(f"{k}: {_text(v)}" for k, v in a.items() if k not in skip and _text(v))
 
 
+#: G-241 (founder ruling 2026-10-22 afternoon, 1b): the gate judge reads at temperature 0 — the same document gets the
+#: same verdict. The coaching grader (the `grader` role's own 0.1, §4.7) is unchanged.
+GATE_TEMPERATURE = 0.0
+
+#: G-241: the terms a failing reason can name — a quoted phrase, a hyphenated compound, an acronym.
+_TERM = re.compile(r"(?:(?<=\s)|^)['‘\"“]([^'’\"”]{3,80})['’\"”](?=[\s.,;:)]|$)"
+                   r"|\b([A-Za-z]+(?:-[A-Za-z]+)+)\b|\b([A-Z]{2,})\b")
+
+
+def foreign_terms(reason: str, document: str, criteria: str) -> list[str]:
+    """G-241 (1b): the terms a failing reason names that appear neither in the case's answers nor in the criteria — a
+    reason must name a gap in the case's own answers, never a fact the case does not hold (run 140813: "year-end
+    close context", in a case that never mentions a year-end close)."""
+    known = f"{document} {criteria}".lower()
+    terms = [next(g for g in m.groups() if g) for m in _TERM.finditer(reason or "")]
+    return [t for t in terms if t.lower() not in known]
+
+
 async def _llm_verdicts(criteria: list[tuple[str, str, str]], document: str) -> GraderVerdict:
     """One `grader` call for the criteria that need judgment."""
-    grader = get_llm("grader").with_structured_output(GraderVerdict)
+    grader = get_llm("grader", temperature=GATE_TEMPERATURE).with_structured_output(GraderVerdict)
     # G-129 (founder ruling 2, 2026-09-28): each rubric line carries its element's own acceptance
     # criteria, so the element check and the gate cannot disagree on the same answer.
     from backend.middleware.skills import acceptance_criteria
@@ -266,18 +284,51 @@ async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
         logger.info("define rubric: %d criterion verdict(s) kept for unchanged answers, %d to judge (DEF-224)",
                     sum(1 for cid, _, _ in DEFINE_CRITERIA if cid in verdicts and cid in kept), len(to_judge))
     if to_judge:
-        model = await (judge or _llm_verdicts)(to_judge, _document(a))
-        given = {v.criterion.strip(): v for v in model.verdicts}
+        document = _document(a)
+        # G-241 (1c): three judgments, the majority per criterion — the same document must get the same verdict.
+        rounds = [await _judged_once(to_judge, document, judge) for _ in range(GATE_VOTES)]
         for cid, _field, _criterion in to_judge:
-            v = given.get(cid)
-            if v is None:
-                logger.warning("define rubric: the grader returned no verdict for %s", cid)
-                verdicts[cid] = _fail(cid, "The grader gave no verdict on this criterion — grade again.")
-            else:
-                status = "pass" if v.status == "pass" else "fail"      # Tier 1: never a warning
-                verdicts[cid] = CriterionVerdict(criterion=cid, status=status,
-                                                 feedback="" if status == "pass" else v.feedback)
+            fails = [r[cid] for r in rounds if r[cid].status == "fail"]
+            verdicts[cid] = fails[0] if len(fails) * 2 > GATE_VOTES else CriterionVerdict(criterion=cid, status="pass",
+                                                                                          feedback="")
+        logger.info("define rubric: G-241 — %d judgment(s) per criterion, majority kept: %s", GATE_VOTES,
+                    ", ".join(f"{cid} {sum(r[cid].status == 'pass' for r in rounds)}/{GATE_VOTES} pass"
+                              for cid, _, _ in to_judge))
     return GraderVerdict(verdicts=[verdicts[cid] for cid, _, _ in DEFINE_CRITERIA])
+
+
+#: G-241 (founder ruling 2026-10-22 afternoon, 1c): each model-judged gate criterion takes the majority of this many
+#: judgments — the judge disagreed with itself at temperature 0 on the same document (3 fail, 2 pass in 5).
+GATE_VOTES = 3
+
+
+async def _judged_once(to_judge: list[tuple[str, str, str]], document: str,
+                       judge: Optional[Judge] = None) -> dict[str, CriterionVerdict]:
+    """One judgment of `to_judge` — pass or fail per criterion (Tier 1: never a warning; no verdict fails closed).
+    G-241 (1b): a failing reason naming a fact the case does not hold is discarded and that criterion judged once
+    more; the second verdict stands."""
+    model = await (judge or _llm_verdicts)(to_judge, document)
+    given = {v.criterion.strip(): v for v in model.verdicts}
+    from backend.middleware.skills import acceptance_criteria
+    ungrounded = [c for c in to_judge
+                  if (v := given.get(c[0])) is not None and v.status != "pass"
+                  and foreign_terms(v.feedback, document, c[2] + " " + " ".join(
+                      t for _, t in acceptance_criteria("define", c[1])))]
+    if ungrounded:
+        logger.warning("define rubric: G-241 — %s failed on a fact not in the case; judged once more",
+                       ", ".join(c[0] for c in ungrounded))
+        again = await (judge or _llm_verdicts)(ungrounded, document)
+        given.update({v.criterion.strip(): v for v in again.verdicts})
+    out: dict[str, CriterionVerdict] = {}
+    for cid, _field, _criterion in to_judge:
+        v = given.get(cid)
+        if v is None:
+            logger.warning("define rubric: the grader returned no verdict for %s", cid)
+            out[cid] = _fail(cid, "The grader gave no verdict on this criterion — grade again.")
+        else:
+            status = "pass" if v.status == "pass" else "fail"      # Tier 1: never a warning
+            out[cid] = CriterionVerdict(criterion=cid, status=status, feedback="" if status == "pass" else v.feedback)
+    return out
 
 
 __all__ = ["CODE_ONLY", "DEFINE_CRITERIA", "MODEL_ASKS", "READS", "grade_define", "kept_verdicts"]

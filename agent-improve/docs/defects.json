@@ -3005,6 +3005,20 @@
     "B"
    ],
    "escape_class": "path_test"
+  },
+  {
+   "id": "G-241",
+   "symptom": "THE DEFINE GATE JUDGE'S VERDICT ON THE SAME ISSUES ANSWER FLIPS (run define_runthrough_20261022T140813, 2026-10-22: DEF-R13 failed 'the barriers are generic', one reason asking for a 'year-end close' the case never mentions; runs 090236, 111027 and 125007 passed the identical answer). Measured (founder ruling 2026-10-22 afternoon, item 1a; 5 live repeats per document): 140813's document failed 5/5 and 125007's passed 5/5 at temperature 0.1 — the documents were NOT identical: swapping fields one at a time from 125007's into 140813's located the flip in process_map_sipoc alone, whose only difference is duration wording ('1 day' vs 'about 1 day'). D4 OCCURRENCE: the judge reads the whole document at once and sits on a decision boundary for this answer; noise in another element tips it; at 0.1 the call also varies. D4 ESCAPE: every gate test stubs the judge; the R3 repeat test measures the planner's judgment, not the gate rubric; nothing ran the live judge twice on one document. D5 FIX (ruling items 1b, 1c): the gate judge at temperature 0 (GATE_TEMPERATURE); a failing reason naming a term the case and the criteria do not hold (a quoted phrase, a hyphenated compound, an acronym) is discarded and the criterion judged once more (foreign_terms, _judged_once); each model-judged criterion takes the majority of three judgments (GATE_VOTES). D6 VERIFY: after 1b, 140813's document 2/5 pass (repeats disagreed); after 1c, 3/5 pass; 125007's 5/5 pass throughout. NOT fully settled: the boundary remains for a document this close to the line. D7 PREVENT: test_define_rubric.py::test_g241_* pin the temperature, the grounding re-judge and the majority; the measurement script's numbers are reported for a founder decision on the judge's input.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-159"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "assumption"
   }
  ],
  "escape_controls": {

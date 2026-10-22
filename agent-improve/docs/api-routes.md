@@ -11,7 +11,6 @@ hook, `--stage`); never edited by hand. Linked from [ARCHITECTURE.md §3.9](../A
 |---|---|---|---|---|
 | GET | `/health` | `health` | `HealthResponse` | — |
 | POST | `/summarise` | `summarise_session` | `SummariseResponse` | Generate a 2-3 sentence AI summary of a session's conversation turns. |
-| POST | `/context` | `get_session_context` | `ContextResponse` | Generate a re-entry greeting based on current gate status. |
 | POST | `/cases` | `create_case` | `CaseCreateResponse` | Create a new improvement case and register it. |
 | POST | `/ask` | `ask` | `AskResponse` | One coaching turn, through the compiled graph. |
 | GET | `/cases/{case_id}/sign-in` | `sign_in_info` | `SignInInfo` | W17 — what the sign-in window says: the case, who may enter, the lead. Whether the case asks for sign-in |

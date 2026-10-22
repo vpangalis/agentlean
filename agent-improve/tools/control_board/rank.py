@@ -44,7 +44,7 @@ PHASES = ("define", "measure", "analyse", "improve", "control", "build")
 LATER_PHASES = ("measure", "analyse", "improve", "control")
 #: Founder ruling 2026-10-21: the platform track — required before the first customer, not before Measure; not
 #: counted toward Define and not ranked while Define runs.
-TRACKS = ("define", "platform")
+TRACKS = ("define", "platform", "post_define")    # post_define: founder ruling 2026-10-22 afternoon, item 5
 STAGES = ("open_case", "coached", "report", "approve", "record_written", "next_phase", "build")
 LAYERS = ("screen", "api", "coaching", "gate", "persistence", "platform", "tooling")
 
@@ -131,7 +131,7 @@ def rank(features: list[dict] | None = None, res: dict | None = None,
     # is done) — `build` (the tooling) is ranked like Define.
     failing = {i for i, s in st.items() if s == "failing" and not by_id[i].get("merged_into")
                and by_id[i].get("phase", "define") not in LATER_PHASES
-               and by_id[i].get("track", "define") != "platform"}         # founder ruling 2026-10-21
+               and by_id[i].get("track", "define") == "define"}           # founder rulings 2026-10-21, 2026-10-22
     dependents = _dependents(features, failing)
     hold = held(features, reqs)
 

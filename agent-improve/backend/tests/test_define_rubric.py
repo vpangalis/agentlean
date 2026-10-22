@@ -225,3 +225,101 @@ def test_g134_def_r13_is_settled_in_code_first_and_the_model_judges_only_specifi
     assert "DEF-R13" in j3.asked and got["DEF-R13"].status == "pass"
     assert j3.texts["DEF-R13"] == MODEL_ASKS["DEF-R13"], "the model is asked specificity only"
     assert "FAIL only when they are generic labels" in j3.texts["DEF-R13"]
+
+
+# ── G-241 (founder ruling 2026-10-22 afternoon, item 1) — the gate judge reads at temperature 0, and a failing reason
+# that cites a fact the case never mentions is discarded and the criterion judged once more ──────────────────────
+
+def test_g241_the_gate_judge_reads_at_temperature_0(monkeypatch) -> None:
+    """G-241 (1b): the gate judge's call is the grader role at temperature 0 — the coaching grader keeps its 0.1."""
+    import asyncio
+
+    from backend.validation import rubric
+
+    asked: list = []
+
+    class Grader:
+        def with_structured_output(self, schema):
+            return self
+
+        async def ainvoke(self, prompt):
+            return rubric.GraderVerdict(verdicts=[])
+    def get_llm(role, **kw):
+        asked.append((role, kw))
+        return Grader()
+    monkeypatch.setattr(rubric, "get_llm", get_llm)
+    asyncio.run(rubric._llm_verdicts([("DEF-R13", "issues_and_barriers", "names the key issues")], "doc"))
+    assert asked == [("grader", {"temperature": 0.0})], asked
+
+
+def test_g241_a_reason_citing_a_fact_not_in_the_case_is_judged_again_once() -> None:
+    """G-241 (1b): run 140813's failing reason asked for "year-end close context" — a fact the case never mentions.
+    A failing reason that names a term (a quoted phrase, a hyphenated compound, an acronym) found neither in the
+    case's answers nor in the criteria is discarded and the criterion judged once more; the second verdict stands.
+    A failing reason grounded in the case's own answers is kept, with no second call."""
+    import asyncio
+
+    from backend.tests.test_define_report import COMPLETE
+    from backend.validation import rubric
+    from backend.validation.schemas import CriterionVerdict, GraderVerdict
+
+    def judge_with(*reasons: str):
+        calls: list = []
+
+        async def judge(criteria, document):
+            calls.append([c[0] for c in criteria])
+            reason = reasons[min(len(calls), len(reasons)) - 1]
+            return GraderVerdict(verdicts=[
+                CriterionVerdict(criterion=cid, status="fail" if (cid == "DEF-R13" and reason) else "pass",
+                                 feedback=reason if cid == "DEF-R13" else "") for cid, _, _ in criteria])
+        return judge, calls
+
+    case = dict(COMPLETE)
+    to_judge = [("DEF-R13", "issues_and_barriers", "names the key issues and barriers")]
+    document = rubric._document(case)
+    judge, calls = judge_with("Specify the exact approval routes, ERP system details, and year-end close context.", "")
+    r13 = asyncio.run(rubric._judged_once(to_judge, document, judge))["DEF-R13"]
+    assert r13.status == "pass" and calls == [["DEF-R13"], ["DEF-R13"]], (r13, calls)
+
+    judge, calls = judge_with("Still cites the year-end close.", "Still cites the year-end close.")
+    r13 = asyncio.run(rubric._judged_once(to_judge, document, judge))["DEF-R13"]
+    assert r13.status == "fail" and len(calls) == 2, (r13, calls)          # judged again once, never a third time
+
+    word = next(w for w in str(case["issues_and_barriers"]).split() if len(w) > 4).strip(".,;:")
+    judge, calls = judge_with(f"The barriers name '{word}' but say nothing of its effect on the project.")
+    r13 = asyncio.run(rubric._judged_once(to_judge, document, judge))["DEF-R13"]
+    assert r13.status == "fail" and len(calls) == 1, (r13, calls)
+    assert rubric.foreign_terms("Specify the year-end close and the 'ERP freeze'.", "ERP freeze until January", "") \
+        == ["year-end"]
+
+
+def test_g241_each_gate_criterion_is_the_majority_of_three_verdicts() -> None:
+    """G-241 (1c): at temperature 0 the judge still disagreed with itself on run 140813's document (3 fail, 2 pass
+    over 5 repeats). Each model-judged criterion is judged three times and takes the majority verdict; a failing
+    majority keeps a failing reason. Criteria code settles never reach the judge."""
+    import asyncio
+
+    from backend.tests.test_define_report import COMPLETE
+    from backend.validation import rubric
+    from backend.validation.schemas import CriterionVerdict, GraderVerdict
+
+    def votes(*r13: str):
+        calls: list = []
+
+        async def judge(criteria, document):
+            calls.append([c[0] for c in criteria])
+            status = r13[len(calls) - 1]
+            return GraderVerdict(verdicts=[
+                CriterionVerdict(criterion=cid, status=status if cid == "DEF-R13" else "pass",
+                                 feedback="The barriers are not specific to this project." if
+                                 (cid == "DEF-R13" and status == "fail") else "") for cid, _, _ in criteria])
+        return judge, calls
+
+    for r13, expected in ((("fail", "pass", "pass"), "pass"), (("fail", "fail", "pass"), "fail"),
+                          (("pass", "pass", "pass"), "pass")):
+        judge, calls = votes(*r13)
+        out = asyncio.run(rubric.grade_define(dict(COMPLETE), judge=judge))
+        v = next(x for x in out.verdicts if x.criterion == "DEF-R13")
+        assert v.status == expected and len(calls) == rubric.GATE_VOTES == 3, (r13, v, calls)
+        assert (v.feedback == "The barriers are not specific to this project.") is (expected == "fail"), v
+        assert not set(rubric.CODE_ONLY) & set(calls[0]), calls[0]

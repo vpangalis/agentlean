@@ -402,7 +402,7 @@ printed like a phase report (R11).
 
 # Part 4 — The record
 
-**R11 The record and its print view** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: ADR-0038
+**R11 The record and its print view** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
 The approved phase output stored by Agent Improve is the record; the system generates no documents.
 An approved phase report can be printed from the browser (a print layout of the same screen), headed
 with the case number, phase, approval date and "Copy — the record is in Agent Improve". Nothing is

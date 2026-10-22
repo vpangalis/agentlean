@@ -36,7 +36,6 @@ from backend.gateway.schemas import (CodeIssued, LeadHandover, PeopleResponse, P
                                      SessionOut, SignInIn, SignInInfo)
 from backend.gateway.schemas import GateDecisionRequest, GateDecisionResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
-from backend.gateway.schemas import ContextRequest, ContextResponse
 from backend.core.store import get_store
 from backend.core.substate import merge_field_log, split_captures
 from backend.phases.gate_registry import (
@@ -143,97 +142,6 @@ async def summarise_session(request: SummariseRequest) -> SummariseResponse:
         summary = "Summary could not be generated."
 
     return SummariseResponse(summary=summary)
-
-
-@router.post("/context", response_model=ContextResponse)
-async def get_session_context(request: ContextRequest, http: Request) -> ContextResponse:
-    """Generate a re-entry greeting based on current gate status.
-    Called when user opens the AI guide tab after a break."""
-    _bind(request.case_id, getattr(request, "phase", None))   # T43 (DEF-129): every log line of the request names them
-    if not blob.storage_configured():
-        raise HTTPException(503, "Storage not configured")
-    case = await blob.load_case(request.case_id)
-    if case is None:
-        raise HTTPException(404, f"Case {request.case_id} not found")
-    who = access.person(http, case, 'context')          # ADR-0091 decision 3
-    case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
-
-    # Get structured inputs for the phase.
-    # case.phases is dict[str, PhaseRecord]; structured lives on the record.
-    phase_data = {}
-    try:
-        phases = getattr(case, 'phases', {}) or {}
-        phase_record = (
-            phases.get(request.phase) if isinstance(phases, dict)
-            else getattr(phases, request.phase, None)
-        )
-        if phase_record is not None:
-            structured = getattr(phase_record, 'structured', None)
-            if structured is None and isinstance(phase_record, dict):
-                structured = phase_record.get('structured')
-            phase_data = structured or {}
-    except Exception:
-        phase_data = {}
-
-    # Determine missing sections for define phase
-    SECTION_FIELDS = {
-        'Problem Statement':   ['what','where','when','who_affected',
-                                'why_it_matters','how_much_baseline','how_goal'],
-        'Goal & Scope':        ['goal_statement','scope_in','scope_out'],
-        'SIPOC Diagram':       ['sipoc'],
-        'Business Case':       ['business_case_rationale','current_cost',
-                                'expected_saving','hard_benefits','soft_benefits'],
-        'Project Charter':     ['process_owner','sponsor','team_members',
-                                'belt_level','target_date','primary_metric',
-                                'estimated_completion_date','project_milestones'],
-        'Baseline & Metrics':  ['how_much_baseline','primary_metric',
-                                'secondary_metric'],
-    }
-
-    def field_has_value(v):
-        if v is None: return False
-        if isinstance(v, (list, dict)): return bool(v)
-        return bool(str(v).strip())
-
-    missing_sections = [
-        section for section, fields in SECTION_FIELDS.items()
-        if not all(field_has_value(phase_data.get(f)) for f in fields)
-    ]
-
-    completed_count = len(SECTION_FIELDS) - len(missing_sections)
-    total_count = len(SECTION_FIELDS)
-
-    # Build greeting
-    case_title = getattr(case, 'title', '') or ''
-    user_name = request.user or 'team'
-
-    if not missing_sections:
-        greeting = (
-            f"Welcome back{', '+user_name if user_name else ''}! "
-            f"All sections of your Define gate are complete. "
-            f"When your team is ready, you can submit for gate review."
-        )
-        next_action = "Submit the Define gate for review."
-    else:
-        missing_str = ', '.join(missing_sections[:2])
-        if len(missing_sections) > 2:
-            missing_str += f" and {len(missing_sections)-2} more"
-        greeting = (
-            f"Welcome back{', '+user_name if user_name else ''}! "
-            f"You've completed {completed_count} of {total_count} sections "
-            f"for the Define gate. "
-            f"Still needed: {missing_str}. "
-            f"Shall we continue?"
-        )
-        next_action = (
-            f"Let's work on: {missing_sections[0]}."
-        )
-
-    return ContextResponse(
-        greeting=greeting,
-        missing_sections=missing_sections,
-        next_action=next_action,
-    )
 
 
 #: ADR-0090: said when a person is given without a full name.
@@ -2231,6 +2139,7 @@ async def _clear_escalation(case_id: str) -> None:
 @router.get("/registry", response_model=list[RegistryEntryOut])
 async def get_registry() -> list[RegistryEntryOut]:
     """Management dashboard — returns all cases from registry."""
+    from backend.phases.status import days_in_phase
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     registry = await blob.load_registry()
@@ -2242,7 +2151,7 @@ async def get_registry() -> list[RegistryEntryOut]:
             leader=e.leader,
             department=e.department,
             current_phase=e.current_phase,
-            days_in_phase=e.days_in_phase,
+            days_in_phase=days_in_phase(e),                       # DEF-204: computed, as project_status does
             rag_status=e.rag_status,
             status=e.status,
             escalation=getattr(e, "escalation", None),           # ADR-0076
@@ -2279,6 +2188,21 @@ async def get_case(case_id: str, http: Request):
     # DEF-053 — the screen's progress bar reads "n of 13" from the function the reply's step uses.
     from backend.phases.define.schema import define_progress
     payload["define_progress"] = define_progress(dict((define.structured if define else None) or {}))
+    # DEF-204 (W2): the project's status, computed once — the bar, the chat, the overview and Submit all read it.
+    from backend.phases.status import project_status
+    payload["project_status"] = project_status(
+        case, payload["define_elements"] if case.current_phase == "define" else [],
+        "The Define report waits for your team's decision." if (
+            case.current_phase == "define" and await _awaiting_decision(case, "define")) else None)
+    # DEF-214 (W1): the Define overview, served from the skill (its opening and section F).
+    from backend.phases.define.welcome import overview
+    payload["define_overview"] = overview()
+    # DEF-200 (W3): the welcome, assembled in code from the phase state and the skill — greeting the signed-in person.
+    if case.current_phase == "define":
+        from backend.phases.define.welcome import welcome
+        payload["welcome"] = welcome(str(getattr(who, "full_name", "") or ""),
+                                     dict((define.structured if define else None) or {}),
+                                     dict((define.field_status if define else None) or {}))
     files: list[dict] = []
     for phase_name, phase_record in (payload.get("phases") or {}).items():
         for upload in (phase_record or {}).get("uploads") or []:

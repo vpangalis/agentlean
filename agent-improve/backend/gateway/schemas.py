@@ -332,19 +332,6 @@ class SummariseResponse(BaseModel):
 # ── session re-entry context ──────────────────────────────────────────────
 
 
-class ContextRequest(BaseModel):
-    case_id: str
-    phase: str
-    user: str = ""
-
-
-class ContextResponse(BaseModel):
-    greeting: str
-    missing_sections: list[str]
-    next_action: str
-
-
-# ── Gate review — procedure step 3.4, §50's gate-review screen ───────
 class GateReviewField(BaseModel):
     """One reviewable field, carrying the tier that decides what it costs."""
 

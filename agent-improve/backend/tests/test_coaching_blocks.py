@@ -235,8 +235,9 @@ def _render_turn(turn: dict) -> str:
     m = re.search(r"^function renderTurn\(turn\)\{.*?^\}", src, re.M | re.S)
     assert m, "renderTurn not found in ui/index.html"
     helpers = re.search(r"^function escapeHtml\(v\) \{.*?^\}", src, re.M | re.S)
-    js = ("const S={user:'Belt'};\n" + (helpers.group(0) if helpers else "") + "\n"
-          + m.group(0) + "\nprocess.stdout.write(renderTurn(" + json.dumps(turn) + "));")
+    md = re.search(r"^function mdHtml\(text\) \{.*?^\}", src, re.M | re.S)        # DEF-187: renderTurn draws Markdown
+    js = ("const S={user:'Belt'};\n" + (helpers.group(0) if helpers else "") + "\n" + (md.group(0) if md else "")
+          + "\n" + m.group(0) + "\nprocess.stdout.write(renderTurn(" + json.dumps(turn) + "));")
     out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
     return out.stdout
@@ -292,7 +293,7 @@ def test_a_reload_redraws_past_turns_with_their_blocks() -> None:
     history = [{"role": "user", "user": "Belt", "text": "Hi — ready."},
                {"role": "ai", "text": REPLY.message, "citations": [],
                 **{k: getattr(REPLY, k) for k in BLOCKS}}]
-    js = ("const S={user:'Belt'};\n" + _fn(src, r"escapeHtml") + "\n" + _fn(src, "renderTurn")
+    js = ("const S={user:'Belt'};\n" + _fn(src, r"escapeHtml") + "\n" + _fn(src, "mdHtml") + "\n" + _fn(src, "renderTurn")
           + "\n" + _fn(src, "renderHistoryTurns")
           + f"\nprocess.stdout.write(renderHistoryTurns({json.dumps(history)}, []));")
     html = _run_js(js)
@@ -306,7 +307,7 @@ def test_turns_already_on_screen_are_not_drawn_twice() -> None:
     draw them again after a reload of the case record (the gate tab does one)."""
     src = UI.read_text(encoding="utf-8")
     turn = {"role": "ai", "text": "Only once.", "citations": []}
-    js = ("const S={user:'Belt'};\n" + _fn(src, r"escapeHtml") + "\n" + _fn(src, "renderTurn")
+    js = ("const S={user:'Belt'};\n" + _fn(src, r"escapeHtml") + "\n" + _fn(src, "mdHtml") + "\n" + _fn(src, "renderTurn")
           + "\n" + _fn(src, "renderHistoryTurns")
           + f"\nprocess.stdout.write(renderHistoryTurns({json.dumps([turn])}, {json.dumps([turn])}));")
     assert "Only once." not in _run_js(js)

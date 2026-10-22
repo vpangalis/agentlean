@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Headline** | 180 of 209 Define features pass (core 172 of 200) — A 78/84 · B 40/41 · C 45/63 · integrator 17/21 · M1: 74 proven · 0 awaiting fresh run · 2 open |
-| **Next — lane A** | DEF-107 — The Belt picks any unconfirmed element whose prerequisites are confirmed, or accepts the recommended one the planner will work on; progress  |
+| **Headline** | 187 of 208 Define features pass (core 179 of 199) — A 78/83 · B 40/41 · C 52/63 · integrator 17/21 · M1: 74 proven · 0 awaiting fresh run · 2 open |
+| **Next — lane A** | every feature passes |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
-| **Next — lane C** | DEF-201 — The visual pane shows the visual of the element being worked on, and nothing when it has none (G-202; founder test findings 12, 20, 40, 54) |
+| **Next — lane C** | DEF-217 — The new case number stays shown, with a copy button, until the lead continues (G-218; founder test findings 6) |
 | **Next — lane integrator** | DEF-142 — T86: an offline eval set of 20–50 Define tasks from real failures lives in evals/define/, is graded by code, then the rubric model, with a h |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |

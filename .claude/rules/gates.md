@@ -36,7 +36,7 @@ previous passes.**
 | **2a. Coherence** | **Retired** (ADR-0083): its AI judge is gone; the faults it was meant to catch are checked in code. The purpose of 2a, keeping unusable Belt input out, is served before the coach by the input guard (T71, T93), the planner's judgment of each substantive answer (T47, ADR-0007) and the code copy check (G-159); a separate pre-LLM coherence call would duplicate T47's single judgment. | — | — |
 | **2b. Field presence** | All **Tier 1** fields populated (`DMAICGateValidator`) | **Deterministic**, no LLM | Gate boundary only |
 | **2c. Constraint** | Addresses budget / timeline / risk / measurement | `constraint` role, temp 0.1 | Gate + key decisions mid-conversation |
-| **2d. Quality rubric** | Gate document vs `PHASE_RUBRIC`, per criterion. **Tier 1 fails, Tier 2 warns** | `grader` role, temp 0.1 | Gate boundary only |
+| **2d. Quality rubric** | Gate document vs `PHASE_RUBRIC`, per criterion. **Tier 1 fails, Tier 2 warns** | `grader` role, temp 0 (G-241) | Gate boundary only |
 
 - **2b–2d are the `validation_stack` node.** 2a was middleware and is retired (ADR-0083); its purpose is
   served before the coach (row 2a).

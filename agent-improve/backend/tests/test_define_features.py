@@ -402,7 +402,7 @@ def test_the_define_count_leaves_out_other_phases_and_merged_features() -> None:
         if f["id"] in out:
             assert (f.get("phase", "define") != "define" or f.get("merged_into")
                     or (reqs.get(f["requirement"]) or {}).get("moscow") == "Won't-now"
-                    or f.get("track") == "platform"), f["id"]          # founder ruling 2026-10-21
+                    or f.get("track") in ("platform", "post_define")), f["id"]   # rulings 2026-10-21, 2026-10-22
     # Founder ruling 2026-10-20: Won't-now is out of the count too (DEF-140 cites T68, Won't-now).
     assert not F.counted({**fs[0], "requirement": "T68"}, {"T68": {"moscow": "Won't-now"}})
     assert F.counted(fs[0], {"R1": {"moscow": "Must"}})
@@ -465,3 +465,21 @@ def test_a_platform_track_feature_is_neither_counted_nor_ranked() -> None:
             assert f.get("track") == "platform", f["id"]
         elif f.get("package") == "P29" or f["id"] == "DEF-173":
             assert f.get("track", "define") == "define", f["id"]
+
+
+def test_a_post_define_feature_is_neither_counted_nor_ranked() -> None:
+    """Founder ruling 2026-10-22 afternoon, item 5: DEF-107 moves to the post-Define list — it needs W4's open
+    decision 1 and an ADR. A feature with `track: "post_define"` leaves the Define count and the queue, as the
+    platform track does; docs/post_define.md lists it with what it waits for."""
+    from pathlib import Path
+
+    import rank
+    fs = [{**_rf(i, "R1"), "clause": "c", "sources": {}, "provenance": {"capability_rows": []}} for i in ("A1", "A2")]
+    fs[1]["track"] = "post_define"
+    assert [f["id"] for f in fs if F.counted(f, {"R1": {"moscow": "Must"}})] == ["A1"]
+    assert [r["id"] for r in rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must"))] == ["A1"]
+    assert "post_define" in rank.TRACKS
+    real = {f["id"]: f for f in F.load()}
+    assert real["DEF-107"].get("track") == "post_define"
+    listed = (Path(__file__).resolve().parents[2] / "docs" / "post_define.md").read_text(encoding="utf-8")
+    assert "DEF-107" in listed and "Team overview" in listed
