@@ -171,9 +171,43 @@ def test_every_node_of_a_turn_is_checkpointed(monkeypatch, stub_planner, stub_co
 
 
 
-def test_the_script_is_not_fetched_again() -> None:
-    """DEF-023 — The coach does not fetch the Define script it already has in its system message (no load_skill call on a Define turn)."""
-    _not_written('DEF-023')
+def test_the_script_is_not_fetched_again(env, monkeypatch) -> None:
+    """DEF-023 — The coach does not fetch the Define script it already has in its system message (no load_skill call on a Define turn).
+
+    G-106: an audit turn spent a model call on `load_skill("dmaic-define-phase")` although the script is section 2 of
+    the system message. On a real Define teaching turn, through the routes and graph, a coach that asks for its own
+    phase gets a pointer to section 2 and nothing is fetched; the tool's own description says so before it is called.
+    Another phase still loads in full (§19.2's level 2)."""
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    from backend.middleware import skills
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    seen: list = []
+
+    class _Seeing(_FakeCoach):
+        def _generate(self, messages, *a, **k):
+            seen.append(list(messages))
+            return super()._generate(messages, *a, **k)
+
+    fetch = AIMessage(content="", tool_calls=[{"name": "load_skill", "id": "s1", "args": {"name": "dmaic-define-phase"}}])
+    reply = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": REPLY, "id": "r1"}])
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _Seeing(messages=iter([fetch, reply]))
+                        if role == "coach" else planner(role, **kw))
+
+    _at_element(env, "secondary_metrics")                     # a teaching turn: load_skill is offered (ADR-0069)
+    _askd(env, message="Next, please.")
+    results = [m for call in seen for m in call if isinstance(m, ToolMessage) and m.name == "load_skill"]
+    assert results, "the coach's load_skill call did not reach the tool"
+    text = str(results[-1].content)          # the fetch is the script entering the conversation as the tool's result
+    assert "already in your instructions" in text and len(text) < 400, f"the Define script was fetched again: {text[:200]}"
+    assert skills.instructions("define")[:200] not in text
+
+    mw = skills.DMAICSkillsMiddleware("define")
+    assert "already in your instructions" in mw.tools[0].description
+    assert "Measure" in mw.tools[0].invoke({"name": "measure"})
 
 
 
@@ -252,8 +286,10 @@ def test_the_four_blocks_reach_the_screen() -> None:
 
 #: The page functions another one calls — brought along whenever it is run (ADR-0093: renderTurn draws the card).
 _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
-    "function renderTurn": ("function elementValueHtml", "function elementRowsHtml", "function readbackCardHtml"),
-    "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml"),
+    "function renderTurn": ("function elementValueHtml", "function elementRowsHtml", "function readbackCardHtml",
+                            "function completionCardHtml"),
+    "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml", "function reportPrintHead"),
+    "function renderPhaseNav": ("function gateSubmitState", "function renderGateSubmit"),
 }
 
 
@@ -1214,8 +1250,45 @@ process.stdout.write(JSON.stringify({{html}}));
 
 
 def test_report_sections_show_a_labelled_picture_where_the_data_allows() -> None:
-    """DEF-087 — Where a section's data allows, the report shows a labelled diagram or chart with a sentence on how to read it, beside the table carrying the same valu"""
-    _not_written('DEF-087')
+    """DEF-087 — Where a section's data allows, the report shows a labelled diagram or chart with a sentence on how to read it, beside the table carrying the same valu
+
+    C2 on IMPR-2026-A99's report, drawn by the page's own defineReportHtml: the four sections whose data has a
+    picture — B the benefits over time, C the 5W2H map, E the baseline against the target, F the process — each
+    carry one labelled figure (a caption naming it, and the sentence on how to read it); the values the picture
+    shows are in the section's text or table beside it ("a diagram never carries a value the text does not");
+    sections A, D and G, tables and lists, carry none."""
+    import re
+
+    report, html = _a99_gate()
+    figures = {"benefit_timeline": ("B", "Benefits over time"), "mindmap_5w2h": ("C", "The problem in 5W2H"),
+               "baseline_target": ("E", "Baseline and target"), "sipoc": ("F", "The process on one page")}
+    beside: dict[str, str] = {}
+    for kind, (letter, label) in figures.items():
+        sec = _html_section(html, letter)
+        found = re.findall(r'<figure class="report-visual" data-visual="(\w+)".*?</figure>', sec, re.S)
+        assert found == [kind], (letter, found)
+        hit = re.search(r'<figure class="report-visual".*?</figure>', sec, re.S)
+        assert hit is not None, letter
+        fig = hit.group(0)
+        assert re.search(r"<figcaption[^>]*>" + re.escape(label) + "</figcaption>", fig), (kind, fig[:300])
+        assert fig.count("How to read it:") == 1, kind
+        beside[kind] = sec.replace(fig, "")
+    for letter in "ADG":
+        assert "report-visual" not in _html_section(html, letter), letter
+    shown = report["visuals"]
+    for key in ("cost_of_gap", "expected_saving", "realisation_schedule", "impact_type"):
+        assert escape_html(shown["benefit_timeline"][key]) in beside["benefit_timeline"], key
+    for key in ("what", "where", "when", "who_affected", "why", "how", "how_much"):
+        assert escape_html(shown["mindmap_5w2h"][key]) in beside["mindmap_5w2h"], key
+    for value in ("38%", "10%"):
+        assert value in beside["baseline_target"], value
+    for step in shown["sipoc"]["process_steps"]:
+        assert re.search(r"<td>\d+ " + re.escape(step) + "</td>", beside["sipoc"]), step
+
+
+def escape_html(s: str) -> str:
+    """As the page's escapeHtml writes a value."""
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def test_the_define_report_has_the_visual_of_every_section(env) -> None:
@@ -1578,9 +1651,47 @@ def test_values_for_other_elements_in_one_answer_are_read_back(env, monkeypatch,
 
 
 
-def test_an_approved_report_prints_with_the_record_heading() -> None:
-    """DEF-101 — An approved phase report can be printed from the browser, headed with case number, phase, approval date and 'Copy — the record is in Agent Improve'; n"""
-    _not_written('DEF-101')
+def test_an_approved_report_prints_with_the_record_heading(env) -> None:
+    """DEF-101 — An approved phase report can be printed from the browser, headed with case number, phase, approval date and 'Copy — the record is in Agent Improve'; n
+
+    R11 through the routes and graph: the report submitted but not approved — GET /gate/review carries no approval
+    date, and the page draws no print head and no Print control, and its print rules show nothing but a line saying
+    nothing is printed before approval. After the team's approval (POST /gate/decision) the review carries the
+    approval date (the phase record's stamp), and the page heads the report with the case number, the phase, that
+    date and "Copy — the record is in Agent Improve", with a Print control; the print layout is the report panel
+    itself (a print layout of the same screen)."""
+    import datetime as dt
+    import json
+    import re
+    from pathlib import Path
+
+    _submit(env)
+    before = env.client.get(f"/gate/review/{CASE_ID}/define").json()
+    assert before["approved_at"] is None, before["approved_at"]
+    draw = lambda d: _page(("reportPrintHead", "benefitTimelineHtml", "defineReportHtml"), _DOM + f"""
+process.stdout.write(JSON.stringify({{head:reportPrintHead({json.dumps(CASE_ID)},'define',{json.dumps(d['approved_at'])}),
+  html:defineReportHtml({json.dumps(d['report'])}, {json.dumps(bool(d['approved_at']))}, {json.dumps(d['approved_at'])})}}));""")
+    got = draw(before)
+    assert got["head"] == "" and "print-head" not in got["html"] and "window.print" not in got["html"]
+
+    assert _decide(env, decision="approve").status_code == 200
+    after = env.client.get(f"/gate/review/{CASE_ID}/define").json()
+    at = after["approved_at"]
+    assert at and dt.datetime.fromisoformat(at).date() == dt.datetime.now(dt.timezone.utc).date(), at
+    when = dt.datetime.fromisoformat(at)
+    day = f"{when.day} {when:%B %Y}"
+    got = draw(after)
+    for part in (CASE_ID, "Define", f"approved {day}", "Copy — the record is in Agent Improve"):
+        assert part in got["head"], (part, got["head"])
+    assert got["head"] in got["html"] and 'onclick="window.print()"' in got["html"]
+
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    rules = re.search(r"@media print\s*\{(.*?)\n\}", src, re.S)
+    assert rules, "the page has no print rules"
+    css = rules.group(1)
+    assert "body:not(.print-ok)" in css and "Nothing is printed before approval" in css, css
+    assert "#define-report-panel" in css and ".print-head" in css, css
+    assert re.search(r"classList\.toggle\('print-ok',\s*!!d\.approved_at\)", src), "the page never marks a report printable"
 
 
 def test_the_user_comes_from_single_sign_on() -> None:
@@ -2726,8 +2837,20 @@ def test_t60_evidence_series_are_re_parsed_at_use_and_never_stored_in_state(stub
 
 
 def test_t61_each_skill_description_stays_under_2_000_tokens() -> None:
-    """DEF-136 — Each skill description stays under 2,000 tokens"""
-    _not_written('DEF-136')
+    """DEF-136 — Each skill description stays under 2,000 tokens
+
+    T61 (§32, ADR-0036): the description is level 1 — what the coach reads to decide whether to load a skill — so it
+    stays short. Counted with o200k_base, the encoding of the deployed gpt-4o, on the description as `load_skill`'s
+    catalogue serves it (the SKILL.md frontmatter), for all five phases."""
+    import tiktoken
+
+    from backend.middleware.skills import SKILL_DIRS, description
+
+    enc = tiktoken.get_encoding("o200k_base")
+    sizes = {phase: len(enc.encode(description(phase))) for phase in SKILL_DIRS}
+    assert set(sizes) == {"define", "measure", "analyse", "improve", "control"}, sizes
+    assert all(sizes.values()), f"a skill has no description: {sizes}"
+    assert max(sizes.values()) < 2000, f"a skill description is 2,000 tokens or more: {sizes}"
 
 
 def test_t66_a_tier_2_criterion_can_never_fail_a_gate(env, monkeypatch) -> None:
@@ -6043,8 +6166,38 @@ def test_g3_never_fails_the_methods_own_material() -> None:
 
 
 def test_the_scripts_worked_examples_carry_no_past_date() -> None:
-    """DEF-175 — G-182 (founder 2026-10-15): the phase script's worked examples use a future date or no year."""
-    _not_written('DEF-175')
+    """DEF-175 — G-182 (founder 2026-10-15): the phase script's worked examples use a future date or no year.
+
+    The forward-looking elements' examples — the goal, the target date, the benefits' realisation — named "30 September
+    2026" and "Q4 2026", past or passing by 2026-10-15. A date in such an example lies after today, or carries no year.
+    Past periods in the problem's and baseline's examples ("January to June 2026") describe history and stay. Both
+    script files are read — SKILL.md, which the coach is given, and coaching_script.md, its mirror."""
+    import calendar
+    import datetime as dt
+    import re
+
+    from backend.middleware.skills import SKILLS_ROOT, _FIELD_BLOCK
+
+    months = {name: i for i, name in enumerate(calendar.month_name) if name}
+    day_month_year = re.compile(r"(?:(\d{1,2}) )?(" + "|".join(months) + r") (20\d\d)")
+    quarter_year = re.compile(r"Q([1-4]) (20\d\d)")
+    today = dt.date.today()
+    forward = ("goal_statement", "target_date", "benefits_analysis")
+    for name in ("SKILL.md", "coaching_script.md"):
+        text = (SKILLS_ROOT / "dmaic-define-phase" / name).read_text(encoding="utf-8")
+        blocks = {m.group(2): m.group(3) for m in _FIELD_BLOCK.finditer(text)}
+        assert set(forward) <= set(blocks), (name, sorted(blocks))
+        past: list[str] = []
+        for field in forward:
+            for day, month, year in day_month_year.findall(blocks[field]):
+                last = calendar.monthrange(int(year), months[month])[1]
+                when = dt.date(int(year), months[month], int(day) if day else last)
+                if when <= today:
+                    past.append(f"{field}: {day} {month} {year}".replace("  ", " "))
+            for q, year in quarter_year.findall(blocks[field]):
+                if dt.date(int(year), 3 * int(q) - 2, 1) <= today:       # the quarter's first day
+                    past.append(f"{field}: Q{q} {year} (begun or past)")
+        assert not past, f"{name}: a worked example carries a date already past — {past}"
 
 
 # ── founder Define test 2026-10-15: findings registered (step 0, founder 2026-10-16) ──
@@ -6750,9 +6903,45 @@ def test_the_seventh_5w2h_question_has_one_definition(env, monkeypatch) -> None:
     assert "how goal" not in html.lower(), "a legacy 'How goal' text is left on the screen"
 
 
-def test_the_5w2h_mind_map_shows_every_answer_in_full() -> None:
-    """DEF-190 — The 5W2H mind map shows every answer in full, wrapped, never cut mid-word (G-190; founder test findings 39)"""
-    _not_written('DEF-190')
+def test_the_5w2h_mind_map_shows_every_answer_in_full(env, monkeypatch, stub_planner) -> None:
+    """DEF-190 — The 5W2H mind map shows every answer in full, wrapped, never cut mid-word (G-190; founder test findings 39)
+
+    Founder finding 39 (IMPR-2026-A99): boxes cut mid-word ('In the Austrian field servic…') — render5W2HMindmap
+    truncated at 28 characters and split lines at character 22. Through the routes and graph: the problem
+    statement's read-back carries the server's mind map; the page's own renderer draws it with every answer whole
+    (each sentence intact in one text run, no '…'), the Belt's markup escaped, and the boxes laid out to wrap —
+    no fixed character cut anywhere in the drawing."""
+    import json
+    import re
+
+    from backend.tests.test_define_report import COMPLETE
+
+    long = {"what": "In the Austrian field service, engineers close fault tickets without a root-cause note.",
+            "where": "Vienna and Graz depots, across the residential and the small-business contracts.",
+            "when": "Since the ticketing change in March 2026, every week, worst on Monday mornings.",
+            "who": "Callers waiting for a repeat visit, and the dispatchers who rebook them by hand.",
+            "why": "Repeat visits cost about 400 engineer hours a month and <b>break</b> the SLA.",
+            "how": "As a second ticket for the same fault within fourteen days of the first one.",
+            "how_much": "About 18% of tickets reopen within fourteen days, January to June 2026."}
+    _at_element(env, "problem_statement")
+    _coach_saying(monkeypatch, "Next: the problem statement.")
+    _askd(env, message="Next, please.")
+    _coach_saying(monkeypatch, "Your problem statement, read back. Is this right?",
+                  captured=[{"field_name": "problem_statement", "value": COMPLETE["problem_statement"], "source": "belt"},
+                            {"field_name": "problem_5w2h", "value": long, "source": "belt"}])
+    mm = _askd(env, message=" ".join(long.values()))["visualisation"]
+    assert mm and mm["type"] == "mindmap_5w2h", mm
+    got = _page(("mindmapFromServer", "render5W2HMindmap"), _DOM + f"""
+const window={{}};
+render5W2HMindmap({json.dumps(mm)},'m');process.stdout.write(JSON.stringify({{html:els['m'].innerHTML}}));""")
+    html = got["html"]
+    for key, answer in long.items():
+        shown = answer.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        assert shown in html, f"{key}: the answer is not shown whole — {answer!r}"
+    assert "<b>break</b>" not in html, "the Belt's markup reached the drawing unescaped"
+    assert "…" not in html, "an answer is cut"
+    assert not re.search(r"substring\(0, ?\d+\)", html)
+    assert "not yet captured" not in html
 
 
 def test_a_dotted_date_passes_the_gate(env, monkeypatch) -> None:
@@ -7114,8 +7303,55 @@ def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip(env, monk
 
 
 def test_the_gate_view_follows_the_approved_mockup() -> None:
-    """DEF-197 — The Gate view follows the approved mockup (gate_view_mockup.html): lettered sections, element cards from templates (G-198; founder test findings 18, 32, 33, 35, 36, 41, 43, 48, 51, 72)"""
-    _not_written('DEF-197')
+    """DEF-197 — The Gate view follows the approved mockup (gate_view_mockup.html): lettered sections, element cards from templates (G-198; founder test findings 18, 32, 33, 35, 36, 41, 43, 48, 51, 72)
+
+    The whole view, on IMPR-2026-A99's values as the mockup shows them (sections A–G are DEF-176..182): the header
+    names the case number, the title, and one line with the department, belt, lead and champion; the progress; while
+    any element is open "Submit opens when all 13 are confirmed". The strip of the thirteen elements, numbered and
+    named as in the sidebar, each with its status. Sections A–G titled as in the mockup — "Problem, goal and scope":
+    the goal has one name (G-198, "the goal under three names"); a section of several elements says "k of m
+    confirmed", also when all are. Each card "Element n · name", its name the sidebar's. And G-198's defects absent:
+    no "objective", no JSON, no metric registry key, no doubled full stops, no "not confirmed yet" in a confirmed
+    card."""
+    import re
+
+    from backend.core import guard_messages
+    from backend.phases import moves
+
+    names = [guard_messages.element_name("define", f) for f, _ in moves.positions("define")]
+    assert names[3] == "Problem statement" and names[6] == "Goal", names
+    case = {"case_id": "IMPR-2026-A99", "title": "Complaint closure time in Austrian field service",
+            "leader": "Vassilis Pangalis", "belt_level": "green", "department": "Field Service Austria",
+            "people": [{"full_name": "Vassilis Pangalis", "role": "project lead", "function": "Green Belt"}]}
+    titles = ["Project and team", "Business case and benefits", "Problem, goal and scope",
+              "Voice of the customer and CTQs", "Metrics", "High-level process (as-is)", "Issues and barriers"]
+    for drop in ((), ("goal_statement", "target_value", "target_date")):
+        report, html = _a99_gate(case=case, drop=drop)
+        open_ = bool(drop)
+        assert "Define report · IMPR-2026-A99" in html and "Complaint closure time in Austrian field service" in html
+        assert "Field Service Austria · Green Belt · lead Vassilis Pangalis · champion Katharina Huber" in html, html[:900]
+        assert ("Submit opens when all 13 are confirmed" in html) is open_
+        strip = re.search(r'<ol class="el-strip".*?</ol>', html, re.S)
+        assert strip, "the strip of the thirteen elements is missing"
+        items = re.findall(r'<li data-n="(\d+)" data-state="(\w+)">\s*<b>\d+</b>\s*([^<]+)</li>', strip.group(0))
+        assert [int(n) for n, _, _ in items] == list(range(1, 14)), items
+        assert [x.strip() for _, _, x in items] == names, items
+        assert {n: s for n, s, _ in items}["7"] == ("open" if open_ else "confirmed"), items
+        assert re.findall(r'data-letter="([A-G])"', html) == list("ABCDEFG")
+        for letter, title in zip("ABCDEFG", titles):
+            assert f"{letter} · {title}</span>" in html, (letter, title)
+        sections = report["gate"]["sections"]
+        assert [s["status"] for s in sections if len(s["elements"]) > 1] == (
+            ["2 of 2 confirmed", "2 of 3 confirmed", "2 of 4 confirmed"] if open_ else
+            ["2 of 2 confirmed", "3 of 3 confirmed", "4 of 4 confirmed"]), [s["status"] for s in sections]
+        for c in (c for s in sections for c in s["elements"]):
+            assert c["name"] == names[c["n"] - 1], c["name"]
+            assert f'Element {c["n"]}</span> · <strong>{c["name"]}' in html, c["name"]
+        assert "objective" not in html.lower(), "the goal under another name"
+        assert '{"' not in html and "{&quot;" not in html, "JSON on the Gate"
+        assert not re.search(r"(?<!\.)\.\.(?!\.)", re.sub(r"<[^>]+>", " ", html)), "a doubled full stop"
+        for card in re.findall(r'data-status="confirmed">(.*?)(?=<div class="el-card|<div class="gate-sec|$)', html, re.S):
+            assert "not confirmed yet" not in card.lower(), card[:300]
 
 
 def _confirm_business_case(env, coach_says, stub_planner, answer: str, spans: dict | None = None,
@@ -7310,9 +7546,54 @@ def test_the_visual_pane_follows_the_current_element() -> None:
     _not_written('DEF-201')
 
 
-def test_submit_is_disabled_until_every_element_is_confirmed() -> None:
-    """DEF-202 — 'Submit for gate review' is disabled until every required element is confirmed, with the reason (G-203; founder test findings 14)"""
-    _not_written('DEF-202')
+def test_submit_is_disabled_until_every_element_is_confirmed(env) -> None:
+    """DEF-202 — 'Submit for gate review' is disabled until every required element is confirmed, with the reason (G-203; founder test findings 14)
+
+    Founder finding 14 (IMPR-2026-A99): Submit was active at step 1 of 13. Through the routes: the progress view's
+    element statuses (GET /cases/{id}) drive one function the page asks for every "Submit for gate review" — the
+    chat's button and the side panel's. With one element confirmed it is disabled and says why ("1 of 13
+    confirmed"); a click refuses with that reason and posts nothing; once all thirteen are confirmed it opens.
+    Every Submit for gate review on the page goes through it."""
+    import json
+    import re
+    from pathlib import Path
+
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {"business_case": COMPLETE["business_case"]}
+    record.field_status = {"business_case": {"status": moves.CONFIRMED}}
+    early = env.client.get(f"/cases/{CASE_ID}").json()["define_elements"]
+    record.structured = dict(COMPLETE)
+    record.field_status = {f: {"status": moves.CONFIRMED} for f, _ in moves.positions("define")}
+    done = env.client.get(f"/cases/{CASE_ID}").json()["define_elements"]
+    assert sum(r["status"] == "confirmed" for r in early) == 1 and all(r["status"] == "confirmed" for r in done)
+
+    got = _page(("gateSubmitState", "gateSubmitButtonHtml", "submitGateReview"), _DOM + f"""
+const toasts=[];const posted=[];function toast(m){{toasts.push(m)}}
+async function apiJSON(u,o){{posted.push(u);return {{}}}}
+let S={{phase:'define',case:{{case_id:'C1',define_elements:{json.dumps(early)}}},user:'Ana'}};
+const off=gateSubmitState('define',{json.dumps(early)}), offHtml=gateSubmitButtonHtml('gate-submit',' →');
+(async()=>{{await submitGateReview();
+S.case.define_elements={json.dumps(done)};
+const on=gateSubmitState('define',{json.dumps(done)}), onHtml=gateSubmitButtonHtml('gate-submit',' →');
+process.stdout.write(JSON.stringify({{off,offHtml,on,onHtml,toasts,posted}}));}})();""")
+    assert got["off"] == {"enabled": False, "reason": "1 of 13 confirmed — Submit opens when all 13 are"}, got["off"]
+    assert "disabled" in got["offHtml"] and "1 of 13 confirmed" in got["offHtml"], got["offHtml"]
+    assert got["toasts"] == [got["off"]["reason"]] and got["posted"] == [], (got["toasts"], got["posted"])
+    assert got["on"] == {"enabled": True, "reason": ""} and "disabled" not in got["onHtml"], got["onHtml"]
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    # Every "Submit for gate review" on the page is the chat's (kept in step by renderGateSubmit) or one that
+    # gateSubmitButtonHtml builds (the side panel); a later phase's own "Submit <phase> gate" is out of Define's scope.
+    found = re.search(r"^function gateSubmitButtonHtml\(.*?^\}", src, re.M | re.S)
+    assert found is not None, "gateSubmitButtonHtml is not in the page"
+    builder = found.span()
+    labelled = [m.start() for m in re.finditer(r'onclick="submitGateReview\(\)"', src)
+                if re.match(r"[^<]*(?:<i[^>]*></i>)?\s*Submit for gate review", src[m.end() + 1:m.end() + 200])]
+    outside = [src[max(0, i - 80):i] for i in labelled if not builder[0] <= i <= builder[1]]
+    assert len(labelled) == 2 and len(outside) == 1 and 'id="btn-gate"' in outside[0], outside
+    assert re.search(r"function renderGateSubmit\(\)", src) and "renderGateSubmit();" in src
 
 
 def test_the_sidebar_highlights_the_current_element() -> None:
@@ -7707,9 +7988,58 @@ process.stdout.write(JSON.stringify({{table,flow:els['s2'].innerHTML,example:els
     assert "Receive order" in got["live"], "the chat did not draw the turn's SIPOC"
 
 
-def test_the_completion_card_and_the_decision_banner() -> None:
-    """DEF-212 — After the last Confirm a completion card says what to do in order; the decision panel is pinned at the top, elements named as in the sidebar (G-213; founder test findings 67, 81)"""
-    _not_written('DEF-212')
+def test_the_completion_card_and_the_decision_banner(env, monkeypatch, stub_planner) -> None:
+    """DEF-212 — After the last Confirm a completion card says what to do in order; the decision panel is pinned at the top, elements named as in the sidebar (G-213; founder test findings 67, 81)
+
+    Founder findings 67 and 81 (IMPR-2026-A99): after the 13th Confirm the reply said "approve or reject" before any
+    submit; the decision panel sat at the end of the long Gate; the reject checkboxes showed field ids. Through the
+    routes and graph: the last element read back and confirmed — the reply, written in code, says what was stored and
+    that every element is confirmed, carries the completion card (read the report on the Gate tab with the team,
+    Submit for gate review, then the team approves or rejects — in that order), and none of the coach's own talk of
+    approving; the page draws the card as an ordered list. On the Gate the decision panel comes before section A,
+    and its reject choices name the elements as the sidebar does ("n · name"), never by field id."""
+    import json
+    import re
+
+    from backend.core import guard_messages
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "issues_and_barriers")
+    _coach_saying(monkeypatch, "Last one: what could get in the way?")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="named with their effect")
+    issues = "Month-end peak in the service desk; ticket system change freeze until January."
+    _coach_saying(monkeypatch, "Your issues, read back. Is this right?",
+                  captured=[{"field_name": "issues_and_barriers", "value": issues, "source": "belt"}])
+    assert _askd(env, message=issues).get("move") == "read_back"
+    _coach_saying(monkeypatch, "Define is complete! Your team can now approve or reject the report.")
+    body = _askd(env, message="Confirm", action="confirm")
+    assert body.get("move") == "store_and_advance" and body.get("move_field") is None, body
+    answer = body["answer"]
+    assert answer.startswith("Stored: Issues and barriers."), answer
+    assert "All 13 elements are confirmed" in answer and not re.search(r"approve|reject", answer, re.I), answer
+    card = body.get("completion_card")
+    assert card and card["title"] == "Define is ready for your team", card
+    steps = card["steps"]
+    assert len(steps) == 3 and "Gate" in steps[0] and "Submit for gate review" in steps[1] \
+        and "approve" in steps[2] and "reject" in steps[2], steps
+    drawn = _page(("completionCardHtml",), _DOM + f"""
+process.stdout.write(JSON.stringify({{html:completionCardHtml({json.dumps(card)})}}));""")["html"]
+    assert re.findall(r"<li>(.*?)</li>", drawn) == [escape_html(s) for s in steps], drawn
+
+    report, _ = _a99_gate()
+    names = {f: f"{n} · {guard_messages.element_name('define', f)}"
+             for n, (f, _) in enumerate(moves.positions("define"), start=1)}
+    got = _page(("benefitTimelineHtml", "reportPrintHead", "defineReportHtml", "defineReportActionsHtml"), _DOM + f"""
+const rep={json.dumps(report)};
+process.stdout.write(JSON.stringify({{gate:defineReportHtml(rep, false, null),
+  panel:defineReportActionsHtml({{awaiting_decision:true}}, rep, false)}}));""")
+    gate = got["gate"]
+    assert gate.index('id="define-report-actions"') < gate.index('data-letter="A"'), "the decision panel is not on top"
+    boxes = re.findall(r'value="(\w+)"> ([^<]+)</label>', got["panel"])
+    assert [b[0] for b in boxes] == list(names), boxes
+    assert [b[1].strip() for b in boxes] == list(names.values()), boxes
 
 
 def test_progress_steps_are_shown_while_a_turn_runs() -> None:
@@ -8113,9 +8443,42 @@ def test_checkpoint_weight_is_bounded() -> None:
     _not_written('DEF-219')
 
 
-def test_the_coach_writes_no_sample_of_its_own() -> None:
-    """DEF-220 — The coach writes no sample of its own and no repeated explanation; the sample is the code-inserted one (G-221; founder test findings 50)"""
-    _not_written('DEF-220')
+def test_the_coach_writes_no_sample_of_its_own(env, monkeypatch) -> None:
+    """DEF-220 — The coach writes no sample of its own and no repeated explanation; the sample is the code-inserted one (G-221; founder test findings 50)
+
+    Founder finding 50 (IMPR-2026-A99, the goal): the coach wrote "Let me show you an example … by 30 September 2026"
+    into its own text, the sample box showed it again, and the explanation repeated what WHY IT MATTERS says; G-171's
+    repeat filter missed the paraphrase. The founder's reply shape: one short lead-in sentence; the explanation lives
+    once, in its block. Through POST /ask on the goal's teaching turn, with the coach writing all three into its
+    message: the message keeps its lead-in naming the element, the sample shown is the script's, the explanation is
+    the block alone. The phase's opening turn (the welcome) is left whole."""
+    from langchain_core.messages import AIMessage
+
+    from backend.middleware.skills import teaching_blocks
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import _FakeCoach
+
+    script = teaching_blocks("define", "goal_statement")
+    message = ("Now we move to the goal statement. This step defines what success looks like for your project. "
+               "A clear goal makes success unambiguous and ensures everyone knows what \"done\" means.\n\n"
+               "Let me show you an example of a good goal:\n\n"
+               "\"Cut the invoice error rate from 12% to 3% by the end of September.\"")
+    args = {"message": message, "explanation": script["explanation"], "example": "Cut errors to 3% by September.",
+            "prompt": script["prompt"], "progress": "", "fields_captured": []}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([AIMessage(
+        content="", tool_calls=[{"name": "CoachingResponse", "args": args, "id": "g221"}])]))
+        if role == "coach" else planner(role, **kw))
+    _at_element(env, "goal_statement")
+    body = _askd(env, message="Next, please.")
+    assert body.get("move") == "teach" and body.get("move_field") == "goal_statement", body
+    answer = body["answer"]
+    assert answer.startswith("Now we move to the goal statement."), answer
+    for own in ("show you an example", "by the end of September", "unambiguous", "what success looks like"):
+        assert own not in answer, f"the coach's own sample or explanation reached the Belt: {own!r} in {answer!r}"
+    assert "invoice error rate from 12% to under 3%" in body["example"] and "September" not in body["example"], \
+        body["example"]
+    assert body["explanation"] == script["explanation"], body["explanation"]
 
 
 def test_a_strict_limit_is_kept_as_written(env, monkeypatch) -> None:

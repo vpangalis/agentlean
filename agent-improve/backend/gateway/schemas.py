@@ -150,6 +150,8 @@ class AskResponse(BaseModel):
     readback_card: Optional[dict] = None
     confirmed_strip: Optional[dict] = None
     reply_element: Optional[dict] = None
+    #: DEF-212 — after Define's last Confirm: {title, steps} — read the report, submit, the team decides.
+    completion_card: Optional[dict] = None
 
 
 class CaseCreateResponse(BaseModel):
@@ -375,3 +377,6 @@ class GateReviewResponse(BaseModel):
     #: R6 — a Define report is paused for the team's decision (the graph holds
     #: an interrupt); the screen shows Approve / Reject rather than Submit.
     awaiting_decision: bool = False
+    #: R11 (DEF-101) — when the phase was approved (the record's approval stamp, `submitted_at`), or None: the
+    #: page prints a report only once this is set.
+    approved_at: str | None = None

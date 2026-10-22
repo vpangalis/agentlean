@@ -394,6 +394,21 @@ a{text-decoration:none;color:inherit}
 .el-missing{margin-top:8px;padding:8px 10px;background:var(--amber-bg);border-radius:var(--radius-sm);font-size:12px;color:var(--amber)}
 .rb-strip{margin:0 0 8px;padding:8px 12px;border-radius:var(--radius-sm);background:var(--green-bg);color:#085041;font-weight:600;font-size:12px}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* R11 (DEF-101): an approved report prints as the report panel itself, headed as the record's copy; nothing is
+   printed before approval (the page marks the body print-ok only when the review carries an approval date). */
+.print-head{display:none}
+@media print {
+  body:not(.print-ok) * { display:none !important; }
+  body:not(.print-ok)::before { content:"Nothing is printed before approval. The record is in Agent Improve.";
+    display:block; font:14px sans-serif; padding:24px; }
+  body.print-ok * { visibility:hidden; }
+  body.print-ok #define-report-panel, body.print-ok #define-report-panel * { visibility:visible; }
+  body.print-ok #define-report-panel { position:absolute; left:0; top:0; width:100%; }
+  .print-head { display:block !important; font-size:11px; color:#2C3E50; border-bottom:1px solid #999;
+    padding-bottom:6px; margin-bottom:10px; }
+  .print-btn, #define-report-actions { display:none !important; }
+}
 </style>
 </head>
 <body>
@@ -627,7 +642,7 @@ a{text-decoration:none;color:inherit}
             </div>
             <div class="gate-row">
               <span class="gate-hint" id="gate-hint"><i class="ti ti-chart-bar"></i>Keep going — answer each question to progress</span>
-              <button class="btn-gate" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:12px"></i> Submit for gate review</button>
+              <button id="btn-gate" class="btn-gate" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:12px"></i> Submit for gate review</button>
             </div>
           </div>
         </div>
@@ -1389,6 +1404,7 @@ function renderPhaseNav(){
   const inDefine=S.phase==='define'&&defineProgressBar(S.case&&S.case.define_progress);
   document.getElementById('prog-fill').style.width=(inDefine?inDefine.width:(progPct[currentIdx]||5))+'%';
   document.getElementById('prog-label').textContent=inDefine?inDefine.label:`Phase ${currentIdx+1} of 5`;
+  renderGateSubmit();                              // DEF-202: Submit opens only when all are confirmed
   phaseOrder.forEach((ph,i)=>{
     const el=document.getElementById('pi-'+ph);
     const pb=el.querySelector('.pb');
@@ -3900,11 +3916,7 @@ function renderGate() {
     const mSubmit = mGateReady
       ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
           border-radius:8px;padding:14px;margin-top:4px">
-          <button onclick="submitGateReview()" style="width:100%;
-            padding:10px;background:#0070BA;color:#fff;border:none;
-            border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
-            Submit for gate review →
-          </button>
+          ${gateSubmitButtonHtml('gate-submit', ' →')}
         </div>`
       : `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
           border-radius:8px;padding:14px;margin-top:4px;
@@ -4710,7 +4722,19 @@ function renderBaselineTarget(v, containerId) {
 
 // ─── THE DEFINE REPORT (R5) ───────────────────────────────────────
 // Pure: the report JSON in, HTML out — so a headless check can drive it.
-function defineReportHtml(rep, isPassed) {
+// R11 (DEF-101): the head an approved report prints under — the case number, the phase, the approval date and
+// "Copy — the record is in Agent Improve"; '' before approval, so nothing carries it.
+function reportPrintHead(caseId, phase, approvedAt) {
+  const when = approvedAt ? new Date(approvedAt) : null;
+  if (!when || isNaN(when)) return '';
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+                  'October', 'November', 'December'];
+  const day = `${when.getUTCDate()} ${months[when.getUTCMonth()]} ${when.getUTCFullYear()}`;
+  const name = String(phase || '').charAt(0).toUpperCase() + String(phase || '').slice(1);
+  return `<div class="print-head">${escapeHtml(caseId || '')} · ${escapeHtml(name)} · approved ${day} · Copy — the record is in Agent Improve</div>`;
+}
+
+function defineReportHtml(rep, isPassed, approvedAt) {
   const t = v => (v === null || v === undefined || String(v).trim() === '')
     ? `<span style="color:#B3261E;font-style:italic">not confirmed yet</span>`
     : escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v));
@@ -4731,11 +4755,20 @@ function defineReportHtml(rep, isPassed) {
   const read = kind => (rep.read || {})[kind]
     ? `<div class="visual-read" style="font-size:9.5px;color:#5B6B7C;font-style:italic;margin:2px 0 6px">How to read it: ${escapeHtml(rep.read[kind])}</div>` : '';
   const vis = rep.visuals || {};
+  // DEF-087 (C2): a picture is one labelled figure — its caption, the drawing, the sentence on how to read it —
+  // beside the text or table that carries the same values.
+  const FIGURE_LABELS = {benefit_timeline: 'Benefits over time', mindmap_5w2h: 'The problem in 5W2H',
+                         baseline_target: 'Baseline and target', sipoc: 'The process on one page'};
+  const figure = (kind, inner) => `<figure class="report-visual" data-visual="${kind}" style="margin:6px 0">
+      <figcaption style="font-size:10px;font-weight:600;color:#2C3E50;letter-spacing:.03em">${FIGURE_LABELS[kind]}</figcaption>${
+      inner}${read(kind)}</figure>`;
   const sec = n => (rep.sections || []).find(s => s.n === n) || {};
   // ADR-0093 decision 4 (gate_view_mockup.html): sections A–G; each element its own card — "Element n · name", its
   // status, a History link — its rows drawn by elementRowsHtml, the same code as the read-back card.
   const gate = rep.gate || {sections: [], still_to_confirm: []};
-  const chip = st => `<span class="el-chip ${st === 'confirmed' ? 'ok' : 'open'}">${escapeHtml(st)}</span>`;
+  // DEF-197: "3 of 3 confirmed" (a section of several elements, all confirmed) is drawn as confirmed.
+  const allOf = st => st === 'confirmed' || /^(\d+) of \1 confirmed$/.test(String(st));
+  const chip = st => `<span class="el-chip ${allOf(st) ? 'ok' : 'open'}">${escapeHtml(st)}</span>`;
   // DEF-176..178 (gate_view_mockup.html, sections A–C): a confirmed card's `view` is the mockup's layout — one team
   // table; the business case and the benefits as a definition list (the two money figures marked); the statement
   // highlighted with the 5W2H table under it; scope as two labelled boxes. Every value escaped; "—" when none.
@@ -4762,7 +4795,7 @@ function defineReportHtml(rep, isPassed) {
   const viewHtml = v => {
     if (v.kind === 'table') return viewTable(v, v.columns && v.columns[0] === 'Customer' ? 'gate-ctq' : 'gate-team') + viewWhy(v.why);
     if (v.kind === 'kv') return `<dl class="kv" style="display:grid;grid-template-columns:minmax(110px,170px) 1fr;gap:4px 12px;margin:6px 0;font-size:11px">${
-      kvItems(v.figures, 'figure')}${kvItems(v.items, '')}</dl>` + (v.chart ? chartHtml(v.chart) : '');
+      kvItems(v.figures, 'figure')}${kvItems(v.items, '')}</dl>` + (v.chart ? figure('baseline_target', chartHtml(v.chart)) : '');
     if (v.kind === 'boxes') return `<div class="scope-boxes" style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0">${
       (v.boxes || []).map(b => `<div class="scope-box" style="flex:1;min-width:160px;border:1px solid #E4E2DC;border-radius:6px;padding:6px 8px;font-size:11px">
         <span class="lbl" style="display:block;font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#5B6B7C">${escapeHtml(b[0])}</span>${dash(b[1])}</div>`).join('')}</div>` + viewWhy(v.why);
@@ -4777,14 +4810,14 @@ function defineReportHtml(rep, isPassed) {
       const flow = (v.steps || []).map(step).join('<div style="text-align:center;color:#0070BA;font-size:11px;line-height:1">↓</div>');
       const c = v.columns || {};
       const perf = v.table || {columns: [], rows: [], marks: []};
-      return `<div class="gate-flow"><div class="el-scroll"><div style="display:flex;gap:6px;min-width:620px;margin:6px 0">${col('Suppliers', c.suppliers)}${col('Inputs', c.inputs)}
+      return figure('sipoc', `<div class="gate-flow"><div class="el-scroll"><div style="display:flex;gap:6px;min-width:620px;margin:6px 0">${col('Suppliers', c.suppliers)}${col('Inputs', c.inputs)}
         <div class="gate-sipoc-col" style="flex:1.5;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:6px"><div style="font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#5B6B7C;margin-bottom:4px">Process</div>${flow}</div>
         ${col('Outputs', c.outputs)}${col('Customers', c.customers)}</div></div>
         <div class="gate-legend" style="display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:#5B6B7C;margin:4px 0">${(v.located || []).length
           ? '<span><span style="display:inline-block;width:10px;height:10px;border:2px solid #C77700;background:#FFF4D6;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Step named in the problem statement</span>' : ''}${
           (v.steps || []).some(s => s.mark === 'flagged') ? '<span><span style="display:inline-block;width:10px;height:10px;border:1px dashed #B3261E;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Problems noted at another step</span>' : ''}${
-          v.measured ? `<span>Measured on the outputs: ${escapeHtml(v.measured)}</span>` : ''}</div>${viewWhy(v.why)}${viewWhy(v.measured_why)}</div>
-        <div class="el-scroll"><table class="gate-perf" style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0">
+          v.measured ? `<span>Measured on the outputs: ${escapeHtml(v.measured)}</span>` : ''}</div>${viewWhy(v.why)}${viewWhy(v.measured_why)}</div>`)
+        + `<div class="el-scroll"><table class="gate-perf" style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0">
         <tr>${(perf.columns || []).map(h => `<th style="text-align:left;padding:4px 6px;border-bottom:1px solid #E4E2DC;color:#5B6B7C;font-weight:600">${escapeHtml(h)}</th>`).join('')}</tr>${
         (perf.rows || []).map((r, i) => `<tr${(perf.marks || [])[i] === 'located' ? ' data-mark="located" style="background:#FFF4D6"' : ''}>${r.map(x => `<td>${dash(x)}</td>`).join('')}</tr>`).join('')}</table></div>`;
     }
@@ -4834,24 +4867,43 @@ function defineReportHtml(rep, isPassed) {
       <div style="height:6px;background:#E4E2DC;border-radius:3px;overflow:hidden"><div style="height:100%;
       width:${Math.round(100 * done / els.length)}%;background:#0070BA"></div></div></div>` : '';
 
+  // DEF-197 (gate_view_mockup.html): the header — the case number, the title, one line with the department, belt,
+  // lead and champion — then the progress, the note while an element is open, and the strip of the thirteen
+  // elements, numbered and named as in the sidebar, each with its status.
+  const belt = {green: 'Green Belt', yellow: 'Yellow Belt', black: 'Black Belt'}[String(p.belt_level || '').toLowerCase()]
+    || (p.belt_level ? String(p.belt_level) : '');
+  const who = [p.department, belt, p.leader ? 'lead ' + p.leader : '',
+               (s1.champion || {}).name ? 'champion ' + s1.champion.name : ''].filter(Boolean).map(escapeHtml).join(' · ');
+  const cards = (gate.sections || []).flatMap(g => g.elements || []).sort((a, b) => a.n - b.n);
+  const strip = cards.length ? `<ol class="el-strip" style="display:flex;flex-wrap:wrap;gap:4px;list-style:none;padding:0;margin:0 0 12px">${
+    cards.map(c => `<li data-n="${c.n}" data-state="${c.status === 'confirmed' ? 'confirmed' : 'open'}">
+      <b>${c.n}</b> ${escapeHtml(c.name)}</li>`).join('')}</ol>` : '';
+  const head = reportPrintHead(p.case_id, 'define', approvedAt);
   const html = [
-    `<div style="font-size:15px;font-weight:600;color:#2C3E50;margin:4px 0 2px">
-       Define report${p.title ? ' — ' + escapeHtml(p.title) : ''}</div>
+    (head ? head + `<button class="print-btn" onclick="window.print()" style="float:right;font-size:11px">Print</button>` : '') +
+    `<div style="font-size:10px;color:#6B7A8D;letter-spacing:.04em;margin:4px 0 2px">Define report · ${escapeHtml(p.case_id || '')}</div>
+     <div style="font-size:15px;font-weight:600;color:#2C3E50;margin:0 0 2px">${escapeHtml(p.title || '')}</div>
+     ${who ? `<div class="gate-who" style="font-size:11px;color:#5B6B7C;margin-bottom:4px">${who}</div>` : ''}
      <div style="font-size:10px;color:#6B7A8D;margin-bottom:12px">Phase 1 of 5 ·
-       assembled from the values you confirmed — nothing here is proposed by the coach</div>` + progress,
+       assembled from the values you confirmed — nothing here is proposed by the coach</div>` + progress
+      + (els.length && done < els.length && !isPassed
+        ? `<div class="gate-submit-note" style="font-size:10.5px;color:#9A6B12;margin:-6px 0 10px">Submit opens when all ${els.length} are confirmed</div>` : '')
+      + strip
+      // DEF-212 (G-213, finding 81): the submit and decision panel on top, never after the long report.
+      + `<div id="define-report-actions"></div>`,
     // DEF-176 (founder, 2026-10-22): the lead, the Champion, the belt level and the people on the case are folded
     // into element 2's one team table (its card, below); the department stays one case-level line (Desktop).
     section(0, line('Project', p.title) + line('Department', p.department)),
-    section(1, vis.benefit_timeline ? benefitTimelineHtml(vis.benefit_timeline) + read('benefit_timeline') : ''),
-    section(2, vis.mindmap_5w2h ? `<div id="report-mindmap"></div>` + read('mindmap_5w2h') : ''),
+    section(1, vis.benefit_timeline ? figure('benefit_timeline', benefitTimelineHtml(vis.benefit_timeline)) : ''),
+    section(2, vis.mindmap_5w2h ? figure('mindmap_5w2h', `<div id="report-mindmap"></div>`) : ''),
     section(3, ''),
     // DEF-180: the chart sits in element 5's card; the section draws it only when that card has none.
-    section(4, vis.baseline_target ? (((gate.sections || [])[4] || {elements: []}).elements.some(c => c.view && c.view.chart)
-      ? '' : `<div id="report-target"></div>`) + read('baseline_target') : ''),
+    section(4, vis.baseline_target && !(((gate.sections || [])[4] || {elements: []}).elements.some(c => c.view && c.view.chart))
+      ? figure('baseline_target', `<div id="report-target"></div>`) : ''),
     // DEF-181: the SIPOC is drawn in element 12's card; the section draws it only when that card has none.
     section(5, ((gate.sections || [])[5] || {elements: []}).elements.some(c => c.view && c.view.kind === 'sipoc')
-      ? read('sipoc')
-      : why('sipoc') + `<div id="report-sipoc"></div>` + read('sipoc') +
+      ? ''
+      : why('sipoc') + figure('sipoc', `<div id="report-sipoc"></div>`) +
         line('Measured on the outputs', sipoc.process_metrics, 'process_metrics')),
     section(6, ''),
   ];
@@ -4861,7 +4913,6 @@ function defineReportHtml(rep, isPassed) {
     html.push(`<div class="still-to-confirm" style="font-size:11px;color:#B3261E;padding:8px 0">Still to confirm:
       ${still.map(e => `${e.n} ${escapeHtml(e.name)}`).join(' · ')}</div>`);
   }
-  html.push(`<div id="define-report-actions"></div>`);
   return html.join('');
 }
 
@@ -4884,7 +4935,8 @@ async function renderDefineReport(isPassed) {
     return;
   }
   const rep = d.report || {sections: [], missing: [], elements: [], history: {}};
-  host.innerHTML = defineReportHtml(rep, isPassed);
+  host.innerHTML = defineReportHtml(rep, isPassed, d.approved_at);
+  document.body.classList.toggle('print-ok', !!d.approved_at);      // R11: printable only once approved
   const sipoc = ((rep.sections || []).find(s => s.n === 6) || {}).sipoc || {};
   if (document.getElementById('report-sipoc')) {
     renderSipocDiagram({...sipoc, draft: false, confirmed: true}, 'report-sipoc');
@@ -4915,7 +4967,10 @@ function defineReportActionsHtml(d, rep, isPassed) {
                        : 'Confirm every element with your coach before the report can be submitted.'}</div>
       ${btn('Submit the Define report for acceptance', 'submitGateReview()', true, !rep.complete)}</div>`;
   }
-  const label = f => escapeHtml(String(f).replace(/_/g, ' '));
+  // DEF-212 (G-213): the elements named as in the sidebar — "n · name", from the Gate's cards — never by field id.
+  const named = {};
+  ((rep.gate || {}).sections || []).forEach(g => (g.elements || []).forEach(c => { named[c.field] = `${c.n} · ${c.name}`; }));
+  const label = f => escapeHtml(named[f] || String(f).replace(/_/g, ' '));
   const boxes = (rep.elements || []).map(e => `<label style="display:inline-flex;align-items:center;
       gap:4px;font-size:11px;margin:2px 10px 2px 0"><input type="checkbox" class="reject-element"
       value="${escapeHtml(e.field)}"> ${label(e.field)}</label>`).join('');
@@ -6330,6 +6385,14 @@ function renderHistoryTurns(history, localChat){
     .map(t=>renderTurn(t)).join('');
 }
 
+// DEF-212 (G-213): after Define's last Confirm, what the team does next — in order — as its own card.
+function completionCardHtml(card){
+  if(!card||!(card.steps||[]).length)return '';
+  return `<div class="completion-card" style="margin:8px 0;padding:10px 12px;border:1px solid #1E6B3A;border-radius:8px;background:#F1F8F3">
+    <div style="font-size:12px;font-weight:600;color:#1E6B3A;margin-bottom:4px">${escapeHtml(card.title||'')}</div>
+    <ol style="margin:0;padding-left:18px;font-size:12px;line-height:1.6">${card.steps.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol></div>`;
+}
+
 function renderTurn(turn){
   if(turn.role==='failed') return failedTurnHtml(turn);       // DEF-055 / DEF-081
   if(turn.role==='ai'){
@@ -6365,7 +6428,7 @@ function renderTurn(turn){
       <button id="rb-park" class="btn btn-primary" onclick="sendMessage('park')">Park and move on</button>
       <button id="rb-try" class="btn" onclick="sendMessage('try_again')">Try again</button></div>`:'';
     return `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai">${strip}${prog}<p>${turn.text}</p>${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${warn}${cites}</div></div>`;
+      <div class="bbl bbl-ai">${strip}${prog}<p>${turn.text}</p>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${warn}${cites}</div></div>`;
   }else{
     const initials=(turn.user||S.user||'U').split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase();
     return `<div class="msg user"><div class="mav mu">${initials}</div>
@@ -6590,6 +6653,7 @@ async function sendMessage(action, element){
         move:resp.move||null,
         // ADR-0093 — the card, the strip and the reply's element travel with the turn too.
         readback_card:resp.readback_card||null,confirmed_strip:resp.confirmed_strip||null,reply_element:resp.reply_element||null,
+        completion_card:resp.completion_card||null,       // DEF-212
         // G-79 — the visual travels with the turn too, for the next redraw.
         visualisation:resp.visualisation||null,sipoc_diagram:resp.sipoc_diagram||null};
       S.localChat.push(aiTurn);
@@ -6647,8 +6711,43 @@ async function refreshCaseFiles(){
   }catch(e){}
 }
 
+// DEF-202 (G-203, founder finding 14): "Submit for gate review" opens only when every Define element is confirmed;
+// until then every Submit on the page is disabled and says why ("n of 13 confirmed"). The progress view's element
+// statuses (GET /cases) decide it; other phases keep their own gate check.
+function gateSubmitState(phase, elements) {
+  if (phase !== 'define') return {enabled: true, reason: ''};
+  const rows = elements || [];
+  const total = rows.length || 13;
+  const done = rows.filter(r => r.status === 'confirmed').length;
+  return rows.length && done === rows.length ? {enabled: true, reason: ''}
+    : {enabled: false, reason: `${done} of ${total} confirmed — Submit opens when all ${total} are`};
+}
+
+function gateSubmitButtonHtml(cls, arrow) {
+  const st = gateSubmitState(S.phase, (S.case || {}).define_elements);
+  return `<button class="${cls}" ${st.enabled ? '' : `disabled aria-disabled="true" title="${escapeHtml(st.reason)}"`}
+    onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review${arrow}</button>${
+    st.enabled ? '' : `<div class="gate-submit-why" style="font-size:10.5px;color:#9A6B12;margin-top:4px">${escapeHtml(st.reason)}</div>`}`;
+}
+
+// DEF-202: the chat's own Submit (static markup) follows the same state, and its hint says why.
+function renderGateSubmit() {
+  const b = document.getElementById('btn-gate');
+  if (!b) return;
+  const st = gateSubmitState(S.phase, (S.case || {}).define_elements);
+  b.disabled = !st.enabled;
+  b.title = st.reason;
+  const hint = document.getElementById('gate-hint');
+  if (hint && !st.enabled) hint.textContent = st.reason;
+}
+
 async function submitGateReview() {
   if (!S.case) return;
+  const gateOpen = gateSubmitState(S.phase, (S.case || {}).define_elements);
+  if (!gateOpen.enabled) {                         // DEF-202: never posted before every element is confirmed
+    toast(gateOpen.reason, 5000);
+    return;
+  }
 
   // Show loading state in the gate panel. The fallback chain matches
   // current DOM (#view-gate) plus two possible future container IDs.
@@ -7432,57 +7531,23 @@ function render5W2HMindmap(viz, containerId) {
   const badgeBg = allDone ? '#E1F5EE' : '#FFF0E6';
   const badgeColor = allDone ? '#085041' : '#A04800';
   const badgeText = `${isDraft ? 'Draft' : 'Confirmed'} — ${captured} / ${total}`;
+  const esc = v => escapeHtml(v == null ? '' : v);
 
-  // Helper: truncate value for display
-  const trunc = (v, n=28) => v && v.length > n ? v.substring(0,n)+'…' : (v || '');
-
-  // Helper: branch node HTML (captured = purple, missing = dashed grey)
-  const node = (label, value, x, y, w, h, anchor='middle') => {
+  // DEF-190 (G-190, founder finding 39): every answer whole — the boxes wrap their text at word boundaries and
+  // grow with it; nothing is cut. (The SVG it replaces cut each answer at 28 characters and split at 22.)
+  const wrap = 'white-space:normal;overflow-wrap:normal;word-break:normal;hyphens:none';
+  const node = (label, value, area) => {
     const has = !!value;
-    const fill = has ? '#EAF4FC' : 'none';
-    const stroke = has ? '#A8CDE8' : 'var(--color-text-tertiary)';
-    const strokeW = has ? '0.5' : '1';
-    const dash = has ? '' : 'stroke-dasharray="5 4"';
-    const labelColor = has ? '#005A96' : 'var(--color-text-tertiary)';
-    const valColor = has ? '#00305A' : 'var(--color-text-tertiary)';
-    const valStyle = has ? '' : 'font-style="italic"';
-    const displayVal = has ? trunc(value) : 'not yet captured';
-    const lines = displayVal.length > 22
-      ? [displayVal.substring(0,22), displayVal.substring(22)]
-      : [displayVal];
-
-    const textRows = lines.map((line, i) =>
-      `<text x="${x}" y="${y + 14 + (i*13)}" text-anchor="${anchor}"
-        font-family="sans-serif" font-size="9.5" fill="${valColor}"
-        ${valStyle}>${line}</text>`
-    ).join('');
-
-    const nodeH = lines.length > 1 ? h + 12 : h;
-
-    return `
-      <rect x="${x - (anchor==='middle' ? w/2 : 0)}" y="${y - 16}"
-        width="${w}" height="${nodeH}" rx="8"
-        fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}"
-        ${dash}/>
-      <text x="${x}" y="${y - 1}" text-anchor="${anchor}"
-        font-family="sans-serif" font-size="10" font-weight="700"
-        fill="${labelColor}" letter-spacing="0.06em">${label}</text>
-      ${textRows}`;
+    const box = has ? 'background:#EAF4FC;border:0.5px solid #A8CDE8'
+                    : 'background:none;border:1px dashed var(--color-text-tertiary,#9A9890)';
+    return `<div class="mm5-node" style="grid-area:${area};${box};border-radius:8px;padding:8px 10px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.06em;
+        color:${has ? '#005A96' : 'var(--color-text-tertiary,#9A9890)'}">${label}</div>
+      <div style="font-size:12px;line-height:1.4;margin-top:3px;${wrap};
+        color:${has ? '#00305A' : 'var(--color-text-tertiary,#9A9890)'};${has ? '' : 'font-style:italic'}">${
+        has ? esc(value) : 'not yet captured'}</div>
+    </div>`;
   };
-
-  // Break summary into up to 3 lines of ~28 chars
-  const summaryLines = [];
-  let rem = summary;
-  while(rem.length > 0) {
-    if(rem.length <= 30) { summaryLines.push(rem); break; }
-    let cut = rem.lastIndexOf(' ', 30);
-    if(cut < 10) cut = 30;
-    summaryLines.push(rem.substring(0, cut));
-    rem = rem.substring(cut+1);
-    if(summaryLines.length >= 3) { summaryLines[2] = summaryLines[2].substring(0,27)+'…'; break; }
-  }
-  const centerH = 60 + (summaryLines.length * 15);
-  const centerY = 220;
 
   container.innerHTML = `
   <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
@@ -7497,67 +7562,28 @@ function render5W2HMindmap(viz, containerId) {
         ${badgeText}
       </div>
     </div>
-    <svg width="100%" viewBox="0 0 680 ${centerY + centerH + 160}"
-      role="img" aria-label="5W2H mindmap showing problem statement fields">
-
-      <!-- Center node -->
-      <rect x="220" y="${centerY}" width="240" height="${centerH}"
-        rx="14" fill="#0070BA" stroke="#005A96" stroke-width="1"/>
-      <text x="340" y="${centerY+16}" text-anchor="middle"
-        font-family="sans-serif" font-size="9" font-weight="700"
-        fill="#A8CDE8" letter-spacing="0.08em">PROBLEM STATEMENT</text>
-      ${summaryLines.map((line, i) =>
-        `<text x="340" y="${centerY + 32 + (i*15)}" text-anchor="middle"
-          font-family="sans-serif" font-size="11" font-weight="600"
-          fill="#fff">${line}</text>`
-      ).join('')}
-
-      <!-- Connectors -->
-      <line x1="262" y1="${centerY+6}" x2="144" y2="${centerY-76}"
-        stroke="#0070BA" stroke-width="1.5"
-        ${!fields.what ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
-      <line x1="316" y1="${centerY}" x2="278" y2="${centerY-110}"
-        stroke="#0070BA" stroke-width="1.5"
-        ${!fields.where ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
-      <line x1="400" y1="${centerY+2}" x2="500" y2="${centerY-86}"
-        stroke="#0070BA" stroke-width="1.5"
-        ${!fields.when ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
-      <line x1="460" y1="${centerY + centerH/2}" x2="538" y2="${centerY + centerH/2}"
-        stroke="#0070BA" stroke-width="1.5"
-        ${!fields.who_affected ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
-      <line x1="430" y1="${centerY+centerH-10}" x2="498" y2="${centerY+centerH+76}"
-        stroke="#0070BA" stroke-width="1.5"
-        ${!fields.why_it_matters ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
-      <line x1="340" y1="${centerY+centerH}" x2="340" y2="${centerY+centerH+78}"
-        stroke="${fields.how_shows_up ? '#0070BA' : 'var(--color-text-tertiary)'}"
-        stroke-width="1.5"
-        ${!fields.how_shows_up ? 'stroke-dasharray="5 4"' : ''}/>
-      <line x1="268" y1="${centerY+centerH-8}" x2="196" y2="${centerY+centerH+76}"
-        stroke="#0070BA" stroke-width="1.5"
-        ${!fields.how_much_baseline ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
-
-      <!-- Branch nodes -->
-      ${node('WHAT', fields.what, 100, centerY-60, 124, 44)}
-      ${node('WHERE', fields.where, 278, centerY-106, 172, 44)}
-      ${node('WHEN', fields.when, 552, centerY-82, 124, 44)}
-      ${node('WHO AFFECTED', fields.who_affected, 602, centerY+centerH/2-8, 128, 44)}
-      ${node('WHY IT MATTERS', fields.why_it_matters, 522, centerY+centerH+80, 156, 44)}
-      ${node('HOW IT SHOWS UP', fields.how_shows_up, 340, centerY+centerH+82, 220, 44)}
-      ${node('HOW MUCH', fields.how_much_baseline, 134, centerY+centerH+80, 152, 44)}
-
-      <!-- Legend -->
-      <rect x="22" y="${centerY+centerH+148}" width="14" height="14"
-        rx="3" fill="#EAF4FC" stroke="#A8CDE8" stroke-width="0.5"/>
-      <text x="42" y="${centerY+centerH+159}"
-        font-family="sans-serif" font-size="11"
-        fill="var(--color-text-secondary)">Captured</text>
-      <rect x="120" y="${centerY+centerH+148}" width="14" height="14"
-        rx="3" fill="none" stroke="var(--color-text-tertiary)"
-        stroke-width="1" stroke-dasharray="4 3"/>
-      <text x="140" y="${centerY+centerH+159}"
-        font-family="sans-serif" font-size="11"
-        fill="var(--color-text-secondary)">Not yet captured</text>
-    </svg>
+    <div class="mm5" role="img" aria-label="5W2H mindmap showing problem statement fields"
+      style="display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr));
+      grid-template-areas:'what where when' 'who centre much' 'why how how'">
+      <div style="grid-area:centre;background:#0070BA;border:1px solid #005A96;border-radius:14px;
+        padding:10px 12px;align-self:center">
+        <div style="font-size:9px;font-weight:700;letter-spacing:0.08em;color:#A8CDE8">PROBLEM STATEMENT</div>
+        <div style="font-size:12px;font-weight:600;line-height:1.4;color:#fff;margin-top:3px;${wrap}">${esc(summary)}</div>
+      </div>
+      ${node('WHAT', fields.what, 'what')}
+      ${node('WHERE', fields.where, 'where')}
+      ${node('WHEN', fields.when, 'when')}
+      ${node('WHO AFFECTED', fields.who_affected, 'who')}
+      ${node('HOW MUCH', fields.how_much_baseline, 'much')}
+      ${node('WHY IT MATTERS', fields.why_it_matters, 'why')}
+      ${node('HOW IT SHOWS UP', fields.how_shows_up, 'how')}
+    </div>
+    <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--color-text-secondary,#6B6963)">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;
+        background:#EAF4FC;border:0.5px solid #A8CDE8"></span> Captured</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;
+        border:1px dashed var(--color-text-tertiary,#9A9890)"></span> Not yet captured</span>
+    </div>
   </div>`;
 
   window[`_lastViz_${containerId}`] = viz;
@@ -7777,7 +7803,7 @@ function renderRightPanel(){
       <div class="gate-ttl">What's needed to move forward</div>
       <div class="gr wait"><i class="ti ti-clock"></i>Conversation not yet started</div>
     </div>
-    <button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review ↗</button>`;
+    ${gateSubmitButtonHtml('gate-submit', ' ↗')}`;
 }
 
 function updateRightPanel(resp){
@@ -7880,7 +7906,7 @@ function updateRightPanel(resp){
   }
   // If no missing fields info at all: show nothing (gate section hidden until Submit is clicked)
 
-  html += `<button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review →</button>`;
+  html += gateSubmitButtonHtml('gate-submit', ' →');
   document.getElementById('rp-content').innerHTML = html;
   renderSteps();
 }

@@ -73,7 +73,7 @@ from backend.core import content_safety, guard, guard_messages, pii
 from backend.middleware import fallback as model_fallback
 from backend.middleware import turn_tools
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S, settings
-from backend.core.conversation import CARD_KEY, ELEMENT_KEY, STRIP_KEY, message_to_turn  # ADR-0093
+from backend.core.conversation import CARD_KEY, COMPLETION_KEY, ELEMENT_KEY, STRIP_KEY, message_to_turn  # ADR-0093
 from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
 from backend.core.prompts import (
@@ -1812,6 +1812,54 @@ def _teach_next(phase: str, plan: Optional[CoachingPlan], reply: CoachingRespons
     return reply.model_copy(update=update)
 
 
+#: DEF-220 (G-221, founder test finding 50) — words that present a sample: the coach writes none of its own (G-170's is
+#: the script's, inserted by code).
+_SAMPLE_INTRO = re.compile(r"(?<![a-z])(for example|for instance|e\.g\.|an example|example:|illustration|"
+                           r"let me show|a good (?:answer|goal|statement) (?:looks|might look|could look|would look))"
+                           r"(?![a-z])", re.I)
+
+
+def _lead_in_only(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse, opening: bool,
+                  belt: str = "") -> CoachingResponse:
+    """DEF-220 (G-221; founder test finding 50 and the founder's reply shape): on a teaching move whose explanation
+    block is shown, the coach's own STATEMENTS are one lead-in sentence — the first that names the element in focus,
+    else the first that presents no sample. The explanation lives once, in its block (WHY IT MATTERS); the sample is
+    the script's, so a sentence presenting one of the coach's own goes. Kept whole: a question (G-171 owns repeats of
+    the ask), a list item, and a sentence holding the Belt's own words (G-185). The phase's opening turn (the welcome)
+    is left whole, and so is a message with no lead-in. Returns a COPY, or `reply`."""
+    if (opening or plan is None or plan.move not in TEACHING_MOVES or not plan.focus_field
+            or not str(reply.explanation or "").strip()):
+        return reply
+    from backend.core import guard_messages
+    name = {w for w in re.findall(r"[a-z]+", guard_messages.element_name(phase, plan.focus_field).lower()) if len(w) > 3}
+    own = _plain(belt)
+
+    def kept_whole(sentence: str) -> bool:
+        p = _plain(sentence)
+        return sentence.rstrip().endswith("?") or (bool(own) and len(p) > 15 and p in own)
+
+    def sample(sentence: str) -> bool:
+        return bool(_SAMPLE_INTRO.search(sentence)) or sentence.lstrip().startswith(('"', "“", ">"))
+    lines = str(reply.message or "").split(chr(10))
+    statements = [s for line in lines if not _LIST_ITEM.match(line)
+                  for s in _SENTENCE_END.split(line) if s.strip() and not kept_whole(s)]
+    plain = [s for s in statements if not sample(s) and not s.rstrip().endswith(":")]
+    lead = next((s for s in plain if name & set(re.findall(r"[a-z]+", s.lower()))), plain[0] if plain else "")
+    if not lead:
+        return reply
+    out: list[str] = []
+    for line in lines:
+        if _LIST_ITEM.match(line):
+            out.append(line)
+            continue
+        out.append(" ".join(s for s in _SENTENCE_END.split(line) if s == lead or kept_whole(s)).strip())
+    message = re.sub(r"\n{3,}", chr(10) * 2, chr(10).join(out)).strip()
+    if message == str(reply.message or "").strip():
+        return reply
+    logger.info("%s.executor: DEF-220 — the coach's own statements on `%s` cut to the lead-in", phase, plan.focus_field)
+    return reply.model_copy(update={"message": message})
+
+
 #: ADR-0074 — a criterion's page reference in the method book ("(p. 49)") is the coach's, not the Belt's.
 _BOOK_PAGE = re.compile(r"\s*\(p\.[^)]*\)")
 
@@ -3074,7 +3122,12 @@ async def executor(
             reply = _with_teaching_blocks(phase, plan, reply, gaps)
         if written is None and not fell_back:
             # G-175 (founder ruling A6) — after a store, the reply teaches the next element.
-            taught = _teach_next(phase, plan, reply)
+            # DEF-220: the welcome is the phase's first element taught with no coach reply before it.
+            opening = (not any(isinstance(m, AIMessage) for m in (state.get("messages") or []))
+                       and plan is not None and plan.focus_field == next(iter(moves.positions(phase)), ("",))[0])
+            belt = chr(10).join([*(m.text for m in (state.get("messages") or []) if isinstance(m, HumanMessage)),
+                                 str(plan.answer or "") if plan else ""])
+            taught = _lead_in_only(phase, plan, _teach_next(phase, plan, reply), opening=opening, belt=belt)
             if taught.message != reply.message:
                 new_messages = _with_text(new_messages, str(taught.message))
             reply = taught
@@ -3542,11 +3595,26 @@ async def executor(
             if limit_diagnosis is not None:
                 record["limit"] = limit_diagnosis          # G-139: the run record reads it here
     feedback = _quality_feedback(grader_log)
+    completion = None
+    if (phase == "define" and record is not None and record.get("move") == moves.STORE_AND_ADVANCE
+            and record.get("stored_field") and plan is not None and not plan.focus_field and not fell_back):
+        # DEF-212 (G-213): the last Confirm of Define — every element confirmed, none left in focus. The reply is
+        # written in code: what was stored, that all are confirmed, and the completion card's steps in order —
+        # never the coach's own word on approving before anything was submitted.
+        from backend.core.prompts import DEFINE_COMPLETE_CARD, DEFINE_COMPLETE_LINE
+        done = (f"{STORE_NOTE_STORED.format(elements=guard_messages.element_name(phase, record['stored_field']))}"
+                f"{chr(10) * 2}{DEFINE_COMPLETE_LINE.format(n=len(DEFINE_FIELD_ORDER))}")
+        new_messages = _with_text(new_messages, done)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": done})
+        completion = {"title": DEFINE_COMPLETE_CARD["title"], "steps": list(DEFINE_COMPLETE_CARD["steps"])}
     _attach_move(new_messages, record, feedback)
     card, strip = _element_card(phase, record, artifacts, plan)
     if card is None and sample_challenge and short and plan is not None:
         card = _short_card(phase, plan.focus_field, pending, artifacts)
     _attach_card(new_messages, card, strip, _reply_element(phase, record))
+    if completion is not None:
+        next(m for m in reversed(new_messages) if isinstance(m, AIMessage)).additional_kwargs[COMPLETION_KEY] = completion
 
     # **The count that used to disagree with the write, reconciled.** This
     # line logged `len(captured)` — the KEYS the coach named — while the write

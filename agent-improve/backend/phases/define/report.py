@@ -45,7 +45,7 @@ FIVE_W_TWO_H_QUESTIONS: dict[str, str] = {
 REPORT_SECTIONS: tuple[tuple[int, str, tuple[str, ...]], ...] = (
     (1, "Project and team", ("team",)),
     (2, "Business case and benefits", ("business_case", "benefits_analysis")),
-    (3, "Problem, objective and scope", ("problem_5w2h", "problem_statement",
+    (3, "Problem, goal and scope", ("problem_5w2h", "problem_statement",
                                          "goal_statement", "project_scope")),
     (4, "Voice of the customer and CTQs", ("voc_summary", "critical_to_quality")),
     (5, "Metrics", ("metric_definitions", "baseline_estimate", "target_value",

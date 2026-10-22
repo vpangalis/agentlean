@@ -787,7 +787,9 @@ def gate_view(artifacts: dict[str, Any], field_status: dict[str, Any] | None = N
                 c["view"] = view
         done = sum(1 for c in cards if c["status"] == "confirmed")
         sections.append({"letter": SECTION_LETTERS[i], "title": title, "elements": cards,
-                         "status": ("confirmed" if done == len(cards) else "open" if not done
+                         # DEF-197 (gate_view_mockup.html): a section of several elements counts them, also when
+                         # all are confirmed ("3 of 3 confirmed"); one element reads its own status.
+                         "status": ("open" if not done else "confirmed" if len(cards) == 1
                                     else f"{done} of {len(cards)} confirmed")})
     still = [{"n": number_of(f), "name": name_of(f), "field": f} for f in DEFINE_FIELD_ORDER
              if _status(f, artifacts, field_status) != "confirmed"]

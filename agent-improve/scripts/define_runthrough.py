@@ -275,7 +275,7 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             "stored_types": {k: type(v).__name__ for k, v in structured.items()},
             "reply": {k: rb.get(k) for k in ("answer", "explanation", "example", "prompt",
                                              "progress", "move", "move_field", "grader_warning",
-                                             "sipoc_diagram", "visualisation")},
+                                             "sipoc_diagram", "visualisation", "completion_card")},
             "gate_status": rb.get("gate_status"),
             "readback_card": card_record(rb.get("readback_card")),   # item 5, 2026-10-20 (DEF-231)
             "fallback": bool(mrec.get("fallback")),

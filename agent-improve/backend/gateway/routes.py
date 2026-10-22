@@ -972,6 +972,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         readback_card=extra.get(conversation.CARD_KEY),
         confirmed_strip=extra.get(conversation.STRIP_KEY),
         reply_element=extra.get(conversation.ELEMENT_KEY),
+        completion_card=extra.get(conversation.COMPLETION_KEY),
     )
 
 
@@ -1261,6 +1262,8 @@ async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResp
         document=document,
         report=report,
         awaiting_decision=(phase == "define" and await _awaiting_decision(case, phase)),
+        # R11 (DEF-101): the approval stamp, written once on the transition (`blob.write_phase_gate`).
+        approved_at=(record.submitted_at if record is not None and record.gate_passed else None),
         field_counts={
             "total": len(rows),
             "tier_1": len(spec.tier_1),

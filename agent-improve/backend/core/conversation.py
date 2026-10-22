@@ -81,7 +81,10 @@ QUALITY_FEEDBACK_KEY = "quality_feedback"
 CARD_KEY, STRIP_KEY = "readback_card", "confirmed_strip"
 #: ADR-0093 (DEF-196) — the element a reply works on, "Element n of 13 · name".
 ELEMENT_KEY = "reply_element"
-TURN_RECORD_KEYS: tuple[str, ...] = (MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY, CARD_KEY, STRIP_KEY, ELEMENT_KEY)
+#: DEF-212 — the completion card after Define's last Confirm: what the team does next, in order.
+COMPLETION_KEY = "completion_card"
+TURN_RECORD_KEYS: tuple[str, ...] = (MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY, CARD_KEY, STRIP_KEY, ELEMENT_KEY,
+                                     COMPLETION_KEY)
 
 
 def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
@@ -173,6 +176,7 @@ __all__ = [
     "CARD_KEY",
     "STRIP_KEY",
     "ELEMENT_KEY",
+    "COMPLETION_KEY",
     "TURN_RECORD_KEYS",
     "message_to_turn",
     "turn_to_message",

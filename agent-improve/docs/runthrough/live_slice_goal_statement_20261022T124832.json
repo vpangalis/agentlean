@@ -1,0 +1,82 @@
+{
+ "kind": "live_slice",
+ "element": "goal_statement",
+ "case_id": "IMPR-2026-EPUDZM",
+ "from_record": "define_runthrough_20261022T111027.json",
+ "recorded_product_hash": "183cdfab0d3cc07c",
+ "product_hash": "4bb8549a8d7f1970",
+ "seeded": [
+  "baseline_estimate",
+  "business_case",
+  "critical_to_quality",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 18,
+   "belt": "Reduce the late payment rate from 23% to under 5% by 31 March 2027.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "goal_statement",
+   "recorded_move": "read_back"
+  },
+  {
+   "n": 19,
+   "belt": "Nearly — reduce the late payment rate from 23% to under 5% by 31 March 2027, and keep it under 5% for three months after that.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "goal_statement",
+   "recorded_move": "read_back"
+  },
+  {
+   "n": 20,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "read_back",
+   "move_field": "target_value",
+   "recorded_move": "read_back"
+  }
+ ],
+ "checks": {
+  "the element's recorded turns were found": true,
+  "a turn stored the element and moved on": true,
+  "the element is in the case record": true
+ },
+ "passed": true,
+ "model_calls": 6,
+ "cost": {
+  "usd": 0.0385,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0378,
+   "gpt-4o-mini-2024-07-18": 0.0007
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 31.27,
+  "calls": 96,
+  "case": {
+   "seconds": 0.48,
+   "calls": 8
+  },
+  "store": {
+   "seconds": 0.44,
+   "calls": 9
+  },
+  "checkpoint": {
+   "seconds": 30.35,
+   "calls": 79
+  }
+ },
+ "started": "20261022T124832"
+}

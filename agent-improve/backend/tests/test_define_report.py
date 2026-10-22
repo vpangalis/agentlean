@@ -75,7 +75,7 @@ def test_the_report_has_r5s_seven_sections_in_order() -> None:
     rep = define_report(COMPLETE, {"title": "AP"}, [])
     assert [(s["n"], s["title"]) for s in rep["sections"]] == [
         (1, "Project and team"), (2, "Business case and benefits"),
-        (3, "Problem, objective and scope"), (4, "Voice of the customer and CTQs"),
+        (3, "Problem, goal and scope"), (4, "Voice of the customer and CTQs"),
         (5, "Metrics"), (6, "High-level process (as-is)"), (7, "Issues and barriers")]
     assert rep["complete"] and rep["missing"] == []
     assert all(s["complete"] for s in rep["sections"])
@@ -214,7 +214,7 @@ def _render(report: dict, passed: bool = False) -> str:
         pytest.skip("node is not installed — the report cannot be rendered; this is NOT a pass")
     src = UI.read_text(encoding="utf-8")
     js = (_fn(src, "escapeHtml") + "\n" + _fn(src, "benefitTimelineHtml") + "\n" + _fn(src, "elementValueHtml")
-          + "\n" + _fn(src, "elementRowsHtml") + "\n" + _fn(src, "defineReportHtml")
+          + "\n" + _fn(src, "elementRowsHtml") + "\n" + _fn(src, "reportPrintHead") + "\n" + _fn(src, "defineReportHtml")
           + f"\nprocess.stdout.write(defineReportHtml({json.dumps(report)}, {json.dumps(passed)}));")
     # The script on stdin, never `-e`: a report (ADR-0093's Gate view) outgrows Windows' 32K command line.
     out = subprocess.run([node], input=js, capture_output=True, text=True, encoding="utf-8")

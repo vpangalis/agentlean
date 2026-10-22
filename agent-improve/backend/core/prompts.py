@@ -565,6 +565,13 @@ OFFER_ASK = "Is this right? Confirm to store it, or Change to give it again."
 #: G-117 (DEF-156) — the only sentences that tell the Belt what was stored, written by
 #: `phases/nodes_common._store_truth` from the storage result, never by the coach model.
 STORE_NOTE_STORED = "Stored: {elements}."
+#: DEF-212 (G-213, founder findings 67 and 81) — after Define's last Confirm, written in code: one line, then the
+#: completion card's steps in the order the team takes them (submit before any decision).
+DEFINE_COMPLETE_LINE = "All {n} elements are confirmed."
+DEFINE_COMPLETE_CARD = {"title": "Define is ready for your team", "steps": [
+    "Open the Gate tab and read the Define report with your team.",
+    "Press “Submit for gate review”.",
+    "Your team decides: approve the report to close Define, or reject it and name what needs to change."]}
 #: G-118 (DEF-157) — a part of the element carried from an earlier read-back, shown under this one
 #: so the Belt confirms it too (written by `phases/nodes_common._with_carried`).
 READ_BACK_CARRIED = "Also kept from your earlier answer — {name}: {value}"

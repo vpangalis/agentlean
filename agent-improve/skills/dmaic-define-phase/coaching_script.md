@@ -108,7 +108,7 @@
 **[7 · goal_statement · required]**
 > **What it is:** The objective statement: how much improvement the project will deliver, on the primary metric, by when.
 > **Why it matters:** It makes success unambiguous. It mirrors the problem — same metric — so everyone knows what "done" means.
-> **Show (illustration — not your data):** *"Reduce the invoice error rate from 12% to under 3% by 30 September 2026."*
+> **Show (illustration — not your data):** *"Reduce the invoice error rate from 12% to under 3% by 30 June next year."*
 > **Ask:** Taking your primary metric — from where to where, and by when?
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `same-metric` — uses the primary metric of the problem (p. 52)
@@ -129,7 +129,7 @@
 **[9 · target_date · required]**
 > **What it is:** The date the project plans to finish.
 > **Why it matters:** A stated date makes the project a project rather than an intention. If it slips, that does not change whether the improvement worked.
-> **Show (illustration — not your data):** *"30 September 2026."*
+> **Show (illustration — not your data):** *"30 June next year."*
 > **Ask:** What is your planned completion date?
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `a-date` — a calendar date, in the future (p. 52)
@@ -138,7 +138,7 @@
 **[10 · benefits_analysis · required]**
 > **What it is:** The benefits analysis: what the gap costs today (the cost of poor quality), whether the gain is sustainable (every year) or one-off, when the money will be realised, and who in finance validates the figure.
 > **Why it matters:** It establishes the value of the project in terms finance will accept. A figure a finance representative has checked is one the champion can defend.
-> **Show (illustration — not your data):** *"Cost of the gap: about €11k a year in rework (4,200 invoices, 12% → 3%, about €30 each), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from Q4 2026, about €2.7k a quarter. Finance contact: Priya Shah, management accountant."*
+> **Show (illustration — not your data):** *"Cost of the gap: about €11k a year in rework (4,200 invoices, 12% → 3%, about €30 each), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from the first full quarter after the change, about €2.7k a quarter. Finance contact: Priya Shah, management accountant."*
 > **Ask:** What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When would it start to show, period by period? Who in finance will validate it?
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `cost-of-gap` — quantifies what the gap costs (COPQ), with how it was worked out (p. 60)

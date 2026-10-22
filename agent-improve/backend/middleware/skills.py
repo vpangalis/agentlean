@@ -482,15 +482,22 @@ class DMAICSkillsMiddleware(AgentMiddleware):
 
         @tool
         def load_skill(name: str) -> str:
-            """Load the full coaching instructions for one DMAIC phase.
+            """Load the full coaching instructions for ANOTHER DMAIC phase.
 
-            Call this when you need the detailed method for a phase — the
-            field-by-field walk, the worked examples, the seven-step sequence
-            for its computation tools. Pass the phase name: define, measure,
-            analyse, improve or control. You start with descriptions only, so
-            this is how you get the rest.
+            The script of the phase you are coaching, for the element in
+            focus, is already in your instructions — never load it. Call this
+            only when a Belt's question reaches into another phase and you
+            need its method: the field-by-field walk, the worked examples, the
+            seven-step sequence for its computation tools. Pass the phase
+            name: define, measure, analyse, improve or control.
             """
             key = name.strip().lower().replace("dmaic-", "").replace("-phase", "")
+            if key == middleware.phase:
+                # DEF-023 (G-106): the coach's own phase is section 2 of the system message on every call (6.46,
+                # 6.61) — answered with a pointer, never fetched again into the conversation.
+                logger.info("load_skill: %s is this turn's own phase — not fetched (DEF-023)", key)
+                return (f"The {key} script for the element you are coaching is already in your instructions "
+                        "(section 2, the phase script). It is not loaded again — answer from it.")
             try:
                 body = instructions(key)
             except SkillNotFound:

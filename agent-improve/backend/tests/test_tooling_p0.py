@@ -329,3 +329,20 @@ def test_a_live_slice_replays_up_to_the_element_and_runs_only_it() -> None:
     out = live_slice.replay(Client(), "IMPR-X", plan)
     assert [s[1] for s in sent] == ["The team words", "The team, again", "Confirm"], sent
     assert out["passed"] and out["turns"][-1]["move"] == "store_and_advance", out
+
+    # 2026-10-22 (the goal's slice): a Confirm can store the element and move on with a read-back of the NEXT
+    # element (A8, the target read from the goal) — that passes; a Confirm that stays on the element does not.
+    def answering(move: str, field: str):
+        class C:
+            def post(self, url, json):
+                class R:
+                    status_code = 200
+
+                    @staticmethod
+                    def json():
+                        return ({"move": move, "move_field": field} if json.get("action") == "confirm"
+                                else {"move": "read_back", "move_field": "team"})
+                return R()
+        return C()
+    assert live_slice.replay(answering("read_back", "voc_summary"), "IMPR-X", plan)["passed"]
+    assert not live_slice.replay(answering("read_back", "team"), "IMPR-X", plan)["passed"]

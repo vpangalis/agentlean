@@ -307,7 +307,12 @@ def env(monkeypatch, stub_planner):
     async def write_phase_gate(**kw: Any):
         # As storage/blob.py::write_phase_gate does: the record passes and the case moves on.
         written.append(kw)
-        case.phases[kw["phase"]].gate_passed = True
+        record = case.phases[kw["phase"]]
+        if not record.gate_passed:                   # the approval stamp, on the transition only (DEF-101)
+            from datetime import datetime, timezone
+            record.submitted_by = kw.get("submitted_by")
+            record.submitted_at = datetime.now(timezone.utc).isoformat()
+        record.gate_passed = True
         order = list(PHASE_ORDER)
         i = order.index(kw["phase"])
         case.current_phase = order[i + 1] if i + 1 < len(order) else "complete"

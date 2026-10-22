@@ -59,8 +59,13 @@ def plan_slice(record: list[dict[str, Any]], element: str) -> dict[str, Any]:
 
 def replay(client: Any, case_id: str, plan: dict[str, Any]) -> dict[str, Any]:
     """The live half: each of the element's recorded messages sent, in order, through POST /ask. Passed when a turn
-    stored the element and moved on (store_and_advance)."""
+    stored the element and moved on: a store_and_advance, or a Confirm whose reply is on another element (the goal's
+    Confirm reads the target back from it, A8 — 2026-10-22)."""
     out: list[dict[str, Any]] = []
+
+    def moved_on(x: dict[str, Any]) -> bool:
+        return x["move"] == "store_and_advance" or (
+            x.get("action") == "confirm" and x["http"] == 200 and x.get("move_field") not in (None, plan["element"]))
     for t in plan["turns"]:
         body = {"case_id": case_id, "phase": "define", "user": USER, "message": t["belt"],
                 **({"action": t["action"]} if t.get("action") else {})}
@@ -69,9 +74,9 @@ def replay(client: Any, case_id: str, plan: dict[str, Any]) -> dict[str, Any]:
         out.append({"n": t["n"], "belt": t["belt"][:200], "action": t.get("action"), "http": r.status_code,
                     "move": got.get("move"), "move_field": got.get("move_field"),
                     "recorded_move": t.get("recorded_move")})
-        if got.get("move") == "store_and_advance":
+        if moved_on(out[-1]):
             break
-    return {"turns": out, "passed": any(x["move"] == "store_and_advance" for x in out)}
+    return {"turns": out, "passed": any(moved_on(x) for x in out)}
 
 
 def _latest_record() -> Path:
