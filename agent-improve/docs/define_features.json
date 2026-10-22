@@ -3015,7 +3015,9 @@
      "34",
      "35"
     ],
-    "gaps": []
+    "gaps": [
+     "G-249"
+    ]
    },
    "requirement": "R1",
    "belt_impact": "degraded",

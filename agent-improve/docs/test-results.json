@@ -1,9 +1,9 @@
 {
- "source_hash": "d56cea510f102ebf",
- "commit": "f65f4e7",
+ "source_hash": "f4d8f4ac95e596dc",
+ "commit": "a980a6e",
  "commit_matches_source": false,
  "full_run_hash": "d56cea510f102ebf",
- "recorded_at": "2026-10-22T18:05:12+00:00",
+ "recorded_at": "2026-10-22T18:22:12+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -61,6 +61,7 @@
   "backend/tests/test_board_value_stream.py::test_the_sum_of_the_list_is_total_minus_done_for_every_milestone": "passed",
   "backend/tests/test_board_value_stream.py::test_waiting_on_you_reads_its_file_and_an_empty_file_hides_the_box": "passed",
   "backend/tests/test_capability_rows.py::test_g152_a_trace_past_retention_is_not_read_as_missing": "passed",
+  "backend/tests/test_capability_rows.py::test_g249_a_row_reads_the_case_as_the_app_reloads_it": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_10_a_row_short_a_key_is_red": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_11_a_metric_entry_that_does_not_mirror_is_red": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_12_a_challenge_naming_no_criterion_is_red": "passed",

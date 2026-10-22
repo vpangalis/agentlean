@@ -3114,6 +3114,20 @@
     "A"
    ],
    "escape_class": "xfail_mask"
+  },
+  {
+   "id": "G-249",
+   "symptom": "CAPABILITY ROW 18 HAS NO SUBJECT ON THE RUN-THROUGH'S CASE, SO DEF-064 HAS NEVER PASSED. Run 173804 (IMPR-2026-YDD8SZ, 2026-10-22): 'skipped: IMPR-2026-YDD8SZ has captured nothing — row 18 has no subject', while the run had confirmed 12 elements; every recorded run since DEF-064 was written reads the same. The run-through runs the rows while the case is still in Define (DEF-064, A+, founder 2026-10-14); since T13 (ADR-0066) the blob holds no confirmed value until approval. D4 OCCURRENCE: row 18 read the blob alone (blob.load_case) where every other live row reads the case as the app reloads it (_load_case: the blob with the checkpoint's unfinished work, added for DEF-064 on 2026-10-15). D4 ESCAPE: the row's skip was reported, honestly, as not green, and it read like the other open rows; nothing checked that every row reads through the same path. D5 FIX: row 18 reads through _case_or_skip (_load_case). D6 VERIFY: on IMPR-2026-YDD8SZ at its last pre-approval checkpoint (1f1ce40f-47ff-6d8b-808d-76fda4fa8155) the reload holds 17 captured values and row 18 passes; DEF-064 passes only on the next live run's record. D7 PREVENT: test_capability_rows.py::test_g249_a_row_reads_the_case_as_the_app_reloads_it (on HEAD's file it names test_row_18).",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-064"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {

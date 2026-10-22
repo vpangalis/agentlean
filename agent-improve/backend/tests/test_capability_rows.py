@@ -1081,23 +1081,14 @@ def test_row_18_captured_values_carry_their_declared_type() -> None:
     structured fields as prose.
     """
     from backend.phases.gate_registry import split_by_declared_type
-    from backend.storage import blob
-    case_id = os.environ.get("CAPABILITY_CASE_ID", "IMPR-2026-0E5")
 
-    if not blob.storage_configured():
-        pytest.skip(
-            "no storage configured, so row 18 CANNOT BE EVALUATED. A skipped "
-            "row is not a green row (Appendix H) — run against a real case."
-        )
-
-    case = asyncio.run(blob.load_case(case_id))
-    if case is None:
-        pytest.skip(f"{case_id} not found — row 18 cannot be evaluated")
-
+    # G-249: the case as the app reloads it (`_case_or_skip`, ADR-0066) — the blob alone holds no confirmed
+    # value of a case still in Define (T13), which is where the run-through runs the rows (DEF-064, A+).
+    case = _case_or_skip(18)
     record = case.phases.get("define")
     captured = dict((record.structured or {}) if record else {})
     if not captured:
-        pytest.skip(f"{case_id} has captured nothing — row 18 has no subject")
+        pytest.skip(f"{CASE_ID} has captured nothing — row 18 has no subject" + NOT_A_PASS)
 
     _, malformed = split_by_declared_type("define", captured)
     assert not malformed, (
@@ -1106,3 +1097,17 @@ def test_row_18_captured_values_carry_their_declared_type() -> None:
         + f" — of {len(captured)} captured field(s). A gate document cannot "
           "be assembled from these."
     )
+
+
+def test_g249_a_row_reads_the_case_as_the_app_reloads_it() -> None:
+    """G-249: a row on the run-through's case runs while it is still in Define (DEF-064, A+), when the blob holds
+    no confirmed value (T13). So no row reads the blob alone: `_load_case` (the app's reload, ADR-0066) is the one
+    reader of a live case; `_live_record` reads a WRITTEN gate document, which only the blob holds."""
+    import ast
+    import inspect
+    import sys as _sys
+
+    tree = ast.parse(inspect.getsource(_sys.modules[__name__]))
+    readers = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and any(isinstance(c, ast.Attribute) and c.attr == "load_case" for c in ast.walk(node))}
+    assert readers <= {"_load_case", "_live_record", "reloaded"}, readers
