@@ -3036,6 +3036,11 @@ def test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3() -> No
     assert len(failed) == 6 and any("moves differ" in f for f in failed) and any("rubric" in f for f in failed), failed
     assert ev.pass_k([{"passed": True}] * 3) and not ev.pass_k([{"passed": True}, {"passed": False}, {"passed": True}])
     assert ev.human_sample({"A": True, "B": False, "C": True}, every=2) == ["A", "B"]
+    # Founder marks 2026-10-23 (E04): every group of words must be met by one of its words.
+    both = {**task, "expect": {"reply_contains_each_any": [["upload", "attach"], ["type", "typing"]]}}
+    assert ev.grade(both, {"replies": [{"answer": "Please upload it, or type the team here."}]})["passed"]
+    assert ev.grade(both, {"replies": [{"answer": "Please upload the file."}]})["failed"] == [
+        "reply has none of ['type', 'typing']"]
 
     tasks = ev.load()
     defects = {d["id"] for d in json.loads((root / "docs" / "defects.json").read_text(encoding="utf-8"))["defects"]}
@@ -3043,7 +3048,94 @@ def test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3() -> No
     assert all(t["source"] in defects for t in tasks), [t["source"] for t in tasks if t["source"] not in defects]
     unmarked = [t["id"] for t in tasks if t["status"] not in ev.MARKS]
     assert not unmarked, f"the founder has not marked these tasks keep / change / drop yet: {unmarked}"
-    assert 20 <= sum(t["status"] == "keep" for t in tasks) <= 50
+    # The final set is the kept and the changed tasks (the marking table, founder 2026-10-23); a dropped one never runs.
+    assert ev.FINAL == ("keep", "change") and 20 <= sum(t["status"] in ev.FINAL for t in tasks) <= 50
+    assert all(t.get("mark") for t in tasks), "each task carries the founder's mark in words"
+
+
+def test_g251_an_eval_run_records_each_trial_and_seeds_on_the_apps_own_loop(tmp_path, monkeypatch) -> None:
+    """G-251 (founder 2026-10-23): the eval run of 12:21 ran its 60 trials and hung at exit with no record. Each
+    trial's result is written as it finishes and the summary before the app shuts down (run_all, inside the client
+    block); a case is seeded on the app's own event loop (the TestClient's portal), never a fresh `asyncio.run`,
+    whose storage session was left on a dead loop ("SSL shutdown timed out", 58 in that run)."""
+    import asyncio
+    import json
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from scripts import define_evals as ev
+
+    out = tmp_path / "evals_x.json"
+    seen: list[int] = []
+
+    def fake_run(client, task, record):
+        if out.exists():
+            seen.append(sum(len(v) for v in json.loads(out.read_text(encoding="utf-8"))["runs"].values()))
+        return {"passed": task["id"] == "A", "failed": []}
+    monkeypatch.setattr(ev, "run_task", fake_run)
+    tasks = [{"id": "A"}, {"id": "B"}]
+    summary = ev.run_all(None, tasks, [], 2, out, {"kind": "evals", "k": 2}, lambda: {"model_calls": 7})
+    assert seen == [1, 2, 3], seen                       # each trial on disk before the next one starts
+    on_disk = json.loads(out.read_text(encoding="utf-8"))
+    assert on_disk == summary and on_disk["complete"] is True and on_disk["pass_k"] == 1, on_disk
+    assert on_disk["results"] == {"A": True, "B": False} and on_disk["model_calls"] == 7
+
+
+def test_g251_an_eval_case_is_seeded_on_the_apps_own_loop(monkeypatch) -> None:
+    """G-251: the seed runs on the TestClient's portal (the app's event loop), never on a loop of its own."""
+    import asyncio
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    import scripts.define_runthrough as rt
+    import scripts.live_slice as ls
+    from scripts import define_evals as ev
+    from types import SimpleNamespace
+
+    from backend.storage import blob
+    calls: list[str] = []
+
+    class Portal:
+        def call(self, fn):
+            calls.append("portal")
+            return asyncio.new_event_loop().run_until_complete(fn())
+
+    class Resp:
+        def __init__(self, data):
+            self.data, self.status_code = data, 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.data
+
+    class Client:
+        portal = Portal()
+
+        def post(self, url, json=None):
+            return Resp({"case_id": "C1"} if url == "/cases" else {"move": "read_back", "answer": "ok"})
+
+        def get(self, url):
+            return Resp({"phases": {"define": {"structured": {}}}})
+
+    case = SimpleNamespace(case_id="C1", phases={"define": SimpleNamespace(structured={}, field_status={})})
+
+    async def load(case_id):
+        return case
+
+    async def save(c):
+        calls.append("save")
+    monkeypatch.setattr(blob, "load_case", load)
+    monkeypatch.setattr(blob, "save_case", save)
+    def no_fresh_loop(*a, **k):
+        raise AssertionError("a fresh event loop")
+    monkeypatch.setattr(asyncio, "run", no_fresh_loop)
+    monkeypatch.setattr(ls, "plan_slice", lambda record, element: {"structured": {}, "field_status": {}})
+    monkeypatch.setattr(rt, "grader_entry", lambda case_id, text: None)
+    task = {"id": "A", "source": "G-1", "element": "team", "messages": [{"text": "hi"}], "expect": {"move": "read_back"}}
+    r = ev.run_task(Client(), task, [])
+    assert calls == ["portal", "save"] and r["passed"], (calls, r)
 
 
 def test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence() -> None:
@@ -8114,6 +8206,42 @@ def test_a_message_pointing_at_the_file_is_not_judged(env, monkeypatch, stub_pla
     calls = stub_planner.calls
     ask(message="The team is in the attached file, and Tom Okafor is our champion.")
     assert stub_planner.calls == calls + 1, "an answer with content of its own was not judged"
+
+
+def test_g250_a_message_pointing_at_a_file_with_none_attached_asks_for_it_or_typing(env, monkeypatch,
+                                                                                      stub_planner) -> None:
+    """G-250 — founder mark on eval E04 (2026-10-23): a message that only points at a file, when no file is attached to
+    the case, gets a reply that asks for the file first and offers typing the element as the alternative — written
+    in code, the coach's words not kept (live, it thanked the Belt for an upload that was never made). With a file
+    attached, the coach's reply stands."""
+    from backend.core.prompts import NO_FILE_ATTACHED
+    from backend.phases import moves
+    from backend.storage.models import UploadInterpretation, UploadRecord
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {"business_case": COMPLETE["business_case"]}
+    record.field_status = {"business_case": {"status": moves.CONFIRMED}, "team": {"status": moves.ASKED}}
+    record.uploads = []
+    _coach_saying(monkeypatch, "Thanks, I will read the team from your file.")
+    line = NO_FILE_ATTACHED.format(element="team")
+
+    def ask() -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                          "message": "Our project team is in the attached file."})
+        assert r.status_code == 200, r.text
+        return r.json()
+    body = ask()
+    assert body.get("move") == moves.RESPOND and body["answer"].strip() == line, body["answer"]
+    assert "attach" in line and "type" in line, line
+
+    up = UploadRecord(filename="team.csv", blob_path=f"uploads/{CASE_ID}/team.csv", uploaded_by=ACTOR,
+                      uploaded_at="2026-10-21T08:00:00+00:00", classification="purpose=Team list · spreadsheet",
+                      rows=5, evidence_index_id="abc123", summary="The project team.",
+                      interpretation=UploadInterpretation(summary="The project team.", source_filename="team.csv",
+                                                          source_blob_path=f"uploads/{CASE_ID}/team.csv"))
+    record.uploads = [up]
+    assert line not in ask()["answer"]
 
 
 def test_a_how_to_question_is_answered_and_the_element_resumes(env, monkeypatch, stub_planner) -> None:

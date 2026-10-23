@@ -693,6 +693,9 @@ TURN_DEADLINE_REPLY = ("That took longer than it should, so I stopped it before 
 #: hidden from the coach — the Belt is told, in code, at upload and when the coach's lookups read them.
 PII_HIDDEN_UPLOAD = ("Hidden from the coach before it read this file: {what}. Your file itself is unchanged; "
                      "the coach works without those details.")
+#: G-250 (founder mark on eval E04, 2026-10-23): a message that only points at a file, with no file on the case.
+NO_FILE_ATTACHED = ("I can't see a file attached to this case yet. Please attach it first — or, if you prefer, type "
+                    "the {element} here instead.")
 PII_HIDDEN_TURN = ("Some personal details in your files were hidden from me before I read them ({what}), "
                    "so I could not use them.")
 STORE_SHORT = ("Not stored yet: your answer for {element} still needs {missing}. Please add it in your own "

@@ -17,23 +17,23 @@ History and retired documents: `docs/_archive/`. Never cite them as current.
 
 ## Environment and gotchas
 
-- Use `agent-improve/.venv` only — the repo-root venv is stale.
+- Use `agent-improve/.venv` only; the root venv is stale.
 - Live model calls: at most 150 per prompt, diagnosis included, unless it says otherwise; ask first.
 - **Never run `./start.ps1`**: it hard-resets to `origin/main` and discards uncommitted work.
 - `.claude/` sits one level up, so every `paths:` glob is `agent-improve/...`; the OneDrive
   mirror does not carry `.claude/` — resolve files through git, never a directory listing.
-- `skills/` is Agent Improve's own DMAIC content, not Claude Code skills.
+- `skills/` holds Agent Improve's DMAIC content, not Claude Code skills.
 
 ## Session start
 
 Read `docs/CONTINUITY.md`'s status block and `git log --oneline -5`; run
-`python tools/control_board/features.py` (or `--lane <A|B|C|integrator>`); run the smoke
+`python tools/control_board/features.py` (`--lane` per lane); run the smoke
 test `pytest backend/tests/test_define_features.py -n 0`; take the top-ranked failing feature in
 your lane and make its end-to-end test pass. Never edit a feature to say it passes.
 
 ## How to test
 
-- While working, run the area's tests (serial, `-n 0`) when a change is complete, not after every edit.
+- While working, run the area's tests (serial, `-n 0`) once a change is done.
 - The full suite runs **once per commit**, in parallel, in the pre-commit hook. Never by hand.
 - The pre-flight (`.claude/hooks/preflight.py`) runs before every `git commit`: drift,
   types and tests of what the staged change reaches. A failure passes only if HEAD's record has it.
@@ -72,6 +72,7 @@ A claim about a file is made against that file at its repo path, read now — ne
 
 ## Reports
 
-A decision or explanation is a table or a diagram carrying the full detail, never prose
-threaded with section numbers; never a bare number or code ("6.20 — the write paths", never
-"6.20"). A claim about code quotes the lines with file and line number. Every report ends with its timing line from `.claude/logs/timing.jsonl`.
+A decision or explanation is a table or diagram with the full detail, never prose threaded with
+section numbers or a bare code ("6.20 — the write paths", never "6.20"). A claim about code
+quotes its lines (file, line).
+Every claim in a report carries its command and an output excerpt; a claim without them is marked unverified. Every report ends with its timing line from `.claude/logs/timing.jsonl`.

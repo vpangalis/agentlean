@@ -436,3 +436,5 @@ def test_g246_the_cost_of_the_gap_and_the_saving_are_two_figures_everywhere() ->
         show = next(line for line in text.splitlines() if "Cost of the gap: about" in line)
         assert "Cost of the gap: about €15.1k a year" in show and "Expected saving: about €11.3k a year" in show, \
             (name, show)
+        # Founder 2026-10-23 (the held fix): the realisation per quarter is the saving's, €11,340 ÷ 4 ≈ €2.8k.
+        assert f"about €{11340 / 4 / 1000:.1f}k a quarter" in show, (name, show)

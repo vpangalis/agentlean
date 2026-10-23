@@ -7577,7 +7577,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-210"
+     "G-210",
+     "G-250"
     ]
    },
    "requirement": "W5",

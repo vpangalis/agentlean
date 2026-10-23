@@ -3545,6 +3545,18 @@ async def executor(
         # ADR-0094 decision 2 (DEF-208): a file read back as a draft — the ask, written in code.
         from backend.core.prompts import UPLOAD_DRAFT_ASK
         new_messages = _with_code_line(new_messages, reply, UPLOAD_DRAFT_ASK)
+    if (plan is not None and move == moves.RESPOND and plan.reason == moves.POINTS_AT_FILE_REASON and plan.focus_field
+            and not (state.get("uploads") or []) and not resend and not refused):
+        # G-250 (founder mark on eval E04): it points at a file and none is attached — the reply is written in code:
+        # ask for the file first, or typing. The coach was not told there is no file (live, it thanked the Belt for
+        # an upload and said it cannot read files), so its words are not kept.
+        from backend.core import guard_messages as _names   # an alias: a bare import would make the name local
+        from backend.core.prompts import NO_FILE_ATTACHED
+        name = _names.element_name(phase, plan.focus_field)
+        no_file = NO_FILE_ATTACHED.format(element=name[:1].lower() + name[1:])
+        new_messages = _with_text(new_messages, no_file)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": no_file})
     if (located_line and move == moves.READ_BACK and pending is not None and not resend and not refused
             and not sample_challenge and not link_challenge):
         # DEF-211 (founder note under ADR-0078): the located steps, read back in code, for the read-back's Confirm.

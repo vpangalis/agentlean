@@ -1,0 +1,64 @@
+{
+ "kind": "evals",
+ "started": "20261023T101627",
+ "status": "final",
+ "ids": [
+  "E03",
+  "E04"
+ ],
+ "k": 1,
+ "tasks": 2,
+ "pass_k": 1,
+ "results": {
+  "E03": true,
+  "E04": false
+ },
+ "human_sample": [
+  "E03",
+  "E04"
+ ],
+ "runs": {
+  "E03": [
+   {
+    "case_id": "IMPR-2026-R5DYTT",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge",
+     "challenge"
+    ],
+    "rubric": [
+     "failed",
+     "failed"
+    ]
+   }
+  ],
+  "E04": [
+   {
+    "case_id": "IMPR-2026-SXZ5S2",
+    "passed": false,
+    "failed": [
+     "reply has none of ['type', 'typing', 'write it', 'list them']"
+    ],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ]
+   }
+  ]
+ },
+ "model_calls": 7,
+ "cost": {
+  "usd": 0.0574,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0561,
+   "gpt-4o-mini-2024-07-18": 0.0013
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "product_hash": "b49890424d7af8e5"
+}

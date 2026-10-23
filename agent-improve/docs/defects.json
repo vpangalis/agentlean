@@ -3128,11 +3128,40 @@
     "integrator"
    ],
    "escape_class": "path_test"
+  },
+  {
+   "id": "G-250",
+   "symptom": "WITH NO FILE ATTACHED, A MESSAGE POINTING AT A FILE IS ANSWERED AS IF ONE WERE THERE. Eval E04 (founder mark 2026-10-23: 'if no file is attached, the coach asks for the file first and offers typing the team as the alternative'), live diagnosis run evals_20261023T101627 (IMPR-2026-SXZ5S2): 'Our project team is in the attached file.' with no upload on the case got move respond and no offer to type the team. With the line added after the coach's words (run evals_20261023T101947) the coach's own words read 'Thank you for uploading the file with your project team details. However, ... I can't access or process uploaded files' — false on both counts. D4 OCCURRENCE: DEF-209 decides in code that the message points at a file, and the coach is told only that; whether a file exists was never part of the decision. D4 ESCAPE: DEF-209's test fakes the coach's words and never ran the case with no file; the live judge was not run on it. D5 FIX: when the move is respond for a file pointer and the case holds no upload, the reply is written in code (prompts.NO_FILE_ATTACHED: attach it first, or type the element here); the coach's words are not kept. With a file attached, the coach's reply stands. D6 VERIFY: test passes; the eval set's E04 runs live. D7 PREVENT: test_define_e2e.py::test_g250_a_message_pointing_at_a_file_with_none_attached_asks_for_it_or_typing; eval E04 (pass^3).",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-209"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test"
+  },
+  {
+   "id": "G-251",
+   "symptom": "THE EVAL RUN OF 2026-10-23 12:21 RAN ALL 60 TRIALS AND HUNG AT EXIT WITH NO RECORD. Log: 60 cases created and 69 POST /ask between 12:21:55 and 12:34:18, then 'Agent Improve shutting down' and nothing for four hours (process 327 alive at 16:33); no evals_* record. D4 OCCURRENCE: each trial seeded its case with a fresh asyncio.run, so the storage client opened a session on a loop that then died ('SSL shutdown timed out', 58 in the log), the case the repo had recorded once already (scripts/coaching_proof_656.py, dry run 1); and the record was written only after the app shut down. D4 ESCAPE: the harness had never run more than two tasks live; the two diagnosis runs exited. D5 FIX: the seed runs on the app's own loop (the TestClient's portal); run_all writes the record after each trial and the summary before the client block closes. D6 VERIFY: the results recovered offline from the 60 cases (evals_20261023T102155_baseline.json, 16 of 20 pass^3); a live run of E05 and E09 exited 0 in 56 s with 0 'Unclosed' and 0 'SSL shutdown' lines and a complete record.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "escape_class": "assumption",
+   "control": "test_define_e2e.py::test_g251_an_eval_run_records_each_trial_and_seeds_on_the_apps_own_loop, ::test_g251_an_eval_case_is_seeded_on_the_apps_own_loop"
   }
  ],
  "escape_controls": {
   "_about": "R-B change 2 (founder, 2026-10-20): the D7 action that now prevents each escape class recurring. Two defects in one class with no D7 here -> that D7 is owed before the next feature (tools/control_board/defects.py says which).",
   "error_routine": "R-B change 1, 2026-10-20: in tests T29's degraded-reply handler re-raises the node's failure unless the test is marked degraded_expected (backend/tests/conftest.py::_degraded_reply_raises)",
-  "xfail_mask": "G-247, audit wave 1 item 5 (founder ruling 2026-10-20, 'drop xfail once passed'): a feature test is xfail only until its feature enters the ratchet (backend/tests/conftest.py::pytest_collection_modifyitems, tools/control_board/features.py::measured_tests); from then on its regression fails the run"
+  "xfail_mask": "G-247, audit wave 1 item 5 (founder ruling 2026-10-20, 'drop xfail once passed'): a feature test is xfail only until its feature enters the ratchet (backend/tests/conftest.py::pytest_collection_modifyitems, tools/control_board/features.py::measured_tests); from then on its regression fails the run",
+  "path_test": "founder ruling 2026-10-23 afternoon, item 1d: the Define eval set (DEF-142; scripts/define_evals.py, each task three times, every run must pass) and the live slice per package (DEF-253; scripts/live_slice.py) run the real path on live models",
+  "join": "founder ruling 2026-10-23 afternoon, item 1d: one shared check function for the element check and the gate (G-244; parse.missing_parts called by rubric.py); one owner per rule follows in wave 2",
+  "assumption": "founder ruling 2026-10-23 afternoon, item 1d: the assumption rule in .claude/rules/planning.md — before coding a package, list its assumptions (framework, ADRs, repo rules), each probed by a test",
+  "claim": "founder ruling 2026-10-23 afternoon, item 1d: agent-improve/CLAUDE.md, Reports — every claim in a report carries its command and an output excerpt; a claim without them is marked unverified"
  }
 }

@@ -1,0 +1,47 @@
+{
+ "kind": "evals",
+ "started": "20261023T101947",
+ "status": "final",
+ "ids": [
+  "E04"
+ ],
+ "k": 1,
+ "tasks": 1,
+ "pass_k": 1,
+ "results": {
+  "E04": true
+ },
+ "human_sample": [
+  "E04"
+ ],
+ "runs": {
+  "E04": [
+   {
+    "case_id": "IMPR-2026-EWFRDD",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together: • Define — pin down the problem and who's solving it • Measure — get the real numbers • Analyse — find the true root cause • Improve — test and apply the fix • Control — make the gains stick Right now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nThank you for uploading the file with your project team details. However, I need you to provide the team information directly in this conversation, as I can't access or process uploaded files. Let me guide you on what to include:\n\n**What it is:** The project team: who leads, who sponsors, who owns the process, and who does the work — each with a name, a role and what they will do.\n**Why it matters:** A project needs people before it needs work. The champion clears obstacles and the process owner keeps the result after the project ends; without them a good fix fades.\n**Illustration:** \"Leader: Anna (Green Belt, runs the project). Champion: Mark, Finance Director (approves, removes blockers). Process owner: Jo, Billing Manager (owns the process). Members: two billing clerks (know the work). Training: the clerks need a half-day on data collection before Measure.\"\n\nCould you please provide the team details here? Specifically, who leads the project, who is the champion, who owns the process, who else is on the team, and whether anyone needs training to take part fully.\n\nI can't see a file attached to this case yet. Please attach it first — or, if you prefer, type the team here instead."
+    ]
+   }
+  ]
+ },
+ "model_calls": 2,
+ "cost": {
+  "usd": 0.0186,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0182,
+   "gpt-4o-mini-2024-07-18": 0.0004
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "product_hash": "764f9d8229897de0"
+}

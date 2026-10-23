@@ -1,0 +1,997 @@
+{
+ "kind": "evals",
+ "started": "20261023T102155",
+ "recovered": true,
+ "how": "graded offline from the 60 cases on 2026-10-23 (no model call); the run's process hung at shutdown and wrote no record; the rubric is the last turn's verdict",
+ "status": "final",
+ "k": 3,
+ "tasks": 20,
+ "trials_passed": {
+  "E01": 3,
+  "E02": 3,
+  "E03": 3,
+  "E04": 3,
+  "E05": 3,
+  "E06": 0,
+  "E07": 3,
+  "E08": 3,
+  "E09": 3,
+  "E10": 3,
+  "E11": 3,
+  "E12": 3,
+  "E13": 3,
+  "E14": 0,
+  "E15": 3,
+  "E16": 3,
+  "E17": 3,
+  "E18": 3,
+  "E19": 0,
+  "E20": 0
+ },
+ "model_calls": 186,
+ "cost": {
+  "usd": null,
+  "note": "not recorded (the process held it); 186 calls"
+ },
+ "regraded_from": "evals_20261023T102155_baseline.json",
+ "pass_k": 16,
+ "results": {
+  "E01": true,
+  "E02": true,
+  "E03": true,
+  "E04": true,
+  "E05": true,
+  "E06": false,
+  "E07": true,
+  "E08": true,
+  "E09": true,
+  "E10": true,
+  "E11": true,
+  "E12": true,
+  "E13": true,
+  "E14": false,
+  "E15": true,
+  "E16": true,
+  "E17": true,
+  "E18": true,
+  "E19": false,
+  "E20": false
+ },
+ "human_sample": [
+  "E01",
+  "E06",
+  "E07",
+  "E12",
+  "E14",
+  "E18",
+  "E19",
+  "E20"
+ ],
+ "runs": {
+  "E01": [
+   {
+    "case_id": "IMPR-2026-RXCTAL",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet me read back what you have for the business case: Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments cost us about EUR 62,000 a year in interest and lost early-payment discounts, and three key suppliers put us on stop twice this year. Is this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-RJFS8D",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nAcross our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments cost us about EUR 62,000 a year in interest and lost early-payment discounts, and three key suppliers put us on stop twice this year. Is this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-ANK2XG",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in **Define** — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet’s start with your **business case**. Here’s what you told me:\n\n\"Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026. Late payments cost us about EUR 62,000 a year in interest and lost early-payment discounts, and three key suppliers put us on stop twice this year.\"\n\nIs this right?"
+    ]
+   }
+  ],
+  "E02": [
+   {
+    "case_id": "IMPR-2026-S885RA",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You mentioned three barriers: the three sites use different approval routes, the ERP change freeze until January, and the AP team's year-end close in December, when nobody is free for workshops. Is this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-XPUMVQ",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Three barriers now: the three sites use different approval routes, the ERP change freeze until January, and the AP team's year-end close in December, when nobody is free for workshops. Is this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-TS6ZBB",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You mentioned three barriers: the three sites use different approval routes, the ERP change freeze until January, and the AP team's year-end close in December, when nobody is free for workshops. Is this right?"
+    ]
+   }
+  ],
+  "E03": [
+   {
+    "case_id": "IMPR-2026-GX2QBQ",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge",
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nOn issues and barriers: The answer you gave doesn't meet the acceptance criteria yet. Here's why: it needs to name specific roadblocks for this project, or explicitly state 'none identified at this stage' as a conscious answer. Examples of roadblocks could be data limitations, people availability, system constraints, or time pressures.",
+     "The answer you provided, 'Some barriers, I suppose,' does not meet the acceptance criteria for this field. To pass, it needs to name specific roadblocks for this project or explicitly state 'none identified at this stage' if that's the case. Specificity matters because it helps anticipate challenges and plan for them effectively. Common examples include missing historical data, limited team availability, system constraints, or tight timelines."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-PTG5A4",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge",
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nNaming roadblocks now is what separates projects that finish from projects that stall. The usual ones: no historical data, no time to collect it, figures that are only a best guess, poor systems, a scope that is too broad.",
+     "Your answer mentions 'some barriers,' but it doesn't yet specify what they are or explicitly state 'none identified at this stage.' To meet the acceptance criterion for this field, the issues and barriers need to be specific to your project. For example, you might name challenges with data availability, team capacity, system limitations, or time constraints. If there are genuinely no barriers, that's fine too — simply state 'none identified at this stage' as a conscious answer."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-NT2MDH",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge",
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nFor \"issues and barriers,\" the goal is to name what could get in the way of the project — data, people, systems, time. This step matters because naming roadblocks now is what separates projects that finish from projects that stall. Common examples include no historical data, limited time to collect it, figures that are only a best guess, poor systems, or a scope that is too broad.",
+     "Your answer needs to be more specific to meet the criteria for 'issues and barriers.' Right now, it doesn't name any particular roadblocks or explicitly state 'none identified at this stage.' Naming specific barriers helps us anticipate challenges and plan effectively. For example, barriers could include missing historical data, team availability issues, or system dependencies. Could you take another look and list any specific barriers related to data, people, systems, or time? If there genuinely aren’t any, 'none identified at this stage' is a fine answer."
+    ]
+   }
+  ],
+  "E04": [
+   {
+    "case_id": "IMPR-2026-SLCSD4",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "I can't see a file attached to this case yet. Please attach it first — or, if you prefer, type the team here instead."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-64WEJD",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "I can't see a file attached to this case yet. Please attach it first — or, if you prefer, type the team here instead."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-R42ZN9",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "I can't see a file attached to this case yet. Please attach it first — or, if you prefer, type the team here instead."
+    ]
+   }
+  ],
+  "E05": [
+   {
+    "case_id": "IMPR-2026-DKSCNN",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You said the target value for your primary metric is under 10%. Is this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-422BRZ",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You mentioned the target value for your primary metric is 'under 10%'. Is this correct?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-GR22FL",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "You mentioned the target value for your primary metric is under 10%. Is this right?"
+    ]
+   }
+  ],
+  "E06": [
+   {
+    "case_id": "IMPR-2026-PXSY6G",
+    "passed": false,
+    "failed": [
+     "move 'read_back', expected 'store_and_advance'",
+     "focus 'project_scope', expected 'goal_statement'",
+     "reply lacks 'already gave'"
+    ],
+    "moves": [
+     "challenge",
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in **Define** — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\n**Why it matters:** A project scoped too broadly is one of the commonest reasons projects stall. Saying what you are not doing protects the team from ballooning work.\n\nYour answer so far is a good start, but it does not yet specify the start and end points of the in-scope process. This is an essential part of the scope definition.",
+     "You stated the following project scope:\n\n- **In scope:** Supplier invoices at our three sites.\n- **Out of scope:** Payroll and intercompany invoices.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-J9F6HV",
+    "passed": false,
+    "failed": [
+     "move 'read_back', expected 'store_and_advance'",
+     "focus 'project_scope', expected 'goal_statement'",
+     "reply lacks 'already gave'"
+    ],
+    "moves": [
+     "challenge",
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nYour project scope outlines the boundaries of the process you’re working on: where it starts and ends, what is included, and just as importantly, what is excluded. This step ensures your team stays focused and avoids taking on too much.\n\nLooking at your answer so far — you’ve identified what’s in and out, but the scope doesn’t yet specify where the process starts and ends. Without this clarity, it’s hard to tell how much work is involved or where to focus improvement efforts.\n\nFor example, a clear scope might look like this: *\"In: UK invoice generation, from order received to invoice sent. Out: payment collection, non-UK regions, the pricing database.\"* This example works because it defines the start and end points of the process being improved.\n\nDoes it begin when an invoice is received, or earlier? Does it end when payment is made, or somewhere else?",
+     "Thank you for confirming your project's scope. Here's what I captured:\n\nIn scope: supplier invoices at our three sites.\nOut of scope: payroll and intercompany invoices.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-JVRU9G",
+    "passed": false,
+    "failed": [
+     "move 'read_back', expected 'store_and_advance'",
+     "focus 'project_scope', expected 'goal_statement'",
+     "reply lacks 'already gave'"
+    ],
+    "moves": [
+     "challenge",
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\n**What it is:** The project's boundaries: where the process starts and ends, what is in, and — just as important — what is out.\n**Why it matters:** A project scoped too broadly is one of the commonest reasons projects stall. Saying what you are not doing protects the team from ballooning work.\n\nYour answer for the project scope is missing one key piece: the start and end points of the in-scope process. Without these, it's unclear where the boundaries of the work lie.",
+     "Thank you for confirming your project scope. Here's what I understand from your input:\n\n**In scope:** Supplier invoices at our three sites.\n**Out of scope:** Payroll and intercompany invoices.\n\nIs this correct?"
+    ]
+   }
+  ],
+  "E07": [
+   {
+    "case_id": "IMPR-2026-F6D6JR",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     null
+    ],
+    "rubric": [],
+    "answers": [
+     "Something went wrong on our side and this step did not go through — nothing was changed. Please send it again in a moment."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-CDHWZM",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     null
+    ],
+    "rubric": [],
+    "answers": [
+     "Something went wrong on our side and this step did not go through — nothing was changed. Please send it again in a moment."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-5WJWHQ",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     null
+    ],
+    "rubric": [],
+    "answers": [
+     "Something went wrong on our side and this step did not go through — nothing was changed. Please send it again in a moment."
+    ]
+   }
+  ],
+  "E08": [
+   {
+    "case_id": "IMPR-2026-TYMQ4J",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back",
+     "store_and_advance"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for sharing your business case. Here's what I heard: \"Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026, costing about EUR 62,000 a year.\" Is this right?",
+     "Stored: Business case.\n\nLet's now focus on the project team."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-VDBCWA",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back",
+     "store_and_advance"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nYour business case is:\n\"Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026, costing about EUR 62,000 a year.\"\n\nIs this right?",
+     "Stored: Business case.\n\nNow let's move on to defining the project team, which is our next step in the Define phase."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-R3JJEJ",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back",
+     "store_and_advance"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet me read back what you've provided for the business case:\n\"Across our three hospital sites, 23% of supplier invoices were paid after their 30-day terms from January to June 2026, costing about EUR 62,000 a year.\"\n\nIs this right?",
+     "Stored: Business case.\n\nNow let's move on to the project team."
+    ]
+   }
+  ],
+  "E09": [
+   {
+    "case_id": "IMPR-2026-BRPL9S",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [],
+    "answers": [
+     "You are in Define, step 5 of 13: Primary metric and baseline.\nDone (4 of 13): Business case, Team, Voice of the customer and CTQs, Problem statement.\nOpen (9): Primary metric and baseline, Scope, Goal, Target, Target date, Benefits analysis, Secondary metrics, High-level process (SIPOC, as-is), Issues and barriers.\nNext: Primary metric and baseline.\n\nWhat is the one measure of the defect that will say whether the project succeeded? What unit is it in, what exactly does it count, and which business KPI does it feed? Where does it stand today — and which data is that number from?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-TM68BM",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [],
+    "answers": [
+     "You are in Define, step 5 of 13: Primary metric and baseline.\nDone (4 of 13): Business case, Team, Voice of the customer and CTQs, Problem statement.\nOpen (9): Primary metric and baseline, Scope, Goal, Target, Target date, Benefits analysis, Secondary metrics, High-level process (SIPOC, as-is), Issues and barriers.\nNext: Primary metric and baseline.\n\nWhat is the one measure of the defect that will say whether the project succeeded? What unit is it in, what exactly does it count, and which business KPI does it feed? Where does it stand today — and which data is that number from?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-RMCNC4",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [],
+    "answers": [
+     "You are in Define, step 5 of 13: Primary metric and baseline.\nDone (4 of 13): Business case, Team, Voice of the customer and CTQs, Problem statement.\nOpen (9): Primary metric and baseline, Scope, Goal, Target, Target date, Benefits analysis, Secondary metrics, High-level process (SIPOC, as-is), Issues and barriers.\nNext: Primary metric and baseline.\n\nWhat is the one measure of the defect that will say whether the project succeeded? What unit is it in, what exactly does it count, and which business KPI does it feed? Where does it stand today — and which data is that number from?"
+    ]
+   }
+  ],
+  "E10": [
+   {
+    "case_id": "IMPR-2026-7ZWMJD",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for providing the cost per invoice and the number of invoices processed annually. However, your benefits analysis is missing some key elements. Specifically, you need to clarify whether the impact of the savings is sustainable (ongoing every year) or one-off (a single event). You also need to provide a realisation schedule detailing when the savings will start to show, period by period, and identify the finance representative who will validate these figures. Without these details, the benefits analysis cannot meet the acceptance criteria."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-EZ5LPP",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Your benefits analysis outlines some of the costs of late payments, but it doesn't yet meet all the acceptance criteria. Specifically, it is missing the realisation schedule and the finance contact. These are essential because they establish when the savings will start to show and who will validate the financial figures. Without these, the analysis cannot be considered complete."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-DAW772",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Your benefits analysis is missing some key aspects to meet the acceptance criteria. Specifically, you need to include a realisation schedule — when the financial benefits of reducing late payments will start to show, period by period — and the name of the finance representative who will validate these figures. Without these, the analysis is incomplete."
+    ]
+   }
+  ],
+  "E11": [
+   {
+    "case_id": "IMPR-2026-C3XPK2",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nWe're working on the problem statement, which is the heart of Define. It states the problem clearly and precisely, so everyone is aligned on what needs solving. To build it, we use seven short questions called the 5W2H: What, Where, When, Who, Why, How, and How much. Together, these give us a full picture of the problem without jumping to causes or solutions."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-SR93TA",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet's focus on the **problem statement** for now. This is one clear statement of the problem, built from seven short questions — the 5W2H: What, Where, When, Who, Why, How, and How much. It is the heart of Define, because it states the pain precisely, so the team works on the same problem — and it describes the problem only, never its cause or its fix."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-5W8XZV",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nWe're working on the problem statement right now. This is one clear statement of the problem, built from seven short questions — the 5W2H: What, Where, When, Who, Why, How and How much. It's the heart of Define because it states the pain precisely, so the team works on the same problem. It describes the problem only, never its cause or its fix."
+    ]
+   }
+  ],
+  "E12": [
+   {
+    "case_id": "IMPR-2026-VNLC2J",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You've set the target value for your primary metric as 5%. Is this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-DNA87J",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You stated the target value for your primary metric as 5%. Is this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-FLS2VR",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You mentioned the target value for your primary metric is 5%. Is this correct?"
+    ]
+   }
+  ],
+  "E13": [
+   {
+    "case_id": "IMPR-2026-M6ZWL7",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet me read back what you provided for the Voice of the Customer summary and the Critical-to-Quality requirements:\n\nVoice of the Customer summary: Customers: (1) our suppliers, who need payment within 30 days; (2) our treasury team, who need a predictable outflow.\nCritical-to-Quality requirements:\n1. Customer: our suppliers, Need: payment within 30 days, Requirement: invoices paid within 30 days for 95% of invoices.\n2. Customer: our treasury team, Need: a predictable outflow, Requirement: weekly outflow forecast within 5%."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-GGTB3S",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet’s confirm what you’ve shared about the Voice of the Customer. Here’s what I have:\n\nCustomers: (1) our suppliers, who need payment within 30 days; (2) our treasury team, who need a predictable outflow.\nCTQs:\n- For our suppliers: invoices paid within 30 days for 95% of invoices.\n- For our treasury team: weekly outflow forecast within 5%.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-FBBG3P",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for providing the Voice of the Customer summary.\n\nCustomers: (1) our suppliers, who need payment within 30 days; (2) our treasury team, who need a predictable outflow.\nCTQs:\n- For our suppliers: invoices paid within 30 days for 95% of invoices.\n- For our treasury team: weekly outflow forecast within 5%.\n\nIs this right?"
+    ]
+   }
+  ],
+  "E14": [
+   {
+    "case_id": "IMPR-2026-DK5XD6",
+    "passed": false,
+    "failed": [
+     "card lacks 'Suppliers need payment on time'",
+     "card lacks 'Treasury needs a predictable outflow'"
+    ],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nHere’s what you’ve provided for the Voice of the Customer:\n\nCustomers: Suppliers and Treasury\nNeeds: Suppliers need payment on time. Treasury needs a predictable outflow.\nCTQ: 95% of invoices paid within 30 days.\n\nYou listed 1 CTQ; the table has 2 rows. Which customer does each CTQ apply to?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-PPJZY9",
+    "passed": false,
+    "failed": [
+     "card lacks 'Suppliers need payment on time'",
+     "card lacks 'Treasury needs a predictable outflow'"
+    ],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet’s confirm what you’ve shared for the Voice of the Customer:\n- Customers: Suppliers and Treasury\n- Needs: Suppliers need payment on time; Treasury needs a predictable outflow\n- Critical-to-Quality (CTQ): 95% of invoices paid within 30 days\n\nIs this right?\n\nYou listed 1 CTQ; the table has 2 rows. Which customer does each CTQ apply to?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-6WFCUR",
+    "passed": false,
+    "failed": [
+     "card lacks 'Suppliers need payment on time'",
+     "card lacks 'Treasury needs a predictable outflow'"
+    ],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Let's confirm what you've shared about the Voice of the Customer. Here's what I have from you:\n\n**Customers and Needs:**\n1. Suppliers need payment on time.\n2. Treasury needs a predictable outflow.\n\n**Critical-to-Quality (CTQ) Requirement:**\n- 95% of invoices paid within 30 days.\n\nIs this right?\n\nYou listed 1 CTQ; the table has 2 rows. Which customer does each CTQ apply to?"
+    ]
+   }
+  ],
+  "E15": [
+   {
+    "case_id": "IMPR-2026-FG4ZCC",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in **Define** — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nHere’s what I heard for your problem statement — let me read it back:\n\n**5W2H breakdown:**\n- **What:** invoices paid late\n- **Where:** AP at three sites\n- **When:** since January 2026\n- **Who:** suppliers\n- **Why it matters:** interest and supply stops\n- **How:** suppliers chase us and put us on stop\n- **How much:** 23% of invoices\n\n**Composed problem statement:** \"Since January 2026, 23% of supplier invoices handled by Accounts Payable across our three hospital sites have been paid late. Suppliers are chasing payments and putting us on stop, leading to interest charges and supply disruptions.\""
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-27A7UR",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Let's confirm the problem statement together. Based on your input, here is what I have:\n\n**5W2H Breakdown:**\n- **What:** invoices paid late\n- **Where:** AP at three sites\n- **When:** since January 2026\n- **Who:** suppliers\n- **Why it matters:** interest and supply stops\n- **How:** suppliers chase us and put us on stop\n- **How much:** 23% of invoices\n\n\"Since January 2026, 23% of invoices processed by Accounts Payable at our three hospital sites have been paid late. This has led suppliers to chase payments and, in some cases, put us on stop, incurring interest charges and risking supply disruptions.\"\n\nDoes this capture the problem accurately?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-2WXZFJ",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet me read back what you've shared so far and check if it captures the problem accurately:\n\n**Problem 5W2H:**\n- **What:** invoices paid late\n- **Where:** AP at three sites\n- **When:** since January 2026\n- **Who:** suppliers\n- **Why it matters:** interest and supply stops\n- **How:** suppliers chase us and put us on stop\n- **How much:** 23% of invoices\n\n**Problem Statement:** \"Since January 2026, 23% of invoices processed by Accounts Payable at three sites have been paid late. Suppliers have responded by chasing payments and putting us on stop, leading to interest costs and supply disruptions.\""
+    ]
+   }
+  ],
+  "E16": [
+   {
+    "case_id": "IMPR-2026-X32TPG",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together: • Define — pin down the problem and who's solving it • Measure — get the real numbers • Analyse — find the true root cause • Improve — test and apply the fix • Control — make the gains stick Right now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nTo calculate the baseline, you need three things: a number, the period it covers, and the source of the data. The number is the current state of the metric you're tracking — for example, the percentage of invoices paid late. The period tells us when this data was collected, like January to June 2026. The source shows where the data came from — for instance, a collections log or a report. These three parts make the baseline something we can check and use."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-9THYA8",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nTo calculate the baseline, you need to identify the primary metric — the measure of the defect that will say whether the project succeeded — and gather the current data for it. This metric should be something you can count the same way twice, and it must link to a business KPI. For example, if the defect in your project is late payments to suppliers, your metric might be the percentage of invoices paid late. Once you have the metric, you need a number, the time period it covers, and the source of the data. For instance, you might say, '23% of supplier invoices were paid late, January to June 2026, from the accounts payable log.'"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-P7P3QN",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together: • Define — pin down the problem and who's solving it • Measure — get the real numbers • Analyse — find the true root cause • Improve — test and apply the fix • Control — make the gains stick Right now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nTo calculate the baseline, we need to identify the primary metric for your project — the one number that will tell us whether the problem is solved. A baseline is the current value of that metric, with three parts: the number itself, the period it covers, and the source of the data. For example, if the metric is the share of invoices paid late, a baseline might be '23%, January to June 2026, from the accounts payable log.' This lets us measure improvement later on."
+    ]
+   }
+  ],
+  "E17": [
+   {
+    "case_id": "IMPR-2026-MLC527",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You provided the planned completion date as 31 March 2027. Is this right?\n\nRead as a date: 31 March 2027"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-NYD765",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You provided the planned completion date as \"31 March 2027.\" Is this right?\n\nRead as a date: 31 March 2027"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-UAS65J",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "You stated the planned completion date as \"31 March 2027.\" Is this right?\n\nRead as a date: 31 March 2027"
+    ]
+   }
+  ],
+  "E18": [
+   {
+    "case_id": "IMPR-2026-VG8VUA",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for naming the leader, champion, and process owner. However, the team description does not yet meet the acceptance criteria for this field. Specifically: each team member needs their role and function clearly stated, and any training needs must be addressed. For example, do the team members have all the skills they need to participate fully, or is some training required?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-QH8UES",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• Define — pin down the problem and who's solving it\n• Measure — get the real numbers\n• Analyse — find the true root cause\n• Improve — test and apply the fix\n• Control — make the gains stick\nRight now we're in Define — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nYour team description is missing important details. Specifically, the roles and functions of all team members need to be fully specified, along with any training needs. Without this information, the team structure isn't complete and may not meet the acceptance criteria.\n\nThis example works because it lists each person's name, their role, and what they will do in the project. It also addresses any training needs upfront."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-GWP6SV",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for sharing the initial team details. For this project, the team needs to meet specific criteria: each person must have their name, role, and function clearly stated, and any training needs should be addressed. Right now, the roles and functions of all team members are not fully specified, and there's no mention of whether anyone needs training to participate fully. For example, does Lena Hart handle day-to-day operations, or does her role focus on strategic oversight? Are there additional team members, such as analysts or clerks, who will contribute to the project? If so, what will they do? Please provide this information so we can ensure the team is ready to succeed."
+    ]
+   }
+  ],
+  "E19": [
+   {
+    "case_id": "IMPR-2026-PNFE5F",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Your benefits analysis describes the cost of the gap and the expected saving, but it does not provide a realisation schedule by period, which is required. This means stating when the savings will start to show, broken down by time periods like quarters or months. For example, 'from the first full quarter after the change, about €2.7k a quarter.' Without this, the analysis cannot meet the 'realisation' criterion. Please add the realisation schedule."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-P2626N",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for your input on the benefits analysis. One required element is still missing: the realisation schedule. This needs to specify when the savings will start to show, period by period — for example, by quarter or month. Without this, the 'realisation' criterion cannot be met."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-4N8KPD",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for sharing your initial benefits analysis. To meet the acceptance criteria for this field, we need to include a realisation schedule that details when the financial benefits of the project will begin to show, broken down by specific periods (e.g., quarterly or yearly). This helps provide clarity on the timing of the expected savings and allows stakeholders to plan effectively."
+    ]
+   }
+  ],
+  "E20": [
+   {
+    "case_id": "IMPR-2026-FK6YWR",
+    "passed": false,
+    "failed": [
+     "rubric: ['failed']"
+    ],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Great question — let's explore that. When you improve the speed of payments, there are often trade-offs. For example, if accounts payable staff rush to process invoices, they might miss errors or fraud. Extra workload could lead to burnout or overtime costs. Faster payments might also affect cash flow, reducing the funds available for other priorities. These are examples of secondary metrics — measures of things that could change for the worse while the primary metric improves."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-T6FWMP",
+    "passed": false,
+    "failed": [
+     "rubric: ['failed']"
+    ],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Good question — let's consider it. Almost every fix has side effects, and secondary metrics are how we watch for them. If you improve your primary metric, like paying invoices faster, what else might change, usually for the worse? For example, rushing payments might increase errors, which could lead to more supplier disputes. It could also affect staff workload, like overtime for the accounts payable team. These are secondary metrics to monitor during the project."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-6L643G",
+    "passed": false,
+    "failed": [
+     "rubric: ['failed']"
+    ],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Great question! When you improve the primary metric—in this case, paying invoices faster—there could be unintended side effects in other areas. For example, rushing payments might increase errors in invoice processing, which could lead to disputes or even duplicate payments. It might also increase workload or overtime for the accounts payable team, as they try to meet tighter deadlines. These are examples of secondary metrics—things you’ll want to monitor to ensure your solution doesn’t create new problems while solving the old one."
+    ]
+   }
+  ]
+ }
+}
