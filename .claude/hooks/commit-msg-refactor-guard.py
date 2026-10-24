@@ -51,6 +51,10 @@ it. Numbers are never reused, so every older reference still points at the right
   3b. TYPE RATCHET — the whole-tree mypy count (backend and scripts of the
      STAGED tree) may fall, never rise: `.claude/config/mypy-ratchet.json`,
      lowered by the pre-commit hook, refused on a rise (founder, 2026-09-27).
+  25. SUBSTANCE RATCHET — ruff BLE001 (broad except) and C901 (a function above the record's
+     max_complexity) over agent-improve/backend of the STAGED tree, every `# noqa` ignored, may
+     fall, never rise: `.claude/config/ruff-ratchet.json`, lowered by the pre-commit hook
+     (`ruff_ratchet.py --lower`), refused on a rise (founder ruling 2026-10-24, B4).
   4. TESTS — pytest green.
 
   16. DATA MODELS — ARCHITECTURE.md's generated block (between the
@@ -561,6 +565,24 @@ def check_type_ratchet(root: str) -> None:
         fail("the whole-tree type-error ratchet refuses this commit (rule 3b)", *why)
     note(f"rule 3b mypy ratchet: PASS — {n} error(s) over the whole tree, record {staged}"
          + (" (the pre-commit hook's count)" if known is not None else ""))
+
+
+def check_substance_ratchet(root: str) -> None:
+    """Rule 25 — broad excepts (ruff BLE001) and over-complex functions (ruff C901) over the STAGED tree's
+    agent-improve/backend may fall, never rise (founder ruling 2026-10-24, B4) — `ruff_ratchet.py`, which the
+    pre-commit hook also runs to lower the record when a count falls."""
+    from pathlib import Path
+    sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
+    import ruff_ratchet as rr
+    staged = rr.staged_record(Path(root))
+    if staged is None:
+        fail("rule 25: the substance ratchet record is missing from the index",
+             f"Restore {rr.RATCHET} — the counts may fall, never rise.")
+    n = rr.staged_count(Path(root))
+    why = rr.refusal(n, staged, rr.head_record(Path(root)))
+    if why:
+        fail("the substance ratchet refuses this commit (rule 25)", *why)
+    note(f"rule 25 ruff ratchet: PASS — {n}, record {staged}")
 
 
 # --------------------------------------------------------------------------- #
@@ -1432,7 +1454,7 @@ def gated_rules(subject: str, staged: list[str]) -> tuple[str, ...]:
     spine = subject.startswith(GUARDED_PREFIX)
     code = changes_code(staged)
     order = (("1", spine), ("11", spine or code), ("5", spine),
-             ("3", spine or code), ("3b", spine or code), ("4", spine or code))
+             ("3", spine or code), ("3b", spine or code), ("25", spine or code), ("4", spine or code))
     return tuple(rule for rule, on in order if on)
 
 
@@ -1999,6 +2021,9 @@ def main(argv: list[str]) -> int:
     if "3b" in rules:
         with _timer("rule 3b mypy ratchet"):
             check_type_ratchet(root)
+    if "25" in rules:
+        with _timer("rule 25 ruff ratchet"):
+            check_substance_ratchet(root)
     if "4" in rules:
         with _timer("rule 4 tests"):
             check_tests(root, py)

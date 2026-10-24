@@ -111,6 +111,14 @@ if [ -n "$RAN" ] && [ -f ".claude/hooks/mypy_ratchet.py" ]; then
     t_log "mypy ratchet" "$T0"
 fi
 
+# Founder ruling 2026-10-24 (B4) — broad excepts (ruff BLE001) and over-complex functions (ruff C901) may fall,
+# never rise. Lower the record when a staged count fell, and stage it; commit-msg rule 25 refuses a rise.
+if [ -n "$RAN" ] && [ -f ".claude/hooks/ruff_ratchet.py" ]; then
+    T0=$(date +%s)
+    "$SYSPY" .claude/hooks/ruff_ratchet.py --lower </dev/null ||         echo "  [ruff ratchet] WARNING: not measured — rule 25 will measure" >&2
+    t_log "ruff ratchet" "$T0"
+fi
+
 T0=$(date +%s)
 if [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ]; then
     "$SYSPY" "$CONTINUITY"

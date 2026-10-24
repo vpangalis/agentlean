@@ -443,18 +443,19 @@ DOCS = ["agent-improve/docs/harness-progress.md", "agent-improve/docs/control-bo
 
 
 @pytest.mark.parametrize("subject,staged,expected", [
-    ("feat(define): a report section", CODE, ("11", "3", "3b", "4")),
-    ("fix(ui): a label", ["agent-improve/ui/index.html"], ("11", "3", "3b", "4")),
-    ("chore(tooling): a hook", [".claude/hooks/timing.py"], ("11", "3", "3b", "4")),
-    ("chore(tooling): the budget", [".claude/config/size-budget.json"], ("11", "3", "3b", "4")),
+    ("feat(define): a report section", CODE, ("11", "3", "3b", "25", "4")),
+    ("fix(ui): a label", ["agent-improve/ui/index.html"], ("11", "3", "3b", "25", "4")),
+    ("chore(tooling): a hook", [".claude/hooks/timing.py"], ("11", "3", "3b", "25", "4")),
+    ("chore(tooling): the budget", [".claude/config/size-budget.json"], ("11", "3", "3b", "25", "4")),
     ("docs(requirements): a note", DOCS, ()),
-    ("refactor(arch-v2): DEF-065 — x", DOCS, ("1", "11", "5", "3", "3b", "4")),
-    ("refactor(arch-v2): DEF-065 — x", CODE, ("1", "11", "5", "3", "3b", "4")),
+    ("refactor(arch-v2): DEF-065 — x", DOCS, ("1", "11", "5", "3", "3b", "25", "4")),
+    ("refactor(arch-v2): DEF-065 — x", CODE, ("1", "11", "5", "3", "3b", "25", "4")),
 ])
 def test_types_tests_and_landing_apply_to_every_code_commit(subject, staged, expected) -> None:
     """A `feat(` commit carried two type errors to main (b940725) because rules
     3, 4 and 11 ran only under `refactor(arch-v2)`. Code or config, whatever the
-    prefix, now gets all three; the spine keeps rules 1 and 5 besides."""
+    prefix, now gets all three, and the two ratchets (3b types, 25 substance — B4); the
+    spine keeps rules 1 and 5 besides."""
     assert g.gated_rules(subject, staged) == expected
 
 

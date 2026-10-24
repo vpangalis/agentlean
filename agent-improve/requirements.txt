@@ -72,3 +72,7 @@ pytest-socket==0.7.0          # controls review 2026-09-30: no network beyond th
 # / langchain_openai / pydantic all ship `py.typed`, so mypy checks calls
 # against the REAL installed signatures rather than against Any.
 mypy==2.3.1
+
+# The substance ratchet (commit-msg rule 25, founder ruling 2026-10-24, B4): broad excepts (BLE001) and
+# over-complex functions (C901) counted by .claude/hooks/ruff_ratchet.py over the staged tree.
+ruff==0.17.0
