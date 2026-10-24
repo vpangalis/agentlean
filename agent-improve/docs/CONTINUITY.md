@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 154 of 203 Define features pass, 29 more proven on earlier code (core 151 of 194) — A 51/83 · B 37/40 · C 54/59 · integrator 12/21 · M1: 50 proven · 22 awaiting fresh run · 5 open |
-| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
-| **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
-| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Headline** | 191 of 203 Define features pass (core 184 of 194) — A 77/83 · B 40/40 · C 55/59 · integrator 19/21 · M1: 75 proven · 0 awaiting fresh run · 1 open |
+| **Next — lane A** | DEF-006 — Every coaching turn tells the Belt where they are — 'Define · Step n of 13' — computed by define_progress, never counted by the model. |
+| **Next — lane B** | every feature passes |
+| **Next — lane C** | every feature passes |
+| **Next — lane integrator** | DEF-064 — Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run. |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
 | **Block regenerated** | 2026-10-24 |
