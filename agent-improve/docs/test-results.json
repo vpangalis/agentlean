@@ -1,9 +1,9 @@
 {
- "source_hash": "71207f1af0acea19",
- "commit": "297e126",
+ "source_hash": "e4460f117a9d531a",
+ "commit": "5b0caf4",
  "commit_matches_source": false,
- "full_run_hash": "71207f1af0acea19",
- "recorded_at": "2026-10-24T11:27:34+00:00",
+ "full_run_hash": "e4460f117a9d531a",
+ "recorded_at": "2026-10-24T12:36:30+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1886,8 +1886,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "048f365184f3e098",
-  "recorded_at": "2026-10-24T10:53:06+00:00",
+  "source_hash": "71207f1af0acea19",
+  "recorded_at": "2026-10-24T11:27:34+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1901,6 +1901,17 @@
    "backend/tests/test_anchor_ratchet.py::test_the_backlog_is_the_category_that_must_fall": "passed",
    "backend/tests/test_anchor_ratchet.py::test_the_four_anchors_applied_here_actually_resolve": "passed",
    "backend/tests/test_anchor_ratchet.py::test_the_three_categories_partition_the_unanchored_rows": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_a4_the_session_summary_is_screened_and_its_prompt_lives_in_prompts": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_d10_the_v1_field_hints_are_gone_from_the_page": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_d4_the_problem_statement_scaffold_asks_the_seven_graded_questions": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_d5_the_sipoc_scaffold_has_six_columns_and_four_to_eight_steps": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_d6_the_tool_briefings_for_5w2h_and_sipoc_come_from_the_skill": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_d8_one_progress_figure_from_define_progress": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_h1_the_input_guard_reads_text_as_the_coach_does": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_h2_h3_one_function_flattens_a_value_for_the_belt_and_the_rubric": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_w3_a_reload_that_lost_the_unfinished_work_says_so": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_w4_an_upload_kept_but_not_indexed_is_told": "passed",
+   "backend/tests/test_belt_facing_a3.py::test_w8_no_raw_exception_text_reaches_the_belt": "passed",
    "backend/tests/test_blob.py::test_aclose_is_idempotent_and_safe_when_never_opened": "passed",
    "backend/tests/test_blob.py::test_blob_module_defines_no_class": "passed",
    "backend/tests/test_blob.py::test_blob_module_does_not_touch_the_store": "passed",

@@ -123,8 +123,9 @@ def test_d8_one_progress_figure_from_define_progress() -> None:
 
 
 def test_h2_h3_one_function_flattens_a_value_for_the_belt_and_the_rubric() -> None:
-    """G-260 (audit H2, H3): the read-back shows a MetricValue in the Belt's words, never as JSON, and the gate
-    judge reads a value in the same words the Belt is shown (templates.plain)."""
+    """G-260 (audit H2, H3): the read-backs show a MetricValue in the Belt's words, never as JSON — one function,
+    templates.plain. The gate judge's half of H3 is held (G-263): its DEF-R13 verdict flipped from 3 of 3 pass to 3 of
+    3 fail on one case when it read those words instead of JSON, so the rubric keeps JSON until the founder rules."""
     from backend.phases import moves, nodes_common
     from backend.phases.define import templates
     from backend.validation import rubric
@@ -133,8 +134,9 @@ def test_h2_h3_one_function_flattens_a_value_for_the_belt_and_the_rubric() -> No
     assert not hasattr(nodes_common, "_words") and not hasattr(moves, "_words")
     assert not hasattr(nodes_common, "_render_value")
     scope = {"in_scope": "supplier invoices", "out_scope": "payroll"}
-    assert rubric._text(scope) == templates.plain(scope) == "In scope: supplier invoices; Out of scope: payroll"
-    assert rubric._text(metric) == "23% of invoices paid late"
+    assert templates.plain(scope) == "In scope: supplier invoices; Out of scope: payroll"
+    assert templates.plain(metric) == "23% of invoices paid late"
+    assert rubric._text(scope) == '{"in_scope": "supplier invoices", "out_scope": "payroll"}', "G-263: the judge reads JSON"
     # The offer's read-back (nodes_common._offer_reply) shows the plain words.
     from backend.core.substate import CoachingPlan
     offer = {"field": "baseline_estimate", "fields": ["baseline_estimate"], "from_offer": True,

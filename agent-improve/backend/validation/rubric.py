@@ -54,9 +54,13 @@ Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
 
 def _text(value: Any) -> str:
-    """G-260 (audit H3): a value as the Belt is shown it (templates.plain) — the gate judge grades those words."""
-    from backend.phases.define.templates import plain
-    return plain(value)
+    """A value as the gate judge reads it: structure as JSON, text as it is. G-263: the judge's DEF-R13 verdict sits on
+    a knife's edge — the same case passed 3 of 3 with this document and failed 3 of 3 with the plain words the Belt is
+    shown (run define_runthrough_20261024T115623) — so the judge keeps the document every approved run-through used,
+    until the founder rules on the judge itself."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value or "").strip()
 
 
 def _has_number(value: Any) -> bool:
