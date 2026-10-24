@@ -337,9 +337,9 @@ def store_plan(values: Any) -> CoachingPlan:
     the Belt confirmed (entries with no `field_name` are dropped, as a
     malformed capture always was)."""
     if isinstance(values, CoachingResponse):
+        from backend.phases.nodes_common import captured_entries   # G-252: typed entries, read as records
         values = {str(e.get("field_name")).strip(): e.get("value")
-                  for e in (values.fields_captured or [])
-                  if isinstance(e, dict) and str(e.get("field_name") or "").strip()}
+                  for e in captured_entries(values) if str(e.get("field_name") or "").strip()}
     values = dict(values)
     return CoachingPlan(focus_field=None, status="confirmed", move="store_and_advance",
                         store=values, stored_field=next(iter(values), None))

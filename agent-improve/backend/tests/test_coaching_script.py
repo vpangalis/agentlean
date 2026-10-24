@@ -87,7 +87,7 @@ def test_the_system_message_carries_the_current_fields_script_on_every_call() ->
     part = script_section("define", "business_case", True)
     for req in seen:
         texts = _texts(req.system_message)
-        assert part in texts, "the model call went out without its script section"
+        assert f"<phase_script>\n{part}\n</phase_script>" in texts, "the model call went out without its script section"
         assert "[OPENING" in part and "[1 · business_case" in part
         assert "[2 · team" not in part, "another field's block was delivered"
     assert req.messages == ["untouched"], "the script must never enter the conversation"

@@ -498,14 +498,17 @@ def compose_phase_context(
             f"(S-C06 failure modes)."
         )
 
+    # G-252 (founder ruling 2026-10-23, item 2b-c): display names and plain value text, never Python's dict text.
+    from backend.middleware.state_injection import display_name, value_text
     lines = [f"Carried forward from the approved {prior} gate document:"]
     for field in fields:
         value = gate_document.get(field)
-        label = field.replace("_", " ")
-        lines.append(
-            f"- {label}: {value}" if value not in (None, "", [], {})
-            else f"- {label}: not captured in {prior}"
-        )
+        label = display_name(prior or phase, field)
+        if value in (None, "", [], {}):
+            lines.append(f"- {label}: not captured in {prior}")
+            continue
+        text = value_text(value, "  ")
+        lines.append(f"- {label}:" + (f"\n{text}" if isinstance(value, (dict, list)) else f" {text.strip()}"))
     return "\n".join(lines)
 
 

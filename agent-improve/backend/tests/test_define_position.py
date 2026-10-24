@@ -130,12 +130,12 @@ def test_the_step_comes_before_the_gate_list() -> None:
     """Models weight earlier content (§19.1 B2); the count the Belt is told
     must not be the second number the coach reads."""
     block = _block({})
-    assert block.index("Step 1 of 13") < block.index("GATE LIST")
+    assert block.index("Step 1 of 13") < block.index("<gate_list>")
 
 
 def test_the_gate_list_is_labelled_as_the_gate_list_and_keeps_its_16() -> None:
     block = _block({})
-    header = next(line for line in block.splitlines() if "GATE LIST" in line)
+    header = next(line for line in block.splitlines() if line.startswith("Still missing for the define gate"))
     assert "of 16" in header, header
     assert "not the step" in header.lower(), header
 
@@ -145,8 +145,15 @@ def test_the_other_phases_are_given_no_define_step() -> None:
 
 
 def test_the_progress_field_tells_the_model_to_copy_never_count() -> None:
+    # G-252 (item 2d): the field says what it holds; the instruction never to count rides with the step itself.
     desc = CoachingResponse.model_fields["progress"].description or ""
-    assert "copy" in desc.lower() and "never count" in desc.lower(), desc
+    assert "copied exactly" in desc.lower(), desc
+    from backend.middleware.state_injection import BeforeModelStateInjection
+    from typing import Any, cast
+    mw = BeforeModelStateInjection("define", cast(Any, {"artifacts": {}, "phase_context": "", "messages": []}))
+    mw.before_agent(None, None)
+    where = mw._block[mw._block.index("<where_the_belt_is>"):mw._block.index("</where_the_belt_is>")]
+    assert "Write this exact text in `progress`" in where and "Never count steps" in where, where
 
 
 # ── recorded every turn ──────────────────────────────────────────────────────

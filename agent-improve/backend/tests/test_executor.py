@@ -100,9 +100,12 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
     kwargs = stub_coach.calls[-1]
     assert "system_prompt" in kwargs, "the parameter is system_prompt, NOT prompt"
     assert "prompt" not in kwargs
-    assert kwargs["response_format"] is CoachingResponse, (
+    # G-252 (founder ruling 2026-10-23, item 2e): the phase's own CoachingResponse — its field names typed.
+    from backend.core.substate import coaching_response_model
+    assert kwargs["response_format"] is coaching_response_model(phase), (
         "§20 — never a {Phase}Output on the executor"
     )
+    assert issubclass(kwargs["response_format"], CoachingResponse)
     declared = [type(m).__name__ for m in kwargs["middleware"]]
     assert declared == [
         # 1-5 fire before_agent / before_model / wrap_*, where declaration
@@ -256,13 +259,16 @@ def test_captured_fields_land_in_artifacts_under_v2_names(
 def test_a_capture_without_a_field_name_is_dropped_not_guessed(stub_coach) -> None:
     """Inferring the field is how a value lands under the wrong key.
 
-    A wrong key reaches the gate document looking exactly like a right one, so
-    the malformed entry is dropped and logged instead.
+    A wrong key reaches the gate document looking exactly like a right one. G-252: the typed schema refuses an
+    entry with no `field_name` outright (the model is asked again); one with a blank name is dropped and logged.
     """
-    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        CoachingResponse(message="Noted.", fields_captured=[{"value": "orphaned", "source": "belt"}])
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="",
         message="Noted.",
         fields_captured=[
-            {"value": "orphaned", "source": "belt"},
             {"field_name": "  ", "value": "also orphaned"},
             # `team` is declared `list[dict]` (§39.1.4). Prose here was
             # stored until step 6.48 enforced the declared type at capture.

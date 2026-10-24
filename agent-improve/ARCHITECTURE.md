@@ -390,8 +390,9 @@ ingest; index creation.
 
 ### 3.3 Executor and middleware
 
-`create_agent(model, tools, system_prompt, middleware, response_format=CoachingResponse)`, built
-in `phases/nodes_common.py::_build_executor`. Tools are passed to `create_agent`, never bound to a
+`create_agent(model, tools, system_prompt, middleware, response_format=coaching_response_model(phase))`,
+built in `phases/nodes_common.py::_build_executor`: `CoachingResponse` with `field_name` limited to the
+phase's field list (ADR-0110). Tools are passed to `create_agent`, never bound to a
 bare model. The final structured reply is in `result["structured_response"]`; the coaching text is
 also in `messages`.
 
@@ -604,7 +605,7 @@ Keys with no owning constant in code, written by hand:
 | Value | Keys |
 |---|---|
 | Reference dicts (`causal_hypothesis`, `solution_linked_to_root_cause`, `post_improvement_metrics`) | Belt content plus `references_phase`, `references_field`, `references_metric_name`, `references_value`; resolved against the referenced phase's `phase_metrics` entry |
-| `CoachingResponse.fields_captured` | list of `field_name`, `value`, `source` |
+| `CoachingResponse.fields_captured` | list of `CapturedValue`: `field_name` (the phase's field list), `value`, `source`, `reason` (ADR-0110) |
 
 **Tiers.** Which record fields can fail a gate is owned by `phases/gate_registry.py::GATE_SPECS`.
 Fields with a default in §4.2 are the recommended (Tier 2) fields.

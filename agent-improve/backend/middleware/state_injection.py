@@ -67,6 +67,8 @@ from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from backend.core.prompts import (
+    CAPTURE_RULES,
+    FIELD_SHAPES,
     MOVE_INSTRUCTIONS,
     MOVE_OPENING,
     MOVE_PREAMBLE,
@@ -87,20 +89,79 @@ from backend.phases.mappers_common import PHASE_ORDER
 logger = logging.getLogger(__name__)
 
 
-def _render_value(value: Any, limit: int = 300) -> str:
-    """One captured value, flattened for the prompt.
+#: G-252 (founder ruling 2026-10-23, item 2b): a part of an element that would otherwise share the element's name.
+_PART_NAMES: dict[tuple[str, str], str] = {
+    ("define", "critical_to_quality"): "CTQs",
+    ("define", "problem_5w2h"): "Problem statement (5W2H)",
+    ("define", "metric_definitions"): "Primary metric definitions",
+}
 
-    Structured fields (§10.8's three dicts, the reference dicts, the registry)
-    are shown as their sub-keys rather than as repr, because what the coach
-    needs from them is which parts are filled.
-    """
+#: What one entry of a list value is called, for its one-line summary.
+_ENTRY_NOUNS: dict[str, tuple[str, str]] = {
+    "team": ("person", "people"), "critical_to_quality": ("CTQ", "CTQs"),
+    "metric_definitions": ("metric", "metrics"), "process_steps": ("step", "steps"),
+}
+
+
+def display_name(phase: str, field: str) -> str:
+    """G-252 (item 2b): the name the Belt sees for a field, never its code name."""
+    from backend.core import guard_messages
+    return _PART_NAMES.get((phase, field)) or guard_messages.element_name(phase, field)
+
+
+def value_text(value: Any, indent: str = "") -> str:
+    """G-252 (item 2a, 2c): a value complete, in plain lines — never cut, never Python's dict or list text."""
     if isinstance(value, dict):
-        return "{" + ", ".join(
-            f"{k}: {str(v)[:60]}" for k, v in value.items() if v
-        ) + "}"
+        lines = []
+        for k, v in value.items():
+            if v in (None, "", [], {}):
+                continue
+            inner = value_text(v, indent + "  ")
+            lines.append(f"{indent}{k}:" + (f"\n{inner}" if "\n" in inner or isinstance(v, (dict, list))
+                                            else f" {inner.strip()}"))
+        return "\n".join(lines)
     if isinstance(value, list):
-        return "; ".join(str(v)[:80] for v in value)[:limit]
-    return str(value)[:limit]
+        return "\n".join(f"{indent}- " + value_text(v, indent + "  ").strip().replace("\n", f"\n{indent}  ")
+                         for v in value if v not in (None, "", [], {}))
+    return f"{indent}{value}"
+
+
+def value_summary(field: str, value: Any) -> str:
+    """G-252 (item 2a): another element's value in one line, written in code."""
+    if isinstance(value, list):
+        one, many = _ENTRY_NOUNS.get(field, ("entry", "entries"))
+        return f"{len(value)} {one if len(value) == 1 else many}"
+    if isinstance(value, dict):
+        steps = value.get("process_steps")
+        if isinstance(steps, list):
+            return f"{len(steps)} step{'' if len(steps) == 1 else 's'}"
+        return "given: " + ", ".join(k for k, v in value.items() if v not in (None, "", [], {}))
+    text = " ".join(str(value).split())
+    return text if len(text) <= 120 else f"{len(text.split())} words"
+
+
+def value_tag(phase: str, field: str, value: Any, whole: bool, status: str = "confirmed") -> str:
+    """G-252 (item 2c): one value in its tag, under its display name — complete, or one line."""
+    name = display_name(phase, field)
+    if not whole:
+        return f'<value name="{name}" status="{status}">{value_summary(field, value)}</value>'
+    return f'<value name="{name}" status="{status}">\n{value_text(value)}\n</value>'
+
+
+def tagged(section: str, tag: str) -> str:
+    """G-252 (item 2c): a section's body in its tag, the heading line kept first."""
+    heading, _, body = section.partition("\n")
+    return f"{heading}\n<{tag}>\n{body.strip()}\n</{tag}>"
+
+
+def reads_whole(phase: str, focus: Optional[str]) -> set[str]:
+    """G-252 (item 2a): the fields sent complete this turn — the current element's own, and those it reads. Outside
+    Define (no reads map) every value is sent complete."""
+    if phase != "define":
+        return set()
+    from backend.phases.define.schema import ELEMENT_READS
+    own = set(dict(moves.positions(phase)).get(focus or "") or ()) | ({focus} if focus else set())
+    return own | set(ELEMENT_READS.get(focus or "", ()))
 
 
 class BeforeModelStateInjection(AgentMiddleware):
@@ -147,8 +208,8 @@ class BeforeModelStateInjection(AgentMiddleware):
     def before_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
         """Compose sections 3, 4 and 5. Once per turn — never `before_model` (B1)."""
         self._block = self._compose()
-        self._move = self._compose_move()
-        self._feedback = self._compose_feedback()
+        self._move = tagged(self._compose_move(), "this_turns_move")
+        self._feedback = tagged(self._compose_feedback(), "quality_feedback")
         logger.info(
             "%s.state_injection: composed state %d chars, move %d, feedback %d, "
             "%d prior phase(s)",
@@ -208,7 +269,8 @@ class BeforeModelStateInjection(AgentMiddleware):
         # position 2 (`DMAICSkillsMiddleware`), which runs inside this wrap.
         return request.override(
             system_message=SystemMessage(content_blocks=[
-                {"type": "text", "text": SECTION_RULES}, *blocks,
+                {"type": "text", "text": SECTION_RULES}, {"type": "text", "text": "<coaching_rules>"}, *blocks,
+                {"type": "text", "text": "</coaching_rules>"},
                 {"type": "text", "text": self._block},
                 {"type": "text", "text": self._move},
                 {"type": "text", "text": self._feedback},
@@ -229,7 +291,14 @@ class BeforeModelStateInjection(AgentMiddleware):
         spec = GATE_SPECS[self.phase]
         missing = missing_gate_fields(self.phase, artifacts)
 
-        parts = [SECTION_STATE,
+        focus = getattr(plan, "focus_field", None)
+        whole = reads_whole(self.phase, focus)
+
+        def sent_whole(field: str) -> bool:
+            # G-252 (item 2a): outside Define every value is complete; in Define, the element's own and its reads.
+            return self.phase != "define" or field in whole
+
+        parts = [SECTION_STATE, "<project_state>",
                  f"PROJECT STATE — {self.phase.upper()} PHASE",
                  "(established facts; these outrank anything said in "
                  "conversation that contradicts them)"]
@@ -239,39 +308,31 @@ class BeforeModelStateInjection(AgentMiddleware):
         # gate list below ("13 of 13"). First, so it is the number read first.
         if self.phase == "define":
             step = define_progress(artifacts)
-            parts += ["\nWHERE THE BELT IS — computed, not yours to count",
-                      f"  {step['label']} — {step['field']}",
-                      "  Write this exact text in `progress`. Never count steps "
-                      "yourself, and never from the gate list below."]
+            parts += ["<where_the_belt_is>",
+                      "Computed, not yours to count:",
+                      f"{step['label']} — {step['field']}",
+                      "Write this exact text in `progress`. Never count steps "
+                      "yourself, and never from the gate list below.",
+                      "</where_the_belt_is>"]
 
         meta = (self._config.get("configurable") or {}).get("case_metadata") or {}
         if meta:
-            parts.append("\nTHIS PROJECT")
-            parts += [f"  {label}: {meta[key]}"
+            parts.append("<this_project>")
+            parts += [f"{label}: {meta[key]}"
                       for key, label in (("title", "Project"),
                                          ("belt_level", "Belt level"),
                                          ("leader", "Belt"),
                                          ("department", "Department"))
                       if meta.get(key)]
+            parts.append("</this_project>")
 
         # ── phase_context — §9's SECOND named consumer (step 6.8) ────
-        #
-        # §9 names two readers of `phase_context`, "the planner; state
-        # injection (§19.1)", and until 6.8 NEITHER existed. The field was
-        # composed at every phase entry by all five input mappers and thrown
-        # away, which is why nothing broke and nothing was noticed for six
-        # steps (WATCH 19, `DECISIONS.md` Part AM).
-        #
-        # **This is not a duplicate of THIS PROJECT above.** That block is the
-        # case metadata riding on `config` — the v1 seam, deleted at 11.1.
-        # This is the phase's own composed framing: for Define the case record,
-        # and for the other four **the prior phase's APPROVED gate values**,
-        # which is the only route by which a Measure coach learns what Define
-        # committed to. The two overlap for Define and do not for the rest.
+        # The phase's own composed framing: for Define the case record, and for the other four the prior phase's
+        # APPROVED gate values — the only route by which a Measure coach learns what Define committed to.
         context = str(self._state.get("phase_context") or "").strip()
-        parts.append("\nHOW THIS PHASE WAS ENTERED")
+        parts.append("<how_this_phase_was_entered>")
         if context:
-            parts.append(f"  {context}")
+            parts.append(context)
         else:
             # Silence is what hid this for six steps. Say it in the block the
             # trace shows, not only in the log.
@@ -281,73 +342,84 @@ class BeforeModelStateInjection(AgentMiddleware):
                 "document. The input mapper composes it at phase entry, so an "
                 "empty value here means it did not reach state.", self.phase,
             )
-            parts.append("  [!] No phase framing was composed for this turn.")
+            parts.append("[!] No phase framing was composed for this turn.")
+        parts.append("</how_this_phase_was_entered>")
 
         if self._prior:
-            parts.append("\nAPPROVED IN EARLIER PHASES — gate-committed, "
-                         "do not contradict without flagging (§37)")
+            parts.append("<approved_earlier>")
+            parts.append("Gate-committed in earlier phases; do not contradict without flagging.")
             for name in PHASE_ORDER:
                 doc = self._prior.get(name)
                 if not doc:
                     continue
-                parts.append(f"  [{name}]")
-                parts += [f"    {k}: {_render_value(v)}"
-                          for k, v in doc.items()
-                          if v and not k.startswith("_")]
+                parts.append(f'<phase name="{name}">')
+                parts += [value_tag(name, k, v, whole=True, status="approved")
+                          for k, v in doc.items() if v and not k.startswith("_")]
+                parts.append("</phase>")
+            parts.append("</approved_earlier>")
 
-        parts.append("\nCONFIRMED BY THE BELT AND STORED THIS PHASE")
-        if artifacts:
-            parts += [f"  {k}: {_render_value(v)}" for k, v in artifacts.items()]
-        else:
-            parts.append("  (nothing stored yet)")
+        parts.append("<confirmed_values>")
+        parts.append("Confirmed by the Belt and stored this phase. The current element's values and those it builds "
+                     "on are given whole; every other value in one line.")
+        shown = {k: v for k, v in artifacts.items() if k not in ("citations", "uploads", "acknowledged_gaps")
+                 and v not in (None, "", [], {})}
+        parts += [value_tag(self.phase, k, v, whole=sent_whole(k)) for k, v in shown.items()] \
+            or ["(nothing stored yet)"]
+        parts.append("</confirmed_values>")
 
         # 6.61 (R5) — every position's stored status, after this turn's change,
         # the current field, and the value awaiting confirmation.
         statuses = dict(getattr(plan, "statuses", None) or {})
         if statuses:
-            parts.append("\nFIELD STATUS — stored, after this turn "
-                         "(not taught / asked / answered / confirmed)")
-            parts += [f"  {i}. {f} — {s}" for i, (f, s) in enumerate(statuses.items(), 1)]
-            parts.append("  CURRENT FIELD: "
-                         + (getattr(plan, "focus_field", None) or "(every field is confirmed)"))
+            parts.append("<field_status>")
+            parts.append("Stored, after this turn (not taught / asked / answered / confirmed):")
+            parts += [f"{i}. {display_name(self.phase, f)} — {s}" for i, (f, s) in enumerate(statuses.items(), 1)]
+            parts.append("Current element: "
+                         + (display_name(self.phase, focus) if focus else "(every element is confirmed)"))
+            parts.append("</field_status>")
         pending = getattr(plan, "pending", None) if plan is not None else None
         if pending:
-            parts.append("\nPENDING — an answer awaiting the Belt's confirmation; NOT stored")
-            parts.append(f"  field: {pending.get('field')}")
-            parts.append(f"  the Belt's words: {pending.get('belt_words')}")
+            parts.append("<pending>")
+            parts.append("An answer awaiting the Belt's confirmation; NOT stored.")
+            parts.append(f"Element: {display_name(self.phase, str(pending.get('field') or ''))}")
+            parts.append(f"The Belt's words: {pending.get('belt_words')}")
             if pending.get("store"):
-                parts.append("  what the Belt's yes stores: "
-                             + "; ".join(f"{k} = {_render_value(v, 600)}"
-                                         for k, v in pending["store"].items()))
+                parts.append("What the Belt's yes stores:")
+                parts += [value_tag(self.phase, k, v, whole=True, status="awaiting confirmation")
+                          for k, v in pending["store"].items()]
+            parts.append("</pending>")
 
         # R4 — the calculation FEEDS the benefits analysis: while that element is
         # current, its cost of the gap is a fact the coach proposes as `cost_of_gap`.
         # G-226: the expected saving is the other figure, never the cost of the gap.
         # Proposed, never stored — the Belt confirms it (§21).
-        if self.phase == "define" and getattr(plan, "focus_field", None) == "benefits_analysis":
+        if self.phase == "define" and focus == "benefits_analysis":
             from backend.phases.calculations import how_it_was_calculated
             savings = [r for r in (artifacts.get("computation_results") or [])
                        if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
-            parts.append("\nEXPECTED SAVINGS AND THE COST OF THE GAP — calculated this phase; propose the "
-                         "cost of the gap (today, at the baseline) as benefits_analysis.cost_of_gap, with its "
-                         "assumptions. The expected saving (reaching the target) is a separate figure: never "
-                         "call it the cost of the gap")
-            parts += [f"  {how_it_was_calculated(r) or _render_value(r.get('result'), 400)} — inputs "
-                      f"{_render_value(r.get('inputs'), 200)}" for r in savings[-1:]] \
-                or ["  (not calculated yet — the calculation needs the baseline, the target, "
+            parts.append("<savings_calculation>")
+            parts.append("Calculated this phase; propose the cost of the gap (today, at the baseline) as "
+                         "benefits_analysis.cost_of_gap, with its assumptions. The expected saving (reaching the "
+                         "target) is a separate figure: never call it the cost of the gap.")
+            parts += [f"{how_it_was_calculated(r) or value_text(r.get('result'))}\nInputs:\n"
+                      f"{value_text(r.get('inputs'), '  ')}" for r in savings[-1:]] \
+                or ["(not calculated yet — the calculation needs the baseline, the target, "
                     "the cost of one defect and the yearly volume)"]
+            parts.append("</savings_calculation>")
 
         parts += self._upload_manifest()
 
         # 6.57 — labelled as the GATE's list, so its "n of 16" is not read as
         # the Belt's step: Define gates on 16 fields and walks 13 steps.
-        parts.append(f"\nTHE GATE LIST — STILL MISSING FOR THE {self.phase.upper()} "
-                     f"GATE ({len(missing)} of {len(spec.tier_1)} gate fields; "
-                     f"not the step count)")
-        parts += [f"  {f}" for f in missing] or ["  (none — the gate can open)"]
+        parts.append("<gate_list>")
+        parts.append(f"Still missing for the {self.phase} gate: {len(missing)} of {len(spec.tier_1)} gate fields "
+                     f"(not the step count).")
+        parts += [display_name(self.phase, f) for f in missing] or ["(none — the gate can open)"]
         if spec.tier_2:
-            parts.append("  Recommended, not gate-blocking: "
-                         + ", ".join(spec.tier_2))
+            parts.append("Recommended, not gate-blocking: "
+                         + ", ".join(display_name(self.phase, f) for f in spec.tier_2))
+        parts.append("</gate_list>")
+        parts.append("</project_state>")
 
         return "\n".join(parts)
 
@@ -409,6 +481,8 @@ class BeforeModelStateInjection(AgentMiddleware):
                         "the Belt wrote them")
             if declared_type(self.phase, f) in (None, str):
                 return "a string, in the Belt's words"
+            if f in FIELD_SHAPES:   # G-252: the shape rules, for the fields read back
+                return f"{FIELD_SHAPES[f]} — real structure, never prose"
             return (f"{declared_type(self.phase, f)} — real structure, the keys the phase script's "
                     f"'Capture as' line gives, never prose")
         entries = "\n".join(f"  - `{f}`: {entry(f)}" for f in fields)
@@ -417,6 +491,8 @@ class BeforeModelStateInjection(AgentMiddleware):
             fields=" and ".join(f"`{f}`" for f in fields), shape=shape, entries=entries)
         if plan.move == moves.READ_BACK and plan.reason.startswith(moves.CONFIRM_INCOMPLETE[:40]):
             body = f"{plan.reason}\n\n{body}"
+        if plan.move == moves.READ_BACK:
+            body = f"{body}\n\n{CAPTURE_RULES}"
         lines = [SECTION_MOVE, MOVE_PREAMBLE, "",
                  # Fix 2 — the status AFTER this turn, as section 3 shows it:
                  # on a store-and-advance the field is the NEXT one, and the

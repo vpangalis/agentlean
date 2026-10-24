@@ -17,6 +17,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.store.base import BaseStore
 from langgraph.store.memory import InMemoryStore
 
+from backend.middleware.state_injection import display_name
 from backend.core.state import SupervisorState
 from backend.core.substate import (
     PHASE_STATE_AUTHOR_POPULATED_FIELDS,
@@ -178,7 +179,7 @@ def test_later_phases_frame_from_the_prior_gate_document(phase: str) -> None:
     ctx = inp(parent_state(phase), seeded_store(phase))["phase_context"]
     assert prior_phase(phase) in ctx
     for field in m.PHASE_CONTEXT_FIELDS:
-        assert field.replace("_", " ") in ctx
+        assert display_name(prior_phase(phase) or phase, field) in ctx   # G-252: display names
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER[1:])
@@ -194,7 +195,7 @@ def test_uncaptured_field_is_named_not_omitted(phase: str) -> None:
     ctx = inp(parent_state(phase), store)["phase_context"]
     assert "not captured" in ctx
     for field in m.PHASE_CONTEXT_FIELDS:
-        assert field.replace("_", " ") in ctx
+        assert display_name(prior_phase(phase) or phase, field) in ctx   # G-252: display names
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER[1:])

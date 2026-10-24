@@ -141,6 +141,22 @@ def define_progress(artifacts: Mapping[str, Any]) -> dict[str, Any]:
 # key — written identically in every phase, and the thing the grader matches on.
 METRIC_DEFINITION_KEYS: tuple[str, ...] = ("name", "unit", "meaning")
 
+#: G-252 (founder ruling 2026-10-23, item 2a): the earlier values each element's coaching reads in full; every other
+#: confirmed value reaches the coach as one line written in code. The element's own fields are always sent whole.
+ELEMENT_READS: dict[str, tuple[str, ...]] = {
+    "voc_summary": ("business_case",),
+    "problem_statement": ("business_case", "voc_summary", "critical_to_quality"),
+    "baseline_estimate": ("problem_statement", "problem_5w2h"),
+    "project_scope": ("business_case", "problem_statement"),
+    "goal_statement": ("problem_statement", "baseline_estimate", "metric_definitions"),
+    "target_value": ("goal_statement", "baseline_estimate", "metric_definitions"),
+    "target_date": ("goal_statement", "target_value"),
+    "benefits_analysis": ("business_case", "baseline_estimate", "metric_definitions", "target_value"),
+    "secondary_metrics": ("metric_definitions", "goal_statement"),
+    "process_map_sipoc": ("project_scope", "problem_5w2h"),
+    "issues_and_barriers": ("project_scope", "team"),
+}
+
 # Keys on each `phase_metrics` entry (§63.9). `name` MUST equal a registry
 # `name`; the remaining keys are whatever state the phase produced.
 PHASE_METRIC_REQUIRED_KEYS: tuple[str, ...] = ("name",)

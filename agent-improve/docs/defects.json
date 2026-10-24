@@ -3153,6 +3153,20 @@
    ],
    "escape_class": "assumption",
    "control": "test_define_e2e.py::test_g251_an_eval_run_records_each_trial_and_seeds_on_the_apps_own_loop, ::test_g251_an_eval_case_is_seeded_on_the_apps_own_loop"
+  },
+  {
+   "id": "G-252",
+   "symptom": "WHAT THE COACH AND THE GRADER READ WAS CUT, CODE-NAMED AND PYTHON TEXT; THE SCHEMA THE COACH WRITES CARRIED ITS BUILD HISTORY. Measured (Claude outputs/PROMPT_ANATOMY.md, one live E01 turn): state_injection._render_value cut each structured sub-value at 60 chars, list items at 80, values at 300; the grader's context cut each value's JSON at 300; values went by code name (process_map_sipoc) and as dict text; the CoachingResponse tool schema was 2,338 of the coach's 5,133 prompt tokens, its docstring 1,200 of them, with section, ADR and step codes. D4 OCCURRENCE: the limits were set when the prompt was costed by size; the schema's docstring was written for readers of the code. D4 ESCAPE: no test read what the model receives as the model does; the cut was invisible in every test that used short values. D5 FIX (founder ruling 2026-10-23 afternoon, item 2 a-f): no cut; the current element's values and those it reads (define/schema.ELEMENT_READS) whole, every other value one line written in code; display names; each section and value in XML-style tags; CoachingResponse described in one line, field descriptions without codes (history archived to docs/_archive/coaching_response_before_q1_2026-10-23.md); fields_captured, citations and contradiction_flag typed, field_name from the phase's own list (coaching_response_model); the shape rules in the read-back's task section (prompts.FIELD_SHAPES, CAPTURE_RULES); the mapper's carried-forward values the same way. D6 VERIFY: probe — the coach deployment parses the typed schema through ToolStrategy (2 of 2); the same turn after: 3,779 prompt tokens, tool schema 863; eval set evals_20261023T161644 against the baseline: no task worse, E20 0/3 -> 1/3, 16 of 20 pass^3, 186 calls, USD 1.10. D7 PREVENT: backend/tests/test_prompt_inputs.py (a-f), test_contract_shape.py reading section 4.",
+   "requirement": [
+    "T86"
+   ],
+   "feature": [
+    "DEF-142"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {

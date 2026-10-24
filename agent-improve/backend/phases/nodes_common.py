@@ -93,11 +93,13 @@ from backend.core.substate import (
     CoachingResponse,
     PhaseState,
     SufficiencyJudgment,
+    coaching_response_model,
     field_log_key,
     presentational_gaps,
     split_captures,
 )
 from datetime import datetime, timezone
+from pydantic import BaseModel
 
 from backend.upload.asks import ensure_ask
 from backend.knowledge.computation import (
@@ -1192,7 +1194,7 @@ def _build_executor(
         checkpointer=False,
         model=get_llm("coach", max_tokens=1500),
         tools=_executor_tools(phase, hop_budget, hops_spent, hop_results),
-        response_format=CoachingResponse,   # §20 — never a {Phase}Output
+        response_format=coaching_response_model(phase),   # §20 — never a {Phase}Output; G-252: typed per phase
         middleware=[
             # 1 — before_agent. FIRST, and that is a rule, not a preference.
             BeforeModelStateInjection(
@@ -1293,7 +1295,7 @@ def _build_executor(
                 # 6.61 (item 3) — graded as the move it was asked to make.
                 move=plan.move if plan else None,
                 # B2 (founder ruling 2026-10-13) — the case's confirmed values, for "already given".
-                context=_grader_context(state),
+                context=_grader_context(phase, state, plan.focus_field if plan else None),
                 # Option A (founder ruling 2026-10-15): the coach's own sources — the element's script
                 # block as the coach was given it, the Belt's words for the element, the answer awaiting
                 # a Confirm.
@@ -1337,6 +1339,12 @@ def _prior_gate_documents(
     }
 
 
+def captured_entries(reply: Optional[CoachingResponse]) -> list[dict[str, Any]]:
+    """G-252: the reply's read-back entries as plain records — typed entries (the schema's) and records alike."""
+    # dict(e), not model_dump(): the value stays the object the coach sent — nothing is coerced or copied.
+    return [dict(e) for e in ((reply.fields_captured if reply else None) or []) if isinstance(e, (BaseModel, dict))]
+
+
 def _captured_fields(phase: str, reply: CoachingResponse) -> dict[str, Any]:
     """`fields_captured` -> the dict written into `artifacts` (§20, S-F04 B4).
 
@@ -1350,9 +1358,7 @@ def _captured_fields(phase: str, reply: CoachingResponse) -> dict[str, Any]:
     coercing to `str` here would make `causal_hypothesis` uncapturable.
     """
     out: dict[str, Any] = {}
-    for entry in reply.fields_captured or []:
-        if not isinstance(entry, dict):
-            continue
+    for entry in captured_entries(reply):
         name = str(entry.get("field_name") or "").strip()
         if not name:
             logger.warning(
@@ -1440,9 +1446,7 @@ def _field_log_entries(
     # DEF-021 (G-89's fix): since 6.61 a value is stored on the Confirm turn, from the read-back the
     # Belt confirmed — so the reason the coach captured THEN travels on the pending value.
     reasons: dict[str, str] = {str(k): str(v) for k, v in ((pending or {}).get("reasons") or {}).items() if v}
-    for entry in ((reply.fields_captured if reply else None) or []):
-        if not isinstance(entry, dict):
-            continue
+    for entry in captured_entries(reply):
         name = str(entry.get("field_name") or "").strip()
         reason = str(entry.get("reason") or "").strip()
         if name and reason:
@@ -1608,10 +1612,15 @@ def _grader_sources(plan: Optional[CoachingPlan]) -> str:
     return "\n".join(lines)
 
 
-def _grader_context(state: PhaseState) -> str:
-    """B2: the case's confirmed values, one line each, for the grader's "already given" criterion."""
-    artifacts = {k: v for k, v in dict(state.get("artifacts") or {}).items() if k != "computation_results"}
-    return "\n".join(f"- {k}: {json.dumps(v, ensure_ascii=False, default=str)[:300] if not isinstance(v, str) else v[:300]}"
+def _grader_context(phase: str, state: PhaseState, field: Optional[str]) -> str:
+    """B2: the case's confirmed values, for the grader's "already given" criterion. G-252 (founder ruling
+    2026-10-23, item 2a-c): never cut — the element's own values and those it builds on whole, every other one in
+    one line written in code; display names, each value in its tag."""
+    from backend.middleware.state_injection import reads_whole, value_tag
+    whole = reads_whole(phase, field)
+    artifacts = {k: v for k, v in dict(state.get("artifacts") or {}).items()
+                 if k not in ("computation_results", "citations", "uploads", "acknowledged_gaps")}
+    return "\n".join(value_tag(phase, k, v, whole=phase != "define" or k in whole)
                      for k, v in artifacts.items() if v not in (None, "", [], {}))
 
 
@@ -3098,7 +3107,8 @@ async def executor(
     citations: list[dict] = list(state.get("citations") or [])
     if reply is not None:
         captured = _captured_fields(phase, reply)
-        citations.extend(_anchored(reply.citations or [], state))
+        citations.extend(_anchored([c.model_dump() if isinstance(c, BaseModel) else c for c in reply.citations or []],
+                                   state))
         if turn_type == turn_tools.UPLOAD:
             reply = _with_upload_check(phase, reply, _unread_upload(state), plan.focus_field if plan else None)
         if plan is not None and plan.move == moves.READ_BACK:
@@ -3211,10 +3221,9 @@ async def executor(
 
     # ── 6.48 — the declared type is enforced HERE, at the capture site ──
     #
-    # **Not at the model and not at assembly**, and both were ruled out rather
-    # than passed over. A per-phase response schema would make the model the
-    # enforcer, which is a §56 amendment and still leaves the value unchecked
-    # when the model ignores it. Coercing at assembly would INVENT the Belt's
+    # **Not at the model and not at assembly.** The per-phase response schema
+    # narrows the shape (ADR-0110) but is not the enforcer: a value the model
+    # sends in the wrong shape is still caught here. Coercing at assembly would INVENT the Belt's
     # data — a sentence about three people is not three `{name, role, function}`
     # entries, and anything turning one into the other is guessing which words
     # were the names.
@@ -3298,7 +3307,7 @@ async def executor(
         read = {f: v for f, v in store.items() if phase == "define" and f in METRIC_FIELDS}
         # DEF-021 / DEF-082 (R16) — the reason the Belt gave for a change, and where each value came
         # from, as the coach captured them in this read-back; the Confirm writes them to the log.
-        captures = [e for e in (reply.fields_captured if reply else None) or [] if isinstance(e, dict)]
+        captures = captured_entries(reply)
         pending = {**pending, "proposed": {**kept, **read}, "store": store,
                    "reasons": {str(e.get("field_name")): str(e["reason"]).strip()
                                for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
@@ -3752,7 +3761,9 @@ async def executor(
             ],
             remaining_steps=remaining or None,
             # Carried for the audit trail; §19.6's middleware reads it at 6.5.
-            contradiction_flag=(reply.contradiction_flag if reply else None),
+            contradiction_flag=(reply.contradiction_flag.model_dump()
+                                if reply and isinstance(reply.contradiction_flag, BaseModel)
+                                else reply.contradiction_flag if reply else None),
         ), *(
             # §19.8 / S-C14 B6 — each grading written to `step_log`, which the
             # grader's `on_evaluation` callback was always meant to reach.

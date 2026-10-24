@@ -583,7 +583,7 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         # — high signal, not the whole 31k-character script every call.
         script = script_section(self.phase, self.focus_field, self.opening)
         section = [{"type": "text", "text": SECTION_SCRIPT},
-                   {"type": "text", "text": script}]
+                   {"type": "text", "text": f"<phase_script>\n{script}\n</phase_script>"}]   # G-252 (item 2c)
         at = next((i for i, b in enumerate(blocks)
                    if str(b.get("text") or "").startswith(SECTION_STATE)), len(blocks))
         ordered = [*blocks[:at], *section, *blocks[at:]]

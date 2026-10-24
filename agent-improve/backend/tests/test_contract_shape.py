@@ -18,8 +18,11 @@ silently loses a field would leave row 18 green until a Belt happened to answer
 that particular field in prose — which is the shape of the defect this whole
 step exists to close, one level up.
 
-WHY A DESCRIPTION AND NOT THE COACHING SCRIPT
----------------------------------------------
+WHERE THE SHAPES TRAVEL — G-252 (founder ruling 2026-10-23, item 2e)
+---------------------------------------------------------------------
+The shapes moved from `fields_captured`'s description to the turn's task section (section 4), named for
+the fields the read-back carries — sent on every read-back, never loaded on demand. The history below
+is why they must reach the model every turn.
 Measured, 2026-09-23. The same four shapes were written into
 `skills/dmaic-define-phase/SKILL.md` first. SKILL.md loads at **level 2, on
 demand**, through the `load_skill` tool the coach must choose to call (§19.2).
@@ -30,12 +33,24 @@ attempt, with zero refusals.
 """
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
-from backend.core.substate import CoachingResponse
+from backend.core.prompts import CAPTURE_RULES
+from backend.core.substate import CapturedValue, CoachingPlan, CoachingResponse, coaching_response_model
+from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases.gate_registry import GATE_SPECS
 
-CONTRACT = CoachingResponse.model_fields["fields_captured"].description or ""
+
+def _read_back_task(phase: str, field: str) -> str:
+    """Section 4 of a read-back of `field` — where the model is told the field's shape (G-252)."""
+    plan = CoachingPlan(focus_field=field, status="answered", move="read_back",
+                        pending={"field": field, "fields": [field], "belt_words": "the Belt's words", "messages": 1})
+    state: Any = {"artifacts": {}, "phase_context": "", "coaching_plan": plan, "messages": []}
+    mw = BeforeModelStateInjection(phase, cast(Any, state))
+    mw.before_agent(None, None)
+    return mw._move
 
 
 def _structured_coached_fields() -> dict[str, str]:
@@ -56,11 +71,11 @@ def _structured_coached_fields() -> dict[str, str]:
 
 
 def test_the_contract_names_every_structured_coached_field() -> None:
-    """**The one that must not rot.** Nine fields today, derived from the
-    schemas — so a tenth added to any phase fails here rather than silently
-    reaching a Belt as prose."""
+    """**The one that must not rot.** Derived from the schemas — so a field added to any phase fails here
+    rather than silently reaching a Belt as prose: its read-back names it with its shape."""
     missing = {f: p for f, p in _structured_coached_fields().items()
-               if f not in CONTRACT}
+               if f"`{f}`" not in _read_back_task(p, f)
+               or not any(w in _read_back_task(p, f) for w in ("real structure", "the Belt's words"))}
     assert not missing, (
         f"structured coached fields absent from the capture contract: {missing}"
         " — the model is told nothing about their shape"
@@ -102,9 +117,10 @@ def test_each_structured_field_carries_its_keys(field: str,
     check at capture (step 6.48 checks the TYPE), and the wrong keys reach the
     gate — a green row over a value nothing downstream can read.
     """
-    assert field in CONTRACT
+    task = _read_back_task(_structured_coached_fields()[field], field)
+    assert f"`{field}`" in task
     for key in keys:
-        assert key in CONTRACT, f"{field} is missing key {key}"
+        assert key in task, f"{field} is missing key {key}"
 
 
 def test_the_cross_phase_dicts_carry_all_four_reference_keys() -> None:
@@ -116,12 +132,12 @@ def test_the_cross_phase_dicts_carry_all_four_reference_keys() -> None:
     primary. Teaching a three-key shape would produce links the grader cannot
     resolve — and the contract is exactly where that error would propagate.
     """
-    for key in ("references_phase", "references_field",
-                "references_metric_name", "references_value"):
-        assert key in CONTRACT, key
     for field in ("causal_hypothesis", "solution_linked_to_root_cause",
                   "post_improvement_metrics"):
-        assert field in CONTRACT, field
+        task = _read_back_task(_structured_coached_fields()[field], field)
+        for key in ("references_phase", "references_field",
+                    "references_metric_name", "references_value"):
+            assert key in task, (field, key)
 
 
 def test_the_contract_says_a_wrong_shape_is_not_stored() -> None:
@@ -131,13 +147,14 @@ def test_the_contract_says_a_wrong_shape_is_not_stored() -> None:
     is that prose here costs the Belt the answer — which is what makes the
     instruction worth following rather than advisory.
     """
-    assert "NOT STORED" in CONTRACT
-    assert "uncaptured" in CONTRACT
+    assert "not stored" in CAPTURE_RULES and "answers again" in CAPTURE_RULES
+    assert CAPTURE_RULES in _read_back_task("define", "team")
 
 
 def test_the_eight_ratified_fields_are_still_eight() -> None:
-    """**A description, not a type change.** The §56 amendment moved what the
-    model is TOLD; it did not add a field, and a per-phase response schema
-    stays ruled out."""
+    """No field added. G-252 (founder ruling 2026-10-23, item 2e) typed the entry: `field_name` from the phase's own
+    field list, `value` still Any (§10.7)."""
     assert len(CoachingResponse.model_fields) == 8
-    assert CoachingResponse.model_fields["fields_captured"].annotation == list[dict]
+    assert CoachingResponse.model_fields["fields_captured"].annotation == list[CapturedValue]
+    assert CapturedValue.model_fields["value"].annotation is Any
+    assert issubclass(coaching_response_model("define"), CoachingResponse)

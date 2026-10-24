@@ -5583,7 +5583,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-252"
+    ]
    },
    "requirement": "T86",
    "belt_impact": "none",

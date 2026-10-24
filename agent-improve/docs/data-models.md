@@ -87,9 +87,9 @@ class CoachingResponse(BaseModel):
     example:            str = ''
     prompt:             str = ''
     progress:           str = ''
-    fields_captured:    list[dict] = []
-    citations:          list[dict] = []
-    contradiction_flag: Optional[dict] = None
+    fields_captured:    list[CapturedValue] = []
+    citations:          list[Citation] = []
+    contradiction_flag: Optional[ContradictionFlag] = None  # type: ignore[valid-type]
 ```
 
 #### Phase records — `phases/{phase}/schema.py`

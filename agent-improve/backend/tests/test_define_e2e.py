@@ -4417,7 +4417,10 @@ def test_a_correction_keeps_the_belts_reason(env, monkeypatch) -> None:
     from backend.core.substate import CoachingResponse
     from backend.tests.test_define_report import COMPLETE
 
-    assert "reason" in (CoachingResponse.model_fields["fields_captured"].description or ""), \
+    from backend.core.prompts import CAPTURE_RULES
+    from backend.core.substate import CapturedValue
+    # G-252 (item 2e): the entry carries `reason`, and the read-back's task section asks for it.
+    assert "reason" in CapturedValue.model_fields and "`reason`" in CAPTURE_RULES, \
         "the coach is never asked for a reason (G-89)"
     entry = _goal_change(_revise_goal(env, monkeypatch))
     assert entry["reason"] == GOAL_REASON, entry
@@ -4589,10 +4592,13 @@ def test_approved_values_later_phases_need_are_stored_structured(env, monkeypatc
                                       "message": "What do we measure first?"})
     assert r.status_code == 200, r.text
     shown = blocks[-1]
-    assert "APPROVED IN EARLIER PHASES" in shown and "[define]" in shown, shown[:600]
-    earlier = shown[shown.index("APPROVED IN EARLIER PHASES"):]
+    # G-252 (item 2b-c): the earlier phase's values in their tags, under display names, complete.
+    from backend.middleware.state_injection import display_name
+    assert "<approved_earlier>" in shown and '<phase name="define">' in shown, shown[:600]
+    earlier = shown[shown.index("<approved_earlier>"):shown.index("</approved_earlier>")]
     for key in ("process_map_sipoc", "baseline_estimate", "target_value", "metric_definitions"):
-        assert f"    {key}:" in earlier, f"{key} did not reach the Measure coach"
+        assert f'name="{display_name("define", key)}" status="approved">' in earlier, \
+            f"{key} did not reach the Measure coach"
 
 
 class _LeasedBlob:

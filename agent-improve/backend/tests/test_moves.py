@@ -234,8 +234,8 @@ def test_sections_3_and_4_agree_on_the_confirming_turn() -> None:
     mw.before_agent(None, None)
     state, move = mw._block, mw._move
     assert "Define · Step 2 of 13" in state
-    assert "1. business_case — confirmed" in state and "CURRENT FIELD: team" in state
-    assert f"business_case: {AD5[:60]}" in state, "shown stored"
+    assert "1. Business case — confirmed" in state and "Current element: Team" in state
+    assert '<value name="Business case" status="confirmed">' in state, "shown stored"
     assert "RECORD `business_case`, THEN TEACH `team`" in move
     assert "Field: team — status after this turn: asked" in move, "section 4's status is section 3's"
 

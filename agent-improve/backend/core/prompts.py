@@ -233,6 +233,30 @@ THE STRUCTURED RESPONSE
     category, not a rewording, and not a refinement of something in the current
     phase that has not been committed yet."""
 
+#: G-252 (founder ruling 2026-10-23, item 2e): the shape of `value` for each structured field, given in the turn's
+#: task section for the fields read back (moved from CoachingResponse.fields_captured's description).
+FIELD_SHAPES: dict[str, str] = {
+    "team": "a LIST of {name, role, function}, one entry per person",
+    "critical_to_quality": "a LIST of {customer, need, requirement}, one entry per CTQ",
+    "problem_5w2h": ("{what, where, when, who, why, how, how_much, steps}; `steps` is a LIST of the process step(s) "
+                     "where the problem shows, as the Belt names them"),
+    "project_scope": "{in_scope, out_scope}",
+    "benefits_analysis": "{cost_of_gap, impact_type, realisation_schedule, finance_contact}",
+    "process_map_sipoc": ("{suppliers, inputs, process_steps, outputs, customers, process_metrics, "
+                          "process_performance}, the six columns all filled; `process_steps` a LIST, one entry per "
+                          "step: {name, duration {avg, min, max}, runs_per_period, problems [{note, said_by}]}; "
+                          "`process_performance` {lead_time, runs_per_period}. Each figure is the Belt's words with its "
+                          "unit (\"about 2 days\", \"180 a week\"); code reads the number"),
+    "detailed_process_map": "{steps, cycle_times, resources, value_vs_waste, measurement_points, baseline_metrics}",
+    "control_plan": "{documentation, monitoring, response, training, aligning_systems}",
+    **{f: ("the Belt's content plus references_phase, references_field, references_metric_name, "
+           "references_value") for f in ("causal_hypothesis", "solution_linked_to_root_cause",
+                                         "post_improvement_metrics")},
+}
+
+#: G-252: how a read-back's entries are written — with the shapes above, in the turn's task section.
+CAPTURE_RULES = """Each entry of `fields_captured`: `field_name` exactly as named above, `value`, and `source` ("belt", or the uploaded file's name). Never include a value the Belt did not state. A structured field takes real structure: a sentence describing it is refused and not stored, and the Belt answers again. Values inside the structure are strings. When this read-back changes a value the Belt confirmed earlier, add `reason`: why, in the Belt's words; leave it out when they gave none or the value is new."""
+
 #: §43.1 and §43.2, the coaching behaviour the grader checks every turn (§36).
 #: **Step 6.61 — how to behave, and nothing about when** (§22 v1.75): which
 #: field, which move and when a field is finished are decided in code and

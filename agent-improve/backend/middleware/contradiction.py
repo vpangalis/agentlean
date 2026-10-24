@@ -138,6 +138,8 @@ class ContradictionDetectionMiddleware(AgentMiddleware):
         flag = getattr(response, "contradiction_flag", None)
         if flag is None:
             return None
+        if hasattr(flag, "model_dump"):   # G-252: the typed flag
+            flag = flag.model_dump()
         if not isinstance(flag, dict):
             logger.warning(
                 "contradiction_flag is %s, not a dict — ignoring: %r",

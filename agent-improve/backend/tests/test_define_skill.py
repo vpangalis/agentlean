@@ -86,4 +86,4 @@ def test_r4_thirteen_elements_with_the_benefits_analysis_and_the_ctqs() -> None:
     mw = BeforeModelStateInjection("define", cast(Any, state))
     mw.before_agent(None, None)
     block = mw._block
-    assert "EXPECTED SAVINGS" in block and "68040.00" in block and "cost_of_gap" in block
+    assert "<savings_calculation>" in block and "68040.00" in block and "cost_of_gap" in block

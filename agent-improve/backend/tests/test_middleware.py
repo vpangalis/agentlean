@@ -64,7 +64,7 @@ from backend.middleware.grader import (
     GRADER_WARNING,
     DMAICGraderMiddleware,
 )
-from backend.middleware.state_injection import BeforeModelStateInjection
+from backend.middleware.state_injection import BeforeModelStateInjection, display_name
 from backend.validation.schemas import (
     CoachingGraderVerdict,
     CriterionResult,
@@ -202,13 +202,14 @@ def test_injection_uses_content_blocks_not_string_concatenation() -> None:
     texts = _texts(out.system_message)
     # 6.61 — section 1's heading, the rules' own blocks INTACT, then sections
     # 3, 4, 5 and 6's label (section 2 is position 2's to place).
-    assert texts[0] == SECTION_RULES
-    assert texts[1:3] == ["COACH PART ONE", "COACH PART TWO"], (
+    # G-252 (item 2c): section 1's body in its tags, as blocks of their own.
+    assert texts[0] == SECTION_RULES and texts[1] == "<coaching_rules>" and texts[4] == "</coaching_rules>"
+    assert texts[2:4] == ["COACH PART ONE", "COACH PART TWO"], (
         "the existing blocks were not preserved intact"
     )
-    assert [t.split("\n", 1)[0] for t in texts[3:]] == [
+    assert [t.split("\n", 1)[0] for t in texts[5:]] == [
         SECTION_STATE, SECTION_MOVE, SECTION_FEEDBACK, SECTION_CONVERSATION]
-    assert len(texts) == 7
+    assert len(texts) == 9
 
     # **The check is per BLOCK, not on `.content`.** A multi-part message's
     # `.content` is a list and reprs as one — correctly. The failure being
@@ -237,7 +238,7 @@ def test_skills_catalogue_also_uses_content_blocks() -> None:
     assert texts[:2] == ["PROJECT STATE ...", "COACH INSTRUCTIONS"]
     # 6.61 — section 2, as its own blocks: the heading, then the script part.
     assert texts[2] == "## 2 · PHASE SCRIPT — what to teach"
-    assert texts[3] == script_section("define", None, False)
+    assert texts[3] == f"<phase_script>\n{script_section('define', None, False)}\n</phase_script>"
     assert not any("'type': 'text'" in t for t in texts)
 
 
@@ -261,14 +262,14 @@ def test_the_two_middlewares_compose_without_flattening() -> None:
     request = skills._append_catalogue(request)
 
     texts = _texts(request.system_message)
-    assert len(texts) == 9
-    assert texts[0] == SECTION_RULES
-    assert texts[1:3] == ["COACH PART ONE", "COACH PART TWO"]
-    assert texts[3] == SECTION_SCRIPT
+    assert len(texts) == 11
+    assert texts[0] == SECTION_RULES and texts[1] == "<coaching_rules>" and texts[4] == "</coaching_rules>"
+    assert texts[2:4] == ["COACH PART ONE", "COACH PART TWO"]
+    assert texts[5] == SECTION_SCRIPT
     # Item 4 — the section, not the whole script; no plan here, so no current
     # field: the closing block. The catalogue is gone from the message.
-    assert texts[4] == script_section("define", None, False)
-    assert [t.split("\n", 1)[0] for t in texts[5:]] == [
+    assert texts[6] == f"<phase_script>\n{script_section('define', None, False)}\n</phase_script>"
+    assert [t.split("\n", 1)[0] for t in texts[7:]] == [
         SECTION_STATE, SECTION_MOVE, SECTION_FEEDBACK, SECTION_CONVERSATION]
     assert not any("'type': 'text'" in t for t in texts)
 
@@ -286,9 +287,10 @@ def test_missing_fields_are_the_gates_own_computation(phase: str) -> None:
     expected = missing_gate_fields(phase, artifacts)
 
     assert expected, "fixture should leave something missing"
+    gate = _gate_list(block)
     for field in expected:
-        assert field in block, f"{field} missing from the injected block"
-    assert GATE_SPECS[phase].tier_1[0] not in block.split("STILL MISSING")[1], (
+        assert display_name(phase, field) in gate, f"{field} missing from the injected block"
+    assert display_name(phase, GATE_SPECS[phase].tier_1[0]) not in gate.splitlines()[2:], (
         "a captured field was reported as missing"
     )
 
@@ -314,6 +316,11 @@ def test_the_validators_and_the_middleware_share_one_implementation() -> None:
         )
 
 
+def _gate_list(block: str) -> str:
+    """G-252 (item 2c): the gate list section of the state block."""
+    return block[block.index("<gate_list>"):block.index("</gate_list>")]
+
+
 def test_missing_fields_are_derived_never_read_from_a_stored_list() -> None:
     """**B3** — and §5 removed `open_items` for the same reason.
 
@@ -322,8 +329,8 @@ def test_missing_fields_are_derived_never_read_from_a_stored_list() -> None:
     """
     empty = _block(state={"artifacts": {}})
     filled = _block(state={"artifacts": {"business_case": "£120k a year"}})
-    assert "business_case" in empty.split("STILL MISSING")[1]
-    assert "business_case" not in filled.split("STILL MISSING")[1]
+    assert "Business case" in _gate_list(empty)
+    assert "Business case" not in _gate_list(filled)
 
 
 def test_prior_phase_values_are_injected(tmp_path: Any) -> None:
@@ -335,8 +342,8 @@ def test_prior_phase_values_are_injected(tmp_path: Any) -> None:
         prior_documents={"define": {"baseline_estimate": "12.3%"}},
     )
     mw.before_agent(None, None)
-    assert "APPROVED IN EARLIER PHASES" in mw._block
-    assert "baseline_estimate" in mw._block and "12.3%" in mw._block
+    assert "<approved_earlier>" in mw._block
+    assert 'name="Primary metric and baseline"' in mw._block and "12.3%" in mw._block
 
 
 def test_only_earlier_phases_are_treated_as_approved() -> None:
@@ -707,8 +714,8 @@ def test_the_injected_block_reflects_this_turns_state(stub_coach) -> None:
     )))
     block = stub_coach.injected_block
     assert "£120k of rework a year" in block
-    assert "business_case" not in block.split("STILL MISSING")[1]
-    assert "team" in block.split("STILL MISSING")[1]
+    assert "Business case" not in _gate_list(block)
+    assert "Team" in _gate_list(block).splitlines()
 
 
 # ══════════════════════════════════════════════════════════════════════════
