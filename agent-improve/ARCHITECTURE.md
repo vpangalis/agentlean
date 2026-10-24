@@ -523,7 +523,7 @@ call, level 3 references on demand. Move sequencing is never in a skill.
 | Layer | Checks | How | Where |
 |---|---|---|---|
 | 2a | Retired (ADR-0083): the faults it was meant to catch are checked in code (G-170 to G-175) | — | — |
-| 2b | Required fields present | `phases/{phase}/validate.py::validate_{phase}` | `validation_stack` |
+| 2b | Required fields present | `phases/gate_registry.py::check_gate` | `validation_stack` |
 | 2c | Constraints addressed | **Not built** | — |
 | 2d | Rubric, per criterion pass / warning / fail | Deterministic half, then one `grader` call — `validation/rubric.py::grade_define`, **Define only** | `validation_stack` |
 

@@ -268,10 +268,9 @@ def test_single_authority_runs_before_construction() -> None:
 # ── the validators (Layer 2b) ─────────────────────────────────────────────
 
 def _validate(phase: str, data: dict) -> dict:
-    mod = importlib.import_module(f"backend.phases.{phase}.validate")
-    fn = getattr(mod, f"validate_{phase}")
-    state = {"phase_inputs": {phase: data}, "gate_attempts": 0}
-    return asyncio.run(fn(state))["phase_inputs"][phase]
+    """Layer 2b, as the validation stack calls it (B6: on the phase's own draft, no v1 state)."""
+    from backend.phases.gate_registry import check_gate
+    return check_gate(phase, data, 0)
 
 
 @pytest.mark.parametrize("phase", ["measure", "analyse", "improve", "control"])
@@ -281,8 +280,8 @@ def test_tier_1_complete_passes_even_with_tier_2_gaps(phase: str) -> None:
     for field in GATE_SPECS[phase].tier_2:
         art.pop(field, None)
     out = _validate(phase, art)
-    assert out["_gate_passed"] is True
-    assert len(out["_acknowledged_gaps"]) == len(GATE_SPECS[phase].tier_2)
+    assert out["passed"] is True
+    assert len(out["acknowledged_gaps"]) == len(GATE_SPECS[phase].tier_2)
 
 
 @pytest.mark.parametrize("phase", ["measure", "analyse", "improve", "control"])
@@ -291,8 +290,8 @@ def test_missing_tier_1_blocks(phase: str) -> None:
     field = GATE_SPECS[phase].tier_1[0]
     del art[field]
     out = _validate(phase, art)
-    assert out["_gate_passed"] is False
-    assert field in out["_missing_fields"]
+    assert out["passed"] is False
+    assert field in out["missing"]
 
 
 def test_partial_structured_dict_blocks() -> None:
@@ -301,28 +300,33 @@ def test_partial_structured_dict_blocks() -> None:
     art = _full("control")
     art["control_plan"] = {"documentation": "d", "monitoring": "m"}
     out = _validate("control", art)
-    assert out["_gate_passed"] is False
-    assert any("control_plan." in m for m in out["_missing_fields"])
+    assert out["passed"] is False
+    assert any("control_plan." in m for m in out["missing"])
 
 
 def test_whitespace_only_value_is_not_captured() -> None:
     art = _full("analyse")
     art["root_cause_statement"] = "   "
     out = _validate("analyse", art)
-    assert "root_cause_statement" in out["_missing_fields"]
+    assert "root_cause_statement" in out["missing"]
 
 
-@pytest.mark.parametrize("phase", PHASES)
-def test_validators_are_async_nodes(phase: str) -> None:
-    """§14 / §3.2 — every node is `async def`."""
-    import inspect
-    mod = importlib.import_module(f"backend.phases.{phase}.validate")
-    assert inspect.iscoroutinefunction(getattr(mod, f"validate_{phase}"))
+def test_layer_2b_is_one_check_and_the_v1_validators_are_gone() -> None:
+    """B6 (founder ruling 2026-10-24; audit A5, item 7): layer 2b is gate_registry.check_gate for all five phases, on
+    the phase's own draft — the five validate_{phase}, their v1 ImproveGraphState input and the bridge that built it
+    are gone, with the hand-kept copies of the tier lists they carried; a failure counts once and escalates at
+    GATE_MAX_ATTEMPTS through the one gate_escalates."""
+    from pathlib import Path
 
-
-def test_validator_tier_lists_come_from_schema() -> None:
-    """§56.1's atomic unit: `validate.py` imports the tier tuples rather than
-    retyping them — two hand-maintained copies of one list is how the three
-    drift apart."""
-    from backend.phases.measure.validate import MEASURE_REQUIRED_FOR_GATE
-    assert list(GATE_SPECS["measure"].tier_1) == MEASURE_REQUIRED_FOR_GATE
+    from backend.core.config import settings
+    from backend.phases import gate_registry, nodes_common
+    backend = Path(gate_registry.__file__).resolve().parents[1]
+    assert not list(backend.glob("phases/*/validate.py"))
+    assert not hasattr(nodes_common, "to_v1_state")
+    art = _full("measure")
+    del art[GATE_SPECS["measure"].tier_1[0]]
+    last = settings.GATE_MAX_ATTEMPTS - 1
+    assert gate_registry.check_gate("measure", art, last - 1)["escalated"] is False
+    assert gate_registry.check_gate("measure", art, last) == {
+        **gate_registry.check_gate("measure", art, last), "attempts": last + 1, "escalated": True}
+    assert gate_registry.check_gate("measure", _full("measure"), last)["attempts"] == 0

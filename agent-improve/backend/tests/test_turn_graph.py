@@ -412,14 +412,10 @@ def test_the_gate_entry_skips_the_coach(wired, stub_coach, monkeypatch) -> None:
     """A gate submission validates; it does not spend a coaching turn."""
     graph, _ = wired
 
-    async def fake_validate(state):
-        return {"gate_attempts": 2, "escalated": False,
-                "phase_inputs": {"define": {"_gate_passed": False,
-                                            "_missing_fields": ["team"]}}}
+    def fake_check(phase, data, attempts):
+        return {"passed": False, "missing": ["team"], "attempts": 2, "escalated": False, "acknowledged_gaps": []}
 
-    monkeypatch.setattr(
-        "backend.phases.define.nodes.validate_define", fake_validate
-    )
+    monkeypatch.setattr("backend.phases.nodes_common.check_gate", fake_check)
     result = asyncio.run(graph.ainvoke(
         _seed_state(messages=[HumanMessage(content="hi")]),
         config=_config(entry="gate"),
@@ -439,13 +435,11 @@ def test_a_coaching_turn_never_runs_the_validator(wired, stub_coach, monkeypatch
     graph, _ = wired
     called: list[int] = []
 
-    async def fake_validate(state):
+    def fake_check(phase, data, attempts):
         called.append(1)
-        return {"gate_attempts": 1, "phase_inputs": {"define": {}}}
+        return {"passed": True, "missing": [], "attempts": 0, "escalated": False, "acknowledged_gaps": []}
 
-    monkeypatch.setattr(
-        "backend.phases.define.nodes.validate_define", fake_validate
-    )
+    monkeypatch.setattr("backend.phases.nodes_common.check_gate", fake_check)
     asyncio.run(graph.ainvoke(
         _seed_state(messages=[HumanMessage(content="hi")]), config=_config()
     ))

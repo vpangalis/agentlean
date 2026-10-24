@@ -369,11 +369,10 @@ def test_supervisor_and_phase_state_are_different_schemas() -> None:
     assert overlap == {"case_id", "current_phase", "messages", "history"}
 
 
-def test_v1_schema_still_exists_until_step_11_1() -> None:
-    """The procedure keeps `ImproveGraphState` alive until 11.1; both coexist
-    until the last v1 consumer is gone. Step 3.1 must not have removed it."""
-    assert hasattr(state_module, "ImproveGraphState")
-    assert state_module.ImproveGraphState.__total__ is False
+def test_the_v1_schema_is_gone_with_its_last_reader() -> None:
+    """Two state schemas only (rules/architecture.md §1.1): the v1 `ImproveGraphState` went with its last reader,
+    the v1 bridge to the five validators (founder ruling 2026-10-24, B6)."""
+    assert not hasattr(state_module, "ImproveGraphState")
 
 
 def test_step_3_1_wires_nothing_into_a_graph() -> None:

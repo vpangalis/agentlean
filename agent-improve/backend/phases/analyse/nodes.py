@@ -1,8 +1,8 @@
 """The five nodes of the Analyse phase subgraph.
 
 **The bodies live in `phases/nodes_common.py`.** The five nodes are identical
-across all five phases; they differ in the phase name and in which
-`validate_analyse` the validation stack calls. One copy of the logic means the
+across all five phases; they differ in the phase name and
+nothing else. One copy of the logic means the
 `step_log` key format and "do not validate a coaching turn" hold in all five
 phases at once.
 
@@ -19,8 +19,8 @@ WHAT IS A PLACEHOLDER, AND MUST NOT BE FAKED
 --------------------------------------------
   * **The planner's routing predicate** is a terminating placeholder and is
     NOT a behavioural approximation of the real one (G-01).
-  * **The validation stack** runs layer 2b (field presence, via
-    `validate_analyse`) only.
+  * **The validation stack** runs layer 2b (field presence,
+    `gate_registry.check_gate`) only.
   * **Only Define's gate pauses for acceptance** (R6). Here `gate_review`
     and `gate_apply` pass through, so reaching `END` does NOT mean the
     gate passed.
@@ -39,7 +39,6 @@ from langgraph.types import Command
 
 from backend.core.substate import PhaseState
 from backend.phases import nodes_common as _c
-from backend.phases.analyse.validate import validate_analyse
 
 PHASE = "analyse"
 
@@ -69,8 +68,8 @@ async def validation_stack(
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> Command[Literal["planner", "gate_review"]]:
-    """The three layers (2b–2d), shared cap of 3 — layer 2b via `validate_analyse`."""
-    return await _c.validation_stack(PHASE, validate_analyse, state, config)
+    """The three layers (2b–2d), shared cap of 3 — layer 2b via `gate_registry.check_gate`."""
+    return await _c.validation_stack(PHASE, state, config)
 
 
 async def gate_review(state: PhaseState) -> dict[str, Any]:

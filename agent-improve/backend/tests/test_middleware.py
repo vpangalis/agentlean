@@ -298,22 +298,14 @@ def test_missing_fields_are_the_gates_own_computation(phase: str) -> None:
 def test_the_validators_and_the_middleware_share_one_implementation() -> None:
     """§19.1 — *"the prompt and `DMAICGateValidator` cannot disagree"*.
 
-    Checked structurally, not by comparing two outputs that happen to match:
-    the five validators must call the shared function, and must no longer
-    carry a local Tier-1 loop of their own.
+    Checked structurally, not by comparing two outputs that happen to match: layer 2b is ONE function for all five
+    phases (B6: gate_registry.check_gate), and it calls the shared computation.
     """
-    import importlib
+    from backend.phases import gate_registry
 
-    for phase in PHASE_ORDER:
-        mod = importlib.import_module(f"backend.phases.{phase}.validate")
-        source = inspect.getsource(mod)
-        assert "missing_gate_fields" in source, (
-            f"{phase}/validate.py does not use the shared computation"
-        )
-        assert "def _missing_structured" not in source, (
-            f"{phase}/validate.py still carries its own structured check — "
-            f"that is the second implementation §19.1 forbids"
-        )
+    source = inspect.getsource(gate_registry.check_gate)
+    assert "missing_gate_fields(" in source, "layer 2b does not use the shared computation"
+    assert "def _missing_structured" not in inspect.getsource(gate_registry), "a second structured check"
 
 
 def _gate_list(block: str) -> str:

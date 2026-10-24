@@ -189,8 +189,8 @@ def phase_node(phase: str, approval: bool = False) -> Callable[..., Any]:
         # `draft` is the v1 accumulator (see `phases/nodes_common.py`). The
         # mapper initialises it to `{}`, so it is seeded here with what the
         # case record already holds, or every turn re-extracts against
-        # nothing. The OTHER phases' inputs ride on `config` and are
-        # read by `to_v1_state` — every phase but Define builds a cross-phase
+        # nothing. The OTHER phases' inputs ride on `config`
+        # (`v1_phase_inputs`) — every phase but Define builds a cross-phase
         # brief from them.
         seeded = (dict(carried.get("structured") or {}) if carried is not None
                   else (configurable.get("v1_phase_inputs") or {}).get(phase))

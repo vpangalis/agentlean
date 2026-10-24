@@ -1,10 +1,7 @@
 """Graph state schemas.
 
-Holds TWO schemas:
-
-* `SupervisorState` — the v2 Level 1 orchestration state.
-* `ImproveGraphState` — the v1 schema, kept while a v1 consumer still reads
-  it; both coexist until the last v1 consumer is gone.
+`SupervisorState`, the Level 1 orchestration state (`PhaseState`, Level 2, is core/substate.py's). The v1
+`ImproveGraphState` is gone with its last reader, the v1 bridge (founder ruling 2026-10-24, B6).
 """
 from __future__ import annotations
 
@@ -92,54 +89,3 @@ SUPERVISOR_STATE_REMOVED_FIELDS = (
     "dmaic_plan", "key_decisions", "open_items", "project_context",
 )
 
-
-class ImproveGraphState(TypedDict, total=False):
-    """Single source of truth for Agent Improve.
-    All fields optional (total=False).
-    Nodes return dict slices only — never the full state.
-
-    **v1 — superseded by `SupervisorState` above and `PhaseState` in
-    `core/substate.py`**, and kept while a v1 consumer (the phases'
-    `validate.py`) still reads it."""
-
-    # Case identity — set at session start from blob
-    case_id: str | None
-    current_phase: str | None          # define|measure|analyse|improve|control
-    current_user: str | None           # name of team member active this turn
-
-    # Phase inputs — partial dict built turn by turn from extraction
-    # Written by orchestrate nodes, read by validate nodes and UI
-    phase_inputs: dict | None
-
-    # Conversation history — append-only, never modified
-    # [{turn, role, user, text, timestamp, citations}]
-    chat_history: list | None
-
-    # Gate state — reset to 0 on phase advance
-    gate_attempts: int
-    escalated: bool
-
-    # Citations accumulated this session
-    # [CitationRecord dicts] — see core/citations.py
-    citations: list | None
-
-    # Analyst output — written after gate pass
-    analyst_output: dict | None
-
-    # Uploaded files this session
-    # [{filename, blob_path, classification, phase, uploaded_by, uploaded_at}]
-    uploaded_files: list | None
-
-    # Case metadata — loaded from blob at session start
-    # {title, belt_level, leader, team, created_at, target_date, department}
-    case_metadata: dict | None
-
-    # SIPOC diagram payload — written by orchestrate_define when the
-    # problem statement is complete, or when a confirmed SIPOC exists.
-    # Shape: {suppliers, inputs, process_steps, outputs, customers, draft}
-    sipoc_diagram: dict | None
-
-    # Which Define gate section just became complete this turn — written
-    # by orchestrate_define. One of: problem_statement|sipoc|goal_scope|
-    # business_case|charter, or None.
-    section_completed: str | None

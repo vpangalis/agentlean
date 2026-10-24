@@ -2,10 +2,9 @@
 
 WHY A SHARED MODULE RATHER THAN FIVE COPIES
     The five nodes are **identical across all five phases**. They differ in
-    exactly two places — the phase name, and which `validate_{phase}` the
-    validation stack calls — and nothing else. Written out five times that is
-    five copies of the planner's routing table, five copies of the v1 bridge,
-    and five copies of the deterministic `step_log` key.
+    the phase name and nothing else. Written out five times that is five
+    copies of the planner's routing table, of the validation stack, and of
+    the deterministic `step_log` key.
 
     `phases/mappers_common.py` exists for the same reason. These bodies carry
     live rules — the `step_log` key format, "do not validate a coaching turn",
@@ -26,8 +25,7 @@ WHAT EACH PHASE'S `nodes.py` STILL OWNS
     names; the executor writes it. `draft` is seeded from the phase record when
     the subgraph is entered (`core/graph.py`) and, after a coaching turn, holds
     what that turn stored — the route writes it into the case record. On a gate
-    submission it is this phase's entry in the v1 `ImproveGraphState` that
-    `validate_{phase}` reads (`to_v1_state`).
+    submission it is what layer 2b checks (`gate_registry.check_gate`).
 """
 from __future__ import annotations
 
@@ -40,7 +38,7 @@ import re
 import time
 
 import openai
-from typing import Any, Awaitable, Callable, Literal, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import (
@@ -60,8 +58,8 @@ from langgraph.types import Command, interrupt
 from backend.core import content_safety, guard, guard_messages, pii
 from backend.middleware import fallback as model_fallback
 from backend.middleware import turn_tools
-from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S, settings
-from backend.core.conversation import CARD_KEY, COMPLETION_KEY, ELEMENT_KEY, STRIP_KEY, message_to_turn  # ADR-0093
+from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S
+from backend.core.conversation import CARD_KEY, COMPLETION_KEY, ELEMENT_KEY, STRIP_KEY  # ADR-0093
 from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
 from backend.core.prompts import (
@@ -74,7 +72,6 @@ from backend.core.prompts import (
     STORE_NOTE_NOT_STORED,
     STORE_NOTE_STORED,
 )
-from backend.core.state import ImproveGraphState
 from backend.core.substate import (
     FIELDS_CAPTURED_NORMALIZED,
     CoachingPlan,
@@ -112,7 +109,7 @@ from backend.middleware.skills import (
 )
 from backend.phases import moves
 from backend.middleware.state_injection import BeforeModelStateInjection
-from backend.phases.gate_registry import GATE_SPECS, captured_count, review_rows, split_by_declared_type
+from backend.phases.gate_registry import check_gate, gate_escalates, GATE_SPECS, captured_count, review_rows, split_by_declared_type
 from backend.validation import kept as kept_verdicts
 from backend.validation.rubric import grade_define
 from backend.phases.mappers_common import PHASE_ORDER
@@ -130,8 +127,6 @@ NODE_NAMES: tuple[str, ...] = (
     "gate_apply",
 )
 
-#: The validation stack's delegate, `validate_{phase}`: it reads the v1 `ImproveGraphState`.
-V1Node = Callable[[ImproveGraphState], Awaitable[dict[str, Any]]]
 
 
 def step_key(phase: str, turn_count: int, step_name: str) -> str:
@@ -630,45 +625,6 @@ async def _plan_turn(phase: str, state: PhaseState,
         statuses=d["statuses"], field_status=field_status, reason=d["reason"],
         retrieval_strategy=_retrieval_strategy(phase),
     )
-
-
-# ── the v1 bridge ─────────────────────────────────────────────────────────
-#
-# `validate_{phase}` reads the v1 `ImproveGraphState`; `to_v1_state` builds it
-# from `PhaseState` for the validation stack.
-
-def to_v1_state(
-    phase: str,
-    state: PhaseState,
-    config: Optional[RunnableConfig],
-) -> ImproveGraphState:
-    """Bridge `PhaseState` to the v1 `ImproveGraphState` that `validate_{phase}` reads.
-
-    `phase_inputs` carries every phase's values from `config`
-    (`v1_phase_inputs`, which the route assembles from the case document), and
-    this phase's entry is replaced by `draft` — seeded from the phase record
-    when the subgraph is entered, so newer than the case document's copy.
-    `validate_{phase}` checks this phase's entry and passes the rest through.
-    """
-    configurable = (config or {}).get("configurable") or {}
-    messages = list(state.get("messages") or [])
-
-    phase_inputs = {
-        name: dict(values or {})
-        for name, values in (configurable.get("v1_phase_inputs") or {}).items()
-    }
-    phase_inputs[phase] = dict(state.get("draft") or {})
-
-    return {
-        "case_id": state.get("case_id"),
-        "current_phase": state.get("current_phase") or phase,
-        "current_user": configurable.get("current_user"),
-        "case_metadata": configurable.get("case_metadata") or {},
-        "phase_inputs": phase_inputs,
-        "chat_history": [message_to_turn(m, i) for i, m in enumerate(messages)],
-        "gate_attempts": state.get("gate_attempts", 0),
-        "citations": list(state.get("citations") or []),
-    }
 
 
 # ── executor ──────────────────────────────────────────────────────────────
@@ -3729,7 +3685,6 @@ def submission_fingerprint(state: PhaseState) -> str:
 
 async def validation_stack(
     phase: str,
-    validate: V1Node,
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> Command[Literal["planner", "gate_review"]]:
@@ -3746,8 +3701,8 @@ async def validation_stack(
     shared cap of 3 in three turns and escalate a Belt who is simply still
     typing. It is worth stating because the node is on the path either way.
 
-    Layer 2b calls `validate_{phase}` on the v1 `ImproveGraphState` that
-    `to_v1_state` builds. `gate_attempts` lives on `PhaseState` and is carried
+    Layer 2b is `gate_registry.check_gate` on the phase's own draft. `gate_attempts` lives on `PhaseState` and is
+    carried
     across turns by the phase record: a pass resets it, a resubmission that
     changed nothing (`submission_fingerprint`) keeps it, and the third counted
     failure escalates.
@@ -3770,12 +3725,9 @@ async def validation_stack(
             )]},
         )
 
-    result = await validate(to_v1_state(phase, state, config))
-    data = (result.get("phase_inputs") or {}).get(phase, {})
-    passed = bool(data.get("_gate_passed"))
-    missing = list(data.get("_missing_fields") or [])
-    attempts = int(result.get("gate_attempts") or 0)
-    escalated = bool(result.get("escalated"))
+    result = check_gate(phase, dict(state.get("draft") or {}), int(state.get("gate_attempts") or 0))
+    passed, missing = bool(result["passed"]), list(result["missing"])
+    attempts, escalated = int(result["attempts"]), bool(result["escalated"])
 
     logger.info(
         "%s.validation_stack: layer 2b %s (missing=%d, attempts=%d)",
@@ -3784,7 +3736,7 @@ async def validation_stack(
     feedback = [{
         "key": step_key(phase, turn_count, "validation_stack"),
         "layer": "2b",
-        "impl": f"validate_{phase}",
+        "impl": "gate_registry.check_gate",
         "passed": passed,
         "missing": missing,
         "attempts": attempts,
@@ -3809,7 +3761,7 @@ async def validation_stack(
         failed = [{"criterion": v.criterion, "feedback": v.feedback} for v in verdict.failed]
         if failed:
             attempts = int(state.get("gate_attempts") or 0) + 1
-            escalated = attempts >= settings.GATE_MAX_ATTEMPTS
+            escalated = gate_escalates(attempts)
         passed = not failed
         feedback.append({
             "key": step_key(phase, turn_count, "validation_stack") + ":2d",
@@ -3834,7 +3786,7 @@ async def validation_stack(
         logger.info("%s.validation_stack: unchanged since the last failed submission — not counted "
                     "(attempts=%d)", phase, attempts)
     else:
-        escalated = attempts >= settings.GATE_MAX_ATTEMPTS
+        escalated = gate_escalates(attempts)
     feedback[-1] = {**feedback[-1], "attempts": attempts, "escalated": escalated,
                     "gate_fingerprint": fingerprint}
     return Command(
@@ -4001,7 +3953,6 @@ __all__ = [
     "V1Node",
     "step_key",
     "entry_mode",
-    "to_v1_state",
     "planner",
     "executor",
     "validation_stack",

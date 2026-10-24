@@ -63,3 +63,10 @@ def test_model_clients_are_built_in_one_place() -> None:
                     if isinstance(node, ast.Call)
                     and getattr(node.func, "id", "") in ("AzureChatOpenAI", "AzureOpenAIEmbeddings")})
     assert built == ["core/llm.py"], built
+
+
+def test_the_escalation_decision_has_one_owner() -> None:
+    """B5 (one GATE_MAX_ATTEMPTS): a failed gate's count meets GATE_MAX_ATTEMPTS in gate_registry.gate_escalates
+    only — the validation stack's layers 2b and 2d both read it."""
+    comparing = [rel for rel, text in _modules() if re.search(r"[<>]=?\s*settings\.GATE_MAX_ATTEMPTS", text)]
+    assert comparing == ["phases/gate_registry.py"], comparing

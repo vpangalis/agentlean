@@ -9,10 +9,12 @@ no cycle.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, NamedTuple
 
 from pydantic import BaseModel
 
+from backend.core.config import settings
 from backend.core.substate import is_empty_capture
 from backend.phases.analyse.schema import (
     ANALYSE_TIER_1_FIELDS,
@@ -56,6 +58,8 @@ from backend.phases.measure.schema import (
     MeasureOutput,
     assemble_measure_gate_document,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class GateSpec(NamedTuple):
@@ -304,6 +308,35 @@ def missing_gate_fields(phase: str, data: dict[str, Any]) -> list[str]:
     return missing
 
 
+def gate_escalates(attempts: int) -> bool:
+    """Whether a gate that has failed `attempts` times escalates to the project lead — the one place the count
+    meets GATE_MAX_ATTEMPTS (ADR-0076; founder ruling 2026-10-24, B5: one GATE_MAX_ATTEMPTS)."""
+    return attempts >= settings.GATE_MAX_ATTEMPTS
+
+
+def acknowledged_gaps(phase: str, data: Mapping[str, Any]) -> list[str]:
+    """The Tier 2 fields the Belt is proceeding without — recorded rather than dropped, so a silent omission becomes
+    a conscious decision the audit trail shows. Define has no Tier 2, so none."""
+    return [f"{field} — Belt accepted gap" for field in GATE_SPECS[phase].tier_2
+            if is_empty_capture(data.get(field))]
+
+
+def check_gate(phase: str, data: Mapping[str, Any], attempts: int) -> dict[str, Any]:
+    """Layer 2b, every phase: every gate-required field present (`missing_gate_fields`, the computation the prompt
+    shares, so the coach cannot ask for a field the gate does not want). On a pass the count resets; on a failure it
+    rises by one and the gate escalates at GATE_MAX_ATTEMPTS. `data` is the phase's own draft (B6: no v1 state)."""
+    missing = missing_gate_fields(phase, dict(data))
+    gaps = acknowledged_gaps(phase, data)
+    if not missing:
+        logger.info("%s gate PASSED — %d acknowledged Tier 2 gap(s): %s", phase.capitalize(), len(gaps), gaps)
+        return {"passed": True, "missing": [], "attempts": 0, "escalated": False, "acknowledged_gaps": gaps}
+    attempts += 1
+    logger.info("%s gate FAILED attempt %d/%d — missing: %s", phase.capitalize(), attempts,
+                settings.GATE_MAX_ATTEMPTS, missing)
+    return {"passed": False, "missing": missing, "attempts": attempts, "escalated": gate_escalates(attempts),
+            "acknowledged_gaps": gaps}
+
+
 def captured_count(phase: str, data: dict[str, Any]) -> tuple[int, int]:
     """How many of the phase's Tier-1 fields hold a value, and how many there are — the count degraded
     mode names (T34 level 4)."""
@@ -312,7 +345,7 @@ def captured_count(phase: str, data: dict[str, Any]) -> tuple[int, int]:
 
 
 __all__ = [
-    "captured_count",
+    "acknowledged_gaps", "captured_count", "check_gate", "gate_escalates",
     "declared_type", "split_by_declared_type",
     "GateSpec",
     "GATE_SPECS",

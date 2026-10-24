@@ -403,7 +403,7 @@ def test_the_named_files_are_sources_of_truth_that_exist_and_have_teeth() -> Non
     assert not named & set(GENERATED_PATHS), named & set(GENERATED_PATHS)
     for p in ("agent-improve/backend/phases/nodes_common.py", "agent-improve/backend/gateway/routes.py",
               "agent-improve/backend/core/checkpointer.py", "agent-improve/ui/index.html",
-              "agent-improve/backend/phases/analyse/validate.py", "agent-improve/scripts/ingest_knowledge.py"):
+              "agent-improve/backend/phases/analyse/nodes.py", "agent-improve/scripts/ingest_knowledge.py"):  # a {phase} path
         assert p in named, p
 
 

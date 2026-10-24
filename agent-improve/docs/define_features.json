@@ -1903,7 +1903,7 @@
      "G-08"
     ],
     "code": [
-     "agent-improve/backend/phases/define/validate.py::validate_define",
+     "agent-improve/backend/phases/gate_registry.py::check_gate",
      "agent-improve/backend/phases/nodes_common.py::validation_stack"
     ],
     "guidance": []
