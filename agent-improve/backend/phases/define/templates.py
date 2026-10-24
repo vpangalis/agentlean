@@ -24,7 +24,7 @@ from typing import Any, Callable, Optional
 from backend.core.substate import is_empty_capture
 from backend.phases.define import parse
 from backend.phases.define.report import REPORT_SECTIONS
-from backend.phases.define.schema import DEFINE_FIELD_ORDER, DEFINE_POSITIONS
+from backend.phases.define.schema import CTQ_KEYS, DEFINE_FIELD_ORDER, DEFINE_POSITIONS, TEAM_MEMBER_KEYS
 
 #: The sources a row's value can come from (ADR-0093 decision 2).
 YOUR_ANSWER, FROM_FILE, CALCULATED, IN_ANSWER = "your answer", "from your file", "calculated", "in your answer"
@@ -49,7 +49,7 @@ def _named(values: dict[str, Any], pattern: Any) -> Read:
 
 
 def _people(values: dict[str, Any]) -> Read:
-    rows = [[str(m.get(k) or "—") for k in ("name", "role", "function")] for m in _team(values)]
+    rows = [[str(m.get(k) or "—") for k in TEAM_MEMBER_KEYS] for m in _team(values)]
     return ({"columns": ["Name", "Role", "Function"], "rows": rows} if rows else None), None
 
 
@@ -57,7 +57,7 @@ def _member_training(m: dict[str, Any]) -> Optional[str]:
     """The training a team entry states, or None."""
     # G-236: the member's own training entry, in whatever words ("none" included); else a column that says it.
     hit = str(m.get("training") or "").strip() or next(
-        (str(v) for k, v in m.items() if k not in ("name", "role", "function")
+        (str(v) for k, v in m.items() if k not in TEAM_MEMBER_KEYS
          and parse._TRAINING.search(str(v or ""))), None)
     if hit is None:
         # Training stated inside the name, role or function: the clause that states it, not the whole entry.
@@ -93,7 +93,7 @@ def _ctq_part(key: str, part: str) -> Callable[[dict[str, Any]], Read]:
 
 def _ctq_table(values: dict[str, Any]) -> Read:
     rows = _ctqs(values)
-    table = [[str(r.get(k) or "—") for k in ("customer", "need", "requirement")] for r in rows]
+    table = [[str(r.get(k) or "—") for k in CTQ_KEYS] for r in rows]
     met = not any("measurable" in p for p in parse.missing_parts("critical_to_quality", rows)) if rows else None
     return ({"columns": ["Customer", "Need", "CTQ (measurable)"], "rows": table} if table else None), met
 

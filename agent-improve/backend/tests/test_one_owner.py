@@ -6,6 +6,7 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
+from typing import cast
 
 BACKEND = Path(__file__).resolve().parents[1]
 
@@ -70,3 +71,24 @@ def test_the_escalation_decision_has_one_owner() -> None:
     only — the validation stack's layers 2b and 2d both read it."""
     comparing = [rel for rel, text in _modules() if re.search(r"[<>]=?\s*settings\.GATE_MAX_ATTEMPTS", text)]
     assert comparing == ["phases/gate_registry.py"], comparing
+
+
+def test_defines_key_sets_have_one_owner() -> None:
+    """B7 (audit U3): the key sets the gate and the read-backs check are phases/define/schema.py's *_KEYS; no other
+    module re-types one as a literal. core/diagrams.py's SIPOC_COLUMNS is its own (the five columns the UI draws, and
+    a core module may not import a phase's)."""
+    schema = ast.parse((BACKEND / "phases" / "define" / "schema.py").read_text(encoding="utf-8"))
+    owned = {tuple(cast(ast.Constant, e).value for e in node.value.elts)
+             for node in schema.body if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+             and node.target.id.endswith("_KEYS") and isinstance(node.value, ast.Tuple)
+             and all(isinstance(e, ast.Constant) for e in node.value.elts)}
+    assert len(owned) >= 6, owned
+    copies = []
+    for rel, text in _modules():
+        if rel in ("phases/define/schema.py", "core/diagrams.py"):
+            continue
+        for node in ast.walk(ast.parse(text)):
+            if isinstance(node, (ast.Tuple, ast.List)) and node.elts and all(isinstance(e, ast.Constant) for e in node.elts) \
+                    and tuple(cast(ast.Constant, e).value for e in node.elts) in owned:
+                copies.append(f"{rel}:{node.lineno}")
+    assert copies == [], copies

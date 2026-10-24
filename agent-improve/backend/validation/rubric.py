@@ -33,6 +33,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from backend.core.llm import get_llm
 from backend.core.prompts import DEFINE_RUBRIC, GATE_GRADER_PROMPT
+from backend.phases.define.schema import BENEFITS_ANALYSIS_KEYS, SIPOC_KEYS
 from backend.validation.schemas import CriterionVerdict, GraderVerdict
 
 logger = logging.getLogger(__name__)
@@ -143,7 +144,7 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
         return _pass(cid) if date > today else _fail(cid, "The target date is not in the future.")
     if cid == "DEF-R10":
         b = a.get("benefits_analysis")
-        blank = _blank_keys(b, ("cost_of_gap", "impact_type", "realisation_schedule", "finance_contact"))
+        blank = _blank_keys(b, BENEFITS_ANALYSIS_KEYS)
         if blank:
             return _fail(cid, "The benefits analysis leaves out: " + ", ".join(blank) + ".")
         if not _has_number(b.get("cost_of_gap") if isinstance(b, dict) else None):
@@ -166,8 +167,7 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
                               "or state 'none identified at this stage'.")
         return None
     if cid == "DEF-R12":
-        blank = _blank_keys(a.get("process_map_sipoc"), ("suppliers", "inputs", "process_steps",
-                                                          "outputs", "customers", "process_metrics"))
+        blank = _blank_keys(a.get("process_map_sipoc"), SIPOC_KEYS)
         return _fail(cid, "The SIPOC leaves out: " + ", ".join(blank) + ".") if blank else None
     return None
 
