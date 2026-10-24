@@ -3167,6 +3167,76 @@
     "integrator"
    ],
    "escape_class": "path_test"
+  },
+  {
+   "id": "G-253",
+   "symptom": "THE READ-BACK CARD LOST THE BELT'S NEEDS. Eval E14 (evals_20261023T161644, 0 of 3): two numbered needs and one CTQ; the coach's text read both back, the card held neither sentence — its rows read customers, needs and CTQs from the CTQ rows only, and a need with no CTQ row never reached it. D4 OCCURRENCE: templates.card showed the stored statement for the problem and the goal only, while gate_card showed it for the voice of the customer too — two views of one value (ADR-0093). D4 ESCAPE: DEF-185's test read the reply text, never the card. D5 FIX: card() shows voc_summary's statement as gate_card does. D7 PREVENT: test_define_e2e.py::test_a_read_back_never_loses_the_belts_words reads the card; eval E14.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-185"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "join"
+  },
+  {
+   "id": "G-254",
+   "requirement": [
+    "C3"
+   ],
+   "feature": [
+    "DEF-220"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test",
+   "symptom": "OPEN — EVAL E20 FAILS ON THE COACHING GRADER. The Belt asks 'What could get worse if we pay faster?' at the secondary metrics (respond); the grader fails G3 ('grounded: nothing is invented') in 2 or 3 trials of 3, quoting sentences that invent nothing: 'Avoid introducing new concepts like ripple effect', 'Avoid asking the Belt to think of areas', 'You need to specify at least one measure of a side effect', 'avoid restating the primary metric' — the element's acceptance criteria applied to the coach's reply (evals_20261024T095938, evals_20261024T101920, evals_20261024T102706). D4 OCCURRENCE: the grader reads the method exactly as the coach was given it, criteria included (Option A, founder ruling 2026-10-15), and judges G3 against them; it runs log_only, not yet proven. D4 ESCAPE: the eval set's rubric check is the first place the grader's verdict on a respond move is counted. A first fix (the coach's own sample cut from a respond move, the grader grading the reply as shown) took E20 from 1 of 3 to 0 of 3 and did not land (2026-10-24). Held for the founder's ruling: what the coaching grader reads on a respond move, or E20's rubric check while the grader is unproven."
+  },
+  {
+   "id": "G-255",
+   "symptom": "A START DATE WITH THE SAVING SUSTAINED WAS CHALLENGED FOR ITS REALISATION SCHEDULE. Eval E19 (evals_20261023T161644, 0 of 3): 'about EUR 50,000 a year from April 2027, sustainable' was challenged for 'a realisation schedule by period'. D4 OCCURRENCE: the criterion read 'gives a realisation schedule by period' and no code read it; the planner judged it as written. D4 ESCAPE: no test judged a realisation given as a start date; the eval set found it. D5 FIX (founder ruling 2026-10-24): the criterion reads 'when the saving shows: by period, or a start date and sustained' (SKILL.md and its mirror, the block's tokens 742 -> 741); parse.realisation_stated, inside missing_parts, is the one check of the card's row, the Confirm and the gate's DEF-R10. D7 PREVENT: test_define_e2e.py::test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures (G-255 block); eval E19. And (eval E19, 2 of 3 after the criterion was fixed): the coach read back 'From April 2027' and dropped the Belt's EUR 50,000; templates.card shows the Belt's whole answer once when a figure they gave is in no row (_dropped_figure).",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-225"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "assumption"
+  },
+  {
+   "id": "G-256",
+   "symptom": "THE BENEFITS CRITERION WAS SETTLED IN CODE ON LESS THAN THE SKILL STATES (audit D7). DEF-R10 was CODE_ONLY: it checked blank keys, a digit and a sustainable/one-off word, never 'with how it was worked out' nor the realisation; no model saw it. D4 OCCURRENCE: the code half was written for the parts code reads, and CODE_ONLY declared it whole. D4 ESCAPE: nothing compared a code-only criterion's checks with the criterion's text. D5 FIX: DEF-R10 leaves CODE_ONLY; its code half fails a blank part, no figure, no impact type and an unstated realisation (missing_parts, G-255); the gate judge is asked only how the cost was worked out (MODEL_ASKS), reading the calculation shown with it. D7 PREVENT: test_define_rubric.py::test_g256_the_benefits_criterion_is_checked_as_the_skill_states_it.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-159"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "join"
+  },
+  {
+   "id": "G-257",
+   "requirement": [
+    "R15"
+   ],
+   "feature": [
+    "DEF-098"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test",
+   "symptom": "A GOAL THE BELT HAD ALREADY GIVEN WAS NOT OFFERED. Eval E06 (evals_20261024T095938, 0 of 3, after its task was changed): the scope answer ended 'Our goal is to cut late payments from 23% to 5% by March 2027.'; the scope was read back and confirmed, and the goal was taught from scratch. D4 OCCURRENCE: the offer was kept only from the coach's fields_captured, and the read-back instruction tells the coach to capture the element it reads back — the live coach never captures another element's value. D4 ESCAPE: DEF-098's test faked a coach that captured the goal beside the scope. D5 FIX: on a read-back, a goal the Belt's own words state with a figure (parse.goal_sentence) is kept as the goal's offer, in code; the coach's own capture still wins. D7 PREVENT: test_define_e2e.py::test_values_for_other_elements_in_one_answer_are_read_back (its coach captures only the scope); eval E06 (diagnosis evals_20261024T101920: the offer read back 3 of 3)."
   }
  ],
  "escape_controls": {

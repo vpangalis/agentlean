@@ -438,3 +438,28 @@ def test_g246_the_cost_of_the_gap_and_the_saving_are_two_figures_everywhere() ->
             (name, show)
         # Founder 2026-10-23 (the held fix): the realisation per quarter is the saving's, €11,340 ÷ 4 ≈ €2.8k.
         assert f"about €{11340 / 4 / 1000:.1f}k a quarter" in show, (name, show)
+
+
+def test_g256_the_benefits_criterion_is_checked_as_the_skill_states_it() -> None:
+    """G-256 (audit D7; founder 2026-10-24, A3): DEF-R10 is no longer settled by code alone. Its code half fails what
+    code can read — a blank part, no figure, neither sustainable nor one-off, no start and no period for the saving (the
+    element check's own parse.missing_parts, G-255) — and the gate judge is asked only whether the cost of the gap says
+    how it was worked out, reading the calculation shown with it."""
+    from backend.validation import rubric
+
+    assert "DEF-R10" not in CODE_ONLY
+    judge = Judge()
+    got = _grade(COMPLETE, judge)
+    assert got["DEF-R10"].status == "pass" and "DEF-R10" in judge.asked, (got["DEF-R10"], judge.asked)
+    judge = Judge()
+    soon = {**COMPLETE, "benefits_analysis": {**COMPLETE["benefits_analysis"], "realisation_schedule": "soon"}}
+    got = _grade(soon, judge)
+    assert got["DEF-R10"].status == "fail" and "when the saving shows" in got["DEF-R10"].feedback, got["DEF-R10"]
+    assert "DEF-R10" not in judge.asked, "a code failure is final"
+    from backend.knowledge.computation import calculate_expected_savings
+    row = {"tool": "calculate_expected_savings", "inputs": {}, "result": calculate_expected_savings.invoke(
+        {"baseline_value": "23%", "target_value": "5%", "unit_cost": "£9", "annual_volume": "42000"})}
+    doc = rubric._document_by_criterion([("DEF-R10", "benefits_analysis", "")],
+                                        {**COMPLETE, "computation_results": [row]})
+    assert "calculated:" in doc and "Cost of the gap today" in doc, doc
+    assert "how it was worked out" in rubric.MODEL_ASKS["DEF-R10"]

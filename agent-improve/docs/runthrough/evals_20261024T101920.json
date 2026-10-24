@@ -1,0 +1,202 @@
+{
+ "kind": "evals",
+ "started": "20261024T101920",
+ "status": "final",
+ "ids": [
+  "E06",
+  "E19",
+  "E20"
+ ],
+ "k": 3,
+ "product_hash": "5ddfd4506eb9364b",
+ "complete": true,
+ "tasks": 3,
+ "trials": 9,
+ "pass_k": 0,
+ "results": {
+  "E06": false,
+  "E19": false,
+  "E20": false
+ },
+ "trials_passed": {
+  "E06": 0,
+  "E19": 1,
+  "E20": 0
+ },
+ "human_sample": [
+  "E06",
+  "E19",
+  "E20"
+ ],
+ "runs": {
+  "E06": [
+   {
+    "case_id": "IMPR-2026-MVDC6M",
+    "passed": false,
+    "failed": [
+     "move 'read_back', expected 'store_and_advance'"
+    ],
+    "moves": [
+     "read_back",
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for your input. Let me read this back to confirm we're aligned:\n\n- **In scope:** Supplier invoices at our three sites, from the invoice's arrival in accounts payable to the payment leaving the bank.\n- **Out of scope:** Payroll and intercompany invoices.\n\nIs this correct?",
+     "Stored: Scope.\n\nYou already gave the Goal in an earlier answer:\n“Our goal is to cut late payments from 23% to 5% by March 2027.”\n\nIs this right? Confirm to store it, or Change to give it again."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-AN2KKR",
+    "passed": false,
+    "failed": [
+     "move 'read_back', expected 'store_and_advance'"
+    ],
+    "moves": [
+     "read_back",
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for sharing the scope of your project. Here’s how I’ve captured it based on your input:\n\n- **In Scope:** Supplier invoices at our three sites, from the invoice's arrival in accounts payable to the payment leaving the bank.\n- **Out of Scope:** Payroll and intercompany invoices.\n\nIs this correct?",
+     "Stored: Scope.\n\nYou already gave the Goal in an earlier answer:\n“Our goal is to cut late payments from 23% to 5% by March 2027.”\n\nIs this right? Confirm to store it, or Change to give it again."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-A8XAP4",
+    "passed": false,
+    "failed": [
+     "move 'read_back', expected 'store_and_advance'"
+    ],
+    "moves": [
+     "read_back",
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for providing the scope details. Here's what I captured based on your input:\n\n- **In scope:** Supplier invoices at our three sites, from the invoice's arrival in accounts payable to the payment leaving the bank.\n- **Out of scope:** Payroll and intercompany invoices.\n\nIs this right?",
+     "Stored: Scope.\n\nYou already gave the Goal in an earlier answer:\n“Our goal is to cut late payments from 23% to 5% by March 2027.”\n\nIs this right? Confirm to store it, or Change to give it again."
+    ]
+   }
+  ],
+  "E19": [
+   {
+    "case_id": "IMPR-2026-GE4FMP",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for providing the benefits analysis details.\n\n- **Cost of the gap:** About EUR 62,000 a year.\n- **Impact type:** Sustainable.\n- **Realisation schedule:** From April 2027.\n- **Finance contact:** Maria Lopez in finance will validate it.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-SKB3U2",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for sharing your benefits analysis. It’s a solid start, but to meet the acceptance criteria, the explanation of how the cost of the gap was calculated is missing. Specifically, we need to know the method or data you used to determine the €62,000 figure. For example, was it based on a specific number of late payments, their average cost, or another factor? Including this will make the analysis more robust and defensible.\n\nCould you clarify how the cost of the gap was worked out?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-AEMPWM",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in **Define** — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nYour answer for the benefits analysis gives a figure for the cost of the gap today, but it doesn’t specify how you arrived at that number. For the cost of the gap to meet the acceptance criteria, you need to include the calculation or reasoning behind it. For example, was it based on the number of invoices, a percentage, or another factor?"
+    ]
+   }
+  ],
+  "E20": [
+   {
+    "case_id": "IMPR-2026-R6M9MA",
+    "passed": false,
+    "failed": [
+     "rubric: ['failed']"
+    ],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Good question! When you improve the primary metric—in this case, reducing the late payment rate—there's often a ripple effect."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-FDV5SQ",
+    "passed": false,
+    "failed": [
+     "rubric: ['failed']"
+    ],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "If your fix works and invoices are paid faster, there could be unintended side effects.\n\nCould you think of specific areas in your accounts payable process where this might happen? For instance, what might change in terms of cost, accuracy, or team workload if your primary metric improves?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-9HEKB4",
+    "passed": false,
+    "failed": [
+     "rubric: ['failed']"
+    ],
+    "moves": [
+     "respond"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "When you improve the primary metric — in this case, paying invoices faster — it's important to think about potential side effects. These are the secondary metrics you'll monitor to ensure that solving one problem doesn't create another."
+    ]
+   }
+  ]
+ },
+ "model_calls": 27,
+ "cost": {
+  "usd": 0.1514,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.1482,
+   "gpt-4o-mini-2024-07-18": 0.0032
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ }
+}

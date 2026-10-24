@@ -4185,7 +4185,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-196"
+     "G-196",
+     "G-257"
     ]
    },
    "requirement": "R15",
@@ -6153,7 +6154,8 @@
      "G-133",
      "G-134",
      "G-241",
-     "G-244"
+     "G-244",
+     "G-256"
     ]
    },
    "requirement": "R7",
@@ -6781,7 +6783,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-185"
+     "G-185",
+     "G-253"
     ]
    },
    "requirement": "R6",
@@ -7947,7 +7950,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-221"
+     "G-221",
+     "G-254"
     ]
    },
    "requirement": "C3",
@@ -8120,7 +8124,8 @@
     "capability_rows": [],
     "gaps": [
      "G-226",
-     "G-246"
+     "G-246",
+     "G-255"
     ]
    },
    "requirement": "R4",

@@ -46,7 +46,9 @@ DEFINE_CRITERIA: tuple[tuple[str, str, str], ...] = tuple(
 #: G-133 (2026-09-29): DEF-R02 is no longer code-only — code settles the champion and the process
 #: owner, and the training when it is written in so many words; otherwise the grader judges it with
 #: the element's own criteria (founder ruling 2: the element check and the gate cannot disagree).
-CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09", "DEF-R10"})
+#: G-256 (audit D7, founder 2026-10-24): DEF-R10 is no longer code-only — code settles the parts it can read, and the
+#: grader judges how the cost of the gap was worked out, against the element's own criteria.
+CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09"})
 
 Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
@@ -144,7 +146,9 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
         impact = _text(b.get("impact_type") if isinstance(b, dict) else "").lower()
         if not re.search(r"sustain|one[- ]?off|recurr|annual|every year", impact):
             return _fail(cid, "Say whether the impact is sustainable or one-off.")
-        return _pass(cid)
+        if missing := missing_parts("benefits_analysis", b):                       # G-255: the element's own check
+            return _fail(cid, "The benefits analysis does not say " + "; ".join(missing) + ".")
+        return None                                     # G-256 (audit D7): how the cost was worked out is judged
     if cid == "DEF-R13":
         # G-134 (founder ruling 4, 2026-09-29): code settles what can be read — the conscious
         # "none identified at this stage", or nothing named at all; the model judges only
@@ -177,6 +181,11 @@ def _names_a_roadblock(text: str) -> bool:
 
 #: G-134 — what the grader is asked when code has settled part of a criterion: the rest only.
 MODEL_ASKS: dict[str, str] = {
+    # G-256 (audit D7): the part of the benefits criterion code cannot read.
+    "DEF-R10": ("code has already checked the four parts, the figure, sustainable or one-off, and when the saving "
+                "shows. Judge ONLY whether the cost of the gap says how it was worked out: PASS when it names the "
+                "figures it rests on or a calculation is shown with it; FAIL only for a bare figure with nothing "
+                "behind it"),
     # G-134, second attempt (2026-09-29): the first narrowed question ("each one named is specific
     # ... a named system, team, rule, date or dependency") still failed an answer naming three sites'
     # approval routes and an ERP change freeze until January (record 20260929T103652). The question
@@ -204,9 +213,20 @@ def _reads(field: str, cid: str) -> list[str]:
 
 def _document_by_criterion(criteria: list[tuple[str, str, str]], a: dict[str, Any]) -> str:
     """G-241: one section per criterion, holding only the values it reads — a wording change in an element a
-    criterion does not read cannot tip it."""
+    criterion does not read cannot tip it. G-256: the benefits criterion reads the calculation shown with the cost."""
     return "\n\n".join(f"[{cid} — the values it reads]\n" + "\n".join(
-        f"{f}: {_text(a.get(f))}" for f in _reads(field, cid) if _text(a.get(f))) for cid, field, _ in criteria)
+        [f"{f}: {_text(a.get(f))}" for f in _reads(field, cid) if _text(a.get(f))] + _calculation(field, a))
+        for cid, field, _ in criteria)
+
+
+def _calculation(field: str, a: dict[str, Any]) -> list[str]:
+    """G-256: how the benefits' figures were calculated in code (ADR-0077), as the Belt saw them — nothing for another
+    element, or when nothing was calculated."""
+    if field != "benefits_analysis":
+        return []
+    from backend.phases import calculations
+    lines = calculations.how_it_was_calculated(calculations.latest(a, "define", field))
+    return [f"calculated: {lines}"] if lines else []
 
 
 def _document(a: dict[str, Any]) -> str:

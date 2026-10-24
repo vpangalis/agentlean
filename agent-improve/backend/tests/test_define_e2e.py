@@ -1701,9 +1701,10 @@ def test_values_for_other_elements_in_one_answer_are_read_back(env, monkeypatch,
     scope = dict(COMPLETE["project_scope"])
 
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="in and out named")
+    # G-257: as the live coach does, it captures only the element it reads back — the goal is offered from the
+    # Belt's own words, in code.
     _coach_saying(monkeypatch, f"In scope: {scope['in_scope']}; out: {scope['out_scope']}. Is this right?",
-                  captured=[{"field_name": "project_scope", "value": scope, "source": "belt"},
-                            {"field_name": "goal_statement", "value": goal, "source": "belt"}])
+                  captured=[{"field_name": "project_scope", "value": scope, "source": "belt"}])
     first = ask(message=f"In scope: {scope['in_scope']}, not {scope['out_scope']}. {goal}")
     assert first.get("move") == moves.READ_BACK, first.get("move")
     got = _define(env)
@@ -6857,16 +6858,31 @@ def test_a_read_back_never_loses_the_belts_words(env, monkeypatch) -> None:
     Through the routes and graph: the Belt's CTQ says '…of being logged within one hour'; the reply reads it
     back — the sentence stays whole, with its number — while the coach's own store claim in the same reply
     ('I've logged your answer.') is still removed (G-117)."""
+    import json
+
+    from backend.phases import moves
+
     belt = ("1. Callers want every fault to have the certainty of being logged within one hour.\n"
             "2. Callers want one named contact for every open fault.")
     _at_element(env, "voc_summary")
+    env.case.phases["define"].field_status["voc_summary"] = {"status": moves.ASKED}
+    # G-253 (eval E14): two needs and one CTQ — the second need has no CTQ row to carry it.
     _coach_saying(monkeypatch, "Here is your voice of the customer, as you gave it:\n" + belt
-                  + "\nI've logged your answer. Is this right?")
-    r = _askd(env, message=belt)
+                  + "\nI've logged your answer. Is this right?", captured=[
+        {"field_name": "voc_summary", "value": belt, "source": "belt"},
+        {"field_name": "critical_to_quality", "source": "belt", "value": [
+            {"customer": "Callers", "need": "certainty of being logged",
+             "requirement": "95% of faults logged within 1 hour"}]}])
+    r = _askd(env, message=belt + "\nCTQ: 95% of faults logged within 1 hour.")
     answer = r["answer"]
     assert "1. Callers want every fault to have the certainty of being logged within one hour." in answer, answer
     assert "2. Callers want one named contact for every open fault." in answer, answer
     assert "I've logged your answer" not in answer, f"the coach's store claim reached the Belt: {answer!r}"
+    # G-253: the read-back card shows the Belt's needs as a Confirm stores them, not only what the CTQ rows hold.
+    assert r["move"] == moves.READ_BACK, (r["move"], answer)
+    card = json.dumps(r["readback_card"], ensure_ascii=False)
+    for need in ("certainty of being logged within one hour", "one named contact for every open fault"):
+        assert need in card, f"the read-back card lost the Belt's need {need!r}: {card}"
 
 
 def test_step_durations_are_read_with_their_units_and_checked(env, monkeypatch) -> None:
@@ -9345,6 +9361,35 @@ def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures(env, monke
     tool_step = script[script.index("[TOOL · calculate_expected_savings"):][:1600]
     assert "the cost of the gap is what the problem costs today" in tool_step.lower(), tool_step
     assert "The figure is proposed as the cost of the gap" not in tool_step, tool_step
+
+    # G-255 (eval E19; founder ruling 2026-10-24): in Define a start date with the saving sustained or ongoing meets
+    # the realisation criterion — in the skill's own criterion, and in the one code check the card, the Confirm and
+    # the gate share (parse.missing_parts).
+    import json
+
+    from backend.middleware.skills import acceptance_criteria
+    from backend.phases.define import parse, templates
+    realisation = dict(acceptance_criteria("define", "benefits_analysis"))["realisation"]
+    assert "start date" in realisation and "sustained" in realisation, realisation
+    e19 = {"cost_of_gap": "about EUR 62,000 a year", "impact_type": "sustainable",
+           "realisation_schedule": "about EUR 50,000 a year from April 2027", "finance_contact": "Maria Lopez, finance"}
+    assert parse.missing_parts("benefits_analysis", e19) == []
+    card_rows = {r["id"]: r for r in templates.rows("benefits_analysis", {"benefits_analysis": e19}, judged=False)}
+    assert card_rows["realisation"]["met"], card_rows["realisation"]
+    for schedule in ("from the first full quarter after the change, about €2.8k a quarter", "ongoing from Q3 2027"):
+        assert parse.missing_parts("benefits_analysis", {**e19, "impact_type": "", "realisation_schedule": schedule}) \
+            == [], schedule
+    assert parse.missing_parts("benefits_analysis", {**e19, "realisation_schedule": "soon"}), \
+        "a realisation with no start and no period meets nothing"
+    # G-255 (eval E19, 2 of 3): the coach's read-back kept "from April 2027" and dropped the Belt's EUR 50,000 — the
+    # card then shows the Belt's whole answer once, so no figure they gave is lost (DEF-185).
+    said = ("The gap costs about EUR 62,000 a year; we expect to save about EUR 50,000 a year from April 2027, "
+            "sustainable; Maria Lopez in finance will validate it.")
+    shortened = {**e19, "realisation_schedule": "From April 2027"}
+    shown = templates.card("benefits_analysis", {"benefits_analysis": shortened}, belt_words=said)
+    assert "50,000" in shown.get("answer", "") and "62,000" in json.dumps(shown, ensure_ascii=False), shown
+    whole = templates.card("benefits_analysis", {"benefits_analysis": e19}, belt_words="EUR 50,000 a year from April 2027")
+    assert "answer" not in whole, "every figure is in the rows: the answer is not repeated"
 
 
 def test_confirm_and_change_appear_under_every_read_back(env, monkeypatch) -> None:

@@ -337,7 +337,29 @@ def missing_parts(field: str, value: Any) -> list[str]:
         return out
     if field == "target_date" and value and calendar_date(value) is None:
         return ["a calendar date for the target (for example 31 March 2027)"]           # decision 5
+    if field == "benefits_analysis" and isinstance(value, dict) and not realisation_stated(value):
+        return ["when the saving shows: by period, or from a start date, sustained"]    # G-255
     return []
+
+
+#: G-255 (founder ruling 2026-10-24): when the saving shows — a schedule by period, or a start with the saving
+#: sustained or ongoing.
+_BY_PERIOD = re.compile(r"\b(?:a|per|each|every)\s+(?:week|month|quarter|year)\b"
+                        r"|\b(?:weekly|monthly|quarterly|annually|yearly)\b", re.I)
+_START = re.compile(r"\b(?:from|starting|beginning|as of|after)\b|\bQ[1-4]\b|\b20\d\d\b"
+                    r"|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b", re.I)
+_SUSTAINED = re.compile(r"\bsustain|\bon-?going\b|\bevery year\b|\brecurr", re.I)
+
+
+def realisation_stated(benefits: Any) -> bool:
+    """G-255 (founder ruling 2026-10-24): the benefits' `realisation` criterion, read in code — in Define a schedule by
+    period meets it, and so does a start date with the saving sustained or ongoing (said in the schedule or as the
+    impact type)."""
+    b = benefits if isinstance(benefits, dict) else {}
+    when = str(b.get("realisation_schedule") or "")
+    if _BY_PERIOD.search(when):
+        return True
+    return bool(_START.search(when)) and bool(_SUSTAINED.search(f"{when} {b.get('impact_type') or ''}"))
 
 
 #: Decision 7: a goal named where the problem is described — a goal word, or a target cue before a figure.
@@ -350,6 +372,15 @@ def goal_named(text: Any) -> str:
     states the pain as it shows up today; the goal is element 7 (R7, `no-cause-no-fix`)."""
     m = _GOAL_WORDS.search(str(text or ""))
     return m.group(0).strip() if m else ""
+
+
+def goal_sentence(text: Any) -> str:
+    """G-257 (DEF-098): the sentence of an answer that states a goal with a figure — a goal named (`goal_named`) and a
+    number — or "". An answer for another element that carries one offers it to the goal statement."""
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(text or "")):
+        if goal_named(sentence) and re.search(r"\d", sentence):
+            return sentence.strip()
+    return ""
 
 
 def five_w_two_h_question(store: Any) -> str:
@@ -878,4 +909,4 @@ __all__ = ["unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_column
            "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit",
            "STEP_KEYS", "DURATION_KEYS", "PROCESS_PERFORMANCE_KEYS", "period_value", "duration_value",
            "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch",
-           "located_steps"]
+           "located_steps", "realisation_stated", "goal_sentence"]

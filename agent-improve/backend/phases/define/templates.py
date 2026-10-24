@@ -185,6 +185,12 @@ def _benefit(key: str) -> Callable[[dict[str, Any]], Read]:
     return read
 
 
+def _realisation(values: dict[str, Any]) -> Read:
+    """G-255: when the saving shows, met by the code check the Confirm and the gate share (parse.missing_parts)."""
+    b = values.get("benefits_analysis")
+    return _benefit("realisation_schedule")(values)[0], (parse.realisation_stated(b) if isinstance(b, dict) else None)
+
+
 def _items(field: str, label: str) -> Callable[[dict[str, Any]], Read]:
     def read(values: dict[str, Any]) -> Read:
         items = parse.list_items(values.get(field), label)
@@ -317,7 +323,7 @@ TEMPLATES: dict[str, dict[str, tuple[str, Callable[[dict[str, Any]], Read]]]] = 
     "benefits_analysis": {
         "cost-of-gap": ("Cost of the gap", _benefit("cost_of_gap")),
         "impact-type": ("Sustainable or one-off", _benefit("impact_type")),
-        "realisation": ("Realisation schedule", _benefit("realisation_schedule")),
+        "realisation": ("Realisation schedule", _realisation),
         "finance-contact": ("Finance contact", _benefit("finance_contact")),
     },
     "secondary_metrics": {
@@ -444,6 +450,17 @@ def name_of(field: str) -> str:
     return guard_messages.element_name("define", field)
 
 
+#: G-255 (eval E19): a figure in the Belt's words — "62,000", "23%", "2.8k".
+_FIGURE = re.compile(r"\d[\d,.]*\d|\d")
+
+
+def _dropped_figure(belt_words: str, shown: str) -> bool:
+    """G-255 (DEF-185, eval E19): a figure the Belt gave that no row of the card shows — then the whole answer is shown
+    once, so a read-back never loses the Belt's numbers."""
+    have = shown.replace(",", "")
+    return any(f.replace(",", "") not in have for f in _FIGURE.findall(str(belt_words or "")))
+
+
 def card(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] = None, judged: bool = True,
          upload: Optional[str] = None, belt_words: str = "") -> dict[str, Any]:
     """The read-back card (readback_card_mockup.html): "Element n of 13 · name", "k of m criteria met", the rows,
@@ -451,13 +468,18 @@ def card(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
     and whether Confirm opens (every required criterion met — the server refuses it otherwise)."""
     rs = rows(field, values, spans=spans, judged=judged, upload=upload)
     open_rows = [r for r in rs if r["required"] and not r["met"]]
-    statement = values.get(field) if field in ("problem_statement", "goal_statement") else None
+    shown = " ".join(plain(r.get("value")) + " " + str(r.get("formula") or "") for r in rs)
+    # G-253 (DEF-185): the voice of the customer in the Belt's words, as the Gate's card shows it — a need with no CTQ
+    # row would otherwise not reach the card at all.
+    statement = values.get(field) if field in ("problem_statement", "goal_statement", "voc_summary") else None
     return {
         "field": field, "n": number_of(field), "of": DEFINE_POSITIONS, "name": name_of(field),
         "section": section_of(field), "rows": rs,
         "met": sum(1 for r in rs if r["met"]), "total": len(rs),
         **({"statement": statement} if isinstance(statement, str) and statement.strip() else {}),
-        **({"answer": answer_text(field, values, belt_words)} if any(r["source"] == IN_ANSWER for r in rs) else {}),
+        **({"answer": answer_text(field, values, belt_words)}
+           if any(r["source"] == IN_ANSWER for r in rs) or _dropped_figure(belt_words, f"{shown} {statement or ''}")
+           else {}),
         **({"upload": upload} if upload else {}),
         "missing": [r["label"] for r in open_rows],
         "ask": (f"Still needed before you can confirm: {', '.join(r['label'].lower() for r in open_rows)}."

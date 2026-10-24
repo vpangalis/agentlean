@@ -3360,6 +3360,16 @@ async def executor(
             field_status[f] = {**entry, "offered": {"value": value}}
             logger.info("%s.executor: `%s` offered from this answer — read back when it comes up (DEF-098)",
                         phase, f)
+        # G-257: the coach captures only the element it reads back, so a goal the Belt's own words state with a
+        # figure is offered from those words, in code — unless the coach offered one itself.
+        goal = "goal_statement"
+        if phase == "define" and move == moves.READ_BACK and goal not in own and goal not in prior_artifacts:
+            from backend.phases.define import parse as define_parse
+            said = define_parse.goal_sentence(moves.belt_message(list(state.get("messages") or [])))
+            entry = dict(field_status.get(goal) or {})
+            if said and not entry.get("offered") and entry.get("status") not in (moves.CONFIRMED, moves.ANSWERED):
+                field_status[goal] = {**entry, "offered": {"value": said}}
+                logger.info("%s.executor: the goal offered from the Belt's words (G-257)", phase)
     resend = bool(not refused and fell_back and move == moves.READ_BACK and pending is not None and plan
                   and plan.focus_field and short)
     if refused and plan is not None and plan.focus_field:

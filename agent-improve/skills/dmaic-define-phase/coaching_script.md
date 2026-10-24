@@ -136,14 +136,14 @@
 > **Read back:** the date — *"Is this right?"*
 
 **[10 · benefits_analysis · required]**
-> **What it is:** The benefits analysis: what the gap costs today (the cost of poor quality), whether the gain is sustainable (every year) or one-off, when the money will be realised, and who in finance validates the figure.
+> **What it is:** The benefits analysis: what the gap costs today (the cost of poor quality), whether the gain is sustainable or one-off, when the money will be realised, and who in finance validates the figure.
 > **Why it matters:** It establishes the value of the project in terms finance will accept. A figure a finance representative has checked is one the champion can defend.
 > **Show (illustration — not your data):** *"Cost of the gap: about €15.1k a year in rework today (12% of 4,200 invoices, about €30 each). Expected saving: about €11.3k a year at the target (12% → 3%), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from the first full quarter after the change, about €2.8k a quarter. Finance contact: Priya Shah, management accountant."*
-> **Ask:** What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When would it start to show, period by period? Who in finance will validate it?
+> **Ask:** What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When will it start to show? Who in finance will validate it?
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `cost-of-gap` — quantifies what the gap costs (COPQ), with how it was worked out (p. 60)
 > - `impact-type` — says whether the impact is sustainable or one-off (p. 60)
-> - `realisation` — gives a realisation schedule by period (p. 60)
+> - `realisation` — when the saving shows: by period, or a start date and sustained (p. 60)
 > - `finance-contact` — names the finance representative who validates the figure (p. 60, p. 62)
 > **Read back:** the four parts — *"Is this right?"*
 > **Capture as:** `{cost_of_gap, impact_type, realisation_schedule, finance_contact}` — all four keys, each in the Belt's words.
