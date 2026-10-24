@@ -2642,6 +2642,744 @@ def _attach_sources(messages: list) -> None:
             return
 
 
+def _off_ramp(phase: str, state: PhaseState) -> tuple[int, bool, int]:
+    """Guard 1 of 2 of `executor`, the graceful off-ramp: the graph steps left, whether this turn coaches
+    with no retrieval tools, and the turn's hop budget (0 on the off-ramp)."""
+    # `remaining_steps` is a `RemainingSteps` managed value LangGraph fills in
+    # on its own; declaring it on `PhaseState` is what activates it.
+    # Low means the GRAPH is running out of room, so the coach is built with no
+    # retrieval tools and answers from what is in hand rather than beginning a
+    # hop chain it cannot finish. It coaches; it does not cap.
+    #
+    # `or 0` and not a `.get` default: an ABSENT field must fail this test, not
+    # pass it — a default value would decide the guard instead of the graph.
+    remaining = state.get("remaining_steps") or 0
+    off_ramp = 0 < remaining <= REMAINING_STEPS_FLOOR
+    hop_budget = 0 if off_ramp else COACH_HOP_BUDGET
+    if off_ramp:
+        logger.warning(
+            "%s.executor: %d graph step(s) left (floor %d) — coaching with no "
+            "retrieval tools this turn (§26, S-F09 B1). MONITORING SIGNAL: the "
+            "graph is close to its %d-step backstop.",
+            phase, remaining, REMAINING_STEPS_FLOOR, COACH_RECURSION_BACKSTOP,
+        )
+    return remaining, off_ramp, hop_budget
+
+
+def _turn_calculation(phase: str, state: PhaseState, plan: Optional[CoachingPlan]
+                      ) -> tuple[Optional[dict[str, Any]], PhaseState]:
+    """ADR-0077 for `executor`: the element's calculation row (None when it does not run) and the turn's
+    state, which carries the row when it ran."""
+    # ADR-0077 — the element's calculation, run in code (never by the coach) once every input is
+    # present: confirmed values from state, the rest from the judgment's `calculation_inputs`. The
+    # row joins this turn's state, so the coach is shown the figure (state injection), and the record.
+    from backend.phases import calculations
+    calc_row = calculations.run(
+        phase, plan.focus_field if plan else None, dict(state.get("artifacts") or {}),
+        (plan.judgment.calculation_inputs if plan is not None and plan.judgment is not None else None),
+        _turn_ordinal(state))
+    if calc_row is not None:
+        logger.info("%s.executor: ADR-0077 — %s run in code: %s", phase, calc_row["tool"],
+                    (calc_row["result"] or {}).get("annual_savings"))
+        arts = dict(state.get("artifacts") or {})
+        arts["computation_results"] = [*(arts.get("computation_results") or []), calc_row]
+        state = {**state, "artifacts": arts}  # type: ignore[typeddict-item]
+    return calc_row, state
+
+
+def _backstop_result(phase: str, plan: Optional[CoachingPlan], prior: list,
+                     hops_spent: list[int]) -> dict[str, Any]:
+    """`executor`'s turn when the coach hit the recursion BACKSTOP (§16): the move's own reply, written in code."""
+    logger.warning(
+        "%s.executor: hit the %d-step BACKSTOP (§16) after %d hop(s) — "
+        "returning a partial answer. This should not happen now that §3.7's "
+        "hop budget and §26's off-ramp are live; it means a genuine runaway "
+        "loop, not broad exploration.",
+        phase, COACH_RECURSION_BACKSTOP, hops_spent[0],
+    )
+    # Never the backstop text as a coaching reply: the move was decided in
+    # code, so code writes its reply. The step_log status still records
+    # the degrade.
+    fallback = _fallback_reply(phase, plan)
+    return {"messages": [*prior, AIMessage(content=fallback.message)],
+            "structured_response": fallback}
+
+
+def _model_error_turn(phase: str, state: PhaseState, plan: Optional[CoachingPlan], prior: list,
+                      exc: Exception) -> tuple[bool, Optional[str], dict[str, Any]]:
+    """`executor`'s turn when a model service's error ended the call (ADR-0082): whether it was a content
+    filter (T92), else T34 level 4's reason, and the turn answered in code (`_refused_turn`)."""
+    filtered = False
+    level_4: Optional[str] = None
+    if content_safety.is_content_filter(exc):
+        filtered = True
+    else:
+        level_4 = ("token_limit" if model_fallback.reason(exc) == model_fallback.TOKEN_LIMIT
+                   else "model_unavailable")
+    logger.warning("%s.executor: %s — %s, answered in code (ADR-0082)", phase, type(exc).__name__,
+                   "content filter (T92)" if filtered else level_4)
+    _, result = _refused_turn(phase, state, plan, prior, filtered)
+    return filtered, level_4, result
+
+
+def _contained_limit(phase: str, plan: Optional[CoachingPlan], result: dict[str, Any], history: list,
+                     coach_limit: int, fell_back: bool
+                     ) -> tuple[dict[str, Any], list, bool, bool, dict[str, Any] | None, bool]:
+    """T69 / G-119 and G-153 for `executor`: a coach loop the call limit ended, or that ended with no
+    structured reply, answered with the move's own reply written in code. Returns the result, its
+    messages, `limited`, `unfinished`, the G-139 diagnosis and `fell_back`."""
+    produced = list(result.get("messages") or [])
+    # T69 / G-119 — the call limit ended the agent loop: its notice is never the Belt's reply;
+    # the move's own reply is written in code, as on a timeout.
+    limited = (result.get("structured_response") is None and bool(produced)
+               and isinstance(produced[-1], AIMessage) and _LIMIT_NOTICE in str(produced[-1].content))
+    limit_diagnosis: dict[str, Any] | None = None
+    if limited:
+        # G-139: what the coach returned before the limit ended it —
+        # to step_log and the move record, so the run record carries it.
+        limit_diagnosis = _limit_diagnosis(produced[len(history):], coach_limit)
+        fallback = _fallback_reply(phase, plan)
+        fell_back = True
+        logger.warning("%s.executor: the coach reached its %d-call share of the turn's %d model calls "
+                       "(T69, G-119) — the move's reply is written in code. G-139 diagnosis: %s",
+                       phase, coach_limit, TURN_MODEL_CALLS, limit_diagnosis["why"])
+        produced = [*produced[:-1], AIMessage(content=fallback.message)]
+        result = {**result, "messages": produced, "structured_response": fallback}
+    # G-153 — the loop ended with no structured reply and no limit notice: the coach's call was cut
+    # off at its token limit or ended on text alone. Contained as the limit is:
+    # the move's reply is written in code, never an empty turn, and the diagnosis rides on the record.
+    unfinished = not limited and result.get("structured_response") is None
+    if unfinished:
+        limit_diagnosis = _limit_diagnosis(produced[len(history):], coach_limit)
+        fallback = _fallback_reply(phase, plan)
+        fell_back = True
+        logger.warning("%s.executor: the coach's turn ended with no structured reply (G-153) — the "
+                       "move's reply is written in code. Diagnosis: %s", phase, limit_diagnosis["why"])
+        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
+        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
+        result = {**result, "messages": produced, "structured_response": fallback}
+    return result, produced, limited, unfinished, limit_diagnosis, fell_back
+
+
+def _sourced_numbers(phase: str, state: PhaseState, plan: Optional[CoachingPlan], result: dict[str, Any],
+                     produced: list, history: list, written: Optional[CoachingResponse], fell_back: bool
+                     ) -> tuple[dict[str, Any], list, list[str], Optional[dict[str, str]], list[str], bool, bool]:
+    """G-173 (ADR-0077) for `executor`: the coach's reply with no number no source gives — trimmed, or
+    replaced by the move's reply written in code. Returns the result, its messages, the unsourced
+    numbers, the rejected reply's words, the sentences left out, `numbers_rejected` and `fell_back`."""
+    # G-173 (ADR-0077) — every number in the coach's words comes from the Belt, the case, a computation
+    # result, the script or this turn's tool results (`_number_sources`). A reply with any other number
+    # keeps everything but the sentences holding one, and says so in a line written in code; only when
+    # too little remains is the move's reply written in code.
+    unsourced: list[str] = []
+    rejected: Optional[dict[str, str]] = None     # G-173: the rejected reply's own words, for step_log
+    left_out: list[str] = []                      # G-173: the sentences left out of a kept reply
+    numbers_rejected = False                      # G-173: the reply was replaced, not trimmed
+    sources: set[float] = set()
+    if written is None and not fell_back and isinstance(result.get("structured_response"), CoachingResponse):
+        sources = _number_sources(phase, state, produced[len(history):])
+        unsourced = _unsourced_numbers(result["structured_response"], sources)
+    trimmed: Optional[CoachingResponse] = None
+    if unsourced:
+        sent = result["structured_response"]
+        rejected = {k: str(getattr(sent, k, "") or "")[:1500] for k in ("message", "explanation", "example", "prompt")}
+        trimmed, left_out = _without_unsourced(sent, sources)
+    if trimmed is not None:
+        logger.warning("%s.executor: G-173 — the coach's reply held numbers no source gives (%s); the %d "
+                       "sentence(s) holding them were left out and the rest kept", phase,
+                       ", ".join(unsourced[:5]), len(left_out))
+        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
+        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=trimmed.message)]
+        result = {**result, "messages": produced, "structured_response": trimmed}
+    elif unsourced:
+        fallback = _fallback_reply(phase, plan)
+        if plan is not None and plan.move == moves.RESPOND:
+            # The Belt's question asked for a figure no calculation in code gives — say so, in code,
+            # before the ask, rather than answering with the ask alone.
+            from backend.core.prompts import CALCULATION_FALLBACK, CALCULATION_NEEDS
+            from backend.phases import calculations
+            arts = dict(state.get("artifacts") or {})
+            needs = calculations.missing_inputs(phase, plan.focus_field, arts)
+            # In the catalogue (this element has a calculation in code): its own figures when it has run,
+            # else what it still needs; outside it, `CALCULATION_FALLBACK`.
+            said = (calculations.how_it_was_calculated(calculations.latest(arts, phase, plan.focus_field))
+                    or (CALCULATION_NEEDS.format(needs=" and ".join(needs.values())) if needs else "")
+                    or CALCULATION_FALLBACK)
+            fallback = fallback.model_copy(update={"message": f"{said}\n\n{fallback.message}"})
+        fell_back = numbers_rejected = True
+        logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s) and too "
+                       "little remains without them; the move's reply is written in code", phase,
+                       ", ".join(unsourced[:5]))
+        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
+        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
+        result = {**result, "messages": produced, "structured_response": fallback}
+    return result, produced, unsourced, rejected, left_out, numbers_rejected, fell_back
+
+
+def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], reply: CoachingResponse | None,
+                  new_messages: list, turn_type: str, written: Optional[CoachingResponse], *,
+                  fell_back: bool, filtered: bool, level_4: Optional[str]
+                  ) -> tuple[dict[str, Any], list[dict], CoachingResponse | None, list]:
+    """`executor`'s captures and citations from the coach's reply, and the reply as the turn keeps it (the
+    upload check, the read-back's calculation line, the teaching blocks, the next element, the script's
+    sample). Returns `captured`, `citations`, the reply and the turn's new messages."""
+    from backend.phases import calculations
+    captured: dict[str, Any] = {}
+    citations: list[dict] = list(state.get("citations") or [])
+    if reply is not None:
+        captured = _captured_fields(phase, reply)
+        citations.extend(_anchored([c.model_dump() if isinstance(c, BaseModel) else c for c in reply.citations or []],
+                                   state))
+        if turn_type == turn_tools.UPLOAD:
+            reply = _with_upload_check(phase, reply, _unread_upload(state), plan.focus_field if plan else None)
+        if plan is not None and plan.move == moves.READ_BACK:
+            # ADR-0077 point 4 — the figure and how it was calculated, one line in code.
+            line = calculations.how_it_was_calculated(
+                calculations.latest(dict(state.get("artifacts") or {}), phase, plan.focus_field))
+            if line and line not in (reply.message or ""):
+                reply = reply.model_copy(update={"message": f"{(reply.message or '').rstrip()}\n\n{line}"})
+        new_messages = _with_coaching_text(new_messages, reply)
+
+        # The four presentational blocks are OPTIONAL, and an empty one is a
+        # FINDING rather than a failure: a required `str` would make a model
+        # omitting `progress` fail the whole turn's structured output — a hard
+        # failure to the Belt.
+        #
+        # **Logged loudly BECAUSE it is not fatal.** Without the log, the UI
+        # would draw four blocks, one of them blank, and nothing would notice.
+        # Degraded, not broken — and visible. On a teaching move the gap is
+        # then filled from the script (`_with_teaching_blocks`).
+        gaps = presentational_gaps(reply)
+        if gaps:
+            logger.warning(
+                "%s.executor: FINDING — §50.1 presentational field(s) came "
+                "back empty: %s. The turn completes and the block renders "
+                "empty (§56 amendment v1.64, §4.8: never a hard failure to "
+                "the Belt). A recurring gap here is a PROMPT defect, not a "
+                "schema one.",
+                phase, ", ".join(gaps),
+            )
+            reply = _with_teaching_blocks(phase, plan, reply, gaps)
+        if written is None and not fell_back:
+            # G-175 — after a store, the reply teaches the next element.
+            # DEF-220: the welcome is the phase's first element taught with no coach reply before it.
+            opening = (not any(isinstance(m, AIMessage) for m in (state.get("messages") or []))
+                       and plan is not None and plan.focus_field == next(iter(moves.positions(phase)), ("",))[0])
+            belt = chr(10).join([*(m.text for m in (state.get("messages") or []) if isinstance(m, HumanMessage)),
+                                 str(plan.answer or "") if plan else ""])
+            taught = _lead_in_only(phase, plan, _teach_next(phase, plan, reply), opening=opening, belt=belt)
+            if taught.message != reply.message:
+                new_messages = _with_text(new_messages, str(taught.message))
+            reply = taught
+        if not (filtered or level_4):
+            # G-170 — the example is the script's worked example, inserted by code.
+            reply = _with_script_sample(phase, plan, reply)
+    return captured, citations, reply, new_messages
+
+
+def _consumed_uploads(state: PhaseState, produced: list, citations: list[dict],
+                      turn_type: str) -> tuple[list[dict], dict | None]:
+    """`executor`'s uploads with `consumed_at` written on each file this turn read, and the routed upload
+    an upload turn read (None when it read none)."""
+    # `consumed_at` is written HERE, not inside the tool. A `@tool` receives
+    # only its arguments and cannot reach `PhaseState`; the node inspects the
+    # turn's tool calls afterwards.
+    uploads, consumed = _mark_consumed(state, produced, citations)
+    # DEF-108 (W5) — an upload turn READ its file: section 4 named it, whether or not a numeric
+    # column was loaded, so the next turn is not an upload turn again for the same file.
+    routed = (_unread_upload(state) if turn_type == turn_tools.UPLOAD and not ROUTED_READ_FAILED.get()
+              else None)
+    if routed is not None:
+        stamp = utc_now().isoformat()
+        for u in uploads:
+            if u.get("blob_path") == routed.get("blob_path") and not u.get("consumed_at"):
+                u["consumed_at"] = stamp
+                consumed += 1
+    return uploads, routed
+
+
+def _store_candidate(phase: str, plan: Optional[CoachingPlan], captured: dict[str, Any]
+                     ) -> tuple[Optional[str], Optional[dict], dict[str, Any], list[str]]:
+    """`executor`'s store candidate, decided by the plan's move: the move, the read-back's pending entry,
+    the candidate and the captures not stored (logged)."""
+    move = plan.move if plan else None
+    pending = dict(plan.pending) if plan and plan.pending else None
+    if move == moves.STORE_AND_ADVANCE and plan is not None:
+        candidate = dict(plan.store)
+    elif move == moves.READ_BACK and pending:
+        # ADR-0071 (DEF-076): the baseline and the target are parsed in code from the Belt's
+        # words by `moves.pending_store`; the coach's own rendering of them is not a candidate.
+        from backend.phases.define.parse import METRIC_FIELDS
+        candidate = {f: v for f, v in captured.items() if f in (pending.get("fields") or [])
+                     and not (phase == "define" and f in METRIC_FIELDS)}
+    else:
+        candidate = {}
+    not_stored = sorted(f for f in captured if not (move == moves.READ_BACK and f in candidate))
+    if not_stored:
+        logger.info(
+            "%s.executor: %d capture(s) NOT stored — the move is %s, and only a "
+            "confirmed read-back is stored (§20 v1.75): %s",
+            phase, len(not_stored), move, ", ".join(not_stored),
+        )
+    return move, pending, candidate, not_stored
+
+
+def _refused_captures(phase: str, state: PhaseState, candidate: dict[str, Any], prior_artifacts: dict[str, Any]
+                      ) -> tuple[dict[str, Any], list[str], dict[str, str], list[str], dict[str, Any]]:
+    """`executor`'s guards on the candidate — empty, declared type, worked example — each refusal reported
+    as a FINDING. Returns what is kept, the empty captures, the malformed ones, the worked-example
+    refusals and the Belt's own confirmed values (G-159)."""
+    kept, empty_captures = split_captures(candidate)
+
+    # ── the declared type is enforced HERE, at the capture site ───────
+    #
+    # **Not at the model and not at assembly.** The per-phase response schema
+    # narrows the shape (ADR-0110) but is not the enforcer: a value the model
+    # sends in the wrong shape is still caught here. Coercing at assembly would INVENT the Belt's
+    # data — a sentence about three people is not three `{name, role, function}`
+    # entries, and anything turning one into the other is guessing which words
+    # were the names.
+    #
+    # Ordered AFTER the empty split deliberately: a `""` for a `dict` field is
+    # EMPTY, not malformed, and reporting it as the wrong type would send a
+    # reader looking for a shape problem in a field the Belt never answered.
+    kept, malformed = split_by_declared_type(phase, kept)
+
+    # ── a worked example is NEVER captured as the Belt's data ─────────
+    #
+    # The script reaches the model every call, and with it every worked
+    # example — each a plausible, well-formed value for the field it shows.
+    # A capture that reproduces one (skills.example_match: containment either
+    # way, or similarity >= 0.80 after normalising) is refused and reported,
+    # exactly as a malformed one is: the field stays uncaptured, so the coach
+    # asks again, and the turn does not fail for the Belt.
+    # C3 (DEF-083): nor is a sample the coach showed — this turn's, or the one the Belt is answering.
+    from backend.middleware.skills import matches_sample
+    sample = _previous_sample(state)
+    # G-159: the Belt's confirmed values — a sample built only from them quotes the Belt.
+    belt_own = {k: v for k, v in prior_artifacts.items() if k != "computation_results"}
+    example_refused = sorted(f for f, v in kept.items()
+                             if example_match(v, phase) or (sample and matches_sample(v, sample, belt_own)))
+    if example_refused:
+        kept = {f: v for f, v in kept.items() if f not in example_refused}
+        logger.warning(
+            "%s.executor: FINDING — %d capture(s) reproduced a WORKED EXAMPLE "
+            "from the coaching script and were NOT stored: %s (§22).",
+            phase, len(example_refused), ", ".join(example_refused),
+        )
+    if malformed:
+        logger.warning(
+            "%s.executor: FINDING — %d capture(s) did not carry the type their "
+            "schema declares and were NOT stored: %s. The field stays "
+            "uncaptured, so the coach asks again — §4.8, the turn does not fail "
+            "for the Belt. Storing the prose would put a value in `artifacts` "
+            "that no gate document can be assembled from (step 6.48).",
+            phase, len(malformed),
+            ", ".join(f"{f} (needs {t})" for f, t in sorted(malformed.items())),
+        )
+
+    if empty_captures:
+        logger.warning(
+            "%s.executor: FINDING — %d capture(s) arrived with no value and "
+            "did NOT reach `artifacts`: %s. The coach named the field, so it "
+            "counts as captured in its own reply and does not exist anywhere "
+            "the gate can read — which is the disagreement step 6.33 closes. "
+            "Reported rather than dropped; the prior value (if any) is kept.",
+            phase, len(empty_captures), ", ".join(empty_captures),
+        )
+    return kept, empty_captures, malformed, example_refused, belt_own
+
+
+def _read_back_pending(phase: str, state: PhaseState, plan: Optional[CoachingPlan], move: Optional[str],
+                       pending: Optional[dict], kept: dict[str, Any], prior_artifacts: dict[str, Any],
+                       belt_own: dict[str, Any], reply: CoachingResponse | None
+                       ) -> tuple[dict[str, Any], Optional[dict], dict[str, Any], Optional[str], Optional[str],
+                                  list[str], list[str], list[str]]:
+    """`executor`'s read-back, held as PENDING. Returns what reaches `artifacts` now (nothing, on a
+    read-back), the pending entry, the carried parts, the R18 link and located steps, the copied sample's
+    fields, the fields a Confirm could not store and the placeholders."""
+    # A read-back's value is PENDING: it goes on the move record with
+    # what a confirmation will store, and nothing reaches `artifacts` now.
+    from backend.middleware.skills import matches_sample
+    carried: dict[str, Any] = {}
+    link: Optional[str] = None
+    located_line: Optional[str] = None          # DEF-211: a "from → to" location's steps, read back in code
+    copied: list[str] = []
+    short: list[str] = []           # G-163: the position's fields a Confirm of this read-back could not store
+    unfilled: list[str] = []        # G-174: placeholders in what a Confirm would store
+    if move == moves.READ_BACK and pending is not None:
+        # G-118 (DEF-157) — a part of the element this read-back lacks but an earlier read-back of
+        # it carried (the CTQs, after a Change) is carried into it, shown to the Belt below, and
+        # stored only if the Belt confirms.
+        earlier = dict(pending.get("earlier") or {})
+        carried = {f: earlier[f] for f in (pending.get("fields") or [])
+                   if f != pending.get("field") and f not in kept and f in earlier}
+        kept = {**kept, **carried}
+        store = moves.pending_store(phase, pending, kept, prior_artifacts)
+        # C3 (DEF-083): what a Confirm would store is never the sample the Belt was shown — even when it
+        # is the Belt's own typed words (a plain-text answer stores those). G-160: no read-back is then
+        # offered (a Confirm could not store it); the Belt is told why and asked for their own answer.
+        shown = _previous_sample(state)
+        copied = sorted(f for f, v in store.items() if shown and matches_sample(v, shown, belt_own))
+        if copied:
+            store = {f: v for f, v in store.items() if f not in copied}
+            logger.warning("%s.executor: C3 — the answer to `%s` reproduces the sample the Belt was "
+                           "shown; it will not be stored", phase, ", ".join(copied))
+        # ADR-0071: the read-back's MetricValues are what the Belt sees (below) and the chart draws.
+        from backend.phases.define.parse import METRIC_FIELDS
+        read = {f: v for f, v in store.items() if phase == "define" and f in METRIC_FIELDS}
+        # DEF-021 / DEF-082 (R16) — the reason the Belt gave for a change, and where each value came
+        # from, as the coach captured them in this read-back; the Confirm writes them to the log.
+        captures = captured_entries(reply)
+        pending = {**pending, "proposed": {**kept, **read}, "store": store,
+                   "reasons": {str(e.get("field_name")): str(e["reason"]).strip()
+                               for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
+                   "sources": {str(e.get("field_name")): str(e.get("source") or "")
+                               for e in captures if e.get("field_name")}}
+        if pending.get("upload"):
+            # ADR-0085 (G-169) — a read-back of an uploaded file: what a Confirm stores came from the file (R16).
+            pending["sources"] = {**pending["sources"], **{f: "upload" for f in store}}
+        if pending.get("spans") and isinstance(store.get(str(pending.get("field"))), str):
+            # ADR-0093 decision 5: a span shown in a row is verbatim in the Belt's answer AND in the text a
+            # Confirm stores (a composed answer stores the coach's version) — otherwise the whole answer, once.
+            from backend.phases.define.templates import verbatim_spans
+            pending["spans"] = verbatim_spans(pending["spans"], str(pending["field"]),
+                                              str(pending.get("belt_words") or ""), store[str(pending["field"])])
+        link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
+        located_line = _r18_located(phase, plan.focus_field if plan else None, store, prior_artifacts)
+        short = moves.store_missing(pending.get("fields") or [pending.get("field")], prior_artifacts, store)
+        unfilled = placeholders(store)
+        if unfilled:
+            logger.warning("%s.executor: G-174 — the read-back of `%s` holds a placeholder (%s); it is challenged, "
+                           "not offered for a Confirm", phase, pending.get("field"), "; ".join(unfilled[:3]))
+        kept = {}
+    return kept, pending, carried, link, located_line, copied, short, unfilled
+
+
+def _turn_field_status(phase: str, state: PhaseState, plan: Optional[CoachingPlan], move: Optional[str],
+                       pending: Optional[dict], captured: dict[str, Any], prior_artifacts: dict[str, Any],
+                       filtered: bool, level_4: Optional[str]) -> tuple[dict[str, dict], bool]:
+    """R5 for `executor`: the statuses stored at turn end, with the offers this answer made for other
+    elements (DEF-098, G-257), and `refused` — the model did not answer this turn (ADR-0082)."""
+    # R5 — THE STATUSES, STORED AT TURN END. The plan carries the
+    # after-change map; a read-back's pending entry gains here what the Belt's
+    # yes will store (it needs this turn's read-back to know).
+    field_status = {f: dict(v) for f, v in ((plan.field_status if plan else None)
+                                            or state.get("field_status") or {}).items()}
+    # ADR-0082 — a turn the model did not answer (T92's refusal, T34's level 4) changes nothing: the
+    # element keeps its status from before the turn, no read-back is offered, and the reply written in
+    # code is the Belt's whole answer.
+    refused = filtered or level_4 is not None
+    # DEF-098 (R15, G-196; ADR-0002): a value the coach captured for ANOTHER element, one not confirmed, is kept
+    # as an offer in that element's own entry — nothing is stored; when the element comes up it is read back
+    # (`moves.from_offer`). The element in focus and the fields of this turn's read-back are this turn's own.
+    if not refused and plan is not None:
+        own = {plan.focus_field, *((pending or {}).get("fields") or [])}
+        elements = {f for f, _ in moves.positions(phase)}
+        for f, value in captured.items():
+            if f in own or f not in elements or f in prior_artifacts or value in (None, "", [], {}):
+                continue
+            entry = dict(field_status.get(f) or {})
+            if entry.get("status") in (moves.CONFIRMED, moves.ANSWERED):
+                continue
+            field_status[f] = {**entry, "offered": {"value": value}}
+            logger.info("%s.executor: `%s` offered from this answer — read back when it comes up (DEF-098)",
+                        phase, f)
+        # G-257: the coach captures only the element it reads back, so a goal the Belt's own words state with a
+        # figure is offered from those words, in code — unless the coach offered one itself.
+        goal = "goal_statement"
+        if phase == "define" and move == moves.READ_BACK and goal not in own and goal not in prior_artifacts:
+            from backend.phases.define import parse as define_parse
+            said = define_parse.goal_sentence(moves.belt_message(list(state.get("messages") or [])))
+            entry = dict(field_status.get(goal) or {})
+            if said and not entry.get("offered") and entry.get("status") not in (moves.CONFIRMED, moves.ANSWERED):
+                field_status[goal] = {**entry, "offered": {"value": said}}
+                logger.info("%s.executor: the goal offered from the Belt's words (G-257)", phase)
+    return field_status, refused
+
+
+def _read_back_outcome(phase: str, state: PhaseState, plan: Optional[CoachingPlan], move: Optional[str],
+                       pending: Optional[dict], field_status: dict[str, dict], *, refused: bool,
+                       fell_back: bool, short: list[str], unfilled: list[str], link: Optional[str]
+                       ) -> tuple[dict[str, dict], bool, bool, bool]:
+    """Whether `executor`'s read-back is offered for a Confirm — or is resent (G-140), challenged as a
+    copied sample, a short store or a placeholder (G-163), or challenged as an R18 mismatch — with the
+    focus element's status each leaves. Returns `field_status`, `resend`, `sample_challenge` and
+    `link_challenge`."""
+    # G-140: a read-back written in CODE whose pending store lacks a
+    # field of the position is not offered — a Confirm under it could not store. The turn changes
+    # nothing: the element keeps its status from before the turn, the reply asks the Belt to send
+    # the answer again, and the move record carries no read-back (so no Confirm is drawn).
+    resend = bool(not refused and fell_back and move == moves.READ_BACK and pending is not None and plan
+                  and plan.focus_field and short)
+    if refused and plan is not None and plan.focus_field:
+        field_status[plan.focus_field] = dict((state.get("field_status") or {}).get(plan.focus_field)
+                                              or {"status": moves.ASKED})
+    if resend and plan is not None and plan.focus_field:
+        before = dict((state.get("field_status") or {}).get(plan.focus_field) or {"status": moves.ASKED})
+        field_status[plan.focus_field] = before
+        logger.warning("%s.executor: G-140 — the code-written read-back of `%s` carries nothing a "
+                       "Confirm could store; the Belt is asked to send the answer again",
+                       phase, plan.focus_field)
+    # ADR-0078 point 5 (R18, DEF-085) — a SIPOC and a problem statement that point at different steps
+    # turn the read-back into a challenge naming the mismatch, once; the element stays asked, the
+    # Belt's words kept. Answered again with the same mismatch, the read-back goes ahead and says so.
+    focus_before = dict((state.get("field_status") or {}).get(plan.focus_field) or {}) \
+        if plan is not None and plan.focus_field else {}
+    # G-163 (one rule; G-160 is its copied-sample case): a read-back a Confirm could not store is never
+    # offered for a Confirm — the element stays asked, the Belt's words kept, and the reply, written in
+    # code, says why (below). A code-written read-back keeps G-140's own wording (`resend`).
+    # ADR-0094 decision 2 (DEF-208): a file read back as a DRAFT keeps its read-back — its missing parts are marked on
+    # the card, whose Confirm stays closed until they are given (ADR-0093 decision 2); a placeholder still challenges.
+    draft = bool(pending and pending.get("draft"))
+    sample_challenge = bool(((short and not draft) or unfilled) and not resend and not refused
+                            and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
+    if sample_challenge and plan is not None and plan.focus_field and pending is not None:
+        field_status[plan.focus_field] = {
+            "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
+            "messages": int(pending.get("messages") or 1),
+            **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
+            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
+    link_challenge = bool(link and not resend and not refused and not sample_challenge and not focus_before.get("link_raised")
+                          and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
+    if link_challenge and plan is not None and plan.focus_field and pending is not None:
+        field_status[plan.focus_field] = {
+            "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
+            "messages": int(pending.get("messages") or 1), "link_raised": True,
+            **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
+            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
+        logger.info("%s.executor: R18 — the read-back of `%s` is raised as a challenge: %s",
+                    phase, plan.focus_field, link)
+    elif (not resend and not refused and not sample_challenge and move == moves.READ_BACK
+          and pending is not None and plan and plan.focus_field):
+        field_status[plan.focus_field] = {**field_status.get(plan.focus_field, {}),
+                                          "status": moves.ANSWERED, "pending": pending}
+    return field_status, resend, sample_challenge, link_challenge
+
+
+def _with_define_read_back_lines(phase: str, move: Optional[str], pending: Optional[dict], new_messages: list,
+                                 reply: CoachingResponse | None) -> list:
+    """`executor`'s lines on a Define read-back, each written in code: the metric reading, its meaning, the
+    CTQ and 5W2H questions, the date as read, the step-time questions and a list read as numbered items."""
+    if move == moves.READ_BACK and phase == "define" and pending is not None:
+        from backend.phases.define import templates as _templates
+        if str(pending.get("field") or "") not in _templates.TEMPLATES:
+            # DEF-223 (G-224): the read-back card (ADR-0093) shows the number a Confirm stores in its own row; the
+            # code-written line is written only for a read-back that draws no card, never run into the coach's text.
+            new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
+        # DEF-018 — the metric's first appearance: its meaning from the Belt's registry entry, in code.
+        meaning = _metric_meaning({**dict(pending.get("proposed") or {}), **dict(pending.get("store") or {})}) \
+            if "metric_definitions" in (pending.get("fields") or []) else None
+        if meaning:
+            new_messages = _with_code_line(new_messages, reply, meaning)
+        # ADR-0088 decision 2: rows at odds with the CTQs the Belt listed are asked about before Confirm.
+        from backend.phases.define.parse import ctq_question, five_w_two_h_question
+        asked = ctq_question((pending.get("store") or {}).get("critical_to_quality"), pending.get("belt_words"))
+        if asked:
+            new_messages = _with_code_line(new_messages, reply, asked)
+        # ADR-0088 decision 5: a target date is read back as the Belt wrote it and as the calendar date stored.
+        if "target_date" in (pending.get("store") or {}):
+            from backend.phases.define.parse import date_shown
+            new_messages = _with_code_line(new_messages, reply, "Read as a date: " + date_shown(
+                pending["store"]["target_date"], pending.get("belt_words")))
+        # ADR-0088 decision 4 (G-186): the step times are asked about, never refused.
+        from backend.phases.define.parse import duration_questions
+        for question in duration_questions((pending.get("store") or {}).get("process_map_sipoc")):
+            new_messages = _with_code_line(new_messages, reply, question)
+        # ADR-0088 decision 1 (G-183): a list-shaped answer is read back as the items the Belt numbered.
+        from backend.phases.define.parse import list_items
+        for f, label in (("secondary_metrics", "Secondary metrics"), ("issues_and_barriers", "Issues and barriers")):
+            items = list_items((pending.get("store") or {}).get(f), label)
+            if len(items) > 1:
+                new_messages = _with_code_line(new_messages, reply, f"Read as {len(items)} items:" + "".join(
+                    f"{chr(10)}{n}. {item}" for n, item in enumerate(items, start=1)))
+        # ADR-0088 decision 7: the seventh 5W2H answer is how the problem shows up, never a goal.
+        asked = five_w_two_h_question(pending.get("store"))
+        if asked:
+            new_messages = _with_code_line(new_messages, reply, asked)
+    return new_messages
+
+
+def _attach_visual(phase: str, plan: Optional[CoachingPlan], move: Optional[str], pending: Optional[dict],
+                   prior_artifacts: dict[str, Any], kept: dict[str, Any], new_messages: list) -> None:
+    """`executor`'s element visual and teaching drawing on the reply (Define only). Mutates in place."""
+    # ADR-0070 — the element's visual, drawn by the program with the gate document's own function:
+    # on a read-back from the coach's structured values ("not yet confirmed"), after Confirm from
+    # the stored values. No model call draws.
+    if phase == "define":
+        from backend.phases.define import visuals
+        drawn = (visuals.for_field(plan.focus_field, {**prior_artifacts, **dict((pending or {}).get("proposed") or {})},
+                                   confirmed=False)
+                 if move == moves.READ_BACK and plan is not None and pending is not None else
+                 # ADR-0086: the target read back from the goal — its chart, not yet confirmed.
+                 visuals.for_field(plan.focus_field, {**prior_artifacts, **kept,
+                                                      **dict((goal_read_back(plan) or {}).get("store") or {})},
+                                   confirmed=False)
+                 if move == moves.STORE_AND_ADVANCE and plan is not None and goal_read_back(plan) is not None else
+                 visuals.for_field(plan.stored_field, {**prior_artifacts, **kept}, confirmed=True)
+                 if move == moves.STORE_AND_ADVANCE and plan is not None else None)
+        # DEF-211 (ADR-0070): the element's worked example, drawn on its teaching
+        # turn — taught on its own, or by the move that stores the element before it — from the skill's file.
+        teach_drawing = (visuals.teach_example(plan.focus_field)
+                         if plan is not None and move in (moves.TEACH, moves.STORE_AND_ADVANCE) else None)
+        for visual in (drawn, teach_drawing if teach_drawing and not (drawn and drawn[0] == teach_drawing[0]) else None):
+            if not visual:
+                continue
+            for msg in reversed(new_messages):
+                if isinstance(msg, AIMessage):
+                    msg.additional_kwargs[visual[0]] = visual[1]
+                    break
+
+
+def _code_written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], move: Optional[str],
+                        pending: Optional[dict], reply: CoachingResponse | None, new_messages: list, *,
+                        resend: bool, sample_challenge: bool, link_challenge: bool, link: Optional[str],
+                        refused: bool, copied: list[str], short: list[str], unfilled: list[str],
+                        prior_artifacts: dict[str, Any]) -> tuple[list, CoachingResponse | None]:
+    """`executor`'s reply where code writes it: the resend (G-140), the challenge of a read-back a Confirm
+    could not store (G-163 / G-160), the R18 challenge or kept-link line, a draft's ask, and the ask for a
+    file the Belt pointed at (G-250). Returns the turn's new messages and the reply."""
+    if resend:
+        # G-140 — the reply is the resend sentence alone; the step line stays.
+        new_messages = _with_text(new_messages, FALLBACK_RESEND)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": FALLBACK_RESEND, "explanation": "",
+                                             "example": "", "prompt": ""})
+    elif sample_challenge and plan is not None:
+        # G-163 / G-160 — the reason, written in code; no read-back is offered this turn.
+        from backend.core.prompts import SAMPLE_COPIED, STORE_PLACEHOLDER, STORE_SHORT
+        element = guard_messages.element_name(phase, plan.focus_field or "")
+        said = (SAMPLE_COPIED.format(element=element) if set(copied) & set(short) else
+                STORE_SHORT.format(element=element, missing=_missing_words(phase, short, prior_artifacts, pending or {}))
+                if short else STORE_PLACEHOLDER.format(element=element, gap="; ".join(f"“{g}”" for g in unfilled[:3])))
+        new_messages = _with_text(new_messages, said)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": said, "explanation": "", "example": "", "prompt": ""})
+    elif link_challenge and link:
+        # ADR-0078 point 5 — the challenge, written in code; no read-back is offered this turn.
+        from backend.core.prompts import LINK_CHALLENGE
+        challenge = LINK_CHALLENGE.format(details=link)
+        new_messages = _with_text(new_messages, challenge)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": challenge, "explanation": "", "example": "",
+                                             "prompt": ""})
+    elif link and move == moves.READ_BACK and not refused:
+        from backend.core.prompts import LINK_KEPT
+        new_messages = _with_code_line(new_messages, reply, LINK_KEPT.format(details=link))
+    elif move == moves.READ_BACK and pending and pending.get("draft") and not refused:
+        # ADR-0094 decision 2 (DEF-208): a file read back as a draft — the ask, written in code.
+        from backend.core.prompts import UPLOAD_DRAFT_ASK
+        new_messages = _with_code_line(new_messages, reply, UPLOAD_DRAFT_ASK)
+    if (plan is not None and move == moves.RESPOND and plan.reason == moves.POINTS_AT_FILE_REASON and plan.focus_field
+            and not (state.get("uploads") or []) and not resend and not refused):
+        # G-250: it points at a file and none is attached — the reply is written in code: ask for the file
+        # first, or typing. The coach is not told there is no file, so its words are not kept.
+        from backend.core import guard_messages as _names   # an alias: a bare import would make the name local
+        from backend.core.prompts import NO_FILE_ATTACHED
+        name = _names.element_name(phase, plan.focus_field)
+        no_file = NO_FILE_ATTACHED.format(element=name[:1].lower() + name[1:])
+        new_messages = _with_text(new_messages, no_file)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": no_file})
+    return new_messages, reply
+
+
+def _with_turn_lines(new_messages: list, reply: CoachingResponse | None, produced: list, history: list, *,
+                     located_line: Optional[str], move: Optional[str], pending: Optional[dict], belt_words: str,
+                     written: Optional[CoachingResponse], resend: bool, refused: bool, fell_back: bool,
+                     sample_challenge: bool, link_challenge: bool
+                     ) -> tuple[list, CoachingResponse | None, dict[str, int]]:
+    """`executor`'s last lines on the reply: the located steps (DEF-211), the PII line (T87) and the
+    coach's message without a repeated block (G-171). Returns the turn's new messages, the reply and
+    the personal data masked in this turn's tool results, by type."""
+    if (located_line and move == moves.READ_BACK and pending is not None and not resend and not refused
+            and not sample_challenge and not link_challenge):
+        # DEF-211 (ADR-0078): the located steps, read back in code, for the read-back's Confirm.
+        new_messages = _with_code_line(new_messages, reply, located_line)
+    # The PII line (T87, ADR-0062): when this turn's lookups read values masked
+    # from an upload, the reply says so, in code — the Belt knows what the coach could not see.
+    masked = pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)])
+    if masked and not resend and not refused:
+        from backend.core.prompts import PII_HIDDEN_TURN
+        new_messages = _with_code_line(new_messages, reply, PII_HIDDEN_TURN.format(what=pii.described(masked)))
+    if reply is not None and not refused and not fell_back and written is None:
+        # G-171 — the coach's message never repeats the example or the question block
+        # (a reply written in code is composed once, its ask included).
+        shown = next((m.text for m in reversed(new_messages) if isinstance(m, AIMessage)), "")
+        single = _without_repeated_blocks(shown, str(reply.example or ""), str(reply.prompt or ""),
+                                          str(reply.explanation or ""), belt=belt_words)
+        if single != shown:
+            new_messages = _with_text(new_messages, single)
+            reply = reply.model_copy(update={"message": single})
+    return new_messages, reply, masked
+
+
+def _turn_move_record(plan: Optional[CoachingPlan], move: Optional[str], pending: Optional[dict],
+                      kept: dict[str, Any], *, refused: bool, level_4: Optional[str], resend: bool,
+                      sample_challenge: bool, link_challenge: bool, short: list[str], unfilled: list[str],
+                      copied: list[str], link: Optional[str]) -> dict[str, Any] | None:
+    """`executor`'s move record: a read-back's pending entry only where one is offered, and why none is
+    on a refused turn (ADR-0082), a resend (G-140) or a challenge (G-163 / G-160, ADR-0078 point 5)."""
+    record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND)
+                          and not resend and not refused and not link_challenge and not sample_challenge else None, kept)
+    if refused and record is not None:
+        # ADR-0082 — no read-back is offered, so the screen draws no Confirm; `refused` says why.
+        record.update({"move": moves.RESPOND, "pending": None, "refused": level_4 or "content_filter"})
+    if resend and record is not None:
+        # G-140 — no read-back is offered, so the screen draws no Confirm (it draws one only under
+        # a `read_back` move); `resend` says why.
+        record.update({"move": moves.RESPOND, "pending": None, "resend": True})
+    if sample_challenge and record is not None:
+        # G-163 / G-160 — a challenge, not a read-back: no Confirm is drawn; `store_missing` says why.
+        record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "store_missing": short,
+                       **({"placeholders": unfilled} if unfilled else {}),
+                       **({"sample_copied": copied} if copied else {})})
+    if link_challenge and record is not None:
+        # ADR-0078 point 5 — a challenge, not a read-back: no Confirm is drawn; `link` says why.
+        record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "link": link})
+    return record
+
+
+def _record_fallback(phase: str, move: Optional[str], record: dict[str, Any] | None,
+                     limit_diagnosis: dict[str, Any] | None, *, fell_back: bool, timed_out: bool, filtered: bool,
+                     level_4: Optional[str], limited: bool, unfinished: bool, numbers_rejected: bool) -> None:
+    """`executor`'s containment record: a reply written by code is logged as the DEFECT it is, with its
+    cause, and marked on the move record with the G-139 diagnosis. Mutates `record` in place."""
+    if fell_back:
+        logger.error(
+            "%s.executor: DEFECT — the coach did not finish its %s move (%s); the "
+            "reply was written by code (containment, not a fix).",
+            phase, move, "timeout" if timed_out else "content filter" if filtered else level_4 if level_4 else
+            "call limit" if limited else "no structured reply" if unfinished else
+            # G-173: a rejected reply names its own cause.
+            "a number no source gives (G-173)" if numbers_rejected else "runaway loop backstop")
+        if record is not None:
+            record["fallback"] = True
+            if limit_diagnosis is not None:
+                record["limit"] = limit_diagnosis          # G-139: the run record reads it here
+
+
+def _define_completion(phase: str, plan: Optional[CoachingPlan], record: dict[str, Any] | None,
+                       new_messages: list, reply: CoachingResponse | None, fell_back: bool
+                       ) -> tuple[list, CoachingResponse | None, dict[str, Any] | None]:
+    """DEF-212 (G-213) for `executor`: the last Confirm of Define, its reply written in code. Returns the
+    turn's new messages, the reply and the completion card (None on any other turn)."""
+    completion = None
+    if (phase == "define" and record is not None and record.get("move") == moves.STORE_AND_ADVANCE
+            and record.get("stored_field") and plan is not None and not plan.focus_field and not fell_back):
+        # DEF-212 (G-213): the last Confirm of Define — every element confirmed, none left in focus. The reply is
+        # written in code: what was stored, that all are confirmed, and the completion card's steps in order —
+        # never the coach's own word on approving before anything was submitted.
+        from backend.core.prompts import DEFINE_COMPLETE_CARD, DEFINE_COMPLETE_LINE
+        done = (f"{STORE_NOTE_STORED.format(elements=guard_messages.element_name(phase, record['stored_field']))}"
+                f"{chr(10) * 2}{DEFINE_COMPLETE_LINE.format(n=len(DEFINE_FIELD_ORDER))}")
+        new_messages = _with_text(new_messages, done)
+        if reply is not None:
+            reply = reply.model_copy(update={"message": done})
+        completion = {"title": DEFINE_COMPLETE_CARD["title"], "steps": list(DEFINE_COMPLETE_CARD["steps"])}
+    return new_messages, reply, completion
+
+
 async def executor(
     phase: str,
     state: PhaseState,
@@ -2659,7 +3397,7 @@ async def executor(
 
     **This is the v2 field writer.** The coach is `create_agent` with the
     phase's `CoachingResponse` model as `response_format`. What reaches
-    `artifacts`, under the v2 names `validate_{phase}` reads, is decided by the
+    `artifacts`, under the v2 names the gate checks (`gate_registry.check_gate`), is decided by the
     plan, never by what the coach returned: nothing is stored before the Belt
     confirms (the store block below).
 
@@ -2683,24 +3421,7 @@ async def executor(
     plan = state.get("coaching_plan")
 
     # ── guard 1 of 2 — the graceful off-ramp ──────────────────────────
-    # `remaining_steps` is a `RemainingSteps` managed value LangGraph fills in
-    # on its own; declaring it on `PhaseState` is what activates it.
-    # Low means the GRAPH is running out of room, so the coach is built with no
-    # retrieval tools and answers from what is in hand rather than beginning a
-    # hop chain it cannot finish. It coaches; it does not cap.
-    #
-    # `or 0` and not a `.get` default: an ABSENT field must fail this test, not
-    # pass it — a default value would decide the guard instead of the graph.
-    remaining = state.get("remaining_steps") or 0
-    off_ramp = 0 < remaining <= REMAINING_STEPS_FLOOR
-    hop_budget = 0 if off_ramp else COACH_HOP_BUDGET
-    if off_ramp:
-        logger.warning(
-            "%s.executor: %d graph step(s) left (floor %d) — coaching with no "
-            "retrieval tools this turn (§26, S-F09 B1). MONITORING SIGNAL: the "
-            "graph is close to its %d-step backstop.",
-            phase, remaining, REMAINING_STEPS_FLOOR, COACH_RECURSION_BACKSTOP,
-        )
+    remaining, off_ramp, hop_budget = _off_ramp(phase, state)
 
     # ── guard 2 of 2 — the three hops (ADR-0032), counted in the tools ──
     # A different unit from the one above and not substitutable for it: this
@@ -2718,20 +3439,7 @@ async def executor(
     normalized: list[str] = []
     FIELDS_CAPTURED_NORMALIZED.set(normalized)
 
-    # ADR-0077 — the element's calculation, run in code (never by the coach) once every input is
-    # present: confirmed values from state, the rest from the judgment's `calculation_inputs`. The
-    # row joins this turn's state, so the coach is shown the figure (state injection), and the record.
-    from backend.phases import calculations
-    calc_row = calculations.run(
-        phase, plan.focus_field if plan else None, dict(state.get("artifacts") or {}),
-        (plan.judgment.calculation_inputs if plan is not None and plan.judgment is not None else None),
-        _turn_ordinal(state))
-    if calc_row is not None:
-        logger.info("%s.executor: ADR-0077 — %s run in code: %s", phase, calc_row["tool"],
-                    (calc_row["result"] or {}).get("annual_savings"))
-        arts = dict(state.get("artifacts") or {})
-        arts["computation_results"] = [*(arts.get("computation_results") or []), calc_row]
-        state = {**state, "artifacts": arts}  # type: ignore[typeddict-item]
+    calc_row, state = _turn_calculation(phase, state, plan)
 
     # ADR-0068 / ADR-0069 — the turn type, decided in code from the move and the phase state,
     # recorded in step_log; the tools it offers are the turn_tools middleware's.
@@ -2805,20 +3513,8 @@ async def executor(
         # burned 50 graph steps without stopping — a genuine runaway loop,
         # which is what the backstop is for.
         hit_cap = True
-        logger.warning(
-            "%s.executor: hit the %d-step BACKSTOP (§16) after %d hop(s) — "
-            "returning a partial answer. This should not happen now that §3.7's "
-            "hop budget and §26's off-ramp are live; it means a genuine runaway "
-            "loop, not broad exploration.",
-            phase, COACH_RECURSION_BACKSTOP, hops_spent[0],
-        )
-        # Never the backstop text as a coaching reply: the move was decided in
-        # code, so code writes its reply. The step_log status still records
-        # the degrade.
-        fallback = _fallback_reply(phase, plan)
+        result = _backstop_result(phase, plan, prior, hops_spent)
         fell_back = True
-        result = {"messages": [*prior, AIMessage(content=fallback.message)],
-                  "structured_response": fallback}
     except Exception as exc:
         # T34 level 4 (ADR-0082): the premium model and the fallback both failed through their
         # retries (a refusal or a token limit never raises here: the marker turned it into a reply).
@@ -2826,14 +3522,7 @@ async def executor(
         # a model service's error is not the model's failure: it goes to the node's degraded handler.
         if not (isinstance(exc, openai.APIError) or content_safety.is_content_filter(exc)):
             raise
-        if content_safety.is_content_filter(exc):
-            filtered = True
-        else:
-            level_4 = ("token_limit" if model_fallback.reason(exc) == model_fallback.TOKEN_LIMIT
-                       else "model_unavailable")
-        logger.warning("%s.executor: %s — %s, answered in code (ADR-0082)", phase, type(exc).__name__,
-                       "content filter (T92)" if filtered else level_4)
-        _, result = _refused_turn(phase, state, plan, prior, filtered)
+        filtered, level_4, result = _model_error_turn(phase, state, plan, prior, exc)
         fell_back = True
     else:
         marked = model_fallback.kept_from_fallback(list(result.get("messages") or [])) if written is None else None
@@ -2846,82 +3535,10 @@ async def executor(
             _, result = _refused_turn(phase, state, plan, prior, filtered)
             fell_back = True
 
-    produced = list(result.get("messages") or [])
-    # T69 / G-119 — the call limit ended the agent loop: its notice is never the Belt's reply;
-    # the move's own reply is written in code, as on a timeout.
-    limited = (result.get("structured_response") is None and bool(produced)
-               and isinstance(produced[-1], AIMessage) and _LIMIT_NOTICE in str(produced[-1].content))
-    limit_diagnosis: dict[str, Any] | None = None
-    if limited:
-        # G-139: what the coach returned before the limit ended it —
-        # to step_log and the move record, so the run record carries it.
-        limit_diagnosis = _limit_diagnosis(produced[len(history):], coach_limit)
-        fallback = _fallback_reply(phase, plan)
-        fell_back = True
-        logger.warning("%s.executor: the coach reached its %d-call share of the turn's %d model calls "
-                       "(T69, G-119) — the move's reply is written in code. G-139 diagnosis: %s",
-                       phase, coach_limit, TURN_MODEL_CALLS, limit_diagnosis["why"])
-        produced = [*produced[:-1], AIMessage(content=fallback.message)]
-        result = {**result, "messages": produced, "structured_response": fallback}
-    # G-153 — the loop ended with no structured reply and no limit notice: the coach's call was cut
-    # off at its token limit or ended on text alone. Contained as the limit is:
-    # the move's reply is written in code, never an empty turn, and the diagnosis rides on the record.
-    unfinished = not limited and result.get("structured_response") is None
-    if unfinished:
-        limit_diagnosis = _limit_diagnosis(produced[len(history):], coach_limit)
-        fallback = _fallback_reply(phase, plan)
-        fell_back = True
-        logger.warning("%s.executor: the coach's turn ended with no structured reply (G-153) — the "
-                       "move's reply is written in code. Diagnosis: %s", phase, limit_diagnosis["why"])
-        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
-        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
-        result = {**result, "messages": produced, "structured_response": fallback}
-    # G-173 (ADR-0077) — every number in the coach's words comes from the Belt, the case, a computation
-    # result, the script or this turn's tool results (`_number_sources`). A reply with any other number
-    # keeps everything but the sentences holding one, and says so in a line written in code; only when
-    # too little remains is the move's reply written in code.
-    unsourced: list[str] = []
-    rejected: Optional[dict[str, str]] = None     # G-173: the rejected reply's own words, for step_log
-    left_out: list[str] = []                      # G-173: the sentences left out of a kept reply
-    numbers_rejected = False                      # G-173: the reply was replaced, not trimmed
-    sources: set[float] = set()
-    if written is None and not fell_back and isinstance(result.get("structured_response"), CoachingResponse):
-        sources = _number_sources(phase, state, produced[len(history):])
-        unsourced = _unsourced_numbers(result["structured_response"], sources)
-    trimmed: Optional[CoachingResponse] = None
-    if unsourced:
-        sent = result["structured_response"]
-        rejected = {k: str(getattr(sent, k, "") or "")[:1500] for k in ("message", "explanation", "example", "prompt")}
-        trimmed, left_out = _without_unsourced(sent, sources)
-    if trimmed is not None:
-        logger.warning("%s.executor: G-173 — the coach's reply held numbers no source gives (%s); the %d "
-                       "sentence(s) holding them were left out and the rest kept", phase,
-                       ", ".join(unsourced[:5]), len(left_out))
-        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
-        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=trimmed.message)]
-        result = {**result, "messages": produced, "structured_response": trimmed}
-    elif unsourced:
-        fallback = _fallback_reply(phase, plan)
-        if plan is not None and plan.move == moves.RESPOND:
-            # The Belt's question asked for a figure no calculation in code gives — say so, in code,
-            # before the ask, rather than answering with the ask alone.
-            from backend.core.prompts import CALCULATION_FALLBACK, CALCULATION_NEEDS
-            from backend.phases import calculations
-            arts = dict(state.get("artifacts") or {})
-            needs = calculations.missing_inputs(phase, plan.focus_field, arts)
-            # In the catalogue (this element has a calculation in code): its own figures when it has run,
-            # else what it still needs; outside it, `CALCULATION_FALLBACK`.
-            said = (calculations.how_it_was_calculated(calculations.latest(arts, phase, plan.focus_field))
-                    or (CALCULATION_NEEDS.format(needs=" and ".join(needs.values())) if needs else "")
-                    or CALCULATION_FALLBACK)
-            fallback = fallback.model_copy(update={"message": f"{said}\n\n{fallback.message}"})
-        fell_back = numbers_rejected = True
-        logger.warning("%s.executor: G-173 — the coach's reply holds numbers no source gives (%s) and too "
-                       "little remains without them; the move's reply is written in code", phase,
-                       ", ".join(unsourced[:5]))
-        ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
-        produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
-        result = {**result, "messages": produced, "structured_response": fallback}
+    result, produced, limited, unfinished, limit_diagnosis, fell_back = _contained_limit(
+        phase, plan, result, history, coach_limit, fell_back)
+    result, produced, unsourced, rejected, left_out, numbers_rejected, fell_back = _sourced_numbers(
+        phase, state, plan, result, produced, history, written, fell_back)
     coach_calls = sum(1 for m in produced[len(history):] if isinstance(m, AIMessage)) - (1 if limited else 0)
     reply: CoachingResponse | None = result.get("structured_response")
     # The agent echoes the conversation it was given and appends its own turn.
@@ -2939,71 +3556,11 @@ async def executor(
     # computed figure over it (below, after the capture merge).
     model_progress = reply.progress if reply is not None else None
 
-    captured: dict[str, Any] = {}
-    citations: list[dict] = list(state.get("citations") or [])
-    if reply is not None:
-        captured = _captured_fields(phase, reply)
-        citations.extend(_anchored([c.model_dump() if isinstance(c, BaseModel) else c for c in reply.citations or []],
-                                   state))
-        if turn_type == turn_tools.UPLOAD:
-            reply = _with_upload_check(phase, reply, _unread_upload(state), plan.focus_field if plan else None)
-        if plan is not None and plan.move == moves.READ_BACK:
-            # ADR-0077 point 4 — the figure and how it was calculated, one line in code.
-            line = calculations.how_it_was_calculated(
-                calculations.latest(dict(state.get("artifacts") or {}), phase, plan.focus_field))
-            if line and line not in (reply.message or ""):
-                reply = reply.model_copy(update={"message": f"{(reply.message or '').rstrip()}\n\n{line}"})
-        new_messages = _with_coaching_text(new_messages, reply)
+    captured, citations, reply, new_messages = _shaped_reply(
+        phase, state, plan, reply, new_messages, turn_type, written,
+        fell_back=fell_back, filtered=filtered, level_4=level_4)
 
-        # The four presentational blocks are OPTIONAL, and an empty one is a
-        # FINDING rather than a failure: a required `str` would make a model
-        # omitting `progress` fail the whole turn's structured output — a hard
-        # failure to the Belt.
-        #
-        # **Logged loudly BECAUSE it is not fatal.** Without the log, the UI
-        # would draw four blocks, one of them blank, and nothing would notice.
-        # Degraded, not broken — and visible. On a teaching move the gap is
-        # then filled from the script (`_with_teaching_blocks`).
-        gaps = presentational_gaps(reply)
-        if gaps:
-            logger.warning(
-                "%s.executor: FINDING — §50.1 presentational field(s) came "
-                "back empty: %s. The turn completes and the block renders "
-                "empty (§56 amendment v1.64, §4.8: never a hard failure to "
-                "the Belt). A recurring gap here is a PROMPT defect, not a "
-                "schema one.",
-                phase, ", ".join(gaps),
-            )
-            reply = _with_teaching_blocks(phase, plan, reply, gaps)
-        if written is None and not fell_back:
-            # G-175 — after a store, the reply teaches the next element.
-            # DEF-220: the welcome is the phase's first element taught with no coach reply before it.
-            opening = (not any(isinstance(m, AIMessage) for m in (state.get("messages") or []))
-                       and plan is not None and plan.focus_field == next(iter(moves.positions(phase)), ("",))[0])
-            belt = chr(10).join([*(m.text for m in (state.get("messages") or []) if isinstance(m, HumanMessage)),
-                                 str(plan.answer or "") if plan else ""])
-            taught = _lead_in_only(phase, plan, _teach_next(phase, plan, reply), opening=opening, belt=belt)
-            if taught.message != reply.message:
-                new_messages = _with_text(new_messages, str(taught.message))
-            reply = taught
-        if not (filtered or level_4):
-            # G-170 — the example is the script's worked example, inserted by code.
-            reply = _with_script_sample(phase, plan, reply)
-
-    # `consumed_at` is written HERE, not inside the tool. A `@tool` receives
-    # only its arguments and cannot reach `PhaseState`; the node inspects the
-    # turn's tool calls afterwards.
-    uploads, consumed = _mark_consumed(state, produced, citations)
-    # DEF-108 (W5) — an upload turn READ its file: section 4 named it, whether or not a numeric
-    # column was loaded, so the next turn is not an upload turn again for the same file.
-    routed = (_unread_upload(state) if turn_type == turn_tools.UPLOAD and not ROUTED_READ_FAILED.get()
-              else None)
-    if routed is not None:
-        stamp = utc_now().isoformat()
-        for u in uploads:
-            if u.get("blob_path") == routed.get("blob_path") and not u.get("consumed_at"):
-                u["consumed_at"] = stamp
-                consumed += 1
+    uploads, routed = _consumed_uploads(state, produced, citations, turn_type)
 
     _attach_diagram(new_messages)
     _attach_sources(new_messages)
@@ -3033,222 +3590,19 @@ async def executor(
     # The guards below — empty, declared type, worked example — run on the
     # candidate either way, so a pending value is checked when it is proposed
     # and a stored one when it is stored.
-    move = plan.move if plan else None
-    pending = dict(plan.pending) if plan and plan.pending else None
-    if move == moves.STORE_AND_ADVANCE and plan is not None:
-        candidate = dict(plan.store)
-    elif move == moves.READ_BACK and pending:
-        # ADR-0071 (DEF-076): the baseline and the target are parsed in code from the Belt's
-        # words by `moves.pending_store`; the coach's own rendering of them is not a candidate.
-        from backend.phases.define.parse import METRIC_FIELDS
-        candidate = {f: v for f, v in captured.items() if f in (pending.get("fields") or [])
-                     and not (phase == "define" and f in METRIC_FIELDS)}
-    else:
-        candidate = {}
-    not_stored = sorted(f for f in captured if not (move == moves.READ_BACK and f in candidate))
-    if not_stored:
-        logger.info(
-            "%s.executor: %d capture(s) NOT stored — the move is %s, and only a "
-            "confirmed read-back is stored (§20 v1.75): %s",
-            phase, len(not_stored), move, ", ".join(not_stored),
-        )
-    kept, empty_captures = split_captures(candidate)
+    move, pending, candidate, not_stored = _store_candidate(phase, plan, captured)
+    kept, empty_captures, malformed, example_refused, belt_own = _refused_captures(
+        phase, state, candidate, prior_artifacts)
 
-    # ── the declared type is enforced HERE, at the capture site ───────
-    #
-    # **Not at the model and not at assembly.** The per-phase response schema
-    # narrows the shape (ADR-0110) but is not the enforcer: a value the model
-    # sends in the wrong shape is still caught here. Coercing at assembly would INVENT the Belt's
-    # data — a sentence about three people is not three `{name, role, function}`
-    # entries, and anything turning one into the other is guessing which words
-    # were the names.
-    #
-    # Ordered AFTER the empty split deliberately: a `""` for a `dict` field is
-    # EMPTY, not malformed, and reporting it as the wrong type would send a
-    # reader looking for a shape problem in a field the Belt never answered.
-    kept, malformed = split_by_declared_type(phase, kept)
-
-    # ── a worked example is NEVER captured as the Belt's data ─────────
-    #
-    # The script reaches the model every call, and with it every worked
-    # example — each a plausible, well-formed value for the field it shows.
-    # A capture that reproduces one (skills.example_match: containment either
-    # way, or similarity >= 0.80 after normalising) is refused and reported,
-    # exactly as a malformed one is: the field stays uncaptured, so the coach
-    # asks again, and the turn does not fail for the Belt.
-    # C3 (DEF-083): nor is a sample the coach showed — this turn's, or the one the Belt is answering.
-    from backend.middleware.skills import matches_sample
-    sample = _previous_sample(state)
-    # G-159: the Belt's confirmed values — a sample built only from them quotes the Belt.
-    belt_own = {k: v for k, v in prior_artifacts.items() if k != "computation_results"}
-    example_refused = sorted(f for f, v in kept.items()
-                             if example_match(v, phase) or (sample and matches_sample(v, sample, belt_own)))
-    if example_refused:
-        kept = {f: v for f, v in kept.items() if f not in example_refused}
-        logger.warning(
-            "%s.executor: FINDING — %d capture(s) reproduced a WORKED EXAMPLE "
-            "from the coaching script and were NOT stored: %s (§22).",
-            phase, len(example_refused), ", ".join(example_refused),
-        )
-    if malformed:
-        logger.warning(
-            "%s.executor: FINDING — %d capture(s) did not carry the type their "
-            "schema declares and were NOT stored: %s. The field stays "
-            "uncaptured, so the coach asks again — §4.8, the turn does not fail "
-            "for the Belt. Storing the prose would put a value in `artifacts` "
-            "that no gate document can be assembled from (step 6.48).",
-            phase, len(malformed),
-            ", ".join(f"{f} (needs {t})" for f, t in sorted(malformed.items())),
-        )
-
-    if empty_captures:
-        logger.warning(
-            "%s.executor: FINDING — %d capture(s) arrived with no value and "
-            "did NOT reach `artifacts`: %s. The coach named the field, so it "
-            "counts as captured in its own reply and does not exist anywhere "
-            "the gate can read — which is the disagreement step 6.33 closes. "
-            "Reported rather than dropped; the prior value (if any) is kept.",
-            phase, len(empty_captures), ", ".join(empty_captures),
-        )
-
-    # A read-back's value is PENDING: it goes on the move record with
-    # what a confirmation will store, and nothing reaches `artifacts` now.
-    carried: dict[str, Any] = {}
-    link: Optional[str] = None
-    located_line: Optional[str] = None          # DEF-211: a "from → to" location's steps, read back in code
-    copied: list[str] = []
-    short: list[str] = []           # G-163: the position's fields a Confirm of this read-back could not store
-    unfilled: list[str] = []        # G-174: placeholders in what a Confirm would store
-    if move == moves.READ_BACK and pending is not None:
-        # G-118 (DEF-157) — a part of the element this read-back lacks but an earlier read-back of
-        # it carried (the CTQs, after a Change) is carried into it, shown to the Belt below, and
-        # stored only if the Belt confirms.
-        earlier = dict(pending.get("earlier") or {})
-        carried = {f: earlier[f] for f in (pending.get("fields") or [])
-                   if f != pending.get("field") and f not in kept and f in earlier}
-        kept = {**kept, **carried}
-        store = moves.pending_store(phase, pending, kept, prior_artifacts)
-        # C3 (DEF-083): what a Confirm would store is never the sample the Belt was shown — even when it
-        # is the Belt's own typed words (a plain-text answer stores those). G-160: no read-back is then
-        # offered (a Confirm could not store it); the Belt is told why and asked for their own answer.
-        shown = _previous_sample(state)
-        copied = sorted(f for f, v in store.items() if shown and matches_sample(v, shown, belt_own))
-        if copied:
-            store = {f: v for f, v in store.items() if f not in copied}
-            logger.warning("%s.executor: C3 — the answer to `%s` reproduces the sample the Belt was "
-                           "shown; it will not be stored", phase, ", ".join(copied))
-        # ADR-0071: the read-back's MetricValues are what the Belt sees (below) and the chart draws.
-        from backend.phases.define.parse import METRIC_FIELDS
-        read = {f: v for f, v in store.items() if phase == "define" and f in METRIC_FIELDS}
-        # DEF-021 / DEF-082 (R16) — the reason the Belt gave for a change, and where each value came
-        # from, as the coach captured them in this read-back; the Confirm writes them to the log.
-        captures = captured_entries(reply)
-        pending = {**pending, "proposed": {**kept, **read}, "store": store,
-                   "reasons": {str(e.get("field_name")): str(e["reason"]).strip()
-                               for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
-                   "sources": {str(e.get("field_name")): str(e.get("source") or "")
-                               for e in captures if e.get("field_name")}}
-        if pending.get("upload"):
-            # ADR-0085 (G-169) — a read-back of an uploaded file: what a Confirm stores came from the file (R16).
-            pending["sources"] = {**pending["sources"], **{f: "upload" for f in store}}
-        if pending.get("spans") and isinstance(store.get(str(pending.get("field"))), str):
-            # ADR-0093 decision 5: a span shown in a row is verbatim in the Belt's answer AND in the text a
-            # Confirm stores (a composed answer stores the coach's version) — otherwise the whole answer, once.
-            from backend.phases.define.templates import verbatim_spans
-            pending["spans"] = verbatim_spans(pending["spans"], str(pending["field"]),
-                                              str(pending.get("belt_words") or ""), store[str(pending["field"])])
-        link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
-        located_line = _r18_located(phase, plan.focus_field if plan else None, store, prior_artifacts)
-        short = moves.store_missing(pending.get("fields") or [pending.get("field")], prior_artifacts, store)
-        unfilled = placeholders(store)
-        if unfilled:
-            logger.warning("%s.executor: G-174 — the read-back of `%s` holds a placeholder (%s); it is challenged, "
-                           "not offered for a Confirm", phase, pending.get("field"), "; ".join(unfilled[:3]))
-        kept = {}
+    kept, pending, carried, link, located_line, copied, short, unfilled = _read_back_pending(
+        phase, state, plan, move, pending, kept, prior_artifacts, belt_own, reply)
     artifacts = {**prior_artifacts, **kept}
 
-    # R5 — THE STATUSES, STORED AT TURN END. The plan carries the
-    # after-change map; a read-back's pending entry gains here what the Belt's
-    # yes will store (it needs this turn's read-back to know).
-    field_status = {f: dict(v) for f, v in ((plan.field_status if plan else None)
-                                            or state.get("field_status") or {}).items()}
-    # G-140: a read-back written in CODE whose pending store lacks a
-    # field of the position is not offered — a Confirm under it could not store. The turn changes
-    # nothing: the element keeps its status from before the turn, the reply asks the Belt to send
-    # the answer again, and the move record carries no read-back (so no Confirm is drawn).
-    # ADR-0082 — a turn the model did not answer (T92's refusal, T34's level 4) changes nothing: the
-    # element keeps its status from before the turn, no read-back is offered, and the reply written in
-    # code is the Belt's whole answer.
-    refused = filtered or level_4 is not None
-    # DEF-098 (R15, G-196; ADR-0002): a value the coach captured for ANOTHER element, one not confirmed, is kept
-    # as an offer in that element's own entry — nothing is stored; when the element comes up it is read back
-    # (`moves.from_offer`). The element in focus and the fields of this turn's read-back are this turn's own.
-    if not refused and plan is not None:
-        own = {plan.focus_field, *((pending or {}).get("fields") or [])}
-        elements = {f for f, _ in moves.positions(phase)}
-        for f, value in captured.items():
-            if f in own or f not in elements or f in prior_artifacts or value in (None, "", [], {}):
-                continue
-            entry = dict(field_status.get(f) or {})
-            if entry.get("status") in (moves.CONFIRMED, moves.ANSWERED):
-                continue
-            field_status[f] = {**entry, "offered": {"value": value}}
-            logger.info("%s.executor: `%s` offered from this answer — read back when it comes up (DEF-098)",
-                        phase, f)
-        # G-257: the coach captures only the element it reads back, so a goal the Belt's own words state with a
-        # figure is offered from those words, in code — unless the coach offered one itself.
-        goal = "goal_statement"
-        if phase == "define" and move == moves.READ_BACK and goal not in own and goal not in prior_artifacts:
-            from backend.phases.define import parse as define_parse
-            said = define_parse.goal_sentence(moves.belt_message(list(state.get("messages") or [])))
-            entry = dict(field_status.get(goal) or {})
-            if said and not entry.get("offered") and entry.get("status") not in (moves.CONFIRMED, moves.ANSWERED):
-                field_status[goal] = {**entry, "offered": {"value": said}}
-                logger.info("%s.executor: the goal offered from the Belt's words (G-257)", phase)
-    resend = bool(not refused and fell_back and move == moves.READ_BACK and pending is not None and plan
-                  and plan.focus_field and short)
-    if refused and plan is not None and plan.focus_field:
-        field_status[plan.focus_field] = dict((state.get("field_status") or {}).get(plan.focus_field)
-                                              or {"status": moves.ASKED})
-    if resend and plan is not None and plan.focus_field:
-        before = dict((state.get("field_status") or {}).get(plan.focus_field) or {"status": moves.ASKED})
-        field_status[plan.focus_field] = before
-        logger.warning("%s.executor: G-140 — the code-written read-back of `%s` carries nothing a "
-                       "Confirm could store; the Belt is asked to send the answer again",
-                       phase, plan.focus_field)
-    # ADR-0078 point 5 (R18, DEF-085) — a SIPOC and a problem statement that point at different steps
-    # turn the read-back into a challenge naming the mismatch, once; the element stays asked, the
-    # Belt's words kept. Answered again with the same mismatch, the read-back goes ahead and says so.
-    focus_before = dict((state.get("field_status") or {}).get(plan.focus_field) or {}) \
-        if plan is not None and plan.focus_field else {}
-    # G-163 (one rule; G-160 is its copied-sample case): a read-back a Confirm could not store is never
-    # offered for a Confirm — the element stays asked, the Belt's words kept, and the reply, written in
-    # code, says why (below). A code-written read-back keeps G-140's own wording (`resend`).
-    # ADR-0094 decision 2 (DEF-208): a file read back as a DRAFT keeps its read-back — its missing parts are marked on
-    # the card, whose Confirm stays closed until they are given (ADR-0093 decision 2); a placeholder still challenges.
-    draft = bool(pending and pending.get("draft"))
-    sample_challenge = bool(((short and not draft) or unfilled) and not resend and not refused
-                            and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
-    if sample_challenge and plan is not None and plan.focus_field and pending is not None:
-        field_status[plan.focus_field] = {
-            "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
-            "messages": int(pending.get("messages") or 1),
-            **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
-            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
-    link_challenge = bool(link and not resend and not refused and not sample_challenge and not focus_before.get("link_raised")
-                          and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
-    if link_challenge and plan is not None and plan.focus_field and pending is not None:
-        field_status[plan.focus_field] = {
-            "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
-            "messages": int(pending.get("messages") or 1), "link_raised": True,
-            **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
-            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
-        logger.info("%s.executor: R18 — the read-back of `%s` is raised as a challenge: %s",
-                    phase, plan.focus_field, link)
-    elif (not resend and not refused and not sample_challenge and move == moves.READ_BACK
-          and pending is not None and plan and plan.focus_field):
-        field_status[plan.focus_field] = {**field_status.get(plan.focus_field, {}),
-                                          "status": moves.ANSWERED, "pending": pending}
+    field_status, refused = _turn_field_status(
+        phase, state, plan, move, pending, captured, prior_artifacts, filtered, level_4)
+    field_status, resend, sample_challenge, link_challenge = _read_back_outcome(
+        phase, state, plan, move, pending, field_status, refused=refused, fell_back=fell_back,
+        short=short, unfilled=unfilled, link=link)
 
     # The field change log, built from the SAME `kept` the merge above uses,
     # so the log and the accumulator cannot disagree about what changed.
@@ -3293,68 +3647,8 @@ async def executor(
     new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {},
                                 belt_words)
     new_messages = _with_carried(new_messages, reply, phase, carried)
-    if move == moves.READ_BACK and phase == "define" and pending is not None:
-        from backend.phases.define import templates as _templates
-        if str(pending.get("field") or "") not in _templates.TEMPLATES:
-            # DEF-223 (G-224): the read-back card (ADR-0093) shows the number a Confirm stores in its own row; the
-            # code-written line is written only for a read-back that draws no card, never run into the coach's text.
-            new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
-        # DEF-018 — the metric's first appearance: its meaning from the Belt's registry entry, in code.
-        meaning = _metric_meaning({**dict(pending.get("proposed") or {}), **dict(pending.get("store") or {})}) \
-            if "metric_definitions" in (pending.get("fields") or []) else None
-        if meaning:
-            new_messages = _with_code_line(new_messages, reply, meaning)
-        # ADR-0088 decision 2: rows at odds with the CTQs the Belt listed are asked about before Confirm.
-        from backend.phases.define.parse import ctq_question, five_w_two_h_question
-        asked = ctq_question((pending.get("store") or {}).get("critical_to_quality"), pending.get("belt_words"))
-        if asked:
-            new_messages = _with_code_line(new_messages, reply, asked)
-        # ADR-0088 decision 5: a target date is read back as the Belt wrote it and as the calendar date stored.
-        if "target_date" in (pending.get("store") or {}):
-            from backend.phases.define.parse import date_shown
-            new_messages = _with_code_line(new_messages, reply, "Read as a date: " + date_shown(
-                pending["store"]["target_date"], pending.get("belt_words")))
-        # ADR-0088 decision 4 (G-186): the step times are asked about, never refused.
-        from backend.phases.define.parse import duration_questions
-        for question in duration_questions((pending.get("store") or {}).get("process_map_sipoc")):
-            new_messages = _with_code_line(new_messages, reply, question)
-        # ADR-0088 decision 1 (G-183): a list-shaped answer is read back as the items the Belt numbered.
-        from backend.phases.define.parse import list_items
-        for f, label in (("secondary_metrics", "Secondary metrics"), ("issues_and_barriers", "Issues and barriers")):
-            items = list_items((pending.get("store") or {}).get(f), label)
-            if len(items) > 1:
-                new_messages = _with_code_line(new_messages, reply, f"Read as {len(items)} items:" + "".join(
-                    f"{chr(10)}{n}. {item}" for n, item in enumerate(items, start=1)))
-        # ADR-0088 decision 7: the seventh 5W2H answer is how the problem shows up, never a goal.
-        asked = five_w_two_h_question(pending.get("store"))
-        if asked:
-            new_messages = _with_code_line(new_messages, reply, asked)
-    # ADR-0070 — the element's visual, drawn by the program with the gate document's own function:
-    # on a read-back from the coach's structured values ("not yet confirmed"), after Confirm from
-    # the stored values. No model call draws.
-    if phase == "define":
-        from backend.phases.define import visuals
-        drawn = (visuals.for_field(plan.focus_field, {**prior_artifacts, **dict((pending or {}).get("proposed") or {})},
-                                   confirmed=False)
-                 if move == moves.READ_BACK and plan is not None and pending is not None else
-                 # ADR-0086: the target read back from the goal — its chart, not yet confirmed.
-                 visuals.for_field(plan.focus_field, {**prior_artifacts, **kept,
-                                                      **dict((goal_read_back(plan) or {}).get("store") or {})},
-                                   confirmed=False)
-                 if move == moves.STORE_AND_ADVANCE and plan is not None and goal_read_back(plan) is not None else
-                 visuals.for_field(plan.stored_field, {**prior_artifacts, **kept}, confirmed=True)
-                 if move == moves.STORE_AND_ADVANCE and plan is not None else None)
-        # DEF-211 (ADR-0070): the element's worked example, drawn on its teaching
-        # turn — taught on its own, or by the move that stores the element before it — from the skill's file.
-        teach_drawing = (visuals.teach_example(plan.focus_field)
-                         if plan is not None and move in (moves.TEACH, moves.STORE_AND_ADVANCE) else None)
-        for visual in (drawn, teach_drawing if teach_drawing and not (drawn and drawn[0] == teach_drawing[0]) else None):
-            if not visual:
-                continue
-            for msg in reversed(new_messages):
-                if isinstance(msg, AIMessage):
-                    msg.additional_kwargs[visual[0]] = visual[1]
-                    break
+    new_messages = _with_define_read_back_lines(phase, move, pending, new_messages, reply)
+    _attach_visual(phase, plan, move, pending, prior_artifacts, kept, new_messages)
 
     # ── the four blocks and the grader's warning ride on the reply ────
     # The route never holds the `CoachingResponse`, only the graph's
@@ -3364,67 +3658,14 @@ async def executor(
     # verdict this turn FAILED and the grader enforces — the dict its
     # `after_agent` returns reaches no reader (G-76, G-103).
     failed = any(e.get("status") == "failed" for e in grader_log)
-    if resend:
-        # G-140 — the reply is the resend sentence alone; the step line stays.
-        new_messages = _with_text(new_messages, FALLBACK_RESEND)
-        if reply is not None:
-            reply = reply.model_copy(update={"message": FALLBACK_RESEND, "explanation": "",
-                                             "example": "", "prompt": ""})
-    elif sample_challenge and plan is not None:
-        # G-163 / G-160 — the reason, written in code; no read-back is offered this turn.
-        from backend.core.prompts import SAMPLE_COPIED, STORE_PLACEHOLDER, STORE_SHORT
-        element = guard_messages.element_name(phase, plan.focus_field or "")
-        said = (SAMPLE_COPIED.format(element=element) if set(copied) & set(short) else
-                STORE_SHORT.format(element=element, missing=_missing_words(phase, short, prior_artifacts, pending or {}))
-                if short else STORE_PLACEHOLDER.format(element=element, gap="; ".join(f"“{g}”" for g in unfilled[:3])))
-        new_messages = _with_text(new_messages, said)
-        if reply is not None:
-            reply = reply.model_copy(update={"message": said, "explanation": "", "example": "", "prompt": ""})
-    elif link_challenge and link:
-        # ADR-0078 point 5 — the challenge, written in code; no read-back is offered this turn.
-        from backend.core.prompts import LINK_CHALLENGE
-        challenge = LINK_CHALLENGE.format(details=link)
-        new_messages = _with_text(new_messages, challenge)
-        if reply is not None:
-            reply = reply.model_copy(update={"message": challenge, "explanation": "", "example": "",
-                                             "prompt": ""})
-    elif link and move == moves.READ_BACK and not refused:
-        from backend.core.prompts import LINK_KEPT
-        new_messages = _with_code_line(new_messages, reply, LINK_KEPT.format(details=link))
-    elif move == moves.READ_BACK and pending and pending.get("draft") and not refused:
-        # ADR-0094 decision 2 (DEF-208): a file read back as a draft — the ask, written in code.
-        from backend.core.prompts import UPLOAD_DRAFT_ASK
-        new_messages = _with_code_line(new_messages, reply, UPLOAD_DRAFT_ASK)
-    if (plan is not None and move == moves.RESPOND and plan.reason == moves.POINTS_AT_FILE_REASON and plan.focus_field
-            and not (state.get("uploads") or []) and not resend and not refused):
-        # G-250: it points at a file and none is attached — the reply is written in code: ask for the file
-        # first, or typing. The coach is not told there is no file, so its words are not kept.
-        from backend.core import guard_messages as _names   # an alias: a bare import would make the name local
-        from backend.core.prompts import NO_FILE_ATTACHED
-        name = _names.element_name(phase, plan.focus_field)
-        no_file = NO_FILE_ATTACHED.format(element=name[:1].lower() + name[1:])
-        new_messages = _with_text(new_messages, no_file)
-        if reply is not None:
-            reply = reply.model_copy(update={"message": no_file})
-    if (located_line and move == moves.READ_BACK and pending is not None and not resend and not refused
-            and not sample_challenge and not link_challenge):
-        # DEF-211 (ADR-0078): the located steps, read back in code, for the read-back's Confirm.
-        new_messages = _with_code_line(new_messages, reply, located_line)
-    # The PII line (T87, ADR-0062): when this turn's lookups read values masked
-    # from an upload, the reply says so, in code — the Belt knows what the coach could not see.
-    masked = pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)])
-    if masked and not resend and not refused:
-        from backend.core.prompts import PII_HIDDEN_TURN
-        new_messages = _with_code_line(new_messages, reply, PII_HIDDEN_TURN.format(what=pii.described(masked)))
-    if reply is not None and not refused and not fell_back and written is None:
-        # G-171 — the coach's message never repeats the example or the question block
-        # (a reply written in code is composed once, its ask included).
-        shown = next((m.text for m in reversed(new_messages) if isinstance(m, AIMessage)), "")
-        single = _without_repeated_blocks(shown, str(reply.example or ""), str(reply.prompt or ""),
-                                          str(reply.explanation or ""), belt=belt_words)
-        if single != shown:
-            new_messages = _with_text(new_messages, single)
-            reply = reply.model_copy(update={"message": single})
+    new_messages, reply = _code_written_reply(
+        phase, state, plan, move, pending, reply, new_messages, resend=resend,
+        sample_challenge=sample_challenge, link_challenge=link_challenge, link=link, refused=refused,
+        copied=copied, short=short, unfilled=unfilled, prior_artifacts=prior_artifacts)
+    new_messages, reply, masked = _with_turn_lines(
+        new_messages, reply, produced, history, located_line=located_line, move=move, pending=pending,
+        belt_words=belt_words, written=written, resend=resend, refused=refused, fell_back=fell_back,
+        sample_challenge=sample_challenge, link_challenge=link_challenge)
     reply = _with_sample_mark(reply)            # C3 (DEF-083)
     # The grader's warning reaches the Belt only in `enforce` mode.
     _attach_blocks(new_messages, reply,
@@ -3435,49 +3676,15 @@ async def executor(
     # next turn's coach reads the feedback as section 5 of its input — never as
     # a message from the Belt. Attached even when the turn degraded, so a
     # confirmed value the plan stored is not taught again.
-    record = _move_record(plan, pending if move in (moves.READ_BACK, moves.RESPOND)
-                          and not resend and not refused and not link_challenge and not sample_challenge else None, kept)
-    if refused and record is not None:
-        # ADR-0082 — no read-back is offered, so the screen draws no Confirm; `refused` says why.
-        record.update({"move": moves.RESPOND, "pending": None, "refused": level_4 or "content_filter"})
-    if resend and record is not None:
-        # G-140 — no read-back is offered, so the screen draws no Confirm (it draws one only under
-        # a `read_back` move); `resend` says why.
-        record.update({"move": moves.RESPOND, "pending": None, "resend": True})
-    if sample_challenge and record is not None:
-        # G-163 / G-160 — a challenge, not a read-back: no Confirm is drawn; `store_missing` says why.
-        record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "store_missing": short,
-                       **({"placeholders": unfilled} if unfilled else {}),
-                       **({"sample_copied": copied} if copied else {})})
-    if link_challenge and record is not None:
-        # ADR-0078 point 5 — a challenge, not a read-back: no Confirm is drawn; `link` says why.
-        record.update({"move": moves.CHALLENGE, "status": moves.ASKED, "pending": None, "link": link})
-    if fell_back:
-        logger.error(
-            "%s.executor: DEFECT — the coach did not finish its %s move (%s); the "
-            "reply was written by code (containment, not a fix).",
-            phase, move, "timeout" if timed_out else "content filter" if filtered else level_4 if level_4 else
-            "call limit" if limited else "no structured reply" if unfinished else
-            # G-173: a rejected reply names its own cause.
-            "a number no source gives (G-173)" if numbers_rejected else "runaway loop backstop")
-        if record is not None:
-            record["fallback"] = True
-            if limit_diagnosis is not None:
-                record["limit"] = limit_diagnosis          # G-139: the run record reads it here
+    record = _turn_move_record(
+        plan, move, pending, kept, refused=refused, level_4=level_4, resend=resend,
+        sample_challenge=sample_challenge, link_challenge=link_challenge, short=short, unfilled=unfilled,
+        copied=copied, link=link)
+    _record_fallback(phase, move, record, limit_diagnosis, fell_back=fell_back, timed_out=timed_out,
+                     filtered=filtered, level_4=level_4, limited=limited, unfinished=unfinished,
+                     numbers_rejected=numbers_rejected)
     feedback = _quality_feedback(grader_log)
-    completion = None
-    if (phase == "define" and record is not None and record.get("move") == moves.STORE_AND_ADVANCE
-            and record.get("stored_field") and plan is not None and not plan.focus_field and not fell_back):
-        # DEF-212 (G-213): the last Confirm of Define — every element confirmed, none left in focus. The reply is
-        # written in code: what was stored, that all are confirmed, and the completion card's steps in order —
-        # never the coach's own word on approving before anything was submitted.
-        from backend.core.prompts import DEFINE_COMPLETE_CARD, DEFINE_COMPLETE_LINE
-        done = (f"{STORE_NOTE_STORED.format(elements=guard_messages.element_name(phase, record['stored_field']))}"
-                f"{chr(10) * 2}{DEFINE_COMPLETE_LINE.format(n=len(DEFINE_FIELD_ORDER))}")
-        new_messages = _with_text(new_messages, done)
-        if reply is not None:
-            reply = reply.model_copy(update={"message": done})
-        completion = {"title": DEFINE_COMPLETE_CARD["title"], "steps": list(DEFINE_COMPLETE_CARD["steps"])}
+    new_messages, reply, completion = _define_completion(phase, plan, record, new_messages, reply, fell_back)
     _attach_move(new_messages, record, feedback)
     card, strip = _element_card(phase, record, artifacts, plan)
     if card is None and sample_challenge and short and plan is not None:
@@ -3950,7 +4157,6 @@ async def gate_apply(
 
 __all__ = [
     "NODE_NAMES",
-    "V1Node",
     "step_key",
     "entry_mode",
     "planner",
