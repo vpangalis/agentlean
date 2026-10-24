@@ -61,7 +61,7 @@ def _reset() -> None:
 @pytest.fixture
 def empty_caches(monkeypatch):
     builds: list[str] = []
-    monkeypatch.setattr(r, "AzureOpenAIEmbeddings", _counting(builds, "embeddings"))
+    monkeypatch.setattr(llm_mod, "AzureOpenAIEmbeddings", _counting(builds, "embeddings"))  # built in core/llm.py (B5)
     monkeypatch.setattr(r, "AzureSearch", _counting(builds, "vectorstore"))
     monkeypatch.setattr(r, "SearchClient", _counting(builds, "search_client"))
     monkeypatch.setattr(llm_mod, "AzureChatOpenAI", _counting(builds, "chat"))

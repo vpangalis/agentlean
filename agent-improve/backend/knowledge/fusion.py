@@ -241,7 +241,7 @@ async def generate_variants(query: str) -> list[str]:
         tool = CALLING_TOOL.get()
         counted[tool] = counted.get(tool, 0) + 1
     try:
-        llm = get_llm("extraction", temperature=0.2)
+        llm = get_llm("query_variants")
         structured = llm.with_structured_output(QueryVariants)
         result = await structured.ainvoke(VARIANT_PROMPT.format(
             query=query,

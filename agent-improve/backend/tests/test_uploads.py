@@ -308,8 +308,8 @@ def test_the_two_upload_calls_wait_30_s_and_the_lookup_keeps_8_s(monkeypatch):
 
     assert built == [("extraction", 30.0), ("vision", 30.0)], built
     assert llm.UPLOAD_TIMEOUT == 30.0
-    # The lookup's call (knowledge/fusion.py) passes no override, so the role's 8 s holds.
-    assert llm.get_llm("extraction", temperature=0.2).request_timeout == llm.ROLE_TIMEOUTS["extraction"] == 8.0
+    # The lookup's call (knowledge/fusion.py) passes no override, so its role's 8 s holds.
+    assert llm.get_llm("query_variants").request_timeout == llm.ROLE_TIMEOUTS["query_variants"] == 8.0
 
 
 def test_the_fallback_announces_itself_rather_than_reading_as_a_summary():

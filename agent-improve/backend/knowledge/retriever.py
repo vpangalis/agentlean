@@ -40,6 +40,7 @@ from openai import AuthenticationError as OpenAIAuthenticationError
 from backend.core.config import settings
 from backend.storage import layout
 from backend.core.errors import AgentImproveError, KnowledgeSearchError
+from backend.core.llm import build_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -255,15 +256,10 @@ def close_clients() -> None:
 @lru_cache(maxsize=1)
 @child_span(run_type="chain", name="retriever.get_embeddings")
 def get_embeddings() -> AzureOpenAIEmbeddings:
-    """Return cached embeddings instance — text-embedding-3-large.
-    Mirrors agent-resolve embeddings.py pattern: load_dotenv + os.environ."""
+    """The cached embeddings client — text-embedding-3-large, built by core/llm.build_embeddings from the
+    environment (load_dotenv first, as the search clients do)."""
     load_dotenv(override=True)
-    return AzureOpenAIEmbeddings(
-        azure_deployment=os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", ""),
-        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
-        api_key=os.environ.get("AZURE_OPENAI_API_KEY", ""),
-        api_version=os.environ.get("AZURE_OPENAI_API_VERSION", ""),
-    )
+    return build_embeddings()
 
 
 # The full field list of improve_knowledge_index.

@@ -43,3 +43,23 @@ def test_the_clock_has_one_owner() -> None:
     """H6: every stamp the product writes reads core/clock.py's utc_now — in any spelling of the call."""
     clock = re.compile(r"\bdatetime\.now\(|\butcnow\(")
     assert [rel for rel, text in _modules() if clock.search(text)] == ["core/clock.py"]
+
+
+def test_temperatures_have_one_owner() -> None:
+    """Audit A8 (founder ruling 2026-10-24, B5): every temperature a call uses is core/llm.py's ROLE_TEMPERATURES —
+    no backend call to get_llm passes its own."""
+    passing = []
+    for rel, text in _modules():
+        for node in ast.walk(ast.parse(text)):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", getattr(node.func, "attr", "")) == "get_llm" \
+                    and any(k.arg == "temperature" for k in node.keywords):
+                passing.append(f"{rel}:{node.lineno}")
+    assert passing == [], passing
+
+
+def test_model_clients_are_built_in_one_place() -> None:
+    """B5: the chat models and the embeddings are constructed in core/llm.py only."""
+    built = sorted({rel for rel, text in _modules() for node in ast.walk(ast.parse(text))
+                    if isinstance(node, ast.Call)
+                    and getattr(node.func, "id", "") in ("AzureChatOpenAI", "AzureOpenAIEmbeddings")})
+    assert built == ["core/llm.py"], built

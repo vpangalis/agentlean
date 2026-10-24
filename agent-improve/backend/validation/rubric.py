@@ -237,10 +237,6 @@ def _document(a: dict[str, Any]) -> str:
     return "\n".join(f"{k}: {_text(v)}" for k, v in a.items() if k not in skip and _text(v))
 
 
-#: G-241: the gate judge reads at temperature 0, so the same document gets the same verdict. The coaching grader
-#: keeps the `grader` role's own temperature.
-GATE_TEMPERATURE = 0.0
-
 #: G-241: the terms a failing reason can name — a quoted phrase, a hyphenated compound, an acronym.
 _TERM = re.compile(r"(?:(?<=\s)|^)['‘\"“]([^'’\"”]{3,80})['’\"”](?=[\s.,;:)]|$)"
                    r"|\b([A-Za-z]+(?:-[A-Za-z]+)+)\b|\b([A-Z]{2,})\b")
@@ -256,8 +252,9 @@ def foreign_terms(reason: str, document: str, criteria: str) -> list[str]:
 
 
 async def _llm_verdicts(criteria: list[tuple[str, str, str]], document: str) -> GraderVerdict:
-    """One `grader` call for the criteria that need judgment."""
-    grader = get_llm("grader", temperature=GATE_TEMPERATURE).with_structured_output(GraderVerdict)
+    """One `gate_judge` call for the criteria that need judgment — at its role's temperature, 0 (G-241: the same
+    document gets the same verdict)."""
+    grader = get_llm("gate_judge").with_structured_output(GraderVerdict)
     # G-129: each rubric line carries its element's own acceptance
     # criteria, so the element check and the gate cannot disagree on the same answer.
     from backend.middleware.skills import acceptance_criteria

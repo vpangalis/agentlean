@@ -1626,7 +1626,7 @@ def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_co
 
     real_llm = __import__("backend.core.llm", fromlist=["get_llm"]).get_llm
     monkeypatch.setattr("backend.core.llm.get_llm",
-                        lambda role, **kw: Variants() if role == "extraction" else real_llm(role, **kw))
+                        lambda role, **kw: Variants() if role == "query_variants" else real_llm(role, **kw))
     searched: list[str] = []
 
     def search(q: str, **_kw: object) -> list[dict]:
@@ -2956,7 +2956,7 @@ def test_t58_knowledge_lookups_always_include_the_general_methodology(env, monke
             return fusion.QueryVariants(variants=["SIPOC meaning", "what a SIPOC shows", "SIPOC columns"])
     real_llm = __import__("backend.core.llm", fromlist=["get_llm"]).get_llm
     monkeypatch.setattr("backend.core.llm.get_llm",
-                        lambda role, **kw: Variants() if role == "extraction" else real_llm(role, **kw))
+                        lambda role, **kw: Variants() if role == "query_variants" else real_llm(role, **kw))
     seen.clear()
     monkeypatch.setattr(retriever, "get_knowledge_vectorstore", lambda: _Store())
     r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
@@ -3304,7 +3304,7 @@ def test_the_coach_says_when_values_it_read_were_masked(env, monkeypatch) -> Non
             return fusion.QueryVariants(variants=["supplier queries", "AP contacts", "who answers suppliers"])
     real_llm = __import__("backend.core.llm", fromlist=["get_llm"]).get_llm
     monkeypatch.setattr("backend.core.llm.get_llm",
-                        lambda role, **kw: Variants() if role == "extraction" else real_llm(role, **kw))
+                        lambda role, **kw: Variants() if role == "query_variants" else real_llm(role, **kw))
 
     def search(q: str, **_kw: object) -> list[dict]:
         return [{"id": "c1", "content": "AP contact Dev Patel, [REDACTED_EMAIL], [REDACTED_PHONE]",

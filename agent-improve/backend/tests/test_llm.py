@@ -3,7 +3,7 @@
 Reference §21 (roles, temperature, factory) · §54 (where classes live) ·
 CLAUDE.md §4.1, §4.2, §4.7, §2.
 
-These assert the CONTRACT, not the wiring: that every one of the eleven roles
+These assert the CONTRACT, not the wiring: that every one of the twelve roles
 resolves to a deployment, that the two tiers are assigned as §21's table says,
 that the grader's 0.1 holds, and that `core/llm.py` still contains no class.
 Nothing here calls Azure.
@@ -30,22 +30,25 @@ from backend.core.llm import (
 # ROLE_DEPLOYMENTS — a test that reads its expectation out of the code under
 # test asserts nothing.
 PREMIUM_ROLES = {"coach", "planner", "synthesis", "vision"}
+#: Founder ruling 2026-10-24 (B5, audit A8): the coherence judge's role is retired (ADR-0083); the gate judge and a
+#: lookup's query variants are roles of their own, so no call site sets its own temperature.
 OPERATIONAL_ROLES = {
-    "reasoning", "extraction", "coherence", "constraint",
-    "grader", "summarizer", "intent",
+    "reasoning", "extraction", "query_variants", "constraint",
+    "grader", "gate_judge", "summarizer", "intent",
 }
 ALL_ROLES = PREMIUM_ROLES | OPERATIONAL_ROLES
 
 
-def test_exactly_eleven_roles() -> None:
-    """§21 specifies eleven roles — no more, no fewer."""
-    assert len(ALL_ROLES) == 11
+def test_exactly_twelve_roles() -> None:
+    """§21's eleven, less coherence, plus the gate judge and the query variants (founder ruling 2026-10-24) — no
+    more, no fewer."""
+    assert len(ALL_ROLES) == 12
     assert set(ROLE_DEPLOYMENTS) == ALL_ROLES
 
 
 @pytest.mark.parametrize("role", sorted(ALL_ROLES))
 def test_every_role_resolves_to_a_deployment(role: str) -> None:
-    """The step's 'Done when': all 11 roles resolve to a deployment."""
+    """Every role resolves to a deployment."""
     deployment = ROLE_DEPLOYMENTS[role]
     assert isinstance(deployment, str) and deployment.strip()
 
@@ -75,7 +78,7 @@ def test_grader_temperature_is_point_one() -> None:
     assert role_temperature("grader") == 0.1
 
 
-@pytest.mark.parametrize("role", ["grader", "coherence", "constraint", "planner"])
+@pytest.mark.parametrize("role", ["grader", "constraint", "planner"])
 def test_deterministic_roles_are_point_one(role: str) -> None:
     """§21's temperature table: consistent verdicts, deterministic planning."""
     assert role_temperature(role) == 0.1
@@ -92,15 +95,21 @@ def test_extraction_and_synthesis_bands() -> None:
     assert 0.1 <= role_temperature("synthesis") <= 0.2
 
 
-def test_unratified_roles_fall_back_rather_than_inventing_a_figure() -> None:
-    """§21 ratifies a temperature for seven roles; four have none.
+def test_the_gate_judge_reads_at_zero_and_the_coaching_grader_at_point_one() -> None:
+    """Founder ruling 2026-10-24 (B5, audit A8): the gate judge 0 (G-241: the same document gets the same verdict),
+    the coaching grader 0.1 — both owned by ROLE_TEMPERATURES; vision and the query variants carry the figures their
+    call sites passed (0.0, 0.2)."""
+    assert role_temperature("gate_judge") == 0.0 and role_temperature("grader") == 0.1
+    assert role_temperature("vision") == 0.0 and role_temperature("query_variants") == 0.2
+    assert ROLE_DEPLOYMENTS["gate_judge"] == ROLE_DEPLOYMENTS["grader"] == OPERATIONAL_TIER
 
-    Those four must take DEFAULT_TEMPERATURE. A number in ROLE_TEMPERATURES
-    for one of them would read as ratified when it is not — adding one is a
-    §56 amendment.
+
+def test_unratified_roles_fall_back_rather_than_inventing_a_figure() -> None:
+    """Three roles have no figure; they take DEFAULT_TEMPERATURE. A number in ROLE_TEMPERATURES for one of them
+    would read as ratified when it is not — adding one is a §56 amendment.
     """
     unratified = ALL_ROLES - set(ROLE_TEMPERATURES)
-    assert unratified == {"reasoning", "summarizer", "intent", "vision"}
+    assert unratified == {"reasoning", "summarizer", "intent"}
     for role in unratified:
         assert role_temperature(role) == DEFAULT_TEMPERATURE
 

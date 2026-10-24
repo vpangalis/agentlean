@@ -231,7 +231,9 @@ def test_g134_def_r13_is_settled_in_code_first_and_the_model_judges_only_specifi
 # that cites a fact the case never mentions is discarded and the criterion judged once more ──────────────────────
 
 def test_g241_the_gate_judge_reads_at_temperature_0(monkeypatch) -> None:
-    """G-241 (1b): the gate judge's call is the grader role at temperature 0 — the coaching grader keeps its 0.1."""
+    """G-241 (1b): the gate judge reads at temperature 0 — its own role, `gate_judge`, whose temperature
+    ROLE_TEMPERATURES owns (founder ruling 2026-10-24, B5) — and the coaching grader keeps its 0.1."""
+    from backend.core.llm import role_temperature
     import asyncio
 
     from backend.validation import rubric
@@ -249,7 +251,8 @@ def test_g241_the_gate_judge_reads_at_temperature_0(monkeypatch) -> None:
         return Grader()
     monkeypatch.setattr(rubric, "get_llm", get_llm)
     asyncio.run(rubric._llm_verdicts([("DEF-R13", "issues_and_barriers", "names the key issues")], "doc"))
-    assert asked == [("grader", {"temperature": 0.0})], asked
+    assert asked == [("gate_judge", {})], asked
+    assert role_temperature("gate_judge") == 0.0 and role_temperature("grader") == 0.1
 
 
 def test_g241_a_reason_citing_a_fact_not_in_the_case_is_judged_again_once() -> None:

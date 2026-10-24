@@ -18,7 +18,7 @@ from typing import Any
 import openai
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from backend.core.tracing import child_span
 
 from backend.core.config import settings
@@ -55,7 +55,7 @@ PREMIUM_TIER = settings.LLM_PREMIUM_DEPLOYMENT       # operational-premium, gpt-
 OPERATIONAL_TIER = settings.LLM_REASONING_DEPLOYMENT  # operational-model, gpt-4o-mini
 
 
-# ── The eleven roles ──────────────────────────────────────────────────────
+# ── The twelve roles ──────────────────────────────────────────────────────
 #
 # This map IS the role vocabulary. A name not in it is not a role, and
 # **new roles require an amendment** — which is why an unknown name raises
@@ -70,9 +70,10 @@ ROLE_DEPLOYMENTS: dict[str, str] = {
     # operational tier — gpt-4o-mini
     "reasoning":   OPERATIONAL_TIER,  # Default reasoning, intermediate hops
     "extraction":  OPERATIONAL_TIER,  # Field extraction
-    "coherence":   OPERATIONAL_TIER,  # Layer 2a
+    "query_variants": OPERATIONAL_TIER,  # A methodology lookup's query variants (knowledge/fusion.py)
     "constraint":  OPERATIONAL_TIER,  # Layer 2c
-    "grader":      OPERATIONAL_TIER,  # Rubric grading
+    "grader":      OPERATIONAL_TIER,  # The coaching grader (middleware/grader.py)
+    "gate_judge":  OPERATIONAL_TIER,  # The gate rubric's judgments (validation/rubric.py)
     "summarizer":  OPERATIONAL_TIER,  # Context compression
     "intent":      OPERATIONAL_TIER,  # Short classification
 }
@@ -80,22 +81,24 @@ ROLE_DEPLOYMENTS: dict[str, str] = {
 
 # ── Per-role temperature defaults ─────────────────────────────────────────
 #
-# A temperature is ratified for SEVEN of the eleven roles. Where the ratified
-# figure is a band, the entry below takes the reproducible end of it. The
-# remaining four — reasoning, summarizer, intent, vision — have no ratified
-# figure, so they fall through to DEFAULT_TEMPERATURE rather than carry a
-# number invented here that would read as ratified. Pinning one is an
-# amendment, not an edit.
+# Every temperature a call uses is here — no call site passes its own (audit A8; founder ruling 2026-10-24, B5:
+# the gate judge 0, the coaching grader 0.1). Where the ratified figure is a band, the entry takes the
+# reproducible end of it. `vision` and `query_variants` carry the figure their one call site passed before
+# (0.0 and 0.2), awaiting the founder's ratification. The remaining three — reasoning, summarizer, intent —
+# have no figure, so they fall through to DEFAULT_TEMPERATURE rather than carry a number invented here that
+# would read as ratified. Pinning one is an amendment, not an edit.
 DEFAULT_TEMPERATURE = 0.2
 
 ROLE_TEMPERATURES: dict[str, float] = {
     "coach":      0.5,  # band 0.5-0.7 — natural variation for the Belt
     "synthesis":  0.1,  # band 0.1-0.2 — reproducible evidence assembly
     "grader":     0.1,  # HARD requirement — see below
-    "coherence":  0.1,  # consistent verdicts
+    "gate_judge": 0.0,  # G-241: the same document gets the same verdict
     "constraint": 0.1,  # consistent verdicts
     "planner":    0.1,  # deterministic decomposition
     "extraction": 0.0,  # band 0.0-0.2 — field extraction and validators
+    "vision":     0.0,  # the image read — its call site's figure, awaiting ratification
+    "query_variants": 0.2,  # some variety between a question's variants — its call site's figure, awaiting ratification
 }
 
 # The grader's 0.1 is a hard requirement, not a tuning knob: a grader
@@ -115,10 +118,11 @@ ROLE_TIMEOUTS: dict[str, float] = {
     "synthesis": 20.0,
     "vision": 20.0,
     "reasoning": 15.0,
-    "extraction": 8.0,   # a lookup's query variants
-    "coherence": 8.0,    # layer 2a
+    "extraction": 8.0,
+    "query_variants": 8.0,   # a lookup's query variants
     "constraint": 8.0,
     "grader": 8.0,
+    "gate_judge": 8.0,
     "summarizer": 15.0,
     "intent": 8.0,
 }
@@ -223,7 +227,7 @@ TURN_LLM_CALLS: tuple[tuple[str, dict[str, Any]], ...] = (
     ("coach", {"max_tokens": 1500}),        # the executor's agent
     ("summarizer", {}),                     # SummarizationMiddleware
     ("grader", {}),                         # the coaching grader
-    ("extraction", {"temperature": 0.2}),   # knowledge-lookup query variants
+    ("query_variants", {}),                 # knowledge-lookup query variants
 )
 
 
@@ -241,7 +245,7 @@ def get_llm(
     max_tokens: int | None = None,
     timeout: float | None = None,
 ) -> AzureChatOpenAI:
-    """Resolve one of the eleven roles to a cached model.
+    """Resolve one of the twelve roles to a cached model.
 
         llm = get_llm("coach", max_tokens=1500)
 
@@ -251,7 +255,7 @@ def get_llm(
     role's request timeout (`ROLE_TIMEOUTS`); only the upload calls pass one
     (`UPLOAD_TIMEOUT`).
 
-    Raises `ValueError` for a name that is not one of the eleven roles.
+    Raises `ValueError` for a name that is not one of the twelve roles.
     Adding a role requires an amendment, so an unrecognised name is a bug at
     the call site, not a deployment name to pass through.
     """
@@ -259,7 +263,7 @@ def get_llm(
         deployment = ROLE_DEPLOYMENTS[role]
     except KeyError:
         raise ValueError(
-            f"Unknown LLM role {role!r}. The eleven roles (§21) are: "
+            f"Unknown LLM role {role!r}. The twelve roles (§21) are: "
             f"{', '.join(sorted(ROLE_DEPLOYMENTS))}. A new role requires a "
             f"§56 amendment, not a new string here."
         ) from None
@@ -270,6 +274,17 @@ def get_llm(
     with _BUILD_LOCK:
         return _build_llm(deployment, temperature, max_tokens,
                           ROLE_TIMEOUTS[role] if timeout is None else timeout)
+
+
+def build_embeddings() -> AzureOpenAIEmbeddings:
+    """The embeddings client (text-embedding-3-large), built beside the chat models: this module is the one place
+    a model client is constructed. `knowledge/retriever.get_embeddings` caches and traces it."""
+    return AzureOpenAIEmbeddings(
+        deployment=os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", ""),
+        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
+        openai_api_key=os.environ.get("AZURE_OPENAI_API_KEY", ""),
+        openai_api_version=os.environ.get("AZURE_OPENAI_API_VERSION", ""),
+    )
 
 
 def get_fallback_llm(role: str = "coach", max_tokens: int | None = 1500) -> AzureChatOpenAI:
