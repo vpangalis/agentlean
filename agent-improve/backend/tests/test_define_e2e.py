@@ -484,7 +484,7 @@ def test_an_upload_lands_once_and_is_indexed(env, monkeypatch) -> None:
         "the create form offers a file picker whose files are never uploaded (G-73; W5: not until R10)"
 
 
-def test_the_coach_quotes_an_uploaded_document(monkeypatch) -> None:
+def test_the_coach_quotes_an_uploaded_document(env, monkeypatch) -> None:
     """DEF-057 — R1, ADR-0106 (ACCEPTED 2026-10-21): the coach can read a document the Belt uploaded and quote a line
     from it (e.g. an uploaded process map). read_upload(blob_path), the ninth universal tool: offered on teaching and
     upload turns only (ADR-0069); reads only files of the current case (the request's case, never an argument);
@@ -535,6 +535,47 @@ def test_the_coach_quotes_an_uploaded_document(monkeypatch) -> None:
         assert art3["truncated"] and len(big) < 20000 and "evidence" in big, art3
     finally:
         request_context.set_case_id(None)
+
+    # Through the routes and graph: on a teaching turn the coach calls read_upload for the case's own process map,
+    # and the file's line is what the coach is handed back inside the turn — what it quotes from.
+    from langchain_core.messages import AIMessage, ToolMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    mine = f"uploads/{CASE_ID}/ap_process_map.txt"
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {}
+    env.case.phases["define"].uploads = [UploadRecord(
+        filename="ap_process_map.txt", blob_path=mine, uploaded_by="ana", uploaded_at="2026-10-21T08:00:00+00:00",
+        classification="purpose=Process map", kind=classifier.ARTEFACT)]
+
+    async def download_mine(p):
+        read.append(p)
+        return text.encode("utf-8") if p == mine else b""
+
+    async def load_env_case(cid):                       # the half above pointed load_case at its own case
+        return env.case if cid == CASE_ID else None
+    monkeypatch.setattr(blob, "download_bytes", download_mine)
+    monkeypatch.setattr(blob, "load_case", load_env_case)
+    handed: list[ToolMessage] = []
+
+    class ReadingCoach(_FakeCoach):
+        def _generate(self, messages: Any, *a: Any, **k: Any) -> Any:
+            handed.extend(m for m in messages if isinstance(m, ToolMessage) and m.name == "read_upload")
+            return super()._generate(messages, *a, **k)
+    call = AIMessage(content="", tool_calls=[{"name": "read_upload", "id": "u57", "args": {"blob_path": mine}}])
+    reply = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "id": "r57", "args": {
+        **REPLY, "message": f'Your map says: "{line}"'}}])
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: ReadingCoach(messages=iter([call, reply]))
+                        if role == "coach" else planner(role, **kw))
+    read.clear()
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Where do we start?"})
+    assert r.status_code == 200, r.text
+    assert read == [mine], f"the coach's read reached the case's own blob: {read}"
+    assert handed and line in str(handed[-1].content), [str(m.content)[:200] for m in handed]
 
 
 def test_probe_def057_what_rag_lookup_evidence_gives_the_coach(monkeypatch) -> None:
@@ -2863,7 +2904,7 @@ def test_t57_a_capability_tool_refuses_until_a_stability_check_has_passed() -> N
     _not_written('DEF-132')
 
 
-def test_t58_knowledge_lookups_always_include_the_general_methodology() -> None:
+def test_t58_knowledge_lookups_always_include_the_general_methodology(env, monkeypatch) -> None:
     """DEF-133 — Knowledge lookups always include the `general` methodology
 
     T58 (ADR-0030, PROPOSED before 0057 — not gated, guard rule 19; founder and Desktop 2026-10-22): every
@@ -2890,6 +2931,39 @@ def test_t58_knowledge_lookups_always_include_the_general_methodology() -> None:
         retriever.search_knowledge("what is a SIPOC", phase="measure")
         retriever.search_knowledge("what is a SIPOC")
     assert seen == ["phase_relevance eq 'measure' or phase_relevance eq 'general'", None]
+
+    # Through the routes and graph: a Define turn whose coach looks the method up, naming the phase as the tool's
+    # description offers — every search the lookup sends (the question and each of its variants) reaches the index
+    # with Define's filter, `general` ORed in.
+    from langchain_core.messages import AIMessage
+
+    from backend.knowledge import fusion
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    lookup = AIMessage(content="", tool_calls=[{"name": "rag_lookup_methodology", "id": "t58",
+                                                "args": {"query": "what is a SIPOC", "phase": "define"}}])
+    reply = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": REPLY, "id": "r58"}])
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([lookup, reply]))
+                        if role == "coach" else planner(role, **kw))
+
+    class Variants:                                   # the lookup's own model: `extraction`
+        def with_structured_output(self, schema: Any, **_: Any) -> Any:
+            return self
+
+        async def ainvoke(self, *_a: Any, **_k: Any) -> Any:
+            return fusion.QueryVariants(variants=["SIPOC meaning", "what a SIPOC shows", "SIPOC columns"])
+    real_llm = __import__("backend.core.llm", fromlist=["get_llm"]).get_llm
+    monkeypatch.setattr("backend.core.llm.get_llm",
+                        lambda role, **kw: Variants() if role == "extraction" else real_llm(role, **kw))
+    seen.clear()
+    monkeypatch.setattr(retriever, "get_knowledge_vectorstore", lambda: _Store())
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Can you remind me what a SIPOC is for?"})
+    assert r.status_code == 200, r.text
+    assert len(seen) == 4, f"the question and its three variants: {seen}"
+    assert set(seen) == {"phase_relevance eq 'define' or phase_relevance eq 'general'"}, seen
 
 
 
@@ -4323,19 +4397,26 @@ def test_g120_a_target_written_as_a_limit_is_judged_in_code(env, monkeypatch, st
         assert stub_planner.prompts == [], "the planner model judged a target the code could read"
 
 
-def test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_unit() -> None:
+def test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_unit(env, monkeypatch) -> None:
     """DEF-162 — G-132 (C2): the baseline-to-target chart takes the baseline figure written in the
     primary metric's unit — "paid more than 30 days after … about 23% today" is 23 %, not 30 — and
-    the target date as its ISO date. Found on IMPR-2026-A15's gate document."""
-    from backend.phases.define import visuals
+    the target date as its ISO date. Found on IMPR-2026-A15's gate document.
+
+    Through the routes and graph: the Belt changes the baseline and the target date to those words (revise, the
+    read-back, Confirm); the gate document's chart (GET /gate/review) is drawn from what was stored."""
     from scripts.coaching_proof_656 import ANSWERS
 
-    values = {"baseline_estimate": ANSWERS[5], "target_value": "under 5% of supplier invoices",
-              "metric_definitions": [{"name": "late_payment_rate", "unit": "%", "meaning": "paid late"}],
-              "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31)."}
-    drawn = visuals.for_field("target_value", values, confirmed=True)
-    assert drawn is not None
-    chart = drawn[1]
+    structured = env.case.phases["define"].structured
+    structured["baseline_estimate"] = {"value": 40.0, "unit": "%", "direction": None, "is_estimate": False,
+                                       "raw": "40%"}       # a different figure, so the chart can only be the change
+    _change_through_coaching(env, monkeypatch, "baseline_estimate", ANSWERS[5])
+    _change_through_coaching(env, monkeypatch, "target_date",
+                             "We plan to finish the project by 31 March 2027 (2027-03-31).")
+    stored = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]
+    assert "23%" in str(stored["baseline_estimate"]), stored["baseline_estimate"]
+    review = env.client.get(f"/gate/review/{CASE_ID}/define")
+    assert review.status_code == 200, review.text
+    chart = review.json()["report"]["visuals"]["baseline_target"]
     assert (chart["baseline"], chart["target"], chart["unit"]) == (23.0, 5.0, "%"), chart
     assert chart["target_date"] == "2027-03-31", chart
 
@@ -9517,7 +9598,7 @@ def test_a_search_round_with_nothing_new_ends_the_search(env, monkeypatch) -> No
 
 
 
-def test_the_upload_interpretation_uses_structured_output() -> None:
+def test_the_upload_interpretation_uses_structured_output(env, monkeypatch) -> None:
     """DEF-238 — G-48 (P11, T100): the upload interpretation returns its typed result through structured output on an allowed
     path, never JSON parsed from the model's text. (founder ruling 2026-10-20)
 
@@ -9559,6 +9640,30 @@ def test_the_upload_interpretation_uses_structured_output() -> None:
     assert bound == [UploadInterpretation]
     assert out.summary == "Monthly late-payment counts." and out.supports == ["baseline"]
     assert out.source_filename == "ap.csv"
+
+    # Through the route: POST /upload interprets the file with the same structured call, and the upload record the
+    # case keeps carries the typed result, cited to the file the Belt uploaded.
+    from backend.gateway import routes
+
+    async def stored_at(*a: Any, **k: Any) -> str:
+        return f"uploads/{CASE_ID}/ap.csv"
+
+    async def indexed(*a: Any, **k: Any) -> str:
+        return "idx-ap"
+    monkeypatch.setattr(routes.blob, "upload_file", stored_at)
+    monkeypatch.setattr(routes, "_index_upload", indexed)
+    monkeypatch.setattr(agent, "get_llm", lambda role, **kw: _Model(typed))
+    bound.clear()
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": ("ap.csv", b"month,late\n2026-01,810\n2026-02,770\n", "text/csv")})
+    assert r.status_code == 200, r.text
+    assert bound == [UploadInterpretation], bound
+    kept = [u for u in env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["uploads"]
+            if u.get("filename") == "ap.csv"]
+    assert kept, "the upload record was not kept"
+    interpretation = kept[-1]["interpretation"]
+    assert interpretation["summary"] == "Monthly late-payment counts.", interpretation
+    assert interpretation["source_filename"] == "ap.csv", interpretation
 
     # The image read: the five fields, typed, and read into parse_upload's shape.
     assert set(ImageRead.model_fields) == {"extracted_text", "document_type", "process_steps",
