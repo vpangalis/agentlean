@@ -25,6 +25,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+from langchain_core.exceptions import ModelError
 
 from backend.core.config import settings
 
@@ -69,10 +70,12 @@ def is_content_filter(exc: BaseException) -> bool:
 
 
 def retry_on(exc: Exception) -> bool:
-    """The retry middlewares' predicate (T92): the framework's default, except that a content
-    filter refusal is never retried."""
-    from langchain.agents.middleware._retry import default_retry_on
-    return not is_content_filter(exc) and default_retry_on(exc)
+    """The retry middlewares' predicate (T92): the framework's default — a ModelError retries when it says it is
+    retryable, any other failure retries — except that a content filter refusal is never retried. The default is
+    written here from public names (P1: it is not exported); test_input_guard.py compares it with the framework's."""
+    if is_content_filter(exc):
+        return False
+    return exc.is_retryable if isinstance(exc, ModelError) else True
 
 
 def check_startup() -> None:

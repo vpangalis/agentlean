@@ -121,3 +121,29 @@ def test_a_content_filter_refusal_is_recognised_and_not_retried() -> None:
     assert content_safety.is_content_filter(Refused("400 content_filter"))
     assert content_safety.retry_on(Refused("400")) is False
     assert content_safety.retry_on(ConnectionError("reset")) is True
+
+
+def test_p1_p2_the_framework_defaults_written_from_public_names_match_the_framework() -> None:
+    """Audit P1, P2 (founder ruling 2026-10-24, B5): content_safety.retry_on and pii's detector and redaction are
+    written from public names; here — at test time, not at the first model error in production — they are compared
+    with the framework's private originals, so a framework change fails a run."""
+    from langchain.agents.middleware._redaction import apply_strategy, resolve_detector
+    from langchain.agents.middleware._retry import default_retry_on
+    from langchain_core.exceptions import ModelError
+
+    from backend.core import pii
+
+    class Retryable(ModelError):
+        is_retryable = True
+
+    class Final(ModelError):
+        is_retryable = False
+    for exc in (ConnectionError("reset"), TimeoutError("slow"), ValueError("bad"), Retryable("x"), Final("x")):
+        assert content_safety.retry_on(exc) == default_retry_on(exc), exc
+    text = "Write to dev.patel@example.com or call +44 20 7946 0958; card 4111 1111 1111 1111; IBAN DE89 3704 0044 0532 0130 00."
+    for pii_type, detector in pii.TYPES:
+        assert pii.RedactionRule(pii_type, pii.STRATEGY, detector).resolve().detector(text) == \
+            resolve_detector(pii_type, detector)(text), pii_type
+    found = pii.detect(text)
+    assert len(found) == 4, found
+    assert pii._redact(text, found) == apply_strategy(text, found, pii.STRATEGY)

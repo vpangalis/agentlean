@@ -19,8 +19,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal, Optional
 
-from langchain.agents.middleware import PIIMiddleware
-from langchain.agents.middleware._redaction import apply_strategy, resolve_detector
+from langchain.agents.middleware import PIIMiddleware, RedactionRule
 
 #: An international number (+ and country code) or a national one (leading 0) with separators:
 #: narrow on purpose, so an ISO date (2026-03-31), a month (2026-01) or a CSV row of figures
@@ -39,12 +38,21 @@ def detect(text: str) -> list[Any]:
     where two overlap, the earlier (then the longer) is kept."""
     found: list[Any] = []
     for pii_type, detector in TYPES:
-        found += resolve_detector(pii_type, detector)(text or "")
+        found += RedactionRule(pii_type, STRATEGY, detector).resolve().detector(text or "")
     kept: list[Any] = []
     for m in sorted(found, key=lambda m: (m["start"], -(m["end"] - m["start"]))):
         if not kept or m["start"] >= kept[-1]["end"]:
             kept.append(m)
     return kept
+
+
+def _redact(text: str, matches: list[Any]) -> str:
+    """The framework's `redact` strategy over the merged matches of every type: each value replaced by
+    `[REDACTED_<TYPE>]`, from the end so the earlier offsets hold. Written from public names (P2: the framework does
+    not export it); test_input_guard.py compares it with the framework's own."""
+    for m in sorted(matches, key=lambda m: m["start"], reverse=True):
+        text = text[:m["start"]] + f"[REDACTED_{m['type'].upper()}]" + text[m["end"]:]
+    return text
 
 
 def mask(text: str) -> tuple[str, dict[str, int]]:
@@ -53,7 +61,7 @@ def mask(text: str) -> tuple[str, dict[str, int]]:
     counts: dict[str, int] = {}
     for m in found:
         counts[m["type"]] = counts.get(m["type"], 0) + 1
-    return (apply_strategy(text, found, STRATEGY) if found else (text or "")), counts
+    return (_redact(text, found) if found else (text or "")), counts
 
 
 def executor_middleware() -> list[Any]:
