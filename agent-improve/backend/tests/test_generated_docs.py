@@ -92,3 +92,44 @@ def test_the_state_writers_table_names_every_field_once() -> None:
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "SupervisorState")
     declared = [n.target.id for n in cls.body if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)]
     assert sorted(named) == sorted(declared), f"table names {sorted(named)}; SupervisorState has {sorted(declared)}"
+
+
+#: Classes outside the files .claude/rules/module-layout.md §2 designates, which predate the check (audit A10;
+#: founder ruling 2026-10-24, B3). The set may only shrink: a class moved into a designated file, or §2 amended by the
+#: founder, removes its entry; a new class elsewhere fails.
+KNOWN_OUTSIDE = {
+    ("app.py", "RequestIdMiddleware"), ("core/config.py", "Config"), ("core/config.py", "Settings"),
+    ("core/diagrams.py", "DiagramError"), ("core/graph.py", "PhaseNotWired"), ("core/logging_setup.py", "_ContextFilter"),
+    ("gateway/routes.py", "ClientGone"), ("gateway/routes.py", "TurnDeadline"),
+    ("knowledge/computation.py", "_NeedsReformatting"), ("knowledge/fusion.py", "QueryVariants"),
+    ("knowledge/tools.py", "_Blank"), ("phases/gate_assembly.py", "GateAssemblyError"),
+    ("phases/gate_registry.py", "GateSpec"), ("phases/mappers_common.py", "PriorGateDocumentMissing"),
+}
+
+
+def test_classes_live_only_in_the_files_the_classes_rule_designates() -> None:
+    """B3 (audit A10): every class outside module-layout.md §2's files is a known one; a known one that moved is
+    taken off the list."""
+    found = set(generate_layout.class_violations(PROJECT))
+    assert not found - KNOWN_OUTSIDE, f"a class outside module-layout.md §2: {sorted(found - KNOWN_OUTSIDE)}"
+    assert not KNOWN_OUTSIDE - found, f"no longer outside — take it off KNOWN_OUTSIDE: {sorted(KNOWN_OUTSIDE - found)}"
+
+
+def test_the_classes_check_can_fail_and_the_mark_follows_the_rule(tmp_path) -> None:
+    """B3: a class in a functions-only file is found, a class in a designated file is not; the layout marks C the
+    file the rule designates, not the file that happens to hold a class."""
+    project = tmp_path / "agent-improve"
+    (project / "backend" / "core").mkdir(parents=True)
+    (project / "backend" / "phases" / "define").mkdir(parents=True)
+    (tmp_path / ".claude" / "rules").mkdir(parents=True)
+    (tmp_path / generate_layout.RULE).write_text(
+        (PROJECT.parent / generate_layout.RULE).read_text(encoding="utf-8"), encoding="utf-8")
+    (project / "backend" / "core" / "llm.py").write_text('"""The factory."""\nclass Sneaky:\n    pass\n', encoding="utf-8")
+    (project / "backend" / "core" / "state.py").write_text('"""State."""\nclass SupervisorState:\n    pass\n',
+                                                           encoding="utf-8")
+    (project / "backend" / "phases" / "define" / "schema.py").write_text('"""Schema."""\nclass DefineOutput:\n    pass\n',
+                                                                          encoding="utf-8")
+    assert generate_layout.class_violations(project) == [("core/llm.py", "Sneaky")]
+    rows = generate_layout.generate(project)
+    assert "`state.py` C |" in rows and "`schema.py` C |" in rows, rows
+    assert "`llm.py` |" in rows and "`llm.py` C" not in rows, rows
