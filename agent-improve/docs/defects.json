@@ -3237,6 +3237,76 @@
    ],
    "escape_class": "path_test",
    "symptom": "A GOAL THE BELT HAD ALREADY GIVEN WAS NOT OFFERED. Eval E06 (evals_20261024T095938, 0 of 3, after its task was changed): the scope answer ended 'Our goal is to cut late payments from 23% to 5% by March 2027.'; the scope was read back and confirmed, and the goal was taught from scratch. D4 OCCURRENCE: the offer was kept only from the coach's fields_captured, and the read-back instruction tells the coach to capture the element it reads back — the live coach never captures another element's value. D4 ESCAPE: DEF-098's test faked a coach that captured the goal beside the scope. D5 FIX: on a read-back, a goal the Belt's own words state with a figure (parse.goal_sentence) is kept as the goal's offer, in code; the coach's own capture still wins. D7 PREVENT: test_define_e2e.py::test_values_for_other_elements_in_one_answer_are_read_back (its coach captures only the scope); eval E06 (diagnosis evals_20261024T101920: the offer read back 3 of 3)."
+  },
+  {
+   "id": "G-258",
+   "symptom": "WHAT THE SCAFFOLDS AND THE SCREEN TAUGHT WAS NOT WHAT IS GRADED (audit D4-D6, D10-D20). The coach's propose_template('problem_statement') had six lines, no Why and no How and a v1 key {who_affected}; its SIPOC 'three to seven entries per column' and five columns; the page's 5W2H briefing six questions with a target in How much, its SIPOC '4-6 high-level steps'; the page still carried the v1 FIELD_HINTS and their groups. A Belt following them fails `5w2h`, `start-to-end` and `all-six`. D4 OCCURRENCE: each was typed by hand when written and never derived from the script. D4 ESCAPE: no test compared a scaffold or a briefing with the criteria it teaches. D5 FIX: skills.show_table and element_text read the script; knowledge/tools._scaffold builds both scaffolds from the 5W2H table, the SIPOC's criteria and SIPOC_KEYS; welcome.briefings() serves the two briefings on GET /cases (define_briefings) and the page draws them; FIELD_HINTS and defineGroups are gone. D7 PREVENT: backend/tests/test_belt_facing_a3.py::test_d4_..., test_d5_..., test_d6_..., test_d10_...",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-065"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "join"
+  },
+  {
+   "id": "G-259",
+   "symptom": "TWO PROGRESS NUMBERS (audit D8). The reply's progress read 'Define · Step n of 13' (the first open element) while the bar and the status read 'n of 13 confirmed'; the skill counted 'n of 13 complete'. D4 OCCURRENCE: DEF-204 made the bar one figure and left the reply's label as a position. D4 ESCAPE: DEF-053's test asserted both labels side by side. D5 FIX: define_progress carries `done` and the one label 'Define · n of 13 confirmed'; project_status reads it in Define; the skill counts the same way. D7 PREVENT: backend/tests/test_belt_facing_a3.py::test_d8_one_progress_figure_from_define_progress; DEF-053's test.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-053"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": "join"
+  },
+  {
+   "id": "G-260",
+   "symptom": "THREE WAYS TO FLATTEN A VALUE (audit H2, H3). The offer's read-back showed a MetricValue as raw JSON (nodes_common._words); moves._words, nodes_common._render_value and templates._text each flattened differently; the gate judge read JSON (rubric._text) while the Belt was shown words. D4 OCCURRENCE: each helper was written where it was first needed. D4 ESCAPE: no test showed a structured value on those paths. D5 FIX: templates.plain is the one function — the read-backs, the Change, the rejection and the rubric use it; the other four are gone. D7 PREVENT: backend/tests/test_belt_facing_a3.py::test_h2_h3_one_function_flattens_a_value_for_the_belt_and_the_rubric.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-185"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "join"
+  },
+  {
+   "id": "G-261",
+   "symptom": "SILENT FALL-BACKS AND RAW EXCEPTION TEXT (audit W3, W4, W8). A reload that could not read the checkpoint showed the blob copy and said nothing; an upload kept but not indexed was told to no one; /ask, the gate review and the submission answered 500 with the exception's own text. D4 OCCURRENCE: each handler was written to keep the request alive and logged only. D4 ESCAPE: no test failed the checkpoint, the index or the graph and read what the Belt was shown. D5 FIX: the case route's `notice` (prompts.RELOAD_UNFINISHED_LOST, shown by the page's caseNotice); the upload's message carries prompts.UPLOAD_NOT_INDEXED; TURN_FAILED, REPORT_NOT_ASSEMBLED and SUBMIT_FAILED replace the exception text, which is logged. D7 PREVENT: backend/tests/test_belt_facing_a3.py::test_w3_..., test_w4_..., test_w8_...",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-055"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": "error_routine"
+  },
+  {
+   "id": "G-262",
+   "symptom": "A MODEL CALL OUTSIDE THE GRAPH READ UNSCREENED TEXT, AND THE GUARD READ RAW CONTENT (audit A4, H1). /summarise sent the dialogue the browser posted to a model with no input guard, an inline prompt and its own temperature; the input guard read message.content, not the content blocks the coach reads. D4 OCCURRENCE: the route predates the guard; the guard's own text helper predates block_text. D4 ESCAPE: the guard's tests used string content; no test posted to /summarise. D5 FIX: guard.screen is the one Threat-A check (fixed rules, then Prompt Shields) for input_guard and /summarise; a dialogue not screened clean gets no model call; the prompt is prompts.SESSION_SUMMARY_*; the summarizer role's own temperature; the guard reads block_text. D7 PREVENT: backend/tests/test_belt_facing_a3.py::test_a4_..., test_h1_...",
+   "requirement": [
+    "T71"
+   ],
+   "feature": [
+    "DEF-149"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "join"
   }
  ],
  "escape_controls": {

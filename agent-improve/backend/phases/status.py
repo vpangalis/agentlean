@@ -63,8 +63,15 @@ def project_status(case: Any, element_rows: list[dict[str, Any]], waiting: Optio
     """The status every screen shows. `element_rows` are the current phase's (Define's while in Define);
     `waiting` names what waits for the team, or None."""
     today = today or datetime.now(timezone.utc).date()
+    phase = str(getattr(case, "current_phase", "define") or "define")
     figure = confirmed_figure(element_rows)
-    return {"phase": str(getattr(case, "current_phase", "define") or "define"),
+    if phase == "define":
+        # G-259 (audit D8): in Define the one figure is define_progress's — the reply's and the bar's.
+        from backend.phases.define.schema import define_progress
+        record = (getattr(case, "phases", {}) or {}).get("define")
+        p = define_progress(dict((record.structured if record is not None else None) or {}))
+        figure = {"done": p["done"], "of": p["of"], "label": f"{p['done']} of {p['of']} confirmed"}
+    return {"phase": phase,
             "days_since_opened": days_between(getattr(case, "created_at", None), today),
             "target_date": str(getattr(case, "target_date", "") or "") or None,
             "days_to_target": days_between(today, getattr(case, "target_date", None)),

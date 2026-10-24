@@ -2240,22 +2240,14 @@ def _with_text(messages: list, text: str) -> list:
     return messages
 
 
-def _render_value(value: Any) -> str:
-    """A captured value as plain text for the Belt — a list of entries, one per line."""
-    if isinstance(value, list):
-        return "; ".join(_render_value(v) for v in value)
-    if isinstance(value, dict):
-        return ", ".join(str(v) for v in value.values() if v not in (None, ""))
-    return str(value)
-
-
 def _with_carried(messages: list, reply: CoachingResponse | None, phase: str,
                   carried: dict[str, Any]) -> list:
     """G-118 (DEF-157): the parts of the element carried from an earlier read-back are shown to
     the Belt under this one, in code, so what a Confirm stores is what the Belt saw."""
     if not carried:
         return messages
-    lines = chr(10).join(READ_BACK_CARRIED.format(name=f.replace("_", " "), value=_render_value(v))
+    from backend.phases.define.templates import plain        # G-260 (audit H2)
+    lines = chr(10).join(READ_BACK_CARRIED.format(name=f.replace("_", " "), value=plain(v))
                          for f, v in carried.items())
     for i in range(len(messages) - 1, -1, -1):
         msg = messages[i]
@@ -2363,7 +2355,8 @@ def _offer_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[CoachingR
     from backend.core import prompts as P
     field = str(pending.get("field") or "")
     value = (pending.get("proposed") or {}).get(field)
-    shown = str(pending.get("belt_words") or "") or _words(value)
+    from backend.phases.define.templates import plain        # G-260 (audit H2): never a MetricValue as JSON
+    shown = str(pending.get("belt_words") or "") or plain(value)
     head = P.OFFER_HEAD.format(element=guard_messages.element_name(phase, field))
     return CoachingResponse(message=head + chr(10) + f"“{shown}”" + chr(10) * 2 + P.OFFER_ASK, prompt=P.OFFER_ASK)
 
@@ -4072,13 +4065,6 @@ def _decided(state: PhaseState) -> Optional[dict[str, Any]]:
     return None
 
 
-def _words(value: Any) -> str:
-    """A stored value as the Belt's current words, for the coach to show."""
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
-    return str(value or "")
-
-
 async def gate_apply(
     phase: str, state: PhaseState
 ) -> Command[Literal["planner", "__end__"]]:
@@ -4124,11 +4110,12 @@ async def gate_apply(
                     "step_log": [_step(phase, turn, "gate_apply", status="approved", rejections=_rejections(state),
                                        actor=decision["actor"], at=decision["at"])]},
         )
+    from backend.phases.define.templates import plain        # G-260 (audit H2)
     elements = [e for e in decision["elements"] if e in DEFINE_FIELD_ORDER]
     field_status = {f: dict(v) for f, v in (state.get("field_status") or {}).items()}
     for element in elements:
         field_status[element] = {
-            "status": moves.ASKED, "answer": _words(artifacts.get(element)), "messages": 1,
+            "status": moves.ASKED, "answer": plain(artifacts.get(element)), "messages": 1,
             "rejected": {k: decision[k] for k in ("reason", "actor", "at")}}
     return Command(
         goto="planner",

@@ -722,6 +722,28 @@ NO_FILE_ATTACHED = ("I can't see a file attached to this case yet. Please attach
                     "the {element} here instead.")
 PII_HIDDEN_TURN = ("Some personal details in your files were hidden from me before I read them ({what}), "
                    "so I could not use them.")
+#: G-261 (audit W3): a reload that could not read the work in progress shows the case as last confirmed — and says so.
+RELOAD_UNFINISHED_LOST = ("Your latest work since the last confirmed answer could not be loaded just now, so it is "
+                          "not shown. Everything you confirmed is kept; please give your last answer again.")
+#: G-261 (audit W4): a file kept on the case that could not be prepared for the coach to search.
+UPLOAD_NOT_INDEXED = ("{filename} is kept on the case, but I could not prepare it for searching just now, so I "
+                      "cannot look things up in it. Please upload it again later.")
+#: G-261 (audit W8): what the Belt reads when a turn, a review or a submission fails — never the exception's text.
+TURN_FAILED = ("Something went wrong on our side while answering. Everything you confirmed is kept; please send "
+               "your message again.")
+REPORT_NOT_ASSEMBLED = ("The Define report could not be put together just now. Everything you confirmed is kept; "
+                        "please try again, or tell your project lead.")
+SUBMIT_FAILED = "Something went wrong on our side while submitting. Nothing was submitted; please try again."
+#: G-262 (audit A4): the History tab's session summary, a plain model call screened like every Belt message.
+SESSION_SUMMARY_SYSTEM = ("You are summarising a working session from a Lean Six Sigma improvement project. "
+                          "Write clear, factual summaries that capture what was discussed and decided.")
+SESSION_SUMMARY_PROMPT = ("Summarise the following session from the {phase} phase of project: \"{title}\".\n\n"
+                          "SESSION DIALOGUE:\n{dialogue}\n\n"
+                          "Write exactly 2-3 sentences. Cover: what topics were discussed, what information the team "
+                          "provided, and what fields or decisions were captured. Be specific — mention actual "
+                          "numbers, names, or facts from the conversation. Do not use bullet points. Do not start "
+                          "with 'In this session'.")
+SESSION_SUMMARY_UNAVAILABLE = "Summary could not be generated."
 STORE_SHORT = ("Not stored yet: your answer for {element} still needs {missing}. Please add it in your own "
                "words, and I will read the whole answer back to you.")
 #: G-174 (founder ruling A5, 2026-10-13) — written in code when what a Confirm would store still holds a

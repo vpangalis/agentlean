@@ -411,6 +411,25 @@ def _section_text(lines: list[str]) -> str:
     return text.strip().strip("*").strip()
 
 
+def element_text(phase: str, field: str, label: str) -> str:
+    """One section of the element's block as plain text ("What it is", "Why it matters", "Show", "Ask")."""
+    if phase not in SKILL_DIRS:
+        return ""
+    _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
+    return _section_text(_sections(block).get(label, []))
+
+
+def show_table(phase: str, field: str) -> list[list[str]]:
+    """G-258 (audit D4-D6): the body rows of the element's Show table, each a list of its cells — what the coach's
+    scaffold and the screen's briefing are built from, never re-typed. [] when the Show holds no table."""
+    if phase not in SKILL_DIRS:
+        return []
+    _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
+    cells = [[c.strip() for c in ln.lstrip(">").strip().strip("|").split("|")]
+             for ln in _sections(block).get("Show", []) if ln.lstrip(">").strip().startswith("|")]
+    return [row for row in cells[1:] if not all(set(c) <= set("-: ") for c in row)]
+
+
 def teaching_blocks(phase: str, field: str) -> dict[str, str]:
     """G-138 — what the script says to teach `field`, as the reply's three teaching blocks:
     `explanation` (What it is + Why it matters), `example` (the Show, marked as an illustration)

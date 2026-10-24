@@ -157,7 +157,7 @@ def test_wired_10_0_the_blocks_reach_the_response(grader_enforced, wired) -> Non
         assert body[k] == REPLY[k], k
     # C3 as amended (G-170): the sample is the script's worked example for the element, marked in code.
     assert body["example"] == f"{SAMPLE_MARK}\n{teaching_blocks('define', 'business_case')['example']}", body["example"]
-    assert body["progress"].startswith("Define · Step"), body["progress"]
+    assert body["progress"] == "Define · 0 of 13 confirmed", body["progress"]   # G-259: the one figure
     assert body["grader_warning"], "the grader FAILED this turn; its warning must reach the Belt"
 
 

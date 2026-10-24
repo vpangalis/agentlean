@@ -85,9 +85,10 @@ def test_a_blank_value_is_not_captured() -> None:
 
 
 def test_the_label_names_the_step_and_the_thirteen() -> None:
+    """G-259 (audit D8): the label is the one progress figure — how many of the thirteen are confirmed."""
     p = define_progress(_upto(4))
-    assert p == {"position": 5, "of": 13, "field": "baseline_estimate",
-                 "label": "Define · Step 5 of 13"}
+    assert p == {"position": 5, "of": 13, "field": "baseline_estimate", "done": 4,
+                 "label": "Define · 4 of 13 confirmed"}
 
 
 def test_field_index_is_the_same_function() -> None:
@@ -122,15 +123,15 @@ def _block(artifacts: dict, phase: str = "define") -> str:
 
 def test_the_block_delivers_the_computed_step() -> None:
     block = _block(_upto(4))
-    assert "Define · Step 5 of 13" in block
-    assert "baseline_estimate" in block.split("Step 5 of 13")[1].splitlines()[0]
+    assert "Define · 4 of 13 confirmed" in block
+    assert "baseline_estimate" in block.split("4 of 13 confirmed")[1].splitlines()[0]
 
 
 def test_the_step_comes_before_the_gate_list() -> None:
     """Models weight earlier content (§19.1 B2); the count the Belt is told
     must not be the second number the coach reads."""
     block = _block({})
-    assert block.index("Step 1 of 13") < block.index("<gate_list>")
+    assert block.index("0 of 13 confirmed") < block.index("<gate_list>")
 
 
 def test_the_gate_list_is_labelled_as_the_gate_list_and_keeps_its_16() -> None:
@@ -191,14 +192,14 @@ def _record(out: dict) -> dict:
 def test_step_log_records_the_delivered_step_and_what_the_model_wrote(
         monkeypatch, stub_planner) -> None:
     e = _record(_run(monkeypatch, "Define · 13 of 13", _upto(2)))
-    assert (e["position"], e["of"], e["label"]) == (3, 13, "Define · Step 3 of 13")
+    assert (e["position"], e["of"], e["label"]) == (3, 13, "Define · 2 of 13 confirmed")
     assert e["reply_progress"] == "Define · 13 of 13"
     assert e["reply_matches"] is False, "a model that counted for itself is on the record"
 
 
 def test_a_reply_that_copies_the_step_is_recorded_as_matching(
         monkeypatch, stub_planner) -> None:
-    e = _record(_run(monkeypatch, "Define · Step 1 of 13", {}))
+    e = _record(_run(monkeypatch, "Define · 0 of 13 confirmed", {}))
     assert e["reply_matches"] is True
 
 
@@ -214,10 +215,10 @@ def test_the_reply_carries_the_computed_step_not_the_models_count(
     stored = [m for m in out["messages"] if isinstance(m, ToolMessage)
               and str(m.content).startswith("Returning structured response:")]
     assert len(stored) == 1
-    assert "progress='Define · Step 3 of 13'" in str(stored[0].content)
+    assert "progress='Define · 2 of 13 confirmed'" in str(stored[0].content)
     assert "13 of 13" not in str(stored[0].content)
     assert stored[0].tool_call_id == "call_1", "the tool-call pairing survives the rewrite"
-    assert _record(out)["progress_written"] == "Define · Step 3 of 13"
+    assert _record(out)["progress_written"] == "Define · 2 of 13 confirmed"
 
 
 class _CapturingAgent(_Agent):
@@ -247,7 +248,7 @@ def test_a_capture_turn_writes_the_step_after_the_capture(monkeypatch, stub_plan
                                           "critical_to_quality": INSIDE["critical_to_quality"]})}
     out = asyncio.run(_nc.executor("define", state))
     e = _record(out)
-    assert e["progress_written"] == "Define · Step 4 of 13", e
+    assert e["progress_written"] == "Define · 3 of 13 confirmed", e
     assert e["reply_progress"] == "anything", "the model's own value is kept"
     stored = [m for m in out["messages"] if isinstance(m, ToolMessage)]
-    assert "progress='Define · Step 4 of 13'" in str(stored[0].content)
+    assert "progress='Define · 3 of 13 confirmed'" in str(stored[0].content)

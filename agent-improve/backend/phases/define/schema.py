@@ -130,11 +130,15 @@ def define_position(artifacts: Mapping[str, Any]) -> int:
 
 
 def define_progress(artifacts: Mapping[str, Any]) -> dict[str, Any]:
-    """The position, its field, and the label the Belt is shown."""
+    """The position (the first element not complete) and its field, and THE progress figure the Belt is shown —
+    how many of the thirteen are confirmed: the reply, the bar and the project status read this one count (G-259,
+    audit D8; founder finding 45)."""
     position = define_position(artifacts)
+    done = sum(1 for field in DEFINE_FIELD_ORDER
+               if all(_is_captured(artifacts, f) for f in (field, *_CAPTURED_INSIDE.get(field, ()))))
     return {"position": position, "of": DEFINE_POSITIONS,
-            "field": DEFINE_FIELD_ORDER[position - 1],
-            "label": f"Define · Step {position} of {DEFINE_POSITIONS}"}
+            "field": DEFINE_FIELD_ORDER[position - 1], "done": done,
+            "label": f"Define · {done} of {DEFINE_POSITIONS} confirmed"}
 
 
 # Keys on each `metric_definitions` entry (§63.8). `name` is the traceability

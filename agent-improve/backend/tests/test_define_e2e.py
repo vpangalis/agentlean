@@ -5186,27 +5186,28 @@ process.stdout.write(JSON.stringify({{width:els['prog-fill'].style.width,label:e
         return {"case": case, "page": page}
 
     first = screen()
-    assert first["case"]["define_progress"] == {"position": 2, "of": 13, "field": "team",
-                                                "label": "Define · Step 2 of 13"}, first["case"]["define_progress"]
+    # G-259 (audit D8): one figure — the reply's progress and the bar read the same "n of 13 confirmed".
+    assert first["case"]["define_progress"] == {"position": 2, "of": 13, "field": "team", "done": 1,
+                                                "label": "Define · 1 of 13 confirmed"}, first["case"]["define_progress"]
     # DEF-204 (W2, W4; founder finding 45): the bar reads the confirmed figure, never a step position.
     assert first["page"]["label"] == "Define · 1 of 13 confirmed", first["page"]
     assert first["page"]["step"]["field"] == "team" and "step 2 of 13" in first["page"]["step"]["html"], first["page"]
 
     _coach_saying(monkeypatch, "Next: the team. Who leads it, who sponsors it, who owns the process?")
     taught = ask(message="Next, please.")
-    assert taught["progress"] == "Define · Step 2 of 13", taught["progress"]
+    assert taught["progress"] == "Define · 1 of 13 confirmed", taught["progress"]
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="leader, sponsor and owner named")
     _coach_saying(monkeypatch, "Your team, read back. Is this right?",
                   captured=[{"field_name": "team", "value": COMPLETE["team"], "source": "belt"}])
     read_back = ask(message="Priya leads it, Tom sponsors it, Lena owns the process.")
-    assert read_back["move"] == moves.READ_BACK and read_back["progress"] == "Define · Step 2 of 13", read_back
+    assert read_back["move"] == moves.READ_BACK and read_back["progress"] == "Define · 1 of 13 confirmed", read_back
     _coach_saying(monkeypatch, "Next: the voice of the customer.")
     confirmed = ask(action="confirm", message="Confirm")
-    assert confirmed["progress"] == "Define · Step 3 of 13", confirmed["progress"]
+    assert confirmed["progress"] == "Define · 2 of 13 confirmed", confirmed["progress"]
 
     second = screen()
     assert second["case"]["define_progress"]["position"] == 3, second["case"]["define_progress"]
-    assert confirmed["progress"] == "Define · Step 3 of 13" and second["page"]["label"] == "Define · 2 of 13 confirmed",         second["page"]
+    assert confirmed["progress"] == "Define · 2 of 13 confirmed" and second["page"]["label"] == "Define · 2 of 13 confirmed",         second["page"]
     assert int(second["page"]["width"].rstrip("%")) > int(first["page"]["width"].rstrip("%")), (first, second)
     current = next(r for r in second["case"]["define_elements"] if r["status"] == "current")
     assert second["page"]["step"]["field"] == current["field"] == "voc_summary", second["page"]["step"]

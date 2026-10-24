@@ -74,6 +74,7 @@ when the search never ran is worse than an error, because the Belt acts on it.
 from __future__ import annotations
 
 import logging
+import re
 
 from langchain_core.documents import Document
 from langchain_core.tools import BaseTool, tool
@@ -531,29 +532,35 @@ TEMPLATE_TYPES: tuple[str, ...] = (
     "problem_statement", "sipoc", "data_collection_plan", "fishbone",
 )
 
+#: G-258 (audit D4, D5): Define's two scaffolds are built from the Define script and the schema's keys — the questions
+#: and columns the element is graded on — never typed here.
+_FROM_THE_SCRIPT = ("problem_statement", "sipoc")
+#: A SIPOC column's label where it is not its key with the underscore dropped.
+_SIPOC_LABELS = {"process_steps": "Process steps", "process_metrics": "Measures"}
+_PAGE = re.compile(r"\s*\(p\.[^)]*\)|\s*\(R\d+\)")
+
+
+def _scaffold(template_type: str) -> str:
+    """G-258: the problem statement as the script's 5W2H table (each question with how it is formulated), the
+    SIPOC as the schema's six columns with the script's step count and how each part is formulated."""
+    from backend.middleware.skills import acceptance_criteria, element_text, show_table
+    from backend.phases.define.schema import FIVE_W_TWO_H_KEYS, SIPOC_KEYS
+    if template_type == "problem_statement":
+        crit = dict(acceptance_criteria("define", "problem_statement"))
+        keys = {k.replace("_", " "): k for k in FIVE_W_TWO_H_KEYS}
+        lines = [f"  {row[0]} — {row[1]}: {{{keys[row[0].lower()]}}}" for row in show_table("define", "problem_statement")
+                 if len(row) > 1 and row[0].lower() in keys]
+        return ("PROBLEM STATEMENT — the seven 5W2H answers, then one statement composed from them.\n\n"
+                + "\n".join(lines) + "\n\nIt " + _PAGE.sub("", crit.get("no-cause-no-fix", "")).strip() + ".")
+    crit = dict(acceptance_criteria("define", "process_map_sipoc"))
+    columns = "\n".join(f"  {_SIPOC_LABELS.get(k, k.capitalize())}: {{{k}}}" for k in SIPOC_KEYS)
+    how = next((ln.split(":", 1)[1].strip() for ln in element_text("define", "process_map_sipoc", "Show").splitlines()
+                if ln.startswith("How each part is formulated")), "")
+    return (f"SIPOC — {_PAGE.sub('', crit.get('start-to-end', '')).strip()}; "
+            f"{_PAGE.sub('', crit.get('all-six', '')).strip()}.\n\n{columns}\n\nHow each part is formulated: {how}")
+
+
 _TEMPLATES: dict[str, str] = {
-    "problem_statement": (
-        "PROBLEM STATEMENT — fill each line in your own words.\n\n"
-        "  What is happening:        {what}\n"
-        "  Where it happens:         {where}\n"
-        "  Since when:               {when}\n"
-        "  Who it affects:           {who_affected}\n"
-        "  How much / how often:     {how_much}\n"
-        "  How we know (evidence):   {evidence}\n\n"
-        "Keep it to what you can show. No causes and no solutions yet — "
-        "those come later, and naming one here narrows the analysis before "
-        "it starts."
-    ),
-    "sipoc": (
-        "SIPOC — the process at a glance. Three to seven entries per column.\n\n"
-        "  Suppliers:      {suppliers}\n"
-        "  Inputs:         {inputs}\n"
-        "  Process steps:  {process_steps}\n"
-        "  Outputs:        {outputs}\n"
-        "  Customers:      {customers}\n\n"
-        "Start with the process steps and work outwards — the other four "
-        "columns are easier to name once the steps are on the page."
-    ),
     "data_collection_plan": (
         "DATA COLLECTION PLAN\n\n"
         "  What we measure:          {metric}\n"
@@ -606,13 +613,14 @@ def propose_template(template_type: str, fill_data: dict) -> str:
     payload the app draws. It is a coaching aid — it emits no file, and Agent
     Improve exports no documents.
     """
-    if template_type not in _TEMPLATES:
+    if template_type not in _TEMPLATES and template_type not in _FROM_THE_SCRIPT:
         return (
             f"I do not have a {template_type!r} template. The ones I can offer "
             f"are: {', '.join(TEMPLATE_TYPES)}."
         )
     values = _Blank({k: str(v) for k, v in (fill_data or {}).items() if v})
-    return _TEMPLATES[template_type].format_map(values)
+    text = _scaffold(template_type) if template_type in _FROM_THE_SCRIPT else _TEMPLATES[template_type]
+    return text.format_map(values)
 
 
 @tool(args_schema=ProposeDiagramArgs, response_format="content_and_artifact")

@@ -41,6 +41,7 @@ from langgraph.types import RetryPolicy
 
 from backend.core import content_safety, guard_messages
 from backend.core.errors import ShieldTransientError
+from backend.core.llm import block_text
 from backend.core.state import SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -91,11 +92,24 @@ def fixed_rules(text: str) -> Optional[tuple[str, str]]:
     return None
 
 
-def _text(message: Any) -> str:
-    content = getattr(message, "content", "")
-    if isinstance(content, str):
-        return content
-    return " ".join(b.get("text", "") for b in content if isinstance(b, dict))
+async def screen(text: str) -> dict[str, Any]:
+    """Threat A's check of one text, before any model reads it: the fixed rules, then Prompt Shields — the verdict,
+    not yet recorded. Unreachable, it fails closed and says whether one more try is worth it (`transient`). The
+    input guard and every model call outside the graph (G-262, audit A4) screen through this one check."""
+    hit = fixed_rules(text)
+    if hit:
+        return {"status": "blocked", "threat": hit[0], "rule": hit[1], "shield": "not asked"}
+    shield = await content_safety.shield(user_prompt=text)
+    if not shield["configured"]:
+        return ({"status": "passed", "threat": "", "rule": "", "shield": "skipped"}
+                if content_safety.development_mode() else
+                {"status": "blocked", "threat": "unavailable", "rule": "not configured", "shield": "not configured"})
+    if not shield["reachable"]:
+        return {"status": "blocked", "threat": "unavailable", "rule": "unreachable", "shield": "unreachable",
+                "error": shield["error"], "transient": bool(shield.get("transient"))}
+    if shield["user_attack"]:
+        return {"status": "blocked", "threat": "A", "rule": "prompt shields", "shield": "attack"}
+    return {"status": "passed", "threat": "", "rule": "", "shield": "clean"}
 
 
 def blocked(state: SupervisorState) -> bool:
@@ -169,29 +183,16 @@ async def input_guard(state: SupervisorState, config: Optional[RunnableConfig] =
     msgs = state.get("messages") or []
     if configurable.get("entry", "ask") != "ask" or not msgs or not isinstance(msgs[-1], HumanMessage):
         return {}
-    text = _text(msgs[-1])
+    text = block_text(msgs[-1])        # G-262 (audit H1): the text the coach reads, through its content blocks
     base: dict[str, Any] = {"person": configurable.get("current_user") or (msgs[-1].additional_kwargs or {}).get("user"),
             "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
-    hit = fixed_rules(text)
-    if hit:
-        verdict: dict[str, Any] = {"status": "blocked", "threat": hit[0], "rule": hit[1], "shield": "not asked"}
-    else:
-        shield = await content_safety.shield(user_prompt=text)
-        if not shield["configured"]:
-            verdict = ({"status": "passed", "threat": "", "rule": "", "shield": "skipped"}
-                       if content_safety.development_mode() else
-                       {"status": "blocked", "threat": "unavailable", "rule": "not configured", "shield": "not configured"})
-        elif not shield["reachable"]:
-            attempt = _attempt()
-            if shield.get("transient") and attempt < ATTEMPTS:
-                # G-154 — the node's retry policy runs the guard once more; nothing is recorded yet.
-                raise ShieldTransientError(shield["error"])
-            verdict = {"status": "blocked", "threat": "unavailable", "rule": "unreachable", "shield": "unreachable",
-                       "error": shield["error"], "attempts": attempt}
-        elif shield["user_attack"]:
-            verdict = {"status": "blocked", "threat": "A", "rule": "prompt shields", "shield": "attack"}
-        else:
-            verdict = {"status": "passed", "threat": "", "rule": "", "shield": "clean"}
+    verdict = await screen(text)
+    if verdict["shield"] == "unreachable":
+        attempt = _attempt()
+        if verdict.pop("transient") and attempt < ATTEMPTS:
+            # G-154 — the node's retry policy runs the guard once more; nothing is recorded yet.
+            raise ShieldTransientError(verdict["error"])
+        verdict["attempts"] = attempt
     verdict = {**base, **verdict}
     phase = str(state.get("current_phase") or "")
     record(store, str(state.get("case_id")), phase, len(msgs), verdict)
@@ -209,4 +210,4 @@ async def input_guard(state: SupervisorState, config: Optional[RunnableConfig] =
     return {"messages": [AIMessage(content=message, additional_kwargs={NODE: verdict})]}
 
 
-__all__ = ["input_guard", "blocked", "without_blocked", "fixed_rules", "current_field", "record", "NODE", "MAX_CHARS"]
+__all__ = ["input_guard", "screen", "blocked", "without_blocked", "fixed_rules", "current_field", "record", "NODE", "MAX_CHARS"]

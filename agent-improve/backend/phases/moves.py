@@ -455,17 +455,6 @@ def _earlier_kw(entry: dict[str, Any], pending: Optional[dict[str, Any]]) -> dic
     return {"earlier": e} if e else {}
 
 
-def _words(value: Any) -> str:
-    """A stored value as the Belt's words to show again: text as it is, a MetricValue's `raw`,
-    structure as compact JSON."""
-    import json
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict) and "raw" in value and "value" in value:
-        return str(value["raw"])
-    return json.dumps(value, ensure_ascii=False)
-
-
 def element_rows(phase: str, artifacts: dict[str, Any],
                  field_status: dict[str, dict[str, Any]], name: Callable[[str], str]) -> list[dict[str, Any]]:
     """The progress view's elements (W9, DEF-079), from the same statuses the moves read: each
@@ -546,7 +535,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
         status = status_of(phase, element, artifacts, after)
         entry = dict(after.get(element) or {})
         if status == CONFIRMED:
-            words = _words(artifacts.get(element))
+            from backend.phases.define.templates import plain   # G-260 (audit H2): one way to flatten a value
+            words = plain(artifacts.get(element))
             after[element] = {"status": ASKED, "answer": words, "messages": 1, "picked": True}
             return done(element, fields, status, CHALLENGE, answer=words, messages=1,
                         reason=REVISE_REASON.format(field=element))

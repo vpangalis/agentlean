@@ -56,7 +56,7 @@ REPLY = CoachingResponse(
     explanation="Define is the first phase of DMAIC, where we clarify the problem, scope, and goals.",
     example="Phases: Define, Measure, Analyse, Improve, Control — a structured approach to problem-solving.",
     prompt="Let's start with the business case. Why is this project worth doing, and what does it cost the business?",
-    progress="Define · Step 1 of 13",
+    progress="Define · 0 of 13 confirmed",
 )
 BLOCKS = ("explanation", "example", "prompt", "progress")
 

@@ -2362,7 +2362,8 @@
     ],
     "gaps": [
      "G-107",
-     "G-71"
+     "G-71",
+     "G-259"
     ]
    },
    "requirement": "R1",
@@ -2456,7 +2457,8 @@
     "gaps": [
      "G-70",
      "G-66",
-     "G-90"
+     "G-90",
+     "G-261"
     ]
    },
    "requirement": "R1",
@@ -3051,7 +3053,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-258"
+    ]
    },
    "requirement": "R2",
    "belt_impact": "degraded",
@@ -5830,7 +5834,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-154"
+     "G-154",
+     "G-262"
     ]
    },
    "requirement": "T71",
@@ -6784,7 +6789,8 @@
     "capability_rows": [],
     "gaps": [
      "G-185",
-     "G-253"
+     "G-253",
+     "G-260"
     ]
    },
    "requirement": "R6",

@@ -114,39 +114,31 @@ async def health() -> HealthResponse:
 
 @router.post("/summarise", response_model=SummariseResponse)
 async def summarise_session(request: SummariseRequest) -> SummariseResponse:
-    """Generate a 2-3 sentence AI summary of a session's conversation turns."""
-    from backend.core.llm import get_llm, block_text
+    """Generate a 2-3 sentence AI summary of a session's conversation turns. G-262 (audit A4): the dialogue comes from
+    the browser, so it is screened by the input guard's own check before any model reads it; the prompt is
+    core/prompts.py's."""
+    from backend.core import guard, llm
+    from backend.core.prompts import SESSION_SUMMARY_PROMPT, SESSION_SUMMARY_SYSTEM, SESSION_SUMMARY_UNAVAILABLE
     from langchain_core.messages import HumanMessage, SystemMessage
 
     dialogue = "\n\n".join(
-        f"{'AI Guide' if t.role == 'ai' else (t.user or 'Team member')}: {t.text}"
+        f"{'AI Guide' if t.role in ('ai', 'assistant') else (t.user or 'Team member')}: {t.text}"
         for t in request.turns
     )
-
-    system = (
-        "You are summarising a working session from a Lean Six Sigma improvement project. "
-        "Write clear, factual summaries that capture what was discussed and decided."
-    )
-
-    prompt = (
-        f"Summarise the following session from the {request.phase.upper()} phase "
-        f"of project: \"{request.case_title}\".\n\n"
-        f"SESSION DIALOGUE:\n{dialogue}\n\n"
-        "Write exactly 2-3 sentences. Cover: what topics were discussed, what information "
-        "the team provided, and what fields or decisions were captured. "
-        "Be specific — mention actual numbers, names, or facts from the conversation. "
-        "Do not use bullet points. Do not start with 'In this session'."
-    )
-
+    verdict = await guard.screen(dialogue)
+    if verdict["status"] != "passed":
+        logger.warning("summarise_session(): the dialogue was not screened clean (%s, %s) — no model call",
+                       verdict.get("threat"), verdict.get("rule"))
+        return SummariseResponse(summary=SESSION_SUMMARY_UNAVAILABLE)
+    prompt = SESSION_SUMMARY_PROMPT.format(phase=request.phase.upper(), title=request.case_title, dialogue=dialogue)
     try:
-        llm = get_llm(role="summarizer", temperature=0.3)
-        response = await llm.ainvoke(
-            [SystemMessage(content=system), HumanMessage(content=prompt)]
+        response = await llm.get_llm(role="summarizer").ainvoke(
+            [SystemMessage(content=SESSION_SUMMARY_SYSTEM), HumanMessage(content=prompt)]
         )
-        summary = block_text(response)
-    except Exception as e:
-        logger.error("summarise_session() error: %s", e)
-        summary = "Summary could not be generated."
+        summary = llm.block_text(response)
+    except Exception:  # noqa: BLE001 — a summary that fails is said so in the History tab, never an error page
+        logger.exception("summarise_session() failed")
+        summary = SESSION_SUMMARY_UNAVAILABLE
 
     return SummariseResponse(summary=summary)
 
@@ -475,7 +467,8 @@ def _mirror_asks(case_id: str, phase: str, result: Any) -> None:
         )
 
 
-async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None) -> CaseDocument:
+async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None,
+                                lost: Optional[list[str]] = None) -> CaseDocument:
     """The case as the Belt sees it — ADR-0066. The blob holds what is decided (framing,
     uploads, approved records); the checkpoint holds the unfinished work. This returns a COPY
     of the blob's case with, read through the compiled graph, the conversation and every open
@@ -484,7 +477,10 @@ async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None) ->
 
     `at` (a checkpoint id) reads the case as it was reloaded at that checkpoint — every phase record the
     checkpoint holds, whatever the blob has since approved. No route passes it; the capability rows
-    use it to read a case as it stood before its approval (DEF-064, founder 2026-10-15)."""
+    use it to read a case as it stood before its approval (DEF-064, founder 2026-10-15).
+
+    G-261 (audit W3): when the checkpoint cannot be read the blob copy is shown, and `lost` (when given) receives the
+    case id, so the route tells the Belt that the work since the last confirmed answer was not kept."""
     from backend.core.graph import get_graph
     from backend.phases import record as phase_record
     out = case.model_copy(deep=True)
@@ -493,8 +489,10 @@ async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None) ->
         config["configurable"]["checkpoint_id"] = at
     try:
         snapshot = await get_graph().aget_state(config)  # type: ignore[arg-type]
-    except Exception as exc:  # noqa: BLE001 — a reload must render; the blob copy is the floor
+    except Exception as exc:  # noqa: BLE001 — a reload must render; the blob copy is the floor, and it is told
         logger.warning("case %s: the checkpoint could not be read (%s); showing the blob", case.case_id, exc)
+        if lost is not None:
+            lost.append(case.case_id)
         return out
     messages = list((snapshot.values or {}).get("messages") or [])
     if not messages:
@@ -834,8 +832,9 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     except StateSchemaVersionError as e:            # ADR-0065 (T88): readable, never "Graph error"
         raise HTTPException(409, str(e))
     except Exception as e:
-        logger.error("ask() error: %s", e)
-        raise HTTPException(500, f"Graph error: {str(e)}")
+        logger.exception("ask() error: %s", e)
+        from backend.core.prompts import TURN_FAILED
+        raise HTTPException(500, TURN_FAILED)          # G-261 (audit W8): the exception's text stays in the log
 
     reply = _last_ai(result)
     payload = conversation.transport(reply) if reply is not None else {}
@@ -1162,8 +1161,9 @@ async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResp
             # Assembly raising with every Tier 1 field present is a CODE
             # DEFECT (S-F28), not an incomplete phase — surface it rather
             # than rendering an empty document as though the gate were open.
-            logger.error("gate assembly failed for %s/%s: %s", case_id, phase, e)
-            raise HTTPException(500, f"Gate assembly failed: {e}")
+            logger.exception("gate assembly failed for %s/%s: %s", case_id, phase, e)
+            from backend.core.prompts import REPORT_NOT_ASSEMBLED
+            raise HTTPException(500, REPORT_NOT_ASSEMBLED)  # G-261 (audit W8)
 
     report = None
     if phase == "define":
@@ -1469,6 +1469,7 @@ async def upload_file(
     # as a fact about the present.
     upload_kind = upload_record.get("kind", CLASSIFIER_EVIDENCE)
     evidence_index_id = None
+    not_indexed = None                       # G-261 (audit W4): what the Belt is told when indexing fails
     used_by_coach = upload_record.get("used_by_coach", True) is not False
     if not used_by_coach:
         logger.info("Upload %s kept, not used by the coach (T72) — not indexed.", filename)
@@ -1480,10 +1481,12 @@ async def upload_file(
                 content_digest=digest,
             )
             upload_record["indexed"] = True
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — the file is kept; the Belt is told it cannot be searched yet
             logger.warning(
                 "Evidence indexing failed for %s: %s", filename, e,
             )
+            from backend.core.prompts import UPLOAD_NOT_INDEXED
+            not_indexed = UPLOAD_NOT_INDEXED.format(filename=filename)
     else:
         logger.info(
             "Upload %s classified as %s — captured content, not indexed "
@@ -1560,7 +1563,7 @@ async def upload_file(
         # The PII line (founder ruling 2026-10-12): what was hidden from the coach, said at upload.
         "message": upload_record.get("not_used_reason") or " ".join(x for x in (notice, (
             PII_HIDDEN_UPLOAD.format(what=pii.described(upload_record["pii_masked"]))
-            if upload_record.get("pii_masked") else None)) if x) or None,
+            if upload_record.get("pii_masked") else None), not_indexed) if x) or None,
     }
 
 
@@ -1989,8 +1992,9 @@ async def submit_gate(request: GateSubmitRequest,
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("submit_gate() error: %s", e)
-        raise HTTPException(500, f"Graph error: {str(e)}")
+        logger.exception("submit_gate() error: %s", e)
+        from backend.core.prompts import SUBMIT_FAILED
+        raise HTTPException(500, SUBMIT_FAILED)        # G-261 (audit W8)
 
     if result.get("__interrupt__"):
         # R6 — the Define report passed validation and the graph PAUSED in
@@ -2195,9 +2199,13 @@ async def get_case(case_id: str, http: Request):
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
     who = access.person(http, case, 'open case')          # ADR-0091 decision 3
-    case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
+    lost: list[str] = []
+    case = await _with_unfinished_work(case, lost=lost)   # ADR-0066: read through the graph
 
     payload = case.model_dump()
+    if lost:                                       # G-261 (audit W3): never a silent fall-back
+        from backend.core.prompts import RELOAD_UNFINISHED_LOST
+        payload["notice"] = RELOAD_UNFINISHED_LOST
     # W9 (DEF-079) — the progress view's elements, computed here once from the statuses the
     # coaching moves read: confirmed (a Change action), parked (ADR-0072's marker), current, open.
     from backend.core import guard_messages
@@ -2217,8 +2225,9 @@ async def get_case(case_id: str, http: Request):
         "The Define report waits for your team's decision." if (
             case.current_phase == "define" and await _awaiting_decision(case, "define")) else None)
     # DEF-214 (W1): the Define overview, served from the skill (its opening and section F).
-    from backend.phases.define.welcome import overview
+    from backend.phases.define.welcome import briefings, overview
     payload["define_overview"] = overview()
+    payload["define_briefings"] = briefings()      # G-258 (audit D6): the tool briefings, from the skill
     # DEF-200 (W3): the welcome, assembled in code from the phase state and the skill — greeting the signed-in person.
     if case.current_phase == "define":
         from backend.phases.define.welcome import welcome

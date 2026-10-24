@@ -78,3 +78,55 @@ def overview() -> dict[str, Any]:
         elements.append({"n": n, "name": guard_messages.element_name("define", field),
                          "what": (what.split(". ")[0].rstrip(".") + ".") if what else ""})
     return {"elements": elements, "how": opening()[1], "ends": ends}
+
+
+#: G-258 (audit D6): the screen's tool briefings for Define's 5W2H and SIPOC, keyed by the page's tool name.
+BRIEFED: dict[str, str] = {"5W2H problem statement": "problem_statement", "SIPOC diagram": "process_map_sipoc"}
+#: A SIPOC column's label where it is not its key with the underscore dropped.
+_SIPOC_LABELS = {"process_steps": "Process steps", "process_metrics": "Measures"}
+_PAGE_REF = re.compile(r"\s*\((?:p\.|R\d)[^)]*\)")
+
+
+def _first_sentence(text: str) -> str:
+    return (text.split(". ")[0].rstrip(".") + ".") if text else ""
+
+
+def briefings() -> dict[str, dict[str, Any]]:
+    """G-258 (audit D6; founder ruling 2026-10-24, A3): the 5W2H and SIPOC briefings the page shows, built from the
+    skill only — what the element is and why it matters, how each part is formulated, the skill's own ask and its
+    worked example — so the screen teaches exactly what is graded. Shaped as the page's briefing card reads it."""
+    import json
+
+    from backend.middleware.skills import SKILLS_ROOT, acceptance_criteria, element_text, show_table
+    from backend.phases.define.schema import SIPOC_KEYS
+    from backend.phases.define.visuals import SIPOC_EXAMPLE
+    out: dict[str, dict[str, Any]] = {}
+    for tool, field in BRIEFED.items():
+        show = element_text("define", field, "Show")
+        card: dict[str, Any] = {"tagline": _first_sentence(element_text("define", field, "What it is")),
+                                "why": element_text("define", field, "Why it matters"),
+                                "firstQuestion": element_text("define", field, "Ask")}
+        if field == "problem_statement":
+            rows = show_table("define", field)
+            card["steps"] = [f"{r[0]} — {r[1]}." for r in rows if len(r) > 1]
+            card["exampleFields"] = [{"q": r[0], "a": r[2]} for r in rows if len(r) > 2]
+            composed = next((ln for ln in show.splitlines() if "composed from it" in ln), "")
+            card["exampleSummary"] = composed.split(":**", 1)[-1].strip(" *\"“”") if composed else ""
+        else:
+            crit = dict(acceptance_criteria("define", field))
+            how = next((ln for ln in show.splitlines() if ln.startswith("How each part is formulated")), "")
+            card["steps"] = [_PAGE_REF.sub("", crit[c]).strip().capitalize() + "."
+                             for c in ("start-to-end", "all-six") if c in crit] + ([how] if how else [])
+            example = json.loads((SKILLS_ROOT / "dmaic-define-phase" / SIPOC_EXAMPLE).read_text(encoding="utf-8"))
+
+            def words(v: Any) -> str:
+                if isinstance(v, list):
+                    return (" → " if v and isinstance(v[0], dict) else ", ").join(
+                        str(x.get("name") if isinstance(x, dict) else x) for x in v)
+                return str(v or "")
+            card["exampleFields"] = [{"q": _SIPOC_LABELS.get(k, k.capitalize()), "a": words(example.get(k))}
+                                     for k in SIPOC_KEYS]
+            card["exampleSummary"] = show.split("drawn below:", 1)[-1].splitlines()[0].strip().rstrip(".").capitalize() \
+                + "." if "drawn below:" in show else ""
+        out[tool] = card
+    return out

@@ -220,7 +220,7 @@ def test_the_other_phases_walk_their_gate_list() -> None:
 
 def test_sections_3_and_4_agree_on_the_confirming_turn() -> None:
     """Item 2 — section 3 is the state AFTER this turn's change: business_case
-    confirmed and stored, Step 2 of 13, team current — what section 4 says."""
+    confirmed and stored, 1 of 13 confirmed, team current — what section 4 says."""
     from langchain_core.messages import HumanMessage as H
     from backend.core.substate import CoachingPlan
     from backend.middleware.state_injection import BeforeModelStateInjection
@@ -233,7 +233,7 @@ def test_sections_3_and_4_agree_on_the_confirming_turn() -> None:
         "messages": [H(content="Yes, that's right.")]}))
     mw.before_agent(None, None)
     state, move = mw._block, mw._move
-    assert "Define · Step 2 of 13" in state
+    assert "Define · 1 of 13 confirmed" in state
     assert "1. Business case — confirmed" in state and "Current element: Team" in state
     assert '<value name="Business case" status="confirmed">' in state, "shown stored"
     assert "RECORD `business_case`, THEN TEACH `team`" in move

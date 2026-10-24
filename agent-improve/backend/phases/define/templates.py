@@ -38,20 +38,12 @@ Value = Any
 Read = tuple[Value, Optional[bool]]
 
 
-def _text(v: Any) -> str:
-    if isinstance(v, dict):
-        return " ".join(_text(x) for x in v.values())
-    if isinstance(v, list):
-        return " ".join(_text(x) for x in v)
-    return str(v or "").strip()
-
-
 def _team(values: dict[str, Any]) -> list[dict[str, Any]]:
     return [m for m in values.get("team") or [] if isinstance(m, dict)]
 
 
 def _named(values: dict[str, Any], pattern: Any) -> Read:
-    names = [str(m.get("name") or "").strip() for m in _team(values) if pattern.search(_text(m))]
+    names = [str(m.get("name") or "").strip() for m in _team(values) if pattern.search(plain(m))]
     names = [n for n in names if n]
     return ("; ".join(names) or None), bool(names) if _team(values) else False
 
@@ -69,7 +61,7 @@ def _member_training(m: dict[str, Any]) -> Optional[str]:
          and parse._TRAINING.search(str(v or ""))), None)
     if hit is None:
         # Training stated inside the name, role or function: the clause that states it, not the whole entry.
-        hit = next((c.strip() for c in re.split(r"[;,.]", _text(m)) if parse._TRAINING.search(c)), None)
+        hit = next((c.strip() for c in re.split(r"[;,.]", plain(m)) if parse._TRAINING.search(c)), None)
     return hit or None
 
 
@@ -174,14 +166,14 @@ def _scope(values: dict[str, Any]) -> Read:
     s = values.get("project_scope")
     if not isinstance(s, dict):
         return None, None
-    inside, outside = _text(s.get("in_scope")), _text(s.get("out_scope"))
+    inside, outside = plain(s.get("in_scope")), plain(s.get("out_scope"))
     return {"boxes": [["In scope", inside or "—"], ["Out of scope", outside or "—"]]}, bool(inside and outside)
 
 
 def _benefit(key: str) -> Callable[[dict[str, Any]], Read]:
     def read(values: dict[str, Any]) -> Read:
         b = values.get("benefits_analysis")
-        return (_text(b.get(key)) or None) if isinstance(b, dict) else None, None
+        return (plain(b.get(key)) or None) if isinstance(b, dict) else None, None
     return read
 
 
@@ -743,7 +735,7 @@ def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dic
         b: dict[str, Any] = raw if isinstance(raw, dict) else {}
         saving = expected_saving_text(_savings(artifacts))
         return {"kind": "kv",
-                "figures": [["Cost of the gap today", _text(b.get("cost_of_gap")) or None, FIELD_EXPLAIN["cost_of_gap"]],
+                "figures": [["Cost of the gap today", plain(b.get("cost_of_gap")) or None, FIELD_EXPLAIN["cost_of_gap"]],
                             ["Expected saving at the target", f"{saving} a year" if saving else None]],
                 "items": [item("Sustainable or one-off", "impact-type"), item("When it lands", "realisation"),
                           item("Finance contact", "finance-contact")]}

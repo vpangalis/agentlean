@@ -50,9 +50,9 @@ project's *setting*, not its findings, and it arrives through `phase_context`.
 > □ Primary metric and baseline
 > □ … the remaining eight
 >
-> **Progress: 4 of 13 complete**"
+> **Progress: 4 of 13 confirmed**"
 
-**The count is `n of 13`, always, and there is only one.** It is read from the
+**The count is `n of 13 confirmed`, always, and there is only one.** It is read from the
 phase state (`define_progress`), never from a running tally: a resumption that
 reports a number the Define report contradicts is worse than no count.
 
@@ -74,7 +74,7 @@ challenge names the criterion that failed.
 paragraph — not a re-render of the whole checklist.
 
 > "Got it — the primary metric is *invoice error rate, 12% from January to June
-> from the collections log*. **That's 5 of 13.** Next is scope: what's in, and
+> from the collections log*. **That's 5 of 13 confirmed.** Next is scope: what's in, and
 > just as importantly what's out."
 
 **The read-back is not confirmation theatre.** It is the last cheap moment to
