@@ -1,9 +1,9 @@
 {
- "source_hash": "741902a3e885406b",
- "commit": "7559c49",
+ "source_hash": "46cfb2c8abec68f5",
+ "commit": "a98b699",
  "commit_matches_source": false,
- "full_run_hash": "741902a3e885406b",
- "recorded_at": "2026-10-24T17:01:07+00:00",
+ "full_run_hash": "46cfb2c8abec68f5",
+ "recorded_at": "2026-10-24T17:19:33+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1377,6 +1377,9 @@
   "backend/tests/test_normative_check.py::test_a_softened_rule_sentence_is_found": "passed",
   "backend/tests/test_normative_check.py::test_nothing_the_slimming_dropped_is_unaccounted_for": "passed",
   "backend/tests/test_normative_check.py::test_the_corpus_is_claude_md_the_rule_files_and_the_skills": "passed",
+  "backend/tests/test_one_owner.py::test_the_clock_has_one_owner": "passed",
+  "backend/tests/test_one_owner.py::test_the_empty_value_rule_has_one_owner": "passed",
+  "backend/tests/test_one_owner.py::test_the_methodology_phase_filter_has_one_owner": "passed",
   "backend/tests/test_phase_subgraphs.py::test_a_field_not_yet_taught_costs_no_model_call[analyse]": "passed",
   "backend/tests/test_phase_subgraphs.py::test_a_field_not_yet_taught_costs_no_model_call[control]": "passed",
   "backend/tests/test_phase_subgraphs.py::test_a_field_not_yet_taught_costs_no_model_call[define]": "passed",
@@ -1891,8 +1894,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "60ce1018e17e8fb9",
-  "recorded_at": "2026-10-24T16:50:15+00:00",
+  "source_hash": "741902a3e885406b",
+  "recorded_at": "2026-10-24T17:01:07+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -3760,6 +3763,9 @@
    "backend/tests/test_retriever.py::test_the_knowledge_index_default_is_the_current_index_never_the_retired_one": "passed",
    "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>0]": "passed",
    "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>1]": "passed",
+   "backend/tests/test_ruff_ratchet.py::test_a_new_broad_except_or_complex_function_is_refused": "passed",
+   "backend/tests/test_ruff_ratchet.py::test_a_raised_record_and_an_unfollowed_fall_are_refused": "passed",
+   "backend/tests/test_ruff_ratchet.py::test_the_count_reads_through_noqa": "passed",
    "backend/tests/test_run_cost.py::test_a_run_over_the_ceiling_fails": "passed",
    "backend/tests/test_run_cost.py::test_an_unpriced_model_with_tokens_fails_the_run_and_one_without_costs_nothing": "passed",
    "backend/tests/test_run_cost.py::test_no_price_is_written_in_code": "passed",

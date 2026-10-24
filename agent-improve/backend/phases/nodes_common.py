@@ -86,7 +86,6 @@ from backend.core.substate import (
     presentational_gaps,
     split_captures,
 )
-from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from backend.upload.asks import ensure_ask
@@ -117,6 +116,7 @@ from backend.phases.gate_registry import GATE_SPECS, captured_count, review_rows
 from backend.validation import kept as kept_verdicts
 from backend.validation.rubric import grade_define
 from backend.phases.mappers_common import PHASE_ORDER
+from backend.core.clock import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +252,7 @@ def _mark_consumed(
     if not touched:
         return uploads, 0
 
-    stamp = datetime.now(timezone.utc).isoformat()
+    stamp = utc_now().isoformat()
     marked = 0
     for upload in uploads:
         if upload.get("blob_path") in touched and not upload.get("consumed_at"):
@@ -386,7 +386,7 @@ async def planner(
         events = moves.park_events(
             dict(state.get("field_status") or {}), dict(plan.field_status or {}),
             person=((config or {}).get("configurable") or {}).get("current_user"),
-            at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+            at=utc_now().isoformat(timespec="seconds"))
         if events:
             logger.info("%s.planner: %s", phase, "; ".join(f"{e['event']} {e['field']}" for e in events))
         entry_fields = {
@@ -3043,7 +3043,7 @@ async def executor(
     routed = (_unread_upload(state) if turn_type == turn_tools.UPLOAD and not ROUTED_READ_FAILED.get()
               else None)
     if routed is not None:
-        stamp = datetime.now(timezone.utc).isoformat()
+        stamp = utc_now().isoformat()
         for u in uploads:
             if u.get("blob_path") == routed.get("blob_path") and not u.get("consumed_at"):
                 u["consumed_at"] = stamp
@@ -3299,7 +3299,7 @@ async def executor(
     turn_ordinal = _turn_ordinal(state)
     log_entries = _field_log_entries(
         phase, turn_ordinal, kept, prior_artifacts, reply,
-        datetime.now(timezone.utc).isoformat(),
+        utc_now().isoformat(),
         pending=(plan.confirmed if plan is not None and move == moves.STORE_AND_ADVANCE else None),
         by=((config or {}).get("configurable") or {}).get("current_user"),
     )
@@ -3883,7 +3883,7 @@ def _decision(value: Any) -> dict[str, Any]:
             "elements": [str(e) for e in (v.get("elements") or [])],
             "reason": str(v.get("reason") or "").strip(),
             "actor": str(v.get("actor") or ""),
-            "at": str(v.get("at") or datetime.now(timezone.utc).isoformat())}
+            "at": str(v.get("at") or utc_now().isoformat())}
 
 
 async def gate_review(phase: str, state: PhaseState) -> dict[str, Any]:

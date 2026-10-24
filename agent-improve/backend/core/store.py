@@ -45,7 +45,7 @@ import json
 import logging
 import threading
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, AsyncIterator, Iterable, Optional
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -68,6 +68,7 @@ from langgraph.store.base import (
 
 from backend.core.config import settings
 from backend.storage import layout
+from backend.core.clock import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,7 @@ class AzureBlobStore(BaseStore):
         created_at: Optional[datetime],
         updated_at: Optional[datetime],
     ) -> Item:
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         return Item(
             value=value,
             key=key,

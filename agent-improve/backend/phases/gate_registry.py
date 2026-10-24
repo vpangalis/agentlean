@@ -13,6 +13,7 @@ from typing import Any, Callable, NamedTuple
 
 from pydantic import BaseModel
 
+from backend.core.substate import is_empty_capture
 from backend.phases.analyse.schema import (
     ANALYSE_TIER_1_FIELDS,
     ANALYSE_TIER_2_FIELDS,
@@ -192,20 +193,10 @@ def review_rows(phase: str, artifacts: dict[str, Any]) -> list[dict[str, Any]]:
                 "label": field.replace("_", " "),
                 "tier": tier,
                 "value": value,
-                "present": not _is_empty(value),
+                "present": not is_empty_capture(value),
                 "structured": isinstance(value, (dict, list)),
             })
     return rows
-
-
-def _is_empty(value: object) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip()
-    if isinstance(value, (list, dict, tuple, set)):
-        return len(value) == 0
-    return False
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -226,7 +217,7 @@ def _is_empty(value: object) -> bool:
 
 def _absent_keys(container: Any, keys: tuple[str, ...]) -> list[str]:
     """Which of `keys` are missing from one structured dict."""
-    return [k for k in keys if _is_empty(container.get(k))]
+    return [k for k in keys if is_empty_capture(container.get(k))]
 
 
 def _missing_entries(rows: Any, keys: tuple[str, ...], label: str) -> list[str]:
@@ -308,7 +299,7 @@ def missing_gate_fields(phase: str, data: dict[str, Any]) -> list[str]:
     the Belt proceeds past is recorded as `acknowledged_gaps`, not as missing.
     """
     spec = GATE_SPECS[phase]
-    missing = [f for f in spec.tier_1 if _is_empty(data.get(f))]
+    missing = [f for f in spec.tier_1 if is_empty_capture(data.get(f))]
     missing.extend(missing_structured(phase, data))
     return missing
 
@@ -317,7 +308,7 @@ def captured_count(phase: str, data: dict[str, Any]) -> tuple[int, int]:
     """How many of the phase's Tier-1 fields hold a value, and how many there are — the count degraded
     mode names (T34 level 4)."""
     tier_1 = GATE_SPECS[phase].tier_1
-    return sum(not _is_empty(data.get(f)) for f in tier_1), len(tier_1)
+    return sum(not is_empty_capture(data.get(f)) for f in tier_1), len(tier_1)
 
 
 __all__ = [

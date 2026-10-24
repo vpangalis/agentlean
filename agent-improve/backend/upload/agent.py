@@ -23,7 +23,6 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from backend.core import content_safety, guard_messages, pii
@@ -40,6 +39,7 @@ from backend.upload.classifier import (
     is_image,
 )
 from backend.upload.parsers import parse_upload
+from backend.core.clock import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ async def process_upload(
         "kind_declared": kind_declared,
         "phase": phase,
         "uploaded_by": uploaded_by,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": utc_now().isoformat(),
         "indexed": False,
     }
 

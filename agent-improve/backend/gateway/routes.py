@@ -5,13 +5,13 @@ from collections import deque
 import time
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import conversation, pii
+from backend.core.clock import utc_now
 from backend.core.prompts import PII_HIDDEN_UPLOAD, TURN_DEADLINE_REPLY
 from backend.core.request_context import set_case_id, set_phase
 from backend.core.errors import CaseBusyError, StateSchemaVersionError
@@ -161,13 +161,12 @@ async def create_case(request: CaseCreateRequest, response: Response) -> CaseCre
     ADR-0092 "Unique case numbers and a safe case list": the number is reserved by a create-only-if-absent
     write and redrawn on a clash, up to five times; a sixth clash is a readable error (W10). The case list
     is then updated by a conditional write. Existing case numbers never change."""
-    from datetime import datetime, timezone
 
     from backend.core.errors import CaseNumberTaken
 
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
-    year = datetime.now(timezone.utc).year
+    year = utc_now().year
     people = _people_from_request(request)
     case = None
     for _ in range(1 + CASE_NUMBER_REDRAWS):
@@ -202,7 +201,6 @@ async def create_case(request: CaseCreateRequest, response: Response) -> CaseCre
 
 def _person(p: Any, *, role: str = "", status: str = "member", by: str = "") -> Any:
     """ADR-0090: a PersonRecord from the form's or the panel's PersonIn; the location defaults to "not set"."""
-    from datetime import datetime, timezone
 
     from backend.storage.models import PersonLocation, PersonRecord
     loc = dict(p.location or {})
@@ -210,7 +208,7 @@ def _person(p: Any, *, role: str = "", status: str = "member", by: str = "") -> 
                         function=p.function.strip(), department=p.department.strip(),
                         location=PersonLocation(country=str(loc.get("country") or ""), site=str(loc.get("site") or "")),
                         status=status, added_by=by,
-                        added_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+                        added_at=utc_now().isoformat(timespec="seconds"))
 
 
 def _people_from_request(request: CaseCreateRequest) -> list:
@@ -708,7 +706,6 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     _ensure_case_record(case)
     case = await _with_unfinished_work(case)
 
-    from datetime import datetime, timezone
     from backend.core.graph import PhaseNotWired, get_graph
     if _over_turn_rate(request.user):
         # T93 (ADR-0067, threat D): refused before the graph runs, so nothing is stored; the
@@ -716,12 +713,12 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         from backend.core import guard, guard_messages
         guard.record(get_store(), request.case_id, request.phase, int(time.time() * 1000),
                      {"status": "blocked", "threat": "D", "rule": "turn rate", "person": request.user,
-                      "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+                      "at": utc_now().isoformat(timespec="seconds")})
         return AskResponse(answer=guard_messages.D_RATE.format(limit=TURNS_PER_MINUTE), phase=request.phase,
                            gate_status=GateStatus(phase=request.phase, passed=False, attempts=0, missing_fields=[]),
                            blocked="D")
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = utc_now().isoformat()
     user_turn = {
         "turn": len(case.conversation_history) + 1,
         "role": "user",
@@ -841,7 +838,6 @@ async def _reconcile_team(case_id: str, phase: str, record: Any, by: str) -> Non
     """ADR-0090 decision 3: once Define's element 2 (the team) is confirmed, every person its rows name
     who is not on the case is added as a proposed member — the team panel lists them for the lead to confirm.
     Element 2 stays confirmed. A failure here never fails the turn: it is logged, and the next turn retries."""
-    from datetime import datetime, timezone
 
     from backend.phases import moves
     from backend.storage import people as people_mod
@@ -850,7 +846,7 @@ async def _reconcile_team(case_id: str, phase: str, record: Any, by: str) -> Non
     if ((record.get("field_status") or {}).get("team") or {}).get("status") != moves.CONFIRMED:
         return
     rows = (record.get("structured") or {}).get("team")
-    at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    at = utc_now().isoformat(timespec="seconds")
     added: list[str] = []
 
     def change(current: list) -> list:
@@ -942,7 +938,7 @@ async def issue_code(case_id: str, who: str, body: PersonRemoval, http: Request)
     if person is None:
         raise HTTPException(404, f"{who} is not on this case.")
     code = access.new_code()
-    now = _dt.datetime.now(_dt.timezone.utc)
+    now = utc_now()
     try:
         await blob.update_people(case_id, lambda ps: people_mod.set_code(
             ps, who, access.code_digest(case_id, person.email, code), now.isoformat(timespec="seconds")))
@@ -1043,7 +1039,7 @@ async def hand_over_lead(case_id: str, body: LeadHandover, http: Request) -> Peo
     get_store().put(("projects", case_id, "step_log"), f"lead:{int(time.time() * 1000)}:{secrets.token_hex(3)}",
                     {"layer": "people", "event": "lead_handover", "from": head.full_name if head else body.actor,
                      "to": new.full_name if new else body.to, "why": body.reason.strip(),
-                     "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+                     "at": utc_now().isoformat(timespec="seconds")})
     logger.info("lead handed over on %s: %s -> %s", case_id, head.full_name if head else body.actor,
                 new.full_name if new else body.to)
     return _people_out(case)
@@ -1543,7 +1539,7 @@ async def delete_case_file(case_id: str, file_id: str, http: Request, by: str = 
 
     uploads.pop(i)
     await blob.save_case(case)
-    at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    at = utc_now().isoformat(timespec="seconds")
     try:
         from backend.core.store import get_store as _store   # read at call time
         _store().put(("projects", case_id, "step_log"), f"file-removed:{file_id}:{at}",
@@ -1800,7 +1796,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         config["configurable"]["belt_action"] = "rejected"
     resume = {"decision": request.decision, "elements": elements, "reason": request.reason,
               "actor": request.actor,
-              "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+              "at": utc_now().isoformat(timespec="seconds")}
     try:
         result = await _run_turn(graph, Command(resume=resume), config, http)
     except ClientGone:
@@ -1976,7 +1972,7 @@ async def submit_gate(request: GateSubmitRequest,
         # ADR-0076 (T65): the third failure — the report is held for the lead; the case stays open.
         # G-192: when the lead submits, the Champion is told.
         await blob.set_escalation(request.case_id, {
-            "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "at": utc_now().isoformat(timespec="seconds"),
             "attempts": int(verdict.get("attempts") or verdict.get("gate_attempts") or 0),
             "criteria": [m.replace("_", " ") for m in missing], "to": told})
     return GateSubmitResponse(

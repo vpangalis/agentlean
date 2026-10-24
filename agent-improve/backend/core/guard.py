@@ -28,7 +28,6 @@ submission (`entry="gate"`) carries no Belt text and is not screened.
 """
 from __future__ import annotations
 
-import datetime as dt
 import logging
 import re
 from typing import Any, Optional
@@ -40,6 +39,7 @@ from langgraph.store.base import BaseStore
 from langgraph.types import RetryPolicy
 
 from backend.core import content_safety, guard_messages
+from backend.core.clock import utc_now
 from backend.core.errors import ShieldTransientError
 from backend.core.llm import block_text
 from backend.core.state import SupervisorState
@@ -185,7 +185,7 @@ async def input_guard(state: SupervisorState, config: Optional[RunnableConfig] =
         return {}
     text = block_text(msgs[-1])        # G-262: the text the coach reads, through its content blocks
     base: dict[str, Any] = {"person": configurable.get("current_user") or (msgs[-1].additional_kwargs or {}).get("user"),
-            "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
+            "at": utc_now().isoformat(timespec="seconds")}
     verdict = await screen(text)
     if verdict["shield"] == "unreachable":
         attempt = _attempt()

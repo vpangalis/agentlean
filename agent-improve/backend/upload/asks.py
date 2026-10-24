@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timezone
 from typing import Any
+
+from backend.core.clock import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +138,7 @@ def new_ask(phase: str, field: str, shape: dict[str, Any]) -> dict[str, Any]:
         "role": role,
         "expected_shape": {k: v for k, v in shape.items() if k != "role"},
         "phase": phase,
-        "asked_at": datetime.now(timezone.utc).isoformat(),
+        "asked_at": utc_now().isoformat(),
         "status": OPEN,
         "for_field": field,
     }

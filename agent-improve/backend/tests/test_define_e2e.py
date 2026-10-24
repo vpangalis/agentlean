@@ -2914,11 +2914,11 @@ def test_t58_knowledge_lookups_always_include_the_general_methodology(env, monke
     from backend.phases.mappers_common import PHASE_ORDER
 
     assert retriever.CROSS_PHASE_RELEVANCE == "general"
+    assert tools.phase_filter is retriever.phase_filter, "one filter: the tool logs what the search sends (G-266)"
     for phase in PHASE_ORDER:
-        for build in (tools._phase_filter, retriever._phase_filter):
-            assert f"phase_relevance eq '{phase}'" in (build(phase) or ""), (build, phase)
-            assert "phase_relevance eq 'general'" in (build(phase) or ""), (build, phase)
-        assert tools._phase_filter("") is None and retriever._phase_filter(None) is None
+        built = retriever.phase_filter(phase) or ""
+        assert f"phase_relevance eq '{phase}'" in built and "phase_relevance eq 'general'" in built, (phase, built)
+    assert retriever.phase_filter("") is None and retriever.phase_filter(None) is None
 
     seen: list = []
 

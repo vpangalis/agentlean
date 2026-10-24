@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 
+from backend.core.substate import is_empty_capture
 from backend.core.config import settings
 from backend.core.state import ImproveGraphState
 from backend.phases.analyse.schema import (
@@ -47,17 +48,6 @@ logger = logging.getLogger(__name__)
 ANALYSE_REQUIRED_FOR_GATE = list(ANALYSE_TIER_1_FIELDS)
 
 
-def _is_empty(value: object) -> bool:
-    """Absent, or present-but-empty. A whitespace-only string is empty."""
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return not value.strip()
-    if isinstance(value, (list, dict, tuple, set)):
-        return len(value) == 0
-    return False
-
-
 def acknowledged_gaps(data: dict) -> list[str]:
     """Tier 2 fields the Belt is proceeding without.
 
@@ -68,7 +58,7 @@ def acknowledged_gaps(data: dict) -> list[str]:
     return [
         f"{field} — Belt accepted gap"
         for field in ANALYSE_TIER_2_FIELDS
-        if _is_empty(data.get(field))
+        if is_empty_capture(data.get(field))
     ]
 
 

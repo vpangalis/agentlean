@@ -22,12 +22,13 @@ import json
 import logging
 import secrets
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import HTTPException, Request, Response
 
 from backend.storage import people as people_mod
+from backend.core.clock import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ def lead_name(case: Any) -> str:
 
 def _trail(case_id: str, status: str, email: str, where: str, why: str = "") -> None:
     """Decision 5: every sign-in and every refusal, with who and when — in the decision trail."""
-    at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    at = utc_now().isoformat(timespec="seconds")
     try:
         from backend.core.store import get_store
         get_store().put(("projects", case_id, "step_log"), f"access:{int(time.time() * 1000)}:{secrets.token_hex(3)}",

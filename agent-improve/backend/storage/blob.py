@@ -40,7 +40,7 @@ import json
 import secrets
 from contextlib import asynccontextmanager
 import logging
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import AsyncIterator, Callable, Optional
 
 from azure.core import MatchConditions
@@ -64,6 +64,7 @@ from backend.storage.models import (
     RegistryEntry,
     UploadRecord,
 )
+from backend.core.clock import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -369,7 +370,7 @@ async def write_phase_gate(
     if case is None:
         raise ValueError(f"Case {case_id} not found")
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = utc_now().isoformat()
 
     # ── MERGE, never replace ─────────────────────────────────────
     # Whatever this record holds that is not named below SURVIVES the gate.
@@ -456,7 +457,7 @@ async def load_registry() -> CaseRegistry:
 async def save_registry(registry: CaseRegistry) -> None:
     """ADR-0092 decision 3: a registry read from storage is written only if nobody changed it since
     (`If-Match: <ETag>`; a new one only if still absent) — `RegistryChanged` otherwise."""
-    registry.last_updated = datetime.now(timezone.utc).isoformat()
+    registry.last_updated = utc_now().isoformat()
     body = registry.model_dump_json(indent=2)
     etag = registry._etag
     try:
@@ -496,7 +497,7 @@ async def register_case(case: CaseDocument) -> None:
         created_at=case.created_at,
         target_date=case.target_date,
         current_phase=case.current_phase,
-        phase_started_at=datetime.now(timezone.utc).isoformat(),
+        phase_started_at=utc_now().isoformat(),
     )
 
     def add(registry: CaseRegistry) -> bool:

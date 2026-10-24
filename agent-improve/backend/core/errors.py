@@ -6,10 +6,12 @@ read `severity` to decide retry-vs-stop and the fallback chain can read
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+from backend.core.clock import utc_now
 
 
 class AgentImproveError(BaseModel):
@@ -21,7 +23,7 @@ class AgentImproveError(BaseModel):
     affected_identifier: str
     message: str
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=utc_now
     )
 
     def to_step_log_entry(self, **extra: Any) -> dict[str, Any]:

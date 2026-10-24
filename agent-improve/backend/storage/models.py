@@ -5,6 +5,7 @@ from typing import Literal, Optional, Any
 from pydantic import BaseModel, Field, PrivateAttr
 
 from backend.core.citations import CitationRecord
+from backend.core.clock import utc_now
 
 
 class TeamMemberRecord(BaseModel):
@@ -342,7 +343,6 @@ class CaseDocument(BaseModel):
     ) -> "CaseDocument":
         """Factory for creating a new case. ADR-0090: `people` (the lead first) when the form gives them;
         else the lead from `leader` and the members from `team` ({name, role})."""
-        from datetime import datetime, timezone
 
         from backend.core.state import STATE_SCHEMA_VERSION
         return cls(
@@ -353,7 +353,7 @@ class CaseDocument(BaseModel):
             leader=leader,
             department=department,
             target_date=target_date,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=utc_now().isoformat(),
             people=list(people) if people is not None else [
                 PersonRecord(full_name=leader, role=PROJECT_LEAD),
                 *(PersonRecord(full_name=str(m.get("name") or ""), role=str(m.get("role") or ""))

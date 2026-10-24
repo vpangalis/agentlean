@@ -366,11 +366,15 @@ def get_evidence_vectorstore() -> AzureSearch:
 CROSS_PHASE_RELEVANCE = "general"
 
 
-def _phase_filter(phase: str | None) -> str | None:
-    """OData filter for improve_knowledge_index, or None for no filter.
+def phase_filter(phase: str | None) -> str | None:
+    """The OData filter for improve_knowledge_index, or None for an unfiltered search — the one every
+    methodology search sends and a failed one logs.
 
-    The field is `phase_relevance`, NOT `phase` — there is no `phase` field on
-    this index, and asking for one makes Azure reject the whole query.
+    **The field is `phase_relevance`, and the cross-phase value is `general`.**
+    Not `phase` — that field does not exist on this index and asking for it
+    makes Azure reject the entire query. Not `all` — no document carries it, so
+    the corpus silently narrows to the named phase alone. One of those two
+    mistakes fails loudly and the other does not.
     """
     if not phase:
         return None
@@ -389,7 +393,7 @@ def search_knowledge(query: str, phase: str | None = None,
     "retrieval is broken".
     """
     vs = get_knowledge_vectorstore()
-    filters = _phase_filter(phase)
+    filters = phase_filter(phase)
     try:
         with child_trace("azure.search.knowledge.similarity_search", run_type="retriever",
                    inputs={"query": query[:200], "k": k, "filter": filters}) as span, _http_watch() as ev:
@@ -637,7 +641,7 @@ def build_knowledge_context(
     improve_knowledge_index via search_knowledge() across all phases —
     deliberately unfiltered, so cross-phase methodology stays reachable.
     (The index does have a per-phase filter field, `phase_relevance`; this
-    caller simply chooses not to narrow. See _phase_filter().)"""
+    caller simply chooses not to narrow. See phase_filter().)"""
     query_parts = []
     if work_product_label:
         query_parts.append(work_product_label)

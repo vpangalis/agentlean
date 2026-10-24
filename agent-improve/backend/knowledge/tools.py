@@ -77,18 +77,13 @@ from backend.knowledge.tool_args import (
 )
 from backend.knowledge.retriever import (
     get_knowledge_vectorstore,
+    phase_filter,
     search_cases,
     search_evidence,
     search_knowledge,
 )
 
 logger = logging.getLogger(__name__)
-
-#: The cross-phase value on `improve_knowledge_index` is `general`.
-#: NEVER `all` (no document carries it, so the corpus silently narrows) and
-#: NEVER a `phase` field (it does not exist, so Azure rejects the whole query).
-#: One of those mistakes fails loudly and the other does not.
-CROSS_PHASE_RELEVANCE = "general"
 
 #: The model asks for `top_k`; each variant fetches this many before
 #: fusion. Fetching only `top_k` per variant would starve RRF of the
@@ -122,25 +117,6 @@ def _failure_message(kind: str, error_code: str, not_this: str) -> str:
         f"retrieval failure, not {not_this} — do not tell the team so, and do "
         f"not cite sources you could not retrieve."
     )
-
-
-def _phase_filter(phase: str) -> str | None:
-    """The phase filter, or None for an unfiltered search — what a failed
-    methodology search logs; `retriever._phase_filter` builds the one the
-    search sends.
-
-    **The field is `phase_relevance`, and the cross-phase value is `general`.**
-    Not `phase` — that field does not exist on this index and asking for it
-    makes Azure reject the entire query. Not `all` — no document carries it, so
-    the corpus silently narrows to the named phase alone. One of those two
-    mistakes fails loudly and the other does not, which is why both are named
-    here and in `retriever._phase_filter`.
-    """
-    if not phase:
-        return None
-    safe = phase.replace("'", "''")          # OData escapes ' by doubling it
-    return (f"phase_relevance eq '{safe}' "
-            f"or phase_relevance eq '{CROSS_PHASE_RELEVANCE}'")
 
 
 def _citation_suffix(row: dict) -> str:
@@ -185,7 +161,7 @@ async def rag_lookup_methodology(
             omit to search the whole corpus unfiltered.
         top_k: How many passages to return. Default 10.
     """
-    filters = _phase_filter(phase)
+    filters = phase_filter(phase)
 
     def search(q: str) -> list[dict]:
         return search_knowledge(q, phase=phase or None, k=PER_VARIANT_K)

@@ -5318,7 +5318,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-266"
+    ]
    },
    "requirement": "T58",
    "belt_impact": "degraded",

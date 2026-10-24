@@ -11,6 +11,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Optional
 
 from backend.phases.mappers_common import PHASE_ORDER
+from backend.core.clock import utc_now
 
 
 def _day(value: Any) -> Optional[date]:
@@ -62,7 +63,7 @@ def project_status(case: Any, element_rows: list[dict[str, Any]], waiting: Optio
                    today: Optional[date] = None) -> dict[str, Any]:
     """The status every screen shows. `element_rows` are the current phase's (Define's while in Define);
     `waiting` names what waits for the team, or None."""
-    today = today or datetime.now(timezone.utc).date()
+    today = today or utc_now().date()
     phase = str(getattr(case, "current_phase", "define") or "define")
     figure = confirmed_figure(element_rows)
     if phase == "define":
@@ -82,7 +83,7 @@ def project_status(case: Any, element_rows: list[dict[str, Any]], waiting: Optio
 def days_in_phase(entry: Any, today: Optional[date] = None) -> int:
     """A case-list row's days in its current phase — the same count `days_per_phase` gives: from the phase's start
     (`phase_started_at`, else the case's opening) to today."""
-    today = today or datetime.now(timezone.utc).date()
+    today = today or utc_now().date()
     days = days_between(getattr(entry, "phase_started_at", None) or getattr(entry, "created_at", None), today)
     return max(0, days) if days is not None else 0
 
