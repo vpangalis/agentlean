@@ -469,6 +469,8 @@ construction.
   (`knowledge/tools.py`) call `search_knowledge`, `search_evidence`, `search_cases`
   (`knowledge/retriever.py`). Each knows one index and its field names.
 - Inside each tool: `QueryVariants` → one search per variant → `reciprocal_rank_fusion(ranked_lists, k=60)`.
+- The knowledge search is hybrid; with `AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG` set it is `semantic_hybrid`,
+  each variant's search ranked by Azure AI Search's semantic ranker before fusion (ADR-0060 decision 2).
 - `rag_lookup_evidence` returns one record per hit: `role`, `kind`, `description`, `phase`,
   `uploaded_at`, `shape_match`, `blob_path`, `content_digest`, `excerpt`.
 - Knowledge filter: `phase_relevance eq '{phase}' or phase_relevance eq 'general'`. Evidence

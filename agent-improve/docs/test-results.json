@@ -1,9 +1,9 @@
 {
- "source_hash": "757e0ba5b967bfae",
- "commit": "4dc4ce8",
+ "source_hash": "e200cd056897be99",
+ "commit": "7eee98a",
  "commit_matches_source": false,
- "full_run_hash": "757e0ba5b967bfae",
- "recorded_at": "2026-10-24T19:27:03+00:00",
+ "full_run_hash": "e200cd056897be99",
+ "recorded_at": "2026-10-24T19:39:35+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1586,6 +1586,7 @@
   "backend/tests/test_retriever.py::test_a_failure_on_iteration_is_still_classified[<lambda>-kwargs1-AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX]": "passed",
   "backend/tests/test_retriever.py::test_a_genuine_no_match_returns_an_empty_list": "passed",
   "backend/tests/test_retriever.py::test_auth_failure_is_permanent_and_not_a_generic_4xx": "passed",
+  "backend/tests/test_retriever.py::test_b9_the_semantic_ranker_is_switched_by_the_index_configuration": "passed",
   "backend/tests/test_retriever.py::test_build_knowledge_context_returns_none_when_nothing_matched": "passed",
   "backend/tests/test_retriever.py::test_build_knowledge_context_returns_the_block_when_it_matched": "passed",
   "backend/tests/test_retriever.py::test_build_knowledge_context_says_so_when_retrieval_broke": "passed",
@@ -1902,8 +1903,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "9b70cadbd2803eeb",
-  "recorded_at": "2026-10-24T19:05:26+00:00",
+  "source_hash": "757e0ba5b967bfae",
+  "recorded_at": "2026-10-24T19:27:03+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -3540,6 +3541,7 @@
    "backend/tests/test_not_markable_coverage.py::test_the_ancestor_clause_is_what_makes_this_checkable": "passed",
    "backend/tests/test_not_markable_coverage.py::test_the_four_phase_sections_now_own_rows": "passed",
    "backend/tests/test_not_markable_coverage.py::test_the_pending_mechanism_still_bites_if_something_is_parked": "passed",
+   "backend/tests/test_one_owner.py::test_defines_key_sets_have_one_owner": "passed",
    "backend/tests/test_one_owner.py::test_model_clients_are_built_in_one_place": "passed",
    "backend/tests/test_one_owner.py::test_temperatures_have_one_owner": "passed",
    "backend/tests/test_one_owner.py::test_the_clock_has_one_owner": "passed",

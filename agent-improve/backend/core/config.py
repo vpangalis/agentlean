@@ -78,6 +78,12 @@ class Settings(BaseSettings):
         env="AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX",
         description="Azure AI Search index for Agent Improve knowledge.",
     )
+    AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG: str = Field(
+        "",
+        env="AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG",
+        description=("ADR-0060 decision 2 (B9): the knowledge index's semantic configuration. Set, every methodology "
+                     "search is ranked by Azure AI Search's semantic ranker (semantic_hybrid); empty, hybrid only."),
+    )
     AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX: str = Field(
         default="improve_evidence_index",
         env="AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX",
@@ -198,6 +204,7 @@ settings = Settings(
     AZURE_SEARCH_API_KEY=os.getenv("AZURE_SEARCH_API_KEY", ""),
     AZURE_SEARCH_IMPROVE_CASE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_CASE_INDEX", "improve_case_index"),
     AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX", KNOWLEDGE_INDEX_DEFAULT),
+    AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG=os.getenv("AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG", ""),
     AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX", "improve_evidence_index"),
     AZURE_SEARCH_RESOLVE_CASE_INDEX=os.getenv("AZURE_SEARCH_RESOLVE_CASE_INDEX", "case_index_v3"),
     AZURE_SEARCH_RESOLVE_KNOWLEDGE_INDEX=os.getenv("AZURE_SEARCH_RESOLVE_KNOWLEDGE_INDEX", "knowledge_index_v2"),

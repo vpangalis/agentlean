@@ -449,3 +449,30 @@ def test_the_example_env_names_the_same_knowledge_index_as_the_default() -> None
     named = [ln.split("=", 1)[1].strip() for ln in lines
              if ln.startswith("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=")]
     assert named == [config.KNOWLEDGE_INDEX_DEFAULT]
+
+
+def test_b9_the_semantic_ranker_is_switched_by_the_index_configuration(monkeypatch) -> None:
+    """ADR-0060 decision 2 (founder ruling 2026-10-24, B9): with AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG set, the knowledge
+    vectorstore searches `semantic_hybrid` with that configuration; unset, `hybrid` with none — and a semantic result's
+    captions and answers never reach the rows the coach is given."""
+    from langchain_core.documents import Document
+
+    built: list[dict] = []
+
+    class Store:
+        def __init__(self, **kw: Any) -> None:
+            built.append(kw)
+
+        def similarity_search(self, query: str, k: int = 4, filters: Any = None) -> list:
+            return [Document(page_content="A SIPOC lists suppliers, inputs, process, outputs, customers.",
+                             metadata={"id": "d1", "source_file": "BB_eBook.pdf", "page_number": 31,
+                                       "phase_relevance": "define", "captions": [{"text": "x"}], "answers": []})]
+    monkeypatch.setattr(retriever, "AzureSearch", Store)
+    monkeypatch.setattr(retriever, "get_embeddings", lambda: object())
+    for name, mode in (("improve-knowledge-semantic", "semantic_hybrid"), ("", "hybrid")):
+        monkeypatch.setattr(retriever.settings, "AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG", name)
+        getattr(retriever.get_knowledge_vectorstore, "cache_clear")()
+        rows = retriever.search_knowledge("what is a SIPOC", phase="define")
+        assert built[-1]["search_type"] == mode and built[-1]["semantic_configuration_name"] == (name or None), built[-1]
+        assert set(rows[0]) == {"id", "content", "source_file", "page_number", "phase_relevance"}, rows[0]
+    getattr(retriever.get_knowledge_vectorstore, "cache_clear")()

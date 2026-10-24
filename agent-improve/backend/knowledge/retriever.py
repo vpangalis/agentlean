@@ -303,13 +303,17 @@ KNOWLEDGE_INDEX_FIELDS = [
 @lru_cache(maxsize=1)
 @child_span(run_type="chain", name="retriever.get_knowledge_vectorstore")
 def get_knowledge_vectorstore() -> AzureSearch:
-    """Cached vectorstore for improve_knowledge_index."""
+    """Cached vectorstore for improve_knowledge_index — hybrid search, ranked by the semantic ranker when the index's
+    semantic configuration is named (ADR-0060 decision 2, B9: AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG). Each search of
+    a lookup is ranked; the lookup's variants are then fused (RRF) as before."""
+    semantic = settings.AZURE_SEARCH_KNOWLEDGE_SEMANTIC_CONFIG.strip()
     return AzureSearch(
         azure_search_endpoint=settings.AZURE_SEARCH_ENDPOINT,
         azure_search_key=settings.AZURE_SEARCH_API_KEY,
         index_name=settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX,
         embedding_function=get_embeddings(),
-        search_type="hybrid",
+        search_type="semantic_hybrid" if semantic else "hybrid",
+        semantic_configuration_name=semantic or None,
         fields=KNOWLEDGE_INDEX_FIELDS,
     )
 
