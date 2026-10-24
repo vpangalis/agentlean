@@ -171,7 +171,9 @@ def fresh(res: dict) -> bool:
 def shallow(features: list[dict]) -> set[str]:
     """Features whose test the wiring check flags as driving neither the graph nor the API.
     Founder 2026-09-28 (RULINGS §4): one passing count everywhere — such a feature is not
-    passing on the board, in CONTINUITY or for rule 10 until its test is end to end."""
+    passing on the board, in CONTINUITY or for rule 10 until its test is end to end. A feature
+    marked `structural` (founder ruling 2026-10-24: its test checks content, the page's own
+    script, the ingest or a live record by nature) is not demoted."""
     import sys as _sys
     _sys.path.insert(0, str(_HERE.parent / "architecture"))
     try:
@@ -179,7 +181,8 @@ def shallow(features: list[dict]) -> set[str]:
         flagged = wiring.check_feature_tests(wiring.named(), features)
     except Exception:  # noqa: BLE001 — a broken check must not change the count silently
         return set()
-    return {w["name"] for w in flagged if "drives neither" in w["finding"]}
+    structural = {f["id"] for f in features if f.get("structural") is True}
+    return {w["name"] for w in flagged if "drives neither" in w["finding"]} - structural
 
 
 def counted(feature: dict, reqs: dict[str, dict] | None = None) -> bool:

@@ -34,7 +34,12 @@ FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane"
           "phase", "stage", "layer"}
 #: Carried by M2 features only: the founder's pilot cut (2026-09-30), true | false (rank.py --check).
 #: `package` and `merged_into`: founder ruling 2026-10-20 (fixed packages; merged duplicates).
-OPTIONAL = {"pilot", "run_criteria", "package", "merged_into", "track"}
+#: `structural`: founder ruling 2026-10-24 — see test_the_structural_features_are_exactly_the_six_ruled.
+OPTIONAL = {"pilot", "run_criteria", "package", "merged_into", "track", "structural"}
+#: Founder ruling 2026-10-24: features whose test checks content, the page's own script, the ingest or a live record
+#: by nature, so the wiring check's "drives neither the graph nor the API" does not demote them. Exactly these six;
+#: a further one needs the founder's ruling.
+STRUCTURAL = {"DEF-024", "DEF-120", "DEF-136", "DEF-175", "DEF-205", "DEF-206"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -52,6 +57,19 @@ def test_every_feature_has_the_founders_fields_and_no_status(feats) -> None:
         assert FIELDS <= set(f) <= FIELDS | OPTIONAL, (f["id"], set(f) ^ FIELDS)
         assert f["lane"] in F.LANES, f["id"]
         assert f["test"].startswith("backend/tests/test_") and "::test_" in f["test"], f["id"]
+
+
+def test_the_structural_features_are_exactly_the_six_ruled(feats) -> None:
+    """Founder ruling 2026-10-24: `structural: true` is carried by exactly the six ruled features, and only as true;
+    the board does not demote them for a test that drives neither the graph nor the API, and still demotes every
+    other such feature."""
+    marked = {f["id"] for f in feats if "structural" in f}
+    assert marked == STRUCTURAL, f"structural is the founder's ruling, feature by feature: {sorted(marked ^ STRUCTURAL)}"
+    assert all(f["structural"] is True for f in feats if "structural" in f)
+    shallow = F.shallow(feats)
+    assert not shallow & STRUCTURAL, sorted(shallow & STRUCTURAL)
+    unmarked = [{k: v for k, v in f.items() if k != "structural"} for f in feats]
+    assert STRUCTURAL <= F.shallow(unmarked), "without the mark the six are flagged — the exemption is the mark"
 
 
 def test_every_feature_cites_a_citable_requirement_and_every_one_has_a_feature(feats) -> None:

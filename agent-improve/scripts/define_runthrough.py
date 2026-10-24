@@ -394,6 +394,8 @@ def main() -> int:
     ap.add_argument("--scenarios-only", action="store_true",
                     help="run only the hard-path scenarios (b)-(e); the record goes to --scratch, never the tree")
     args = ap.parse_args()
+    # A Windows console encodes in cp1252; a character it lacks (the grader's '→') is replaced, not raised.
+    sys.stdout.reconfigure(errors="replace")  # type: ignore[union-attr]
     # DEF-064: the real send methods, kept for the one traced turn (traced_turn), before tracing goes off.
     from langsmith import Client as _LSClient
     from scripts.coaching_proof_656 import _CLIENT_SENDS
@@ -460,12 +462,13 @@ def main() -> int:
     summary["turn_times"] = turn_times([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines()
                                         if l.strip()])
     _write(rec, summary)
-    print(json.dumps(summary, indent=1, default=str))
-    print(grader_findings_text(summary["grader_findings"]))
-    _time_it(started, len(CALLS))
+    # The tree record is written before anything is printed: a print that fails cannot lose the run.
     tree = OUT_DIR / f"define_runthrough_{stamp}.json"
     tree.write_text(json.dumps([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines() if l.strip()],
                                indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(summary, indent=1, default=str))
+    print(grader_findings_text(summary["grader_findings"]))
+    _time_it(started, len(CALLS))
     print(f"record: {tree}")
     return exit_code(summary, SENDS)
 

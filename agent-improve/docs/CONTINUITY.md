@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 192 of 203 Define features pass (core 184 of 194) — A 78/83 · B 40/40 · C 55/59 · integrator 19/21 · M1: 75 proven · 0 awaiting fresh run · 1 open |
+| **Headline** | 198 of 203 Define features pass (core 190 of 194) — A 81/83 · B 40/40 · C 57/59 · integrator 20/21 · M1: 76 proven · 0 awaiting fresh run · 0 open |
 | **Next — lane A** | every feature passes |
 | **Next — lane B** | every feature passes |
 | **Next — lane C** | every feature passes |

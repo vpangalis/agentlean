@@ -1075,7 +1075,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching",
-   "pilot": false
+   "pilot": false,
+   "structural": true
   },
   {
    "id": "DEF-025",
@@ -3711,7 +3712,8 @@
    "stage": "coached",
    "layer": "coaching",
    "pilot": true,
-   "package": "P8"
+   "package": "P8",
+   "structural": true
   },
   {
    "id": "DEF-084",
@@ -4943,7 +4945,8 @@
    "stage": "coached",
    "layer": "persistence",
    "pilot": false,
-   "package": "P12"
+   "package": "P12",
+   "structural": true
   },
   {
    "id": "DEF-121",
@@ -5415,7 +5418,8 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform",
-   "package": "P8"
+   "package": "P8",
+   "structural": true
   },
   {
    "id": "DEF-137",
@@ -7467,7 +7471,8 @@
    "stage": "coached",
    "layer": "api",
    "pilot": true,
-   "package": "P3"
+   "package": "P3",
+   "structural": true
   },
   {
    "id": "DEF-206",
@@ -7500,7 +7505,8 @@
    "stage": "coached",
    "layer": "screen",
    "pilot": true,
-   "package": "P3"
+   "package": "P3",
+   "structural": true
   },
   {
    "id": "DEF-207",
