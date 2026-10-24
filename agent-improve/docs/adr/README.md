@@ -116,7 +116,7 @@ Generated from each file's status line; never typed.
 | [0070](0070-visuals-drawn-from-the-structured-read-back.md) | Visuals drawn from the structured read-back | ACCEPTED | refines 0069 |
 | [0071](0071-baseline-and-target-as-number-with-unit.md) | Baseline and target are stored as a number with a unit | ACCEPTED | refined by 0088 |
 | [0072](0072-park-an-element.md) | Parking an element is a coaching move decided in code | ACCEPTED | — |
-| [0073](0073-one-structured-reply-per-coach-call.md) | The coach makes one tool call per response (parallel tool calls off) | PROPOSED | — |
+| [0073](0073-one-structured-reply-per-coach-call.md) | The coach makes one tool call per response (parallel tool calls off) | PROPOSED | refined by 0110 |
 | [0074](0074-upload-judged-at-interpretation.md) | An upload is judged against the current element when it is interpreted | ACCEPTED | — |
 | [0075](0075-fields-captured-accepts-two-shapes.md) | `fields_captured` accepts `{}` as `[]` and a single entry as a one-item list | ACCEPTED | — |
 | [0076](0076-third-failed-gate-attempt-escalates-to-the-lead.md) | The third failed gate attempt escalates to the project lead; the case stays open | ACCEPTED | — |
@@ -152,4 +152,5 @@ Generated from each file's status line; never typed.
 | [0107](0107-step-log-upserts-on-its-key.md) | step_log upserts on its key — a replayed step leaves one entry | ACCEPTED | refines 0020 |
 | [0108](0108-kept-verdicts-have-their-own-channel.md) | The kept verdicts have their own PhaseState channel, not a copy in every reply's phase record | SUPERSEDED by 0109 | refines 0066 |
 | [0109](0109-kept-verdicts-ride-on-the-reply-that-changed-them.md) | The kept verdicts ride only on the reply whose turn changed them | ACCEPTED | refines 0066 |
+| [0110](0110-the-coach-reply-schema-types-its-captured-values.md) | The coach's reply schema types its captured values, citations and contradiction flag | ACCEPTED | refines 0073 |
 <!-- END ADR INDEX -->
