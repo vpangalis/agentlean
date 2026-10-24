@@ -3321,6 +3321,34 @@
    ],
    "escape_class": "assumption",
    "symptom": "OPEN — THE GATE JUDGE'S DEF-R13 VERDICT SITS ON A KNIFE'S EDGE. Runs define_runthrough_20261024T113017 and T115623 (product b5f767464ba0403a) failed the gate on DEF-R13 (1 of 3, then 0 of 3) for 'Three barriers now: the three sites use different approval routes, the ERP change freeze until January, and the AP team's year-end close in December' — concrete. Offline, through rubric.grade_define (3 grades = 9 judgments each): run 1's case passes 3 of 3, run 2's fails 3 of 3, and the two DEF-R13 documents differ ONLY in the capitalisation of five SIPOC step names; run 2's case with the JSON document (before G-260) passes 3 of 3. At temperature 0 the judge repeats itself for one prompt, so the majority of three (G-241) adds nothing, and a trivial change elsewhere in the document tips it. Judged in one call with the other criteria DEF-R13 fails about 1 in 3 calls; judged alone it passes, but DEF-R04 and DEF-R11 then fail 3 of 3 on correct values. D4 OCCURRENCE: the gate judge (grader role, gpt-4o-mini) is unstable near its boundary; G-260 moved the document. D4 ESCAPE: the eval set never submits a gate, and G-241's proof measured one answer. CONTAINED (2026-10-24): the rubric reads JSON again (rubric._text), the document every approved run-through used. Held for the founder's ruling: settle DEF-R13's 'concrete' in code, the premium deployment for the gate judge, or votes on varied prompts."
+  },
+  {
+   "id": "G-264",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-006"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "join",
+   "symptom": "DEF-006'S TEST ASSERTED THE ELEMENT'S POSITION AFTER THE RULING MADE THE ONE PROGRESS FIGURE 'N OF 13 CONFIRMED'. Found reading R12 item by item on run define_runthrough_20261024T123924 (product 45439d502ee0343d): DEF-006 failed on every turn — 'Define · 0 of 13 confirmed' where it wanted '1 of 13'. D2 IS: test_define_runthrough.py::test_run_every_turn_states_its_step and DEF-006's description still read 'Define · Step n of 13', n the open element's position. D2 IS-NOT: the product — every turn of runs 1, 2 and 3 carries define_progress's label over what the case stored (0 mismatches in 92 turns). D4 OCCURRENCE: G-259 (5b0caf4) made the reply's label define_progress's 'n of 13 confirmed' (G-205's ruling) and changed DEF-053's test, not DEF-006's, which kept its own copy of the rule as a literal pattern. D4 ESCAPE: the test reads only the live run-through record, which was stale from G-259 to run 3, so no commit's suite measured it against G-259's code. D5 FIX: the test builds its expectation with define_progress over each turn's stored keys; DEF-006's description names the ruled figure. D7 PREVENT: the class is join (a rule with two owners) — the test now reads the owner, so a label change cannot leave it asserting the old one."
+  },
+  {
+   "id": "G-265",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-064"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "assumption",
+   "symptom": "CAPABILITY ROW 35 SKIPPED ON EVERY RUN-THROUGH SINCE 2026-10-19, SO DEF-064 COULD NOT PASS. D2 IS: 'the latest turn never reached the coach (no executor ran)' on all 15 run-through records from define_runthrough_20261019T171608 to 20261024T123924; row 35 last passed on 20261014T121626, the same traced question and the same respond move. D2 IS-NOT: the traced turn — the server log shows define.planner -> executor and define.executor ran for it; the phase namespace's checkpoints record the executor step. D4 OCCURRENCE: row 35 read 'reached the coach' as 'the turn has an inner agent checkpoint namespace (one with |)'; G-232 (ed39440) stopped checkpointing the coach's inner agent (create_agent checkpointer=False), so no turn has one. _tools_called read only that namespace too, so the row's tool check went vacuous. D4 ESCAPE: a skip is not a failure, its message blamed the turn, not the check, and DEF-064 counted among the features waiting for a fresh run. D5 FIX: _executor_ran reads the executor node's versions_seen change in the turn's namespaces; _tools_called reads every namespace of the turn. Live check (scratch probe, run 1's case IMPR-2026-MCKDPV, USD 0.02): the run-through's traced turn, then the run-through's capability rows — 16 of 16 passed, row 35 among them. D7 PREVENT: the class is assumption — test_capability_rows.py::test_mutation_row_35_a_turn_that_reached_the_coach_is_read_from_the_phase_namespace probes the checkpoint shape the row assumes."
   }
  ],
  "escape_controls": {

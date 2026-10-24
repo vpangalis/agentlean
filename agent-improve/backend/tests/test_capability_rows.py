@@ -87,6 +87,8 @@ COMPUTATION_KEYS = {"tool", "inputs", "result", "turn", "phase"}
 #: executor's agent, and the prefix middleware hooks are traced with.
 MODEL_NODE = "model"
 MIDDLEWARE_MARK = "Middleware."
+#: The phase subgraph's node that runs the coach.
+EXECUTOR_NODE = "executor"
 
 def _degraded() -> set[str]:
     from backend.phases.nodes_common import _CAP_MESSAGE, _TIMEOUT_MESSAGE
@@ -731,7 +733,7 @@ def test_row_35_every_define_turn_leaves_a_langsmith_trace(turn) -> None:
     record = turn["record"]
     if not record:
         pytest.skip(f"{CASE_ID} has no recorded turn" + NOT_A_PASS)
-    if not any("|" in ns for ns in record["spaces"]):
+    if not _executor_ran(record):
         pytest.skip("the latest turn never reached the coach (no executor ran), so it "
                     "made no model call to trace" + NOT_A_PASS)
     if _trace_aged_out(record["t0"]):
@@ -745,6 +747,17 @@ def test_row_35_every_define_turn_leaves_a_langsmith_trace(turn) -> None:
         runs = _trace_for(client, project, record)
     problems = _row_35(runs, called, reason)
     assert not problems, "; ".join(problems)
+
+
+def _executor_ran(record: dict) -> bool:
+    """Whether the turn reached the coach: one of its namespaces has a checkpoint at which the executor node's
+    `versions_seen` entry changed — the node ran. G-265: the coach's inner agent is not checkpointed (G-232), so
+    the inner namespace this used to look for no longer exists on any turn."""
+    for hist in (record.get("spaces") or {}).values():
+        for before, after in zip(hist, hist[1:]):
+            if after["seen"].get(EXECUTOR_NODE) != before["seen"].get(EXECUTOR_NODE):
+                return True
+    return False
 
 
 #: G-152 — LangSmith keeps a base-tier trace 14 days; an older turn's trace is gone, not missing.
@@ -780,9 +793,9 @@ def _tools_called(record: dict) -> set[str]:
     from langchain_core.messages import HumanMessage, ToolMessage
     from backend.core.substate import CoachingResponse
     called = set()
-    for ns, hist in record["spaces"].items():
-        if "|" not in ns:
-            continue
+    # Every namespace of the turn: the coach's inner agent is not checkpointed (G-232), so its messages are the
+    # phase subgraph's (G-265).
+    for hist in record["spaces"].values():
         msgs = list(hist[-1]["values"].get("messages") or [])
         starts = [i for i, m in enumerate(msgs) if isinstance(m, HumanMessage)]
         for m in msgs[(starts[-1] + 1) if starts else 0:]:
@@ -949,6 +962,28 @@ def test_mutation_row_35_tracing_off_or_stripped_is_red() -> None:
     assert _row_35([], set(), None)
     assert _row_35([r for r in good if r["type"] != "tool"], {"load_skill"}, None)
     assert _row_35([r for r in good if MIDDLEWARE_MARK not in r["name"]], set(), None)
+
+
+def test_mutation_row_35_a_turn_that_reached_the_coach_is_read_from_the_phase_namespace() -> None:
+    """G-265: as the checkpointer holds a turn since G-232 — one phase namespace, no inner agent namespace. A turn
+    whose executor ran is read as reaching the coach and its tool calls are found; a turn whose executor did not run
+    (an approval) is not."""
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    def cp(seen: dict, messages: list | None = None) -> dict:
+        return {"seen": seen, "values": {"messages": messages or []}}
+    msgs = [HumanMessage("earlier"), ToolMessage("x", tool_call_id="0", name="search_knowledge"),
+            HumanMessage("this turn"), AIMessage("", tool_calls=[{"name": "load_skill", "args": {}, "id": "1"}]),
+            ToolMessage("skill", tool_call_id="1", name="load_skill"),
+            ToolMessage("{}", tool_call_id="2", name="CoachingResponse"), AIMessage("reply")]
+    coached = {"spaces": {"define_phase:a": [
+        cp({"__input__": {}}), cp({"planner": {"x": 1}}), cp({"planner": {"x": 1}, "executor": {"x": 2}}, msgs)]}}
+    approval = {"spaces": {"define_approval:b": [
+        cp({"__input__": {}}), cp({"planner": {"x": 1}}), cp({"planner": {"x": 1}, "gate_review": {"x": 2}})]}}
+    assert _executor_ran(coached)
+    assert _tools_called(coached) == {"load_skill"}, "only this turn's tools, never the structured response"
+    assert not _executor_ran(approval)
+    assert not _executor_ran({"spaces": {}})
 
 
 # ══════════════════════════════════════════════════════════════════════════

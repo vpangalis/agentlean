@@ -35,7 +35,7 @@ import features  # noqa: E402
 pytestmark = pytest.mark.xfail(strict=False, reason="a Define feature test — its outcome is the measurement")
 
 RECORDS = _PROJECT / "docs" / "runthrough"
-from backend.phases.define.schema import DEFINE_FIELD_ORDER, DEFINE_POSITIONS  # noqa: E402
+from backend.phases.define.schema import DEFINE_FIELD_ORDER  # noqa: E402
 
 ORDER = DEFINE_FIELD_ORDER
 
@@ -124,15 +124,18 @@ def test_run_an_untaught_field_is_taught_example_before_ask(run) -> None:
 
 
 def test_run_every_turn_states_its_step(run) -> None:
-    """DEF-006 — 'Step n of 13', n the current element's position."""
+    """DEF-006 — every turn states the Belt's progress as `define_progress` computes it over what the case has
+    stored at that turn: the one figure, 'Define · n of 13 confirmed' (G-205, G-259), never a count the model wrote
+    (G-264: this test still asserted the element's position after G-259)."""
+    from backend.phases.define.schema import define_progress
     bad = []
     for t in run["turns"]:
-        if t["http"] != 200 or not t.get("field"):
+        if t["http"] != 200:
             continue
-        n = ORDER.index(t["field"]) + 1 if t["field"] in ORDER else None
-        progress_text = (t["reply"] or {}).get("progress") or ""
-        if not re.search(rf"\b{n}\s+of\s+{DEFINE_POSITIONS}\b", progress_text):
-            bad.append((t["n"], t["field"], progress_text))
+        want = define_progress({k: "stored" for k in t.get("stored_keys") or []})["label"]
+        got = (t["reply"] or {}).get("progress") or ""
+        if got != want:
+            bad.append((t["n"], t["field"], got, want))
     assert not bad, bad
 
 

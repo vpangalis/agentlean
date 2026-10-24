@@ -7,8 +7,8 @@
 
 | | |
 |---|---|
-| **Headline** | 191 of 203 Define features pass (core 184 of 194) — A 77/83 · B 40/40 · C 55/59 · integrator 19/21 · M1: 75 proven · 0 awaiting fresh run · 1 open |
-| **Next — lane A** | DEF-006 — Every coaching turn tells the Belt where they are — 'Define · Step n of 13' — computed by define_progress, never counted by the model. |
+| **Headline** | 192 of 203 Define features pass (core 184 of 194) — A 78/83 · B 40/40 · C 55/59 · integrator 19/21 · M1: 75 proven · 0 awaiting fresh run · 1 open |
+| **Next — lane A** | every feature passes |
 | **Next — lane B** | every feature passes |
 | **Next — lane C** | every feature passes |
 | **Next — lane integrator** | DEF-064 — Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run. |

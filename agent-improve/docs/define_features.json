@@ -259,7 +259,7 @@
   },
   {
    "id": "DEF-006",
-   "description": "Every coaching turn tells the Belt where they are — 'Define · Step n of 13' — computed by define_progress, never counted by the model.",
+   "description": "Every coaching turn tells the Belt where they are — 'Define · n of 13 confirmed', the one progress figure (G-205, G-259) — computed by define_progress, never counted by the model.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
@@ -291,7 +291,8 @@
     ],
     "gaps": [
      "G-123",
-     "G-153"
+     "G-153",
+     "G-264"
     ]
    },
    "requirement": "R1",
@@ -3018,7 +3019,8 @@
      "35"
     ],
     "gaps": [
-     "G-249"
+     "G-249",
+     "G-265"
     ]
    },
    "requirement": "R1",
