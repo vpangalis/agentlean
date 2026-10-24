@@ -230,7 +230,7 @@ def test_a_history_turn_round_trips_the_blocks() -> None:
 def _render_turn(turn: dict) -> str:
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not installed — renderTurn cannot be run; this is NOT a pass")
+        pytest.fail("node is not installed — renderTurn cannot be run; the UI tests need Node.js (audit X5)", pytrace=False)
     src = UI.read_text(encoding="utf-8")
     m = re.search(r"^function renderTurn\(turn\)\{.*?^\}", src, re.M | re.S)
     assert m, "renderTurn not found in ui/index.html"
@@ -274,7 +274,7 @@ def test_an_empty_block_renders_as_absent() -> None:
 def _run_js(js: str) -> str:
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not installed — the UI cannot be run; this is NOT a pass")
+        pytest.fail("node is not installed — the UI cannot be run; the UI tests need Node.js (audit X5)", pytrace=False)
     out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
     return out.stdout

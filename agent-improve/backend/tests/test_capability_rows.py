@@ -61,11 +61,6 @@ SCRIPT_PROOF_CASE = os.environ.get("CAPABILITY_SCRIPT_CASE_ID", "IMPR-2026-7F1")
 #: next planned traced run. CONTAINMENT: while listed, a stale-hash mismatch is an expected
 #: failure, never a pass. REMOVE the entry when the traced run records a turn with the
 #: current SKILL.md — the test then passes on its own.
-REPROOF_OWED = {
-    "3": "founder ruling 4 (2026-09-27): the Define SKILL.md changed outside its script "
-         "section, and again on 2026-09-28 (G-115: two unbuilt tools left its allowed-tools); row 3 is "
-         "re-proved in the next planned traced run (docs/harness-progress.md, Plan)",
-}
 PHASE = "define"
 LIVE_TURN = os.environ.get("CAPABILITY_LIVE_TURN") == "1"
 #: DEF-064 (founder 2026-10-14): the turn the run-through drove and traced, handed to row 2 as a file —
@@ -546,8 +541,11 @@ def test_row_3_the_coach_follows_the_define_script(turn) -> None:
         pytest.skip(f"no coaching turn on {SCRIPT_PROOF_CASE} completed" + NOT_A_PASS)
     log = [e for e in (finals[-1]["values"].get("step_log") or []) if isinstance(e, dict)]
     problems = _row_3(log, script_record(PHASE)["sha256"])
-    if problems and "3" in REPROOF_OWED and all("is not today's SKILL.md" in p for p in problems):
-        pytest.xfail("re-proof owed — " + REPROOF_OWED["3"] + " · " + "; ".join(problems))
+    if problems and all("is not today's SKILL.md" in p for p in problems):
+        # Audit X4: a row that cannot prove today's script is not run — a skip, never an expected failure. The
+        # run-through's rows prove row 3 on their own case (run 4: passed).
+        pytest.skip(f"{SCRIPT_PROOF_CASE}'s last coached turn predates today's SKILL.md: " + "; ".join(problems)
+                    + NOT_A_PASS)
     assert not problems, "; ".join(problems)
 
 
@@ -639,11 +637,6 @@ def test_row_11_the_metric_entry_mirrors_the_primary_scalars() -> None:
     assert not problems, "; ".join(problems)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "RED — layer 2a rejects and never re-asks. Until 6.52 B2 it re-checked the SAME "
-    "reply up to three times (10 of 10 rejecting turns on IMPR-2026-0E5, no model "
-    "call after the rejection); since B2 it checks once and degrades. A fresh "
-    "reply on reject is step 6.53, gated on G-83. Bug in stories.py, S40."))
 def _row_12_challenges(step_logs: list[list[dict]]) -> tuple[list[dict], list[str]]:
     """Row 12, re-pointed (founder 2026-10-14; ADR-0083's note): the planner's challenges of an answer it
     judged insufficient, and the problems — a challenge that names no failed criterion, or one that is not

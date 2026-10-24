@@ -472,7 +472,7 @@ def _actions(d: dict, rep: dict, passed: bool = False) -> str:
     from backend.tests.test_define_report import UI, _fn
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not installed — the controls cannot be rendered; this is NOT a pass")
+        pytest.fail("node is not installed — the controls cannot be rendered; the UI tests need Node.js (audit X5)", pytrace=False)
     src = UI.read_text(encoding="utf-8")
     js = (_fn(src, "escapeHtml") + "\n" + _fn(src, "defineReportActionsHtml")
           + f"\nprocess.stdout.write(defineReportActionsHtml({json.dumps(d)}, "

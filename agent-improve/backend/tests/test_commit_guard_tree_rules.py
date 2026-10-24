@@ -63,9 +63,9 @@ _ROOT = subprocess.run(
 ).stdout.strip() or str(Path(__file__).resolve().parents[3])
 _HOOK = Path(_ROOT) / ".claude" / "hooks" / "commit-msg-refactor-guard.py"
 
-pytestmark = pytest.mark.skipif(
-    not _HOOK.exists(), reason=f"{_HOOK} not present",
-)
+if not _HOOK.exists():
+    pytest.fail(f"{_HOOK} is missing — the guard is tracked in git, so this checkout is incomplete (audit X6)",
+                pytrace=False)
 
 
 def _guard() -> Any:

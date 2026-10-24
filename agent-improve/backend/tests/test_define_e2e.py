@@ -339,7 +339,7 @@ def _run_page(functions: tuple[str, ...], script: str) -> dict:
 
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+        pytest.fail("node is not installed — the screen cannot be run; the UI tests need Node.js (audit X5)", pytrace=False)
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
     funcs = []
     wanted: list[str] = []
@@ -5027,7 +5027,7 @@ def _ui_run(script: str) -> dict:
 
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+        pytest.fail("node is not installed — the screen cannot be run; the UI tests need Node.js (audit X5)", pytrace=False)
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
 
     def fn(name: str) -> str:
@@ -6044,7 +6044,7 @@ def _page(names: tuple[str, ...], script: str) -> dict:
 
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+        pytest.fail("node is not installed — the screen cannot be run; the UI tests need Node.js (audit X5)", pytrace=False)
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
     parts = []
     wanted: list[str] = []
@@ -9227,7 +9227,7 @@ def _page_js(*names: str, script: str) -> dict:
     from pathlib import Path
     node = shutil.which("node")
     if node is None:
-        pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
+        pytest.fail("node is not installed — the screen cannot be run; the UI tests need Node.js (audit X5)", pytrace=False)
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
     cut = []
     for name in names:
