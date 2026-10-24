@@ -1,4 +1,4 @@
-"""A phase's unfinished work, carried in the checkpoint — ADR-0066 (ACCEPTED), T13.
+"""A phase's unfinished work, carried in the checkpoint — ADR-0066, T13.
 
 Unfinished work is a phase's captured values, field statuses and field log before its gate is
 approved. Its only home is the checkpoint: the wrapper node (`core/graph.py::phase_node`)
@@ -8,9 +8,8 @@ the record is saved in the checkpoint with it — no eighth state field, no Stor
 case-blob write.
 
 The next turn's input mapper seeds from the newest record of its phase (`new_phase_state`); a
-reload reads it through the compiled graph (`gateway/routes.py::_with_unfinished_work`). The
-merge is the one the `/ask` route used to apply to the case blob (step 6.33, 6.48, 6.61), moved
-here unchanged so the two cannot disagree.
+reload reads it through the compiled graph (`gateway/routes.py::_with_unfinished_work`). This
+module holds the one merge, so no route keeps a second copy that could disagree with it.
 """
 from __future__ import annotations
 
@@ -35,9 +34,9 @@ def _citation_key(c: dict[str, Any]) -> tuple[str, str]:
 
 
 def merge(prior: dict[str, Any], payload: dict[str, Any], phase: str) -> dict[str, Any]:
-    """Fold one turn's product into the record — MERGE, never replace (step 6.33). A capture
-    that is empty or not of its declared type does not reach the record (step 6.48); the field
-    statuses are replaced whole (step 6.61); the log merges with the channel's own reducer."""
+    """Fold one turn's product into the record — MERGE, never replace. A capture that is empty
+    or not of its declared type does not reach the record; the field statuses are replaced
+    whole; the log merges with the channel's own reducer."""
     structured: dict[str, Any] = dict(prior.get("structured") or {})
     status: dict[str, dict[str, Any]] = {f: dict(v) for f, v in (prior.get("field_status") or {}).items()}
     log: list[dict[str, Any]] = [dict(e) for e in (prior.get("field_log") or [])]
@@ -116,8 +115,8 @@ def _joined(rec: dict[str, Any], kept: dict[str, dict[str, Any]]) -> dict[str, A
     return {**rec, "field_status": status}
 
 
-#: DEF-219 (founder ruling 2026-10-22 evening, item 2a): a reply carries only what its turn changed in the record —
-#: marked so a reader folds it onto the record before it; a record without the mark (written before) is whole.
+#: DEF-219: a reply carries only what its turn changed in the record — marked so a reader folds it onto the record
+#: before it; a record without the mark (an older reply) is whole.
 DELTA = "delta"
 _SCALARS = ("gate_attempts", "gate_fingerprint")
 
@@ -190,7 +189,7 @@ def for_reply(payload: dict[str, Any], messages: Iterable[Any], phase: str) -> d
     """ADR-0109 — the turn's payload as the reply stores it: the record and the turn's `field_status` without the kept
     verdicts, and the verdicts under `KEPT_KEY` only when they differ from the newest ones before this turn.
 
-    DEF-219 (ruling 2026-10-22 evening, item 2a): the record rides only as what this turn changed against the record
+    DEF-219: the record rides only as what this turn changed against the record
     the messages already carry (none when nothing changed); the turn's `field_status` and `field_log` beside it are
     the changed statuses and the added entries — never whole copies."""
     msgs = list(messages or [])

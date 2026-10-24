@@ -1,8 +1,8 @@
-"""What the coach's model fallback must never see — ADR-0082 (founder ruling 2026-10-13, T34 option A).
+"""What the coach's model fallback must never see — ADR-0082 (T34).
 
 `ModelFallbackMiddleware` (ADR-0059 decision 2) sends every failed call to the next model. Two failures
-are not the model's to recover from: a `content_filter` refusal (T92) and a token-limit HTTP 400 (§4.8,
-T36 — fix the context, never a smaller model). This `wrap_model_call` middleware, declared inside the
+are not the model's to recover from: a `content_filter` refusal (T92) and a token-limit HTTP 400
+(T36 — fix the context, never a smaller model). This `wrap_model_call` middleware, declared inside the
 retry and so inside the fallback, turns either one into a reply marked with the reason; neither layer
 above it sees a failure. The executor reads the mark (`kept_from_fallback`) and writes the reply in code.
 
@@ -49,7 +49,7 @@ def _model(request: ModelRequest) -> str:
 def kept_from_fallback_middleware(attempts: Optional[list[dict[str, Any]]] = None) -> Any:
     """The `wrap_model_call` middleware that marks a refusal or a token-limit error instead of raising it.
     Innermost of the three, it sees every attempt the retry and the fallback make: each one, with its
-    model and outcome, goes to `attempts` for `step_log` (§4.8: every attempt is logged)."""
+    model and outcome, goes to `attempts` for `step_log` (every attempt is logged)."""
     async def keep_out(request: ModelRequest,
                        handler: Callable[[ModelRequest], Awaitable[ModelResponse]]) -> ModelResponse:
         try:

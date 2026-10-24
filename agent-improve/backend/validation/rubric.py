@@ -1,24 +1,27 @@
 """Layer 2d for Define — the R7 rubric, graded at the gate.
 
-Founder requirement R7 (`docs/requirements/business.md`, 2026-09-26): the gate
-rubric comes from the manual, ONE criterion per element, pass/fail with a
-reason. The criteria are `core.prompts.DEFINE_RUBRIC` (their one home); this
-module grades a Define gate document against them:
+Requirement R7 (`docs/requirements/business.md`): the gate rubric comes from
+the manual, ONE criterion per element, pass/fail with a reason. The criteria
+are `core.prompts.DEFINE_RUBRIC` (their one home); this module grades a Define
+gate document against them:
 
   1. the DETERMINISTIC half of each criterion first — presence of the parts a
      criterion needs, a number where it needs one, a date, a named champion
-     and process owner. Four criteria are decided entirely here (DEF-R02,
-     DEF-R08, DEF-R09, DEF-R10); a code failure of a mixed one (DEF-R03,
-     DEF-R04, DEF-R05, DEF-R12) is final, with no model call;
-  2. ONE `grader` call (temperature 0 — G-241; §4.7), builder-style structured
-     output (§4.6: a plain model call inside a validator), for what needs
-     judgment — "no cause or solution speculation", "as-is, not the ideal",
-     "real data, not a best guess". No retrieval (§9: never during gate
-     validation).
+     and process owner. Two criteria are decided entirely here (`CODE_ONLY`:
+     DEF-R08, DEF-R09); a mixed one (DEF-R02, DEF-R03, DEF-R04, DEF-R05,
+     DEF-R10, DEF-R12, DEF-R13) that fails its code half fails, with no model
+     call, and one that code settles (DEF-R02, DEF-R13) passes without one;
+  2. the `grader` model at temperature 0 (G-241), with structured output (a
+     plain model call inside a validator), for what needs judgment — "no cause
+     or solution speculation", "as-is, not the ideal", "real data, not a best
+     guess". Each criterion takes the majority of `GATE_VOTES` judgments, and
+     a criterion verdict kept from an earlier submission whose answers are
+     unchanged is reused with no call (DEF-224). No retrieval: none during
+     gate validation.
 
 Define is Tier 1 throughout: a `warning` from the model is read as `fail`, and
 a criterion the model left unjudged FAILS CLOSED with that reason — a gate
-never opens on a verdict nobody gave. Module-level functions only (§2).
+never opens on a verdict nobody gave. Module-level functions only.
 """
 from __future__ import annotations
 
@@ -42,22 +45,20 @@ DEFINE_CRITERIA: tuple[tuple[str, str, str], ...] = tuple(
     for m in (_LINE.match(ln.strip()) for ln in DEFINE_RUBRIC.splitlines()) if m)
 
 #: The criteria decided entirely in code; the rest reach the model when their
-#: code half (if any) passes.
-#: G-133 (2026-09-29): DEF-R02 is no longer code-only — code settles the champion and the process
-#: owner, and the training when it is written in so many words; otherwise the grader judges it with
-#: the element's own criteria (founder ruling 2: the element check and the gate cannot disagree).
-#: G-256 (audit D7, founder 2026-10-24): DEF-R10 is no longer code-only — code settles the parts it can read, and the
-#: grader judges how the cost of the gap was worked out, against the element's own criteria.
+#: code half (if any) does not settle them.
+#: DEF-R02 (G-133) and DEF-R10 (G-256) are not code-only: code settles the parts it can read — for DEF-R02 the
+#: champion, the process owner, and the training when it is written in so many words — and the grader judges the
+#: rest (the training said in other words; how the cost of the gap was worked out) against the element's own
+#: criteria, so the element check and the gate cannot disagree.
 CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09"})
 
 Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
 
 def _text(value: Any) -> str:
-    """A value as the gate judge reads it: structure as JSON, text as it is. G-263: the judge's DEF-R13 verdict sits on
-    a knife's edge — the same case passed 3 of 3 with this document and failed 3 of 3 with the plain words the Belt is
-    shown (run define_runthrough_20261024T115623) — so the judge keeps the document every approved run-through used,
-    until the founder rules on the judge itself."""
+    """A value as the gate judge reads it: structure as JSON, text as it is. G-263: the judge's DEF-R13 verdict
+    tips on trivial changes to its document, so it reads the document every approved run-through used, until the
+    founder rules on the judge."""
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)
     return str(value or "").strip()
@@ -90,7 +91,7 @@ def _parse_date(value: Any) -> Optional[dt.date]:
 def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[CriterionVerdict]:
     """A verdict when code can settle the criterion (or fail its code half);
     None when the criterion still needs the model's judgment."""
-    # G-244 (audit A2, A3; founder ruling G-129): the parts the element check and the gate both hold are checked by
+    # G-244 (G-129): the parts the element check and the gate both hold are checked by
     # ONE function, the element check's own (parse.missing_parts) — a confirmed element never fails here in code.
     from backend.phases.define.parse import missing_parts
     if cid == "DEF-R02":
@@ -152,9 +153,9 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
             return _fail(cid, "Say whether the impact is sustainable or one-off.")
         if missing := missing_parts("benefits_analysis", b):                       # G-255: the element's own check
             return _fail(cid, "The benefits analysis does not say " + "; ".join(missing) + ".")
-        return None                                     # G-256 (audit D7): how the cost was worked out is judged
+        return None                                     # G-256: how the cost was worked out is the grader's
     if cid == "DEF-R13":
-        # G-134 (founder ruling 4, 2026-09-29): code settles what can be read — the conscious
+        # G-134: code settles what can be read — the conscious
         # "none identified at this stage", or nothing named at all; the model judges only
         # whether what is named is specific (MODEL_ASKS).
         text = _text(a.get("issues_and_barriers")).strip()
@@ -185,15 +186,12 @@ def _names_a_roadblock(text: str) -> bool:
 
 #: G-134 — what the grader is asked when code has settled part of a criterion: the rest only.
 MODEL_ASKS: dict[str, str] = {
-    # G-256 (audit D7): the part of the benefits criterion code cannot read.
+    # G-256: the part of the benefits criterion code cannot read.
     "DEF-R10": ("code has already checked the four parts, the figure, sustainable or one-off, and when the saving "
                 "shows. Judge ONLY whether the cost of the gap says how it was worked out: PASS when it names the "
                 "figures it rests on or a calculation is shown with it; FAIL only for a bare figure with nothing "
                 "behind it"),
-    # G-134, second attempt (2026-09-29): the first narrowed question ("each one named is specific
-    # ... a named system, team, rule, date or dependency") still failed an answer naming three sites'
-    # approval routes and an ERP change freeze until January (record 20260929T103652). The question
-    # now says what passes and what fails, in the project's terms.
+    # G-134: the question says what passes and what fails, in the project's terms.
     "DEF-R13": ("code has already checked that at least one issue or barrier is named. Judge ONLY "
                 "whether they belong to THIS project: PASS when the roadblocks named mention something "
                 "concrete from it — a site, process, system, team, rule, supplier, date or event; FAIL "
@@ -203,7 +201,7 @@ MODEL_ASKS: dict[str, str] = {
 
 
 def _reads(field: str, cid: str) -> list[str]:
-    """G-241 (ruling 2026-10-22 evening, item 1): the fields a criterion is judged on — its element's captured fields
+    """G-241: the fields a criterion is judged on — its element's captured fields
     (the CTQs with the voice of the customer, the 5W2H with the problem) and those of the elements in READS."""
     from backend.phases import moves
     captured = dict(moves.positions("define"))
@@ -239,8 +237,8 @@ def _document(a: dict[str, Any]) -> str:
     return "\n".join(f"{k}: {_text(v)}" for k, v in a.items() if k not in skip and _text(v))
 
 
-#: G-241 (founder ruling 2026-10-22 afternoon, 1b): the gate judge reads at temperature 0 — the same document gets the
-#: same verdict. The coaching grader (the `grader` role's own 0.1, §4.7) is unchanged.
+#: G-241: the gate judge reads at temperature 0, so the same document gets the same verdict. The coaching grader
+#: keeps the `grader` role's own temperature.
 GATE_TEMPERATURE = 0.0
 
 #: G-241: the terms a failing reason can name — a quoted phrase, a hyphenated compound, an acronym.
@@ -249,9 +247,9 @@ _TERM = re.compile(r"(?:(?<=\s)|^)['‘\"“]([^'’\"”]{3,80})['’\"”](?=[
 
 
 def foreign_terms(reason: str, document: str, criteria: str) -> list[str]:
-    """G-241 (1b): the terms a failing reason names that appear neither in the case's answers nor in the criteria — a
-    reason must name a gap in the case's own answers, never a fact the case does not hold (run 140813: "year-end
-    close context", in a case that never mentions a year-end close)."""
+    """G-241: the terms a failing reason names that appear neither in the case's answers nor in the criteria — a
+    reason must name a gap in the case's own answers, never a fact the case does not hold ("year-end close
+    context", in a case that never mentions a year-end close)."""
     known = f"{document} {criteria}".lower()
     terms = [next(g for g in m.groups() if g) for m in _TERM.finditer(reason or "")]
     return [t for t in terms if t.lower() not in known]
@@ -260,7 +258,7 @@ def foreign_terms(reason: str, document: str, criteria: str) -> list[str]:
 async def _llm_verdicts(criteria: list[tuple[str, str, str]], document: str) -> GraderVerdict:
     """One `grader` call for the criteria that need judgment."""
     grader = get_llm("grader", temperature=GATE_TEMPERATURE).with_structured_output(GraderVerdict)
-    # G-129 (founder ruling 2, 2026-09-28): each rubric line carries its element's own acceptance
+    # G-129: each rubric line carries its element's own acceptance
     # criteria, so the element check and the gate cannot disagree on the same answer.
     from backend.middleware.skills import acceptance_criteria
     lines = "\n".join(
@@ -334,7 +332,7 @@ async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
                     sum(1 for cid, _, _ in DEFINE_CRITERIA if cid in verdicts and cid in kept), len(to_judge))
     if to_judge:
         document = _document_by_criterion(to_judge, a)
-        # G-241 (1c): three judgments, the majority per criterion — the same document must get the same verdict.
+        # G-241: GATE_VOTES judgments, the majority per criterion — the same document must get the same verdict.
         rounds = [await _judged_once(to_judge, document, judge) for _ in range(GATE_VOTES)]
         for cid, _field, _criterion in to_judge:
             fails = [r[cid] for r in rounds if r[cid].status == "fail"]
@@ -346,15 +344,15 @@ async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
     return GraderVerdict(verdicts=[verdicts[cid] for cid, _, _ in DEFINE_CRITERIA])
 
 
-#: G-241 (founder ruling 2026-10-22 afternoon, 1c): each model-judged gate criterion takes the majority of this many
-#: judgments — the judge disagreed with itself at temperature 0 on the same document (3 fail, 2 pass in 5).
+#: G-241: each model-judged gate criterion takes the majority of this many judgments, because the judge can disagree
+#: with itself on the same document even at temperature 0.
 GATE_VOTES = 3
 
 
 async def _judged_once(to_judge: list[tuple[str, str, str]], document: str,
                        judge: Optional[Judge] = None) -> dict[str, CriterionVerdict]:
     """One judgment of `to_judge` — pass or fail per criterion (Tier 1: never a warning; no verdict fails closed).
-    G-241 (1b): a failing reason naming a fact the case does not hold is discarded and that criterion judged once
+    G-241: a failing reason naming a fact the case does not hold is discarded and that criterion judged once
     more; the second verdict stands."""
     model = await (judge or _llm_verdicts)(to_judge, document)
     given = {v.criterion.strip(): v for v in model.verdicts}

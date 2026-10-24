@@ -1,46 +1,43 @@
 """`AzureBlobStore` — the `BaseStore` implementation carrying cross-phase artifacts.
 
-Canonical definition: reference **§58.6 — S-C06**. Architecture: §9 (the Store)
-and §10 (Azure Blob — two distinct concerns). Procedure step 3.2. S-C06 carries
-a *rebuild test*: this class must be reconstructable from that entry alone.
+This class must be reconstructable from the ratified Store definition alone.
 
 Explicit — nodes call `put`/`get` — as opposed to the checkpointer, which
 LangGraph drives automatically. **It is the only mechanism that moves a value
 across a phase boundary**, because it is the only one that survives the process
-ending between two sessions nine days apart (§9).
+ending between two sessions nine days apart.
 
 WHY THIS SUBCLASSES `BaseStore` RATHER THAN DEFINING ITS OWN API
 ---------------------------------------------------------------
-CLAUDE.md §0.24: a framework gap is a real answer, but *supplying a backend to
-a framework primitive is using the primitive; writing your own alongside it is
-the violation*. LangGraph ships no Azure Blob store, so a custom backend is
-warranted — and it is correct precisely because it implements `BaseStore`.
+A framework gap is a real answer, but *supplying a backend to a framework
+primitive is using the primitive; writing your own alongside it is the
+violation* (CLAUDE.md). LangGraph ships no Azure Blob store, so a custom
+backend is warranted — and it is correct precisely because it implements
+`BaseStore`.
 
-**`BaseStore`'s only abstract methods are `batch()` and `abatch()`** (verified
-against the pinned langgraph 1.2.11). `get`, `put`, `search`, `delete`,
+**`BaseStore`'s only abstract methods are `batch()` and `abatch()`** (the
+pinned langgraph 1.2.11). `get`, `put`, `search`, `delete`,
 `list_namespaces` and their async twins are CONCRETE on the base class and are
-expressed in terms of those two. So the whole public surface S-C06 names is
+expressed in terms of those two. So the Store's whole public surface is
 implemented here by implementing the two operation dispatchers and nothing
-else. Overriding `put`/`get` directly would have produced a bespoke API wearing
-a `BaseStore` name — the reinvention §0.24 exists to prevent — and would have
-silently skipped whatever the base does around them (`delete()`, for one, is
+else. Overriding `put`/`get` directly would produce a bespoke API wearing
+a `BaseStore` name — the reinvention the rule exists to prevent — and would
+silently skip whatever the base does around them (`delete()`, for one, is
 literally `batch([PutOp(namespace, key, None)])`).
 
-CONCERN SEPARATION (§10) — THIS IS NOT `storage/blob.py`
---------------------------------------------------------
-§10 ratifies two distinct Blob concerns with two owners, and they are not
-merged:
+CONCERN SEPARATION — THIS IS NOT `storage/blob.py`
+--------------------------------------------------
+Two distinct Blob concerns with two owners, and they are not merged:
 
   * **checkpoints** — in-flight graph state, `checkpoints/{case_id}/...`,
-    owned by `core/checkpointer.py` (S-C07).
+    owned by `core/checkpointer.py`.
   * **case records** — the system of record, `cases/case_{id}.json`,
-    `registry.json`, `uploads/...`, owned by `storage/blob.py` via
-    `ImproveBlobClient` (S-C08).
+    `registry.json`, `uploads/...`, owned by `storage/blob.py`.
 
 This file owns a third path prefix, `store/`, and none of the others. In
 particular `cases/case_{id}.json` stays authoritative: the `case` namespace
 here is a session-start COPY so that mappers depend on `BaseStore` alone, not a
-second system of record (§9).
+second system of record.
 """
 from __future__ import annotations
 
@@ -79,12 +76,12 @@ STORE_PREFIX = layout.STORE_PREFIX
 
 
 def blob_path(namespace: tuple[str, ...], key: str) -> str:
-    """`("projects", case_id, kind), "define"` -> the §9 blob prefix.
+    """`("projects", case_id, kind), "define"` -> the blob path.
 
         store/projects/{case_id}/{kind}/{key}.json
 
     Generic over namespace depth on purpose: the convention is three segments
-    (§9) but `BaseStore` does not constrain depth, and hard-coding three would
+    but `BaseStore` does not constrain depth, and hard-coding three would
     make any other namespace silently collide at the root.
     """
     if not namespace:
@@ -96,7 +93,7 @@ def blob_path(namespace: tuple[str, ...], key: str) -> str:
 class AzureBlobStore(BaseStore):
     """Cross-phase artifact store on Azure Blob.
 
-    Namespaces (§9):
+    Namespaces:
 
     | Namespace                             | Keys              | Contents |
     |---------------------------------------|-------------------|----------|
@@ -107,10 +104,10 @@ class AzureBlobStore(BaseStore):
     **The `gate_documents` namespace is retired and must not return** — a
     phase's approved artifacts and its gate document are the same object, and
     two keys holding the same content pose an authority question with no
-    answer (§9).
+    answer.
 
-    On-blob format is **the value itself**, not an envelope. §10's physical
-    layout says each `artifacts/{phase}.json` *holds the gate document*, so the
+    On-blob format is **the value itself**, not an envelope. In the physical
+    layout each `artifacts/{phase}.json` *holds the gate document*, so the
     blob is directly readable by a human or another tool. `Item.created_at` and
     `Item.updated_at` come from the blob's own `creation_time` and
     `last_modified` rather than from duplicated fields inside the body.
@@ -125,8 +122,8 @@ class AzureBlobStore(BaseStore):
     ) -> None:
         super().__init__()
         # Sync client, built once. A sync client holds no event-loop-bound
-        # session, so keeping it costs nothing and matches how
-        # ImproveBlobClient and the checkpointer already work.
+        # session, so keeping it costs nothing and matches how the
+        # checkpointer works.
         self._container = container_client
         # The async client is NOT held — see `_async_container`.
         self._connection_string = connection_string
@@ -139,11 +136,7 @@ class AzureBlobStore(BaseStore):
     #
     # An `azure.storage.blob.aio` client owns an aiohttp session bound to the
     # running loop. Holding one for the process life is the faster shape, but
-    # it needs a deterministic close at shutdown — and `app.py`'s shutdown hook
-    # is procedure step **8.5**, which is GATED on `RunControl.request_drain()`
-    # being confirmed to exist. Building this class to depend on 8.5 would
-    # couple a Stage 3 step to a gate that may never clear, and closing over it
-    # by editing `app.py` here is out of 3.2's scope.
+    # it needs a deterministic close at shutdown.
     #
     # So each async operation opens and closes its own client. The session is
     # always closed on the way out, including on an exception, and nothing is
@@ -152,8 +145,8 @@ class AzureBlobStore(BaseStore):
     # at session start and at gate pass — a handful per phase — not per token
     # and not per turn.
     #
-    # When 8.5 lands, a cached client plus an `aclose()` on the shutdown hook is
-    # a drop-in change behind this same context manager.
+    # A cached client plus an `aclose()` on a shutdown hook is a drop-in change
+    # behind this same context manager.
     @asynccontextmanager
     async def _async_container(self) -> AsyncIterator[AsyncContainerClient]:
         service = AsyncBlobServiceClient.from_connection_string(
@@ -213,11 +206,10 @@ class AzureBlobStore(BaseStore):
         """`search(query=...)` is natural-language retrieval and is NOT this
         store's job.
 
-        S-C06's invariant is explicit: the Store carries cross-*phase* data
-        within one project; cross-*case* retrieval is `rag_lookup_case_history`
-        (S-F16) — "two mechanisms, no overlap". Blob storage has no vector
-        index, so answering a semantic query here would mean building a second
-        retrieval path beside the one §24 already specifies.
+        The Store carries cross-*phase* data within one project; cross-*case*
+        retrieval is `rag_lookup_case_history` — two mechanisms, no overlap.
+        Blob storage has no vector index, so answering a semantic query here
+        would mean building a second retrieval path beside the specified one.
 
         Raising beats returning [] silently: a caller that wanted semantic
         search and got an empty list would conclude the corpus was empty.
@@ -257,7 +249,7 @@ class AzureBlobStore(BaseStore):
             raw = downloader.readall()
             props = downloader.properties
         except ResourceNotFoundError:
-            # B2: a key not yet written returns None and never raises.
+            # A key not yet written returns None and never raises.
             return None
         return self._item(
             op.namespace, op.key, self._decode(raw),
@@ -275,8 +267,8 @@ class AzureBlobStore(BaseStore):
                 pass
             return
         with self._lock:
-            # B1: overwrite rather than append, so a replayed write is
-            # idempotent (§47).
+            # Overwrite rather than append, so a replayed write is
+            # idempotent.
             blob.upload_blob(self._encode(op.value), overwrite=True)
 
     def _search(self, op: SearchOp) -> list[Item]:
@@ -330,13 +322,9 @@ class AzureBlobStore(BaseStore):
     # ── async dispatch ────────────────────────────────────────────────
     async def abatch(self, ops: Iterable[Op]) -> list[Result]:
         """Asynchronous operation dispatch — `BaseStore`'s other abstract
-        method, and the one the graph actually travels (§1.4: async by
-        default).
+        method, and the one the graph actually travels (async by default).
 
-        Genuinely async, on `azure.storage.blob.aio`. Note the contrast with
-        `core/checkpointer.py`, whose `aput`/`aget_tuple` are thin wrappers
-        delegating to the sync path — a shortcut its own comment records. This
-        class does not repeat it.
+        Genuinely async, on `azure.storage.blob.aio`.
         """
         results: list[Result] = []
         async with self._async_container() as container:
@@ -366,7 +354,7 @@ class AzureBlobStore(BaseStore):
             raw = await downloader.readall()
             props = downloader.properties
         except ResourceNotFoundError:
-            return None                      # B2
+            return None                      # not yet written: None, never a raise
         return self._item(
             op.namespace, op.key, self._decode(raw),
             props.get("creation_time"), props.get("last_modified"),
@@ -381,7 +369,7 @@ class AzureBlobStore(BaseStore):
             except ResourceNotFoundError:
                 pass
             return
-        await blob.upload_blob(self._encode(op.value), overwrite=True)   # B1
+        await blob.upload_blob(self._encode(op.value), overwrite=True)   # overwrite: a replay is idempotent
 
     async def _asearch(
         self, container: AsyncContainerClient, op: SearchOp
@@ -434,8 +422,8 @@ _singleton_lock = threading.Lock()
 def get_store() -> AzureBlobStore:
     """Singleton accessor, mirroring `get_checkpointer()`.
 
-    **B3: attach to the PARENT graph only.** A phase subgraph compiles with no
-    store — it reaches the parent's (§16).
+    **Attach to the PARENT graph only.** A phase subgraph compiles with no
+    store — it reaches the parent's.
     """
     global _singleton
     if _singleton is not None:

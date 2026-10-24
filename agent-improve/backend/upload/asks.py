@@ -1,23 +1,18 @@
-"""Asks — the coach's recorded requests for data. Procedure step 6.12.
+"""Asks — the coach's recorded requests for data (`PhaseState.asks`).
 
-Architecture: **§6 / S-C02** (`PhaseState.asks`) · **§23.2.1** (the `role`
-vocabulary) · **§32, §43** (the SKILL.md worked examples the shapes come from).
-Rulings: `DECISIONS.md` Part AP2, Part AR2, Part AS.
-
-**AN ASK IS THE LOGICAL IDENTITY OF A DOCUMENT; FILES ARE ITS VERSIONS**
-(ruling AP2.2). The binding is recorded *when the coach asks*, never
-reconstructed afterwards from a filename — which the same ruling forbids in as
-many words.
+**AN ASK IS THE LOGICAL IDENTITY OF A DOCUMENT; FILES ARE ITS VERSIONS.** The
+binding is recorded *when the coach asks*, never reconstructed afterwards from
+a filename.
 
 THE PLANNER DERIVES THE ASK; THE MODEL DOES NOT DECLARE IT
-    Ruling AR-R1. `CoachingResponse` has no field for "I am asking for data",
-    and adding one would be a §56 amendment on a load-bearing schema. It would
-    also be the weaker mechanism: **an ask whose existence depends on the model
-    emitting a field is absent whenever the model forgets, and nothing anywhere
-    says it should have been there.** The planner is code. When it routes to a
-    field with a declared shape, the ask exists.
+    `CoachingResponse` has no field for "I am asking for data", and adding one
+    would be an amendment on a load-bearing schema. It would also be the weaker
+    mechanism: **an ask whose existence depends on the model emitting a field
+    is absent whenever the model forgets, and nothing anywhere says it should
+    have been there.** The planner is code. When it routes to a field with a
+    declared shape, the ask exists.
 
-NO CLASSES (`CLAUDE.md` §2)
+NO CLASSES (`CLAUDE.md`)
     `backend/upload/` is not on the permitted-class list, so an ask is a plain
     dict and everything here is a module-level function.
 """
@@ -34,31 +29,28 @@ OPEN = "open"
 ANSWERED = "answered"
 
 #: `shape_match` values. `unsolicited` is the honest answer for a file that
-#: answers no ask — it is not a failure, and ruling AP2.5 governs unreadable
-#: files rather than incomplete ones.
+#: answers no ask — it is not a failure; unreadable files are refused, which is
+#: a different thing from incomplete ones.
 FULL, PARTIAL, NONE, UNSOLICITED = "full", "partial", "none", "unsolicited"
 
-#: §23.2.1's MIGRATION SENTINEL — ratified 2026-09-10, applied by step 6.13's
-#: backfill (`scripts/backfill_evidence_index.py`, DECISIONS Part AT1).
+#: The MIGRATION SENTINEL, used by the evidence-index backfill
+#: (`scripts/backfill_evidence_index.py`).
 #:
-#: **It lives here rather than in that script, and the reason is §23.2.1's own
-#: warning.** `role` is a filter value that retrieval, supersession scoping and
-#: §6's uploads entry all read; a role defined only inside a one-off migration
-#: is "a value no query filters on and no reviewer can see", which is the
-#: failure that section names when it makes extending the vocabulary a
-#: governance event.
+#: **It lives here rather than in that script.** `role` is a filter value that
+#: retrieval, supersession scoping and the uploads entry all read; a role
+#: defined only inside a one-off migration would be a value no query filters on
+#: and no reviewer can see.
 #:
-#: **Carried ONLY by uploads predating 6.12's ask-binding.** A post-6.13 upload
-#: has either an ask or a declared purpose, and both yield a real role — so a
+#: **Carried ONLY by uploads that predate the ask-binding.** An upload has
+#: either an ask or a declared purpose, and both yield a real role — so a
 #: sentinel appearing on a new upload is a write-path defect, not a
 #: classification.
 SENTINEL_ROLE = "unclassified (pre-ask-binding)"
-SENTINEL_KIND = "evidence"          # Part AQ4 finding 2
+SENTINEL_KIND = "evidence"
 SENTINEL_SHAPE = UNSOLICITED        # true by construction: there was no ask
 
-#: **Measure's three shapes — ratified 2026-09-10.** Only three of Measure's
-#: ten coached fields (§39.2.2) are answered by a file, so only three appear
-#: here. The coaching prose in `skills/dmaic-measure-phase/SKILL.md` teaches
+#: **Measure's shapes.** Only these of Measure's coached fields are answered
+#: by a file, so only these appear here. The coaching prose in `skills/dmaic-measure-phase/SKILL.md` teaches
 #: the Belt; this structure is what the system validates against, and **the two
 #: must agree**.
 #:
@@ -95,11 +87,10 @@ MEASURE_SHAPES: dict[str, dict[str, Any]] = {
                 "reads of one dataset",
     },
     "measurement_system_validated": {
-        # §23.2.1 has NO role for a measurement-system study, and GR&R is not a
-        # capability study. `other evidence` is the honest placeholder and is
-        # what that row exists for. **Recorded, not fixed** — the vocabulary is
-        # extended once, with the four-phase pass, rather than four times
-        # (Part AS).
+        # The role vocabulary has NO role for a measurement-system study, and
+        # GR&R is not a capability study. `other evidence` is the honest
+        # placeholder and is what that row exists for. The vocabulary is
+        # extended once, for all four remaining phases, rather than four times.
         "role": "other evidence",
         "columns": ["part", "operator", "trial", "measurement"],
         "unit": None,
@@ -108,10 +99,8 @@ MEASURE_SHAPES: dict[str, dict[str, Any]] = {
     },
 }
 
-#: Per phase. Only Measure is populated: ruling AR-R2 scoped the content pass to
-#: one phase, and **four-fifths of a pass silently owed is the disease this
-#: project keeps catching**. Define, Analyse, Improve and Control get their own
-#: Appendix D row.
+#: Per phase. Only Measure is populated; the other four phases' shapes are
+#: owed, and their empty entries say so rather than hiding it.
 SHAPES_BY_PHASE: dict[str, dict[str, dict[str, Any]]] = {
     "define": {},
     "measure": MEASURE_SHAPES,
@@ -127,7 +116,7 @@ def shape_for_field(phase: str, field: str) -> dict[str, Any] | None:
 
 
 def content_digest(file_bytes: bytes) -> str:
-    """SHA-256 of the uploaded bytes — the VERSION identity (§23.2).
+    """SHA-256 of the uploaded bytes — the VERSION identity.
 
     The same bytes re-uploaded are not a new version; different bytes under the
     same `(case_id, role)` supersede.
@@ -136,7 +125,7 @@ def content_digest(file_bytes: bytes) -> str:
 
 
 def new_ask(phase: str, field: str, shape: dict[str, Any]) -> dict[str, Any]:
-    """One ask, in the §6 entry shape.
+    """One ask, in the `PhaseState.asks` entry shape.
 
     `ask_id` is derived from `(phase, role)` rather than randomly, so the same
     ask is the same id across turns and a checkpoint restore cannot mint a
@@ -157,8 +146,8 @@ def new_ask(phase: str, field: str, shape: dict[str, Any]) -> dict[str, Any]:
 def open_ask_for_role(asks: list[dict], role: str) -> dict[str, Any] | None:
     """The open ask for `role`, if one exists.
 
-    **Asks are keyed on ROLE, not on field**, and that is the ruling rather than
-    an optimisation. Measure's shapes 1 and 2 are usually one file, and
+    **Asks are keyed on ROLE, not on field**, and that is a rule rather than
+    an optimisation. Measure's first two shapes are usually one file, and
     `baseline_mean` / `baseline_sigma` are two fields on one dataset — keying
     per field would open three asks for one upload and leave two of them
     permanently unanswered, which is exactly the unread-evidence condition
@@ -237,8 +226,8 @@ def check_shape(
 ) -> tuple[str, list[str]]:
     """`(shape_match, missing_columns)` for a file against an ask.
 
-    **A mismatch is a coaching question, not a rejection** (the step's own
-    ruling), so this classifies and never raises. `unsolicited` is returned for
+    **A mismatch is a coaching question, not a rejection**, so this classifies
+    and never raises. `unsolicited` is returned for
     a file that answers no ask — an honest label, not a failure.
 
     Matching is on a normalised substring, not equality: a declared column

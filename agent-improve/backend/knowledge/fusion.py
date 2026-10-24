@@ -1,12 +1,12 @@
 """Multi-query fusion — Reciprocal Rank Fusion and the variant schema.
 
-Canonical: **§59.8 — S-F17** (`reciprocal_rank_fusion`, *rebuild test: met*) and
-**§59.4 — S-C19** (`QueryVariants`). Architecture: **§25** (multi-query + RRF),
-§21 (structured output), §24 (the three tools). Procedure step 5.2.
+`reciprocal_rank_fusion` fuses ranked lists; `QueryVariants` is the structured
+output of the variant-generation call; `run_multi_query` is the whole
+mechanism the `rag_lookup_*` tools use.
 
 WHY THIS IS CUSTOM CODE AND NOT A LANGCHAIN CLASS
 -------------------------------------------------
-**`MultiQueryRetriever` and `EnsembleRetriever` are BANNED** (§25), for two
+**`MultiQueryRetriever` and `EnsembleRetriever` are BANNED**, for two
 independent reasons either of which would settle it:
 
   1. Both moved to `langchain_classic` in the LangChain 1.0 namespace split and
@@ -18,8 +18,7 @@ independent reasons either of which would settle it:
      why the LangChain rag-fusion template is itself a custom implementation.
 
 So this is ~15 lines, no LangChain class, no third-party dependency, stable
-across framework versions. **That is a deliberate property, not an accident**
-(S-F17 invariants).
+across framework versions. **That is a deliberate property, not an accident.**
 
 WHY MULTI-QUERY AT ALL, GIVEN AZURE ALREADY DOES HYBRID SEARCH
 --------------------------------------------------------------
@@ -31,15 +30,13 @@ Belt did not explicitly name.
 RRF operationalises **cross-variant consistency**: a document ranked well by
 several different phrasings is more likely relevant than one ranked well by a
 single phrasing. Native single-query ranking cannot do this, **because it does
-not know the other variants exist**. Agent Resolve production experience
-settled it — with a single query, ranking was not reliably returning the right
-matches for this corpus — and an earlier "diminishing returns, defer it"
-position was overridden by that evidence (§25).
+not know the other variants exist**. With a single query, ranking does not
+reliably return the right matches for this corpus.
 
 ENCAPSULATION
 -------------
 Variant generation and fusion happen **inside** the tool. The model sees a
-clean `rag_lookup_*(query, ...)` interface and never manages either (§25).
+clean `rag_lookup_*(query, ...)` interface and never manages either.
 Complexity belongs inside the tool, not exposed to the model.
 """
 from __future__ import annotations
@@ -64,18 +61,18 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-#: §25, S-F17 B1. Not a tuning knob: 60 is the constant from the original RRF
-#: paper and the value comparable implementations use, so changing it would
-#: make our fused rankings incomparable with anyone else's.
+#: Not a tuning knob: 60 is the constant from the original RRF paper and the
+#: value comparable implementations use, so changing it would make our fused
+#: rankings incomparable with anyone else's.
 RRF_K = 60
 
-#: §25 — "3–5 query variants". Enforced by the schema below rather than by a
-#: prompt instruction alone, so a model that returns two or seven fails at
-#: parse time instead of silently narrowing or widening the fan-out.
+#: 3–5 query variants. Enforced by the schema below rather than by a prompt
+#: instruction alone, so a model that returns two or seven fails at parse time
+#: instead of silently narrowing or widening the fan-out.
 MIN_VARIANTS = 3
 MAX_VARIANTS = 5
 
-#: T69 (founder, 2026-09-30) — a model call made inside a tool does not count against the coach's
+#: T69 — a model call made inside a tool does not count against the coach's
 #: limit; it is recorded per turn, by tool. The executor node sets the turn's dict, the per-turn
 #: lookup copy (`phases/nodes_common._budgeted_rag_tools`) names the tool for the length of its
 #: call, and `generate_variants` counts its call there. Unset outside a turn: nothing is counted.
@@ -150,23 +147,22 @@ def reciprocal_rank_fusion(
     k: int = RRF_K,
     key: Callable[[T], Hashable] | None = None,
 ) -> list[tuple[T, float]]:
-    """Fuse several ranked lists into one ordering. **S-F17, verbatim in shape.**
+    """Fuse several ranked lists into one ordering.
 
     Each document scores `1 / (k + rank)` in every list it appears in, and the
-    scores sum across lists (B2). A document ranked 3rd by four different
+    scores sum across lists. A document ranked 3rd by four different
     phrasings therefore beats one ranked 1st by a single phrasing — which is
     the cross-variant consistency the whole mechanism exists to capture.
 
-    `k=60` (B1) damps the difference between adjacent ranks: with a small k,
+    `k=60` damps the difference between adjacent ranks: with a small k,
     rank 0 would dominate rank 1 so heavily that fusion degenerates into
     "whatever the first list ranked first". It is the constant from the
     original RRF paper and is not a tuning knob.
 
-    **`key` is the one departure from S-F17's literal definition, and it is a
-    type accommodation rather than a design change.** The spec reads
-    `doc.metadata["id"]`, written for `Document` objects; `knowledge/
-    retriever.py` returns `list[dict]` (§27, S-F18), so identity is a per-index
-    question the caller answers. The default handles both shapes.
+    **`key` is a type accommodation.** `Document` objects carry identity in
+    `doc.metadata["id"]`; `knowledge/retriever.py` returns `list[dict]`, so
+    identity is a per-index question the caller answers. The default handles
+    both shapes.
 
     Returns `list[tuple[T, float]]`, highest fused score first. **Ties keep the
     order of first appearance** — Python's sort is stable and insertion order
@@ -193,7 +189,7 @@ def reciprocal_rank_fusion(
 def _default_key(doc: Any) -> Hashable:
     """Identity for fusion: the index `id` where there is one, else the content.
 
-    Every `improve_*` index has an `id` key field (§23), so the first branch is
+    Every `improve_*` index has an `id` key field, so the first branch is
     the normal path. The content fallback exists for the raw-`SearchClient`
     paths, whose `select=` lists must ask for `id` explicitly — a `select` that
     forgot it would otherwise make every document unique and turn fusion into
@@ -212,32 +208,30 @@ def _default_key(doc: Any) -> Hashable:
 async def generate_variants(query: str) -> list[str]:
     """Ask the model for 3–5 alternative phrasings. Structured output, never JSON.
 
-    §25: *"Variant generation uses structured output (`QueryVariants`, §21),
-    never manual JSON parsing."* §4.3 is the prohibition and §4.6 the mechanism:
-    this is a **plain model call inside a tool**, not an agent, so it takes the
-    builder-style structured-output call rather than `response_format=`. §4.6's
-    mapping table names this exact site.
+    Variant generation uses structured output (`QueryVariants`), never manual
+    JSON parsing. This is a **plain model call inside a tool**, not an agent,
+    so it takes the builder-style structured-output call rather than
+    `response_format=`.
 
-    **Role `extraction`, temperature 0.2.** No new role is introduced — §4.2
-    requires a §56 amendment for that — and `extraction` is the right existing
-    one: `operational-model` (gpt-4o-mini), roughly 15× cheaper than the premium
-    tier for what is a mechanical rewriting task on the hot path (§4.2's
-    tiering rule).
+    **Role `extraction`, temperature 0.2.** `extraction` is the operational
+    (cheaper) tier, right for a mechanical rewriting task on the hot path; a
+    new role would need its own amendment.
 
     **Low temperature is deliberate, and is not in tension with wanting diverse
     variants.** The diversity is carried by the prompt, which asks for
     alternative vocabulary explicitly; the sampler's job here is
     reproducibility — the same Belt question should retrieve the same documents
     twice, or a LangSmith trace cannot be read against a rerun. 0.2 sits inside
-    §4.7's 0.0–0.2 band for extraction-class calls.
+    the 0.0–0.2 band for extraction-class calls.
 
     **Failure returns `[]` rather than raising**, and that is safe here in a way
     it would never be in `retriever.py`: the caller searches the original query
     regardless, so a failed variant call degrades multi-query to single-query —
     measurably worse retrieval, but still retrieval, and still a real search.
-    §27's rule is about a *search* failure masquerading as an empty corpus; this
-    is a *generation* failure with a working fallback, and it is logged as one
-    at `warning` because a persistent one is a quality regression.
+    The no-silent-absence rule is about a *search* failure masquerading as an
+    empty corpus; this is a *generation* failure with a working fallback, and
+    it is logged as one at `warning` because a persistent one is a quality
+    regression.
     """
     from backend.core.llm import get_llm
     from backend.core.prompts import VARIANT_PROMPT
@@ -273,55 +267,42 @@ async def run_multi_query(
     make_variants: Callable[[str], Awaitable[list[str]]] = generate_variants,
     key: Callable[[T], Hashable] | None = None,
 ) -> list[T]:
-    """The whole §25 mechanism: original + variants, searched, fused, sliced.
+    """The whole mechanism: original + variants, searched, fused, sliced.
 
     `search` is a one-argument callable so each tool binds its own index, filter
     and vector field before handing it over — fusion never learns which index it
     is fusing.
 
-    ═══════════════════════════════════════════════════════════════════════
-    `make_variants` IS INJECTED BECAUSE ITS ONLY IMPLEMENTATION IS BLOCKED
-    ═══════════════════════════════════════════════════════════════════════
-    §25 requires variant generation to use **structured output**
-    (`QueryVariants`), never manual JSON parsing, and §4.6's mapping table names
-    the mechanism explicitly: *"Inside `rag_lookup_*` | Plain LLM call |
-    `QueryVariants` | `with_structured_output`"*. **The drift registry blocks
-    that call in this file** — `pattern-2-with-structured-output`'s
-    `path_exclusions` cover `orchestrate.py` and `validate.py` but not
-    `knowledge/`, because the list predates this file.
+    `make_variants` is injected so fusion is unit-testable without a model, and
+    the LLM dependency stays out of the fusion path itself; the default is
+    `generate_variants`.
 
-    Injecting the provider is **not** a workaround for that block — the
-    implementation is still missing and the step is still incomplete. It is the
-    shape the function would have anyway: it makes fusion unit-testable without
-    a model, and it keeps the LLM dependency out of a module whose whole point
-    is being dependency-free.
-
-    **The original query is always list zero**, for the reason S-C19 gives: it
-    is the highest-signal phrasing and must not depend on a generation call
-    succeeding. It also means a total variant-generation failure degrades this
-    to an ordinary single-query search rather than to nothing.
+    **The original query is always list zero**, for the reason `QueryVariants`
+    gives: it is the highest-signal phrasing and must not depend on a
+    generation call succeeding. It also means a total variant-generation
+    failure degrades this to an ordinary single-query search rather than to
+    nothing.
 
     **A search failure is NOT caught here.** `KnowledgeSearchError` propagates
-    to the tool, which turns it into §27's coach-facing "this is a failure, not
-    an absence" message. Catching it here would reintroduce the exact bug §27
-    exists to prevent, one layer further in.
+    to the tool, which turns it into the coach-facing "this is a failure, not
+    an absence" message. Catching it here would let a broken search reach the
+    coach as an empty one, one layer further in.
     """
     variants = await make_variants(query)
     queries = [query, *variants]
 
-    # §44 / G-92 — OFF THE EVENT LOOP, AND TOGETHER. Every `search` makes two
+    # G-92 — OFF THE EVENT LOOP, AND TOGETHER. Every `search` makes two
     # synchronous HTTP round trips (`embed_query`, then the index search), and
-    # a lookup makes one per query — four to six. Run inline they held the
-    # loop for ~10 s per lookup, so no timer could fire, the node's own
-    # budget included (trace 01a0d28e…: the wall surfaced 0.1 s after
-    # `rag_lookup_case_history` returned). A worker thread each, gathered:
-    # the loop stays free and the lookup costs about one round trip, not six.
-    # A search failure still propagates — `gather` raises the first one.
+    # a lookup makes one per query — four to six. Run inline they would hold
+    # the loop for the whole lookup, so no timer could fire, the node's own
+    # budget included. A worker thread each, gathered: the loop stays free and
+    # the lookup costs about one round trip, not six. A search failure still
+    # propagates — `gather` raises the first one.
     #
-    # FOLLOW-UP, NOT DONE HERE: the aio `SearchClient` and async embeddings
-    # would remove the threads altogether. That needs its own step number.
-    # Step 8.0 slice — each query's span, and its start and end on one
-    # clock, so the trace can answer whether the queries actually overlap.
+    # The aio `SearchClient` and async embeddings would remove the threads
+    # altogether.
+    # Each query's span records its start and end on one clock, so the trace
+    # can answer whether the queries actually overlap.
     started = time.monotonic()
     timings: list[tuple[int, str, float, float]] = []
 

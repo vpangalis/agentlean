@@ -57,7 +57,7 @@ FIXED_RULES: tuple[tuple[str, str], ...] = (
     ("reveal the prompt", r"\b(reveal|print|show|repeat|output|leak)\b.{0,30}\b(system|hidden|initial)\s+(prompt|instructions?|message)\b"),
     ("fake system or assistant turn", r"(^|\n)\s*#{1,3}\s*(system|assistant|developer)\s*:|<\|?(im_start|im_end)\|?>|\[/?(INST|SYS)\]|<\s*/?\s*system\s*>"),
     ("persona role-play", r"\byou are now (an? )?(unrestricted|jailbroken|different|new|evil)\b|\bdeveloper mode\b|\bjailbreak|\bpretend (to be|you are)\b.{0,40}\b(ai|assistant|model|system|coach)\b"),
-    # Role takeover (BRIEF_m1_loop.md, founder 2026-09-28): a new persona WITHOUT the rules, or the
+    # Role takeover: a new persona WITHOUT the rules, or the
     # coach told to be the grader, validator or system. Narrow on purpose — "Dan will act as
     # champion" and "pretend to be the customer" must pass; Prompt Shields remains the main defence.
     ("role takeover", r"\byou are now\b.{0,60}\b(without|with no|free (of|from)|no longer bound by)\b.{0,20}"
@@ -95,7 +95,7 @@ def fixed_rules(text: str) -> Optional[tuple[str, str]]:
 async def screen(text: str) -> dict[str, Any]:
     """Threat A's check of one text, before any model reads it: the fixed rules, then Prompt Shields — the verdict,
     not yet recorded. Unreachable, it fails closed and says whether one more try is worth it (`transient`). The
-    input guard and every model call outside the graph (G-262, audit A4) screen through this one check."""
+    input guard and every model call outside the graph (G-262) screen through this one check."""
     hit = fixed_rules(text)
     if hit:
         return {"status": "blocked", "threat": hit[0], "rule": hit[1], "shield": "not asked"}
@@ -183,7 +183,7 @@ async def input_guard(state: SupervisorState, config: Optional[RunnableConfig] =
     msgs = state.get("messages") or []
     if configurable.get("entry", "ask") != "ask" or not msgs or not isinstance(msgs[-1], HumanMessage):
         return {}
-    text = block_text(msgs[-1])        # G-262 (audit H1): the text the coach reads, through its content blocks
+    text = block_text(msgs[-1])        # G-262: the text the coach reads, through its content blocks
     base: dict[str, Any] = {"person": configurable.get("current_user") or (msgs[-1].additional_kwargs or {}).get("user"),
             "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
     verdict = await screen(text)

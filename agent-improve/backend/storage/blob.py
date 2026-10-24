@@ -1,12 +1,9 @@
-"""Case records on Azure Blob — §10's second concern, as module-level functions.
-
-Canonical definition: reference **§58.8 — S-C08**. Architecture: §10 (Azure Blob
-— two distinct concerns). Procedure step 3.5.
+"""Case records on Azure Blob, as module-level functions.
 
 Owner of the **system of record**: the case document, the registry, and uploaded
 files. Writes on case create, on gate pass and on file upload, and **never
 mid-conversation** — conversation history lives in the checkpoint until a gate
-passes (§10, S-C08 B1/B2).
+passes.
 
 Paths owned, and no others:
 
@@ -14,28 +11,27 @@ Paths owned, and no others:
     registry.json
     uploads/{case_id}/{filename}
 
-CONCERN SEPARATION (§10) — THIS IS NOT `core/store.py`
-------------------------------------------------------
-§10 ratifies three Blob concerns with three owners, and they are not merged:
+CONCERN SEPARATION — THIS IS NOT `core/store.py`
+------------------------------------------------
+There are three Blob concerns with three owners, and they are not merged:
 
   * **checkpoints** — in-flight graph state, `checkpoints/{case_id}/...`,
-    owned by `core/checkpointer.py` (S-C07).
+    owned by `core/checkpointer.py`.
   * **cross-phase artifacts** — `store/...`, owned by `AzureBlobStore` in
-    `core/store.py` (S-C06), which is a LangGraph `BaseStore`.
+    `core/store.py`, which is a LangGraph `BaseStore`.
   * **case records** — the three prefixes above. This file.
 
 This module does not import, wrap or subclass `AzureBlobStore`, and must not
 start doing so: `cases/case_{id}.json` is authoritative, and the Store's `case`
-namespace is a session-start COPY so mappers can depend on `BaseStore` alone
-(§9). Two writers on one authority is the thing §10 spends a section preventing.
+namespace is a session-start COPY so mappers can depend on `BaseStore` alone.
+Two writers on one authority is what the separation prevents.
 
 NO CLASS LIVES HERE
 -------------------
-§54 and CLAUDE.md §2 both name `storage/blob.py` among the files that hold
-**module-level functions ONLY**, with no exception. The former
-`ImproveBlobClient` was a class where none is permitted; procedure step 3.5
-removed it. Do not reintroduce one — the state it would have held is exactly
-the cached client below, which is module state and needs no object around it.
+`storage/blob.py` is one of the files that hold **module-level functions
+ONLY** (CLAUDE.md), with no exception. Do not add one — the state a class
+would hold is the cached client below, which is module state and needs no
+object around it.
 """
 from __future__ import annotations
 
@@ -76,8 +72,7 @@ REGISTRY_BLOB_PATH = layout.REGISTRY_BLOB
 
 # ── the aio session lifecycle ─────────────────────────────────────────────
 #
-# CACHED, and deliberately so — the opposite of `AzureBlobStore`'s choice, on
-# a measurement rather than a preference.
+# CACHED, and deliberately so — the opposite of `AzureBlobStore`'s choice.
 #
 # An `azure.storage.blob.aio` client owns an aiohttp session, and that session
 # owns a TLS connection pool. `core/store.py` opens and closes one per
@@ -85,25 +80,15 @@ REGISTRY_BLOB_PATH = layout.REGISTRY_BLOB
 # reconnect cost is paid rarely and buys a lifecycle with nothing to clean up.
 #
 # That reasoning does not transfer here. `load_case` and `save_case` are on the
-# `/ask` path — every request pays both. Measured against the real container
-# (`agent-improve-cases`, case IMPR-2026-E9D, 74,693 bytes, n=25, 2026-09-01):
-#
-#     shape                    load (median)   save (median)
-#     per-operation client         289.2 ms        360.3 ms
-#     cached client                 96.6 ms         82.5 ms
-#
-# — a 470 ms penalty per `/ask` request, roughly 3-4x. Note where it comes
-# from: constructing the client and tearing down its session, with no blob I/O
-# at all, costs 0.5 ms. The 470 ms is the TLS handshake and connection setup
-# that a fresh pool cannot reuse. The per-operation shape was never really
-# paying for object construction, which is why the cost had to be measured
-# rather than assumed.
+# `/ask` path — every request pays both. A per-operation client pays the TLS
+# handshake and connection setup that a fresh pool cannot reuse, several times
+# the cost of the blob I/O itself; constructing the client and tearing down its
+# session costs almost nothing.
 #
 # The lifecycle cost of caching is one `await aclose()` at shutdown, wired to
-# `backend/app.py`'s EXISTING `@app.on_event("shutdown")`. That hook is already
-# there and is not gated: procedure step 8.5 is about *draining in-flight
-# coaching turns* via `RunControl.request_drain()`, which is a different
-# concern from closing an HTTP session. Nothing here depends on 8.5.
+# `backend/app.py`'s `@app.on_event("shutdown")`. Closing an HTTP session is a
+# different concern from draining in-flight coaching turns
+# (`RunControl.request_drain()`).
 #
 # The client is cached against the loop it was built on. A session is bound to
 # its event loop, and a client carried across loops would fail at the first
@@ -116,9 +101,9 @@ _client_loop: Optional[asyncio.AbstractEventLoop] = None
 def storage_configured() -> bool:
     """Whether Blob credentials are present.
 
-    Replaces the former import-time singleton, which constructed a client under
-    a bare `except` and left `blob_client = None` when it failed — so an
-    unrelated construction error read to every caller as "not configured".
+    A check of settings only, with no client built at import time — so an
+    unrelated construction error can never read to a caller as "not
+    configured".
     """
     return bool(
         settings.AZURE_BLOB_CONNECTION_STRING
@@ -191,13 +176,12 @@ async def _download(path: str) -> str:
 
 
 async def download_bytes(path: str) -> bytes:
-    """The raw bytes at `path`, undecoded — step 6.12, S-F57's SIPOC.
+    """The raw bytes at `path`, undecoded.
 
     **`_download` decodes UTF-8 and would corrupt every format this is for.**
     xlsx, pdf and docx are binary; running `.decode("utf-8")` over them either
     raises or silently mangles them, so `load_evidence_series` needs a reader
-    that does not. This is the fourteenth module-level name in this file;
-    S-C08's count moved from thirteen with it, in the same commit (Part AS).
+    that does not.
     """
     blob = _container().get_blob_client(path)
     downloader = await blob.download_blob()
@@ -213,7 +197,7 @@ LEASE_SECONDS = 60
 
 @asynccontextmanager
 async def case_lease(case_id: str) -> AsyncIterator[None]:
-    """One writer per `thread_id` at a time — T11, ADR-0018's unbuilt half. Takes the Blob lease
+    """One writer per `thread_id` at a time — T11 (ADR-0018). Takes the Blob lease
     on the case's lock blob (`layout.CASE_LOCK_BLOB`, created empty on first use) for the length
     of one graph run and releases it after. Another holder → `CaseBusyError` (Azure's 409
     LeaseAlreadyPresent). Any other failure to take it (storage unreachable, no permission) is
@@ -271,8 +255,8 @@ async def load_case(case_id: str) -> Optional[CaseDocument]:
     except StateSchemaVersionError:
         raise
     except Exception as e:
-        # G-243 (audit W2): only a missing case is "not found"; any other failure raises — a failed read taken for
-        # "no case" let an approval write an empty upload list over the case's own.
+        # G-243: only a missing case is "not found"; any other failure raises — a failed read taken for
+        # "no case" would let an approval write an empty upload list over the case's own.
         logger.error("load_case %s failed: %s", case_id, e)
         raise
 
@@ -294,7 +278,7 @@ CASE_NUMBER_LENGTH = 6
 
 
 def new_case_number(year: int) -> str:
-    """ADR-0092: `IMPR-<year>-` and a random 6-character suffix. Existing numbers never change (ruling a)."""
+    """ADR-0092: `IMPR-<year>-` and a random 6-character suffix. Existing numbers never change."""
     return f"IMPR-{year}-" + "".join(secrets.choice(CASE_NUMBER_ALPHABET) for _ in range(CASE_NUMBER_LENGTH))
 
 
@@ -308,7 +292,7 @@ async def create_case(case: CaseDocument) -> None:
 
 
 async def update_people(case_id: str, change: Callable[[list], list]) -> Optional[CaseDocument]:
-    """ADR-0090 decision 2 (rule §10.4, T13): a change of the people on the case is written to the case record —
+    """ADR-0090 decision 2 (T13): a change of the people on the case is written to the case record —
     the record as stored, re-read here, with only `people` changed, so unfinished work in the checkpoint never
     reaches the blob. None when the case does not exist."""
     case = await load_case(case_id)
@@ -321,7 +305,7 @@ async def update_people(case_id: str, change: Callable[[list], list]) -> Optiona
     case.people = people
     head = lead(people)
     if head is not None:
-        case.leader = head.full_name                 # decision 4: the lead's one display name
+        case.leader = head.full_name                 # ADR-0090 decision 4: the lead's one display name
     await save_case(case)
     return case
 
@@ -344,33 +328,24 @@ async def write_phase_gate(
     Called only after assembly succeeded and the gate passed.
 
     ══════════════════════════════════════════════════════════════════════
-    STEP 6.42 — IT REPLACED THE WHOLE RECORD, AND THE GATE WAS WHERE THE
-    BELT'S OWN WORK WENT MISSING
+    MERGE, NEVER REPLACE — THE GATE IS WHERE A REVIEWER LOOKS
     ══════════════════════════════════════════════════════════════════════
-    This was `case.phases[phase] = PhaseRecord(...)` with five fields, so
-    approving a gate DESTROYED everything the record held that those five did
-    not name:
+    Whatever the record holds that this call does not name survives the gate:
+    `field_log` (the field change log), `analyst_output`, and the Belt's
+    evidence trail in `citations` and `uploads`. **The gate is exactly where a
+    reviewer goes looking for it.**
 
-      * **`field_log`** — the field change log step 6.33 built, one file over.
-        Every test 6.33 wrote still passed, because none of them approved a
-        gate;
-      * **`analyst_output`** — accepted as an argument here and never written
-        to the record even when supplied;
-      * **`citations` and `uploads`** — the call site passed neither, so the
-        `[]` defaults replaced the Belt's evidence trail with nothing. **The
-        gate is exactly where a reviewer goes looking for it.**
-
-    **The assignment made the loss invisible.** A replaced record is a
+    **A replaced record would make a loss invisible.** A replaced record is a
     well-formed record; nothing reads as missing until somebody asks a question
     only the dropped fields can answer.
 
     SAFE TO PERFORM TWICE — AND THAT IS A FRAMEWORK REQUIREMENT, NOT CAUTION
     ─────────────────────────────────────────────────────────────────────
-    `docs.langchain.com/oss/python/langgraph/interrupts`, verified 2026-09-23:
+    `docs.langchain.com/oss/python/langgraph/interrupts`:
     *"the runtime restarts the entire node from the beginning — it does not
     resume from the exact line where `interrupt()` was called"*, and **"Do not
-    create new records without checking if they exist."** When step 7.3 moves
-    this write behind a pause, **every resume re-runs it**. So:
+    create new records without checking if they exist."** Behind a pause,
+    **every resume re-runs this write**. So:
 
       * the approval stamp (`submitted_by` / `submitted_at`) is written on the
         TRANSITION only — re-writing an already-passed gate leaves the original
@@ -382,13 +357,13 @@ async def write_phase_gate(
       * `_update_registry_entry` matches on `case_id` and updates in place — it
         appends nothing.
 
-    **A re-approval after a §37 reopen still re-stamps**, because reopening
+    **A re-approval after a reopen still re-stamps**, because reopening
     sets `gate_passed` back to `False` and the write is then a transition
     again. The stamp records when the gate LAST became passed, which is what it
     is for.
     """
     if not structured:
-        # G-242 (audit A1): an approved record with no values is never written over the case record's own.
+        # G-242: an approved record with no values is never written over the case record's own.
         raise ValueError(f"An empty {phase} record cannot be written as approved for {case_id}")
     case = await load_case(case_id)
     if case is None:
@@ -408,16 +383,13 @@ async def write_phase_gate(
         record.submitted_at = now
 
     # `None` means NOT SUPPLIED and keeps what the record holds; an explicit
-    # empty list means supplied-and-empty. The old signature could not tell
-    # those apart, which is how a call site passing nothing erased the Belt's
-    # evidence trail.
+    # empty list means supplied-and-empty, so a call site passing nothing
+    # cannot erase the Belt's evidence trail.
     #
-    # **Converted explicitly, because ASSIGNMENT DOES NOT VALIDATE.** The old
-    # code passed these to `PhaseRecord(...)`, where Pydantic coerced the dicts
-    # into models on the way in. Assigning to an attribute does not: the record
-    # would hold raw dicts, serialise back out looking correct, and fail the
-    # next time anything read `.filename` off one. Caught by mypy on this
-    # change rather than by a reader.
+    # **Converted explicitly, because ASSIGNMENT DOES NOT VALIDATE.** Pydantic
+    # coerces dicts into models at construction, not on attribute assignment:
+    # the record would hold raw dicts, serialise back out looking correct, and
+    # fail the next time anything read `.filename` off one.
     if citations is not None:
         record.citations = as_records(citations)                  # G-176: a coach citation never breaks the write
     if uploads is not None:
@@ -441,7 +413,7 @@ async def write_phase_gate(
         case.current_phase = "complete"
         case.status = "complete"
 
-    # B2: two separate writes, the case then the registry.
+    # Two separate writes, the case then the registry.
     await save_case(case)
     await _update_registry_entry(case, phase, summary, now)
     logger.info(
@@ -463,7 +435,7 @@ async def append_turn(case_id: str, turn: dict) -> None:
 # ── registry operations ───────────────────────────────────────────────────
 
 #: ADR-0092 decision 3: how often a change to the case list is re-read and retried before it is an error, and
-#: the most a retry waits — jittered (rule §4.8, shared resources), so writers that collided do not collide again.
+#: the most a retry waits — jittered (shared resources), so writers that collided do not collide again.
 REGISTRY_RETRIES = 30
 REGISTRY_RETRY_MAX_S = 0.2
 

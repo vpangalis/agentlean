@@ -1,7 +1,5 @@
 """The metric single-authority invariant.
 
-ARCHITECTURE.md §39.2.3 · §40.1 · §63.8 (S-C38) · §63.9 (S-C39) · CLAUDE.md §10.7.
-
 **`phase_metrics` is the authoritative per-metric store.** The scalar fields —
 Define's `baseline_estimate` / `target_value`, Measure's `baseline_mean` /
 `baseline_sigma`, Control's `post_improvement_metrics` — are **the primary
@@ -11,17 +9,15 @@ Control reads them directly. **Additional metrics live only in `phase_metrics`.*
 Two stores holding one value is how they drift. The rule that stops it: the
 primary metric's `phase_metrics` entry and the scalar fields **MUST be equal**,
 and a mismatch is a defect rather than a preference. It is enforced at
-`gate_apply` assembly (§40.1, S-F28), where both are in hand and nothing has
-been written yet.
+`gate_apply` assembly, where both are in hand and nothing has been written yet.
 
 **Why mirror at all rather than read `phase_metrics[0]` everywhere.** The gate
 document is a Belt-facing quality record and reads far better with a named
-scalar than with an index into a list; Control's target-vs-actual comparison
-was specified against the scalars before the registry existed. Mirroring is the
-cheaper change, but it is only safe if something checks the mirror — this
-module is that something.
+scalar than with an index into a list, and Control's target-vs-actual
+comparison reads the scalars. Mirroring is only safe if something checks the
+mirror — this module is that something.
 
-Module-level functions only (§2). No LLM call, no I/O — this is arithmetic on
+Module-level functions only. No LLM call, no I/O — this is arithmetic on
 values already captured.
 """
 from __future__ import annotations
@@ -31,7 +27,7 @@ from __future__ import annotations
 #
 # Analyse and Improve are deliberately empty: they act on drivers rather than
 # outcome values, so their `phase_metrics` entries record LINKAGE (which metric
-# a cause or solution targets) and there is no scalar to mirror (§63.9).
+# a cause or solution targets) and there is no scalar to mirror.
 PRIMARY_MIRRORED_SCALARS: dict[str, tuple[str, ...]] = {
     "define":  ("baseline_estimate", "target_value"),
     "measure": ("baseline_mean", "baseline_sigma"),
@@ -40,9 +36,9 @@ PRIMARY_MIRRORED_SCALARS: dict[str, tuple[str, ...]] = {
     "control": (),          # Control mirrors through a dict — see below
 }
 
-# **Control's mirror is shaped differently, and deliberately** (§39.5.3, F-14).
+# **Control's mirror is shaped differently, and deliberately.**
 # Its scalar is not a plain string but the cross-phase reference DICT
-# `post_improvement_metrics` (S-C32), whose measured value lives under `metric`.
+# `post_improvement_metrics`, whose measured value lives under `metric`.
 # The `phase_metrics` entry calls the same number `actual`, because there it sits
 # beside `baseline`, `target` and `delta` and "actual" is what it is in that row.
 #
@@ -56,7 +52,7 @@ PRIMARY_MIRRORED_DICT: dict[str, tuple[str, str, str]] = {
 }
 
 # A phase that engaged no metric writes this rather than leaving the list empty
-# (§63.9 B2) — an empty list reads the same whether nothing was measured or
+# — an empty list reads the same whether nothing was measured or
 # someone forgot to record it, and the second is the failure worth catching.
 NONE_THIS_PHASE = "none this phase"
 
@@ -78,7 +74,7 @@ def primary_entry(phase_metrics: list) -> dict | None:
 def check_single_authority(phase: str, artifacts: dict) -> list[str]:
     """Return a list of invariant defects. Empty list means the mirror holds.
 
-    Called from `gate_apply` assembly (§40.1) **before** the gate document is
+    Called from `gate_apply` assembly **before** the gate document is
     constructed. A non-empty return is a defect in the captured values, not a
     Belt error — it means two stores disagree about one number, and writing
     either one would make the disagreement permanent.
@@ -138,12 +134,12 @@ def check_single_authority(phase: str, artifacts: dict) -> list[str]:
 
 
 def assert_single_authority(phase: str, artifacts: dict) -> None:
-    """Raise on any invariant defect. The assembly-time form (§40.1, S-F28).
+    """Raise on any invariant defect. The assembly-time form.
 
     **Raising here is correct.** Layer 2b and the rubric run before this; by the
     time `gate_apply` assembles, every value has been captured and approved, so
     a mismatch is a code defect rather than an incomplete phase — exactly the
-    class §40.1 already says must surface loudly rather than default quietly.
+    class that must surface loudly rather than default quietly.
     """
     defects = check_single_authority(phase, artifacts)
     if defects:

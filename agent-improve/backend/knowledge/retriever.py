@@ -56,10 +56,10 @@ RETRIEVAL_EXCEPTIONS = (
 
 
 def _search_error(exc: Exception, index: str) -> AgentImproveError:
-    """Classify an Azure AI Search failure into the §12.3 envelope.
+    """Classify an Azure AI Search or embedding failure into the error envelope.
 
     `severity` drives circuit-breaker retry-vs-stop and
-    `retry_recommendation` drives the fallback chain's backoff choice (§4.8),
+    `retry_recommendation` drives the fallback chain's backoff choice,
     so a malformed query must not be reported as transient — retrying it just
     fails again at the same cost.
     """
@@ -120,7 +120,7 @@ def _fail(exc: Exception, index: str, **extra: object) -> NoReturn:
     raise KnowledgeSearchError(err) from exc
 
 
-# ── step 8.0 slice: what each HTTP attempt did, per thread ──────────────
+# ── What each HTTP attempt did, per thread ──────────────────────────────
 #
 # A span's wall time cannot say whether it was ONE slow call or a fast call
 # retried after a 429. So each embed/search span collects, for its own thread
@@ -177,15 +177,14 @@ def _http_summary(events: list[tuple[float, str, str]]) -> dict[str, Any]:
             "thread": threading.current_thread().name}
 
 
-# ── step 6.54 (G-93): each client is built ONCE, and before any turn ──────
+# ── G-93: each client is built ONCE, and before any turn ─────────────────
 #
-# Measured at 6.54's step 0: one embeddings build costs ~2.5 s and one knowledge
-# vectorstore build ~3.5 s — mostly loading the TLS certificate bundle, plus the
-# vectorstore's index-definition read; no login token (API-key auth). Six lookup
-# threads missing an empty `lru_cache` together each built their own: 7.2 s
-# apiece, 38 s of certificate loading summed. `lru_cache` guarantees one CACHED
-# value, not one BUILD. `_single_flight` serialises the miss so the first caller
-# builds and the rest read what it built.
+# One embeddings build costs seconds and one knowledge vectorstore build more —
+# mostly loading the TLS certificate bundle, plus the vectorstore's
+# index-definition read. Lookup threads that miss an empty `lru_cache` together
+# would each build their own: `lru_cache` guarantees one CACHED value, not one
+# BUILD. `_single_flight` serialises the miss so the first caller builds and the
+# rest read what it built.
 _T = TypeVar("_T")
 
 
@@ -201,9 +200,9 @@ def _single_flight(cached: Callable[..., _T]) -> Callable[..., _T]:
     return call
 
 
-#: One `SearchClient` per index for the process. Case and evidence searches
-#: built one PER CALL — 7–12 per lookup, each loading certificates afresh.
-#: Azure SDK clients are documented as thread-safe for concurrent use.
+#: One `SearchClient` per index for the process, so a lookup does not load
+#: certificates afresh per call. Azure SDK clients are documented as
+#: thread-safe for concurrent use.
 _SEARCH_CLIENTS: dict[str, SearchClient] = {}
 _SEARCH_LOCK = threading.Lock()
 
@@ -227,7 +226,7 @@ def get_search_client(index_name: str) -> SearchClient:
 
 
 def warm_clients() -> None:
-    """Build every retrieval client a Define turn uses (app startup, 6.54)."""
+    """Build every retrieval client a Define turn uses (app startup)."""
     get_embeddings()
     get_knowledge_vectorstore()
     get_search_client(settings.AZURE_SEARCH_IMPROVE_CASE_INDEX)
@@ -247,9 +246,9 @@ def close_clients() -> None:
         getattr(getter, "cache_clear")()
 
 
-# §51 / step 8.0 slice — every direct Azure call gets a span. Inputs are cut
-# to the query and its parameters: a 1,536-float vector in every span would
-# cost more to ship than the call it measures.
+# Every direct Azure call gets a span. Inputs are cut to the query and its
+# parameters: a full embedding vector in every span would cost more to ship
+# than the call it measures.
 
 
 @_single_flight
@@ -267,7 +266,7 @@ def get_embeddings() -> AzureOpenAIEmbeddings:
     )
 
 
-# The full field list of improve_knowledge_index (ARCHITECTURE.md §7.1).
+# The full field list of improve_knowledge_index.
 #
 # This is NOT decoration, and it is not for index creation — the index
 # already exists. LangChain's AzureSearch never introspects the live index;
@@ -319,30 +318,29 @@ def get_knowledge_vectorstore() -> AzureSearch:
     )
 
 
-# The full field list of improve_evidence_index (§23.2), as of step 6.13.
+# The full field list of improve_evidence_index.
 #
 # Same contract as KNOWLEDGE_INDEX_FIELDS above and the same reason: LangChain
 # never introspects the live index, so a metadata key reaches a top-level
-# filterable field only when it is named here. §23.4.
+# filterable field only when it is named here.
 #
 # > **This list guards a function nothing currently calls.** Both live paths
 # > use a raw `SearchClient` — `_index_upload` writes with `upload_documents`
-# > and `search_evidence` reads with `search` — so §23.4's trap is not armed on
-# > either. `get_evidence_vectorstore` below is declared and called by nothing
-# > (recorded at DECISIONS Part AT). It is declared correctly anyway, because a
-# > dead function that is revived without this list fails silently, and the
-# > silence is the whole failure mode §23.4 exists to describe.
+# > and `search_evidence` reads with `search` — so the trap is not armed on
+# > either. `get_evidence_vectorstore` below is declared and called by nothing.
+# > It is declared correctly anyway, because a dead function that is revived
+# > without this list fails silently.
 EVIDENCE_INDEX_FIELDS = layout.search_fields(layout.EVIDENCE_INDEX)
 
 # What `search_evidence` asks the index to return. `select` is not `fields`:
 # this is the projection on a raw SearchClient read, and a field missing here
 # comes back absent rather than empty — which is why the structured record
-# (§24) reads every one of the seven from this list.
+# reads every one of its fields from this list.
 EVIDENCE_SELECT = list(layout.EVIDENCE_SELECT)
 
-# §23.2: retrieval filters to evidence by default. An artefact is what the team
+# Retrieval filters to evidence by default. An artefact is what the team
 # DESIGNED, and one bucket would let a proposed future be retrieved later as a
-# fact about the present (ruling AP2.3).
+# fact about the present.
 EVIDENCE_KIND_DEFAULT = "evidence"
 
 
@@ -406,33 +404,28 @@ def search_knowledge(query: str, phase: str | None = None,
               search="knowledge", filter=filters, query=query[:120])
 
     # ═══════════════════════════════════════════════════════════════════
-    # THE KEYS BELOW ARE THE INDEX'S OWN, AND THREE OF THEM WERE WRONG
+    # THE KEYS BELOW ARE THE INDEX'S OWN
     # ═══════════════════════════════════════════════════════════════════
-    # Until procedure step 5.2 this projection read `source`, `tool_name`,
-    # `phase` and `section_title`. **`improve_knowledge_index` has none of
-    # them.** Its live metadata keys are exactly:
+    # `improve_knowledge_index`'s live metadata keys are exactly:
     #
     #     char_count · id · page_number · phase_relevance · source_file
     #
-    # so every one of those four fields came back as `""` on every result, on
-    # every call, with no error — the `.get(key, "")` default is what made it
-    # silent. Found by step 5.2's live-run, not by review.
+    # A key the index does not have comes back as `""` on every result, with
+    # no error — the `.get(key, "")` default makes it silent.
     #
-    # The cost was not cosmetic. §50 requires retrieval citations to surface
-    # `source_file` and `page_number` — "this came from page 47 of the BB
-    # eBook" — and `page_number` was not projected at all, so a checkable
-    # citation was unbuildable from this return shape.
+    # Retrieval citations surface `source_file` and `page_number` — "this
+    # came from page 47 of the BB eBook" — so both must be projected for a
+    # citation to be checkable.
     #
-    # `phase_relevance` is the filter field (§7.2, §24), NEVER `phase`: there
-    # is no `phase` field on this index, which is the same confusion that
-    # produced the original filter bug §27 exists to prevent.
+    # `phase_relevance` is the filter field, NEVER `phase`: there is no
+    # `phase` field on this index.
     return [
         {
-            # The index key field (§23), here for RRF: fusion dedups on it
-            # (S-F17), and without it every variant's copy of the same chunk
-            # counts as a distinct document, turning fusion into concatenation
-            # with no error. LangChain's AzureSearch puts it in
-            # `Document.metadata` — see `_result_to_document`.
+            # The index key field, here for RRF: fusion dedups on it, and
+            # without it every variant's copy of the same chunk counts as a
+            # distinct document, turning fusion into concatenation with no
+            # error. LangChain's AzureSearch puts it in `Document.metadata` —
+            # see `_result_to_document`.
             "id": d.metadata.get("id", ""),
             "content": d.page_content,
             "source_file": d.metadata.get("source_file", ""),
@@ -479,8 +472,8 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
                 raw_response_hook=_azure_hook(ev),
                 search_text=query,
                 vector_queries=[vector_query],
-                # `id` is selected for RRF dedup (S-F17) — a `select` that
-                # omits it makes every document unique to fusion, silently.
+                # `id` is selected for RRF dedup — a `select` that omits it
+                # makes every document unique to fusion, silently.
                 select=list(layout.CASE_SELECT),
                 # DEF-165 (T95): completed cases only — an unfinished case is never precedent.
                 filter=layout.CASE_COMPLETED_FILTER,
@@ -510,16 +503,14 @@ def search_evidence(query: str, case_id: str, k: int = 4,
     """Search improve_evidence_index filtered by case_id.
     Returns uploaded document extracts for this specific case only.
 
-    **`kind` defaults to `evidence` and filtering it OFF is explicit** (§23.2,
-    step 6.13). An artefact is what the team designed; returning one to an
-    unfiltered evidence query lets a proposed future be read back as a fact
-    about the present, which is ruling AP2.3's whole subject. Pass
-    `kind=None` to search both — a deliberate, visible act at the call site.
+    **`kind` defaults to `evidence` and filtering it OFF is explicit.** An
+    artefact is what the team designed; returning one to an unfiltered
+    evidence query lets a proposed future be read back as a fact about the
+    present. Pass `kind=None` to search both — a deliberate, visible act at
+    the call site.
 
-    **The filter is safe only because the backfill ran first.** Against
-    documents where `kind` is null it would match nothing, which is why
-    6.13's sub-steps are ordered schema → write path → backfill → filters and
-    why that order is load-bearing rather than tidy.
+    **The filter relies on every document carrying `kind`.** Against
+    documents where `kind` is null it would match nothing.
 
     Returns [] only when the search ran and matched nothing. Raises
     KnowledgeSearchError if the search itself fails."""
@@ -550,7 +541,7 @@ def search_evidence(query: str, case_id: str, k: int = 4,
                 search_text=query,
                 vector_queries=[vector_query],
                 filter=odata,
-                # `id` is selected for RRF dedup (S-F17), as above.
+                # `id` is selected for RRF dedup, as above.
                 select=EVIDENCE_SELECT,
                 top=k,
             ))
@@ -589,11 +580,11 @@ def _evidence_metadata(row: dict) -> dict:
         "filename": meta.get("filename", ""),
         "upload_phase": meta.get("upload_phase", ""),
         "content_type": meta.get("content_type", ""),
-        # §24's structured record. Six come off the row as top-level fields
-        # applied at 6.13; `blob_path` stays in the metadata blob, because
-        # §23.2 deliberately does not index it — the index carries the
-        # pointer's identity (`role`, `content_digest`), the blob carries the
-        # data. A citation anchors on the pair (§23.2, §6).
+        # The structured record. These come off the row as top-level fields;
+        # `blob_path` stays in the metadata blob, because the index
+        # deliberately does not carry it — the index carries the pointer's
+        # identity (`role`, `content_digest`), the blob carries the data. A
+        # citation anchors on the pair.
         "role": row.get("role") or "",
         "kind": row.get("kind") or "",
         "description": row.get("description") or "",
@@ -634,13 +625,12 @@ def build_knowledge_context(
     """Retrieve relevant Black Belt methodology chunks for the current
     conversation turn and format them as a SystemMessage content block.
 
-    **Three outcomes, and they are three (§27), not two:** the formatted
-    reference block when the search matched; `None` when the search ran and
-    matched nothing; and an explicit *"lookup failed, this is not an absence"*
-    block when retrieval broke. Collapsing the last two into `None` is what
-    this function used to do, and it is the precise shape of the bug §27
-    exists to prevent — the coach cannot tell a silent corpus from a broken
-    one, so it reports the silence to the Belt as fact.
+    **Three outcomes, not two:** the formatted reference block when the
+    search matched; `None` when the search ran and matched nothing; and an
+    explicit *"lookup failed, this is not an absence"* block when retrieval
+    broke. Collapsing the last two into `None` would leave the coach unable
+    to tell a silent corpus from a broken one, so it would report the silence
+    to the Belt as fact.
 
     The query is built from the user's latest message and, when
     known, the active work product label (high-signal). Queries
@@ -660,24 +650,20 @@ def build_knowledge_context(
         results = search_knowledge(query, k=top_k)
     except KnowledgeSearchError as e:
         # ═══════════════════════════════════════════════════════════════
-        # §27 — A FAILURE MUST NOT REACH THE COACH AS AN ABSENCE
+        # A FAILURE MUST NOT REACH THE COACH AS AN ABSENCE
         # ═══════════════════════════════════════════════════════════════
-        # This used to `return None`, which is **the same value this function
-        # returns when nothing matched**. Coaching then continued with no
-        # grounding and no way for the coach to know grounding had been
-        # attempted and had broken — so the coach would answer as though the
-        # methodology simply had nothing on the topic. That is §27's named
-        # failure: *"the coach then told Belts the methodology had nothing on
-        # their topic, which was false and unfalsifiable from the outside."*
+        # `None` is **the value this function returns when nothing matched**.
+        # Returning it here would let coaching continue with no grounding and
+        # no way for the coach to know grounding had been attempted and had
+        # broken — so the coach would tell the Belt the methodology had
+        # nothing on the topic, which is false and unfalsifiable from outside.
         #
-        # `knowledge/tools.py` already drew this distinction for the three
-        # `@tool` entry points. This is the path the five orchestrators take on
-        # **every turn**, and it did not.
+        # `knowledge/tools.py` draws the same distinction for the `@tool`
+        # entry points; this is the path the orchestrators take on every turn.
         #
-        # The block below is §27's prescribed wording. Coaching still
-        # continues — a retrieval failure is a quality degradation, not an
-        # availability failure (§4.8, Search breaker) — but it continues
-        # *knowing*.
+        # Coaching still continues — a retrieval failure is a quality
+        # degradation, not an availability failure (the Search breaker) — but
+        # it continues *knowing*.
         logger.error(
             "build_knowledge_context failed | %s",
             e.error.to_step_log_entry(layer="retrieval", phase=phase),

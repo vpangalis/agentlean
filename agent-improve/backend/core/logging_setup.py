@@ -1,11 +1,10 @@
 """
 Logging configuration for Agent Improve.
 
-Per CLAUDE.md §9.3 and ARCHITECTURE.md §10.3, every log line
-includes request_id, case_id, and phase pulled from the
-request_context contextvars when available.
+Every log line includes request_id, case_id, and phase pulled
+from the request_context contextvars when available.
 
-Module-level functions only per CLAUDE.md §2. The logging.Filter
+Module-level functions only, per CLAUDE.md. The logging.Filter
 subclass is a stdlib extension point, not a domain class — its
 use is permitted (analogous to extending BaseSettings for config).
 """

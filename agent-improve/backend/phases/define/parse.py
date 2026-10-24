@@ -1,10 +1,12 @@
-"""Define values read in code, before any model — founder ruling 3, 2026-09-28 (M1 loop package 4).
+"""Define values read in code, before any model.
 
 `parse_limit` (G-120, DEF-032): a target written as a number or as a limit — "under / below /
 less than / at most 5%", "unter / weniger als / höchstens / maximal 5 %" — as number, unit and
 direction. `metric_value` (ADR-0071, DEF-076): the ONE parser of the baseline and the target —
 their Belt's words as a MetricValue {value, unit, direction, is_estimate, raw}. `parse_sipoc` (G-121, DEF-158): the Belt's SIPOC, written with its six labels, as the
 six columns `schema.SIPOC_KEYS`; a column without its label is left out, never guessed.
+`calendar_date` is the one date reader (ADR-0088 decision 5); `missing_parts` is the parts check the
+Confirm and the gate share (ADR-0088 decision 6); the process steps and their figures follow ADR-0078.
 """
 from __future__ import annotations
 
@@ -34,8 +36,8 @@ def unit_of(text: str) -> str:
 
 
 def parse_limit(text: str) -> Optional[dict[str, Any]]:
-    """`{number, unit, direction}` of the first number in `text` ("below", "above" or "equal"),
-    or None when there is no number."""
+    """`{number, unit, direction}` of the first number in `text` that is not a year (else the first),
+    with its direction "below", "above" or "equal"; None when there is no number."""
     t = (text or "").lower()
     found = list(re.finditer(_NUMBER + _UNIT, t))
     if not found:
@@ -58,9 +60,9 @@ _MONTH = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|
 _GOAL_DATE = re.compile(r"(?i)\b(\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}[./]\d{4}|\d{1,2}(?:st|nd|rd|th)?\s+" + _MONTH
                         + r"\.?,?\s+\d{4}|" + _MONTH + r"\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|(?:end of\s+)?"
                         + _MONTH + r"\.?\s+\d{4}|(?:end of\s+)?q([1-4])\s*(?:/\s*)?(\d{4}))\b")
-#: ADR-0086 note (founder 2026-10-14): a quarter is read as its last day, shown with the quarter it came from.
+#: ADR-0086 note: a quarter is read as its last day, shown with the quarter it came from.
 _QUARTER_END = {"1": "31 March", "2": "30 June", "3": "30 September", "4": "31 December"}
-#: ADR-0086 note (founder 2026-10-14): a figure counts as the target only when a target word introduces it —
+#: ADR-0086 note: a figure counts as the target only when a target word introduces it —
 #: "to", "down to", a limit ("under", "at most" …) or "target (of)"; "by 30%", "by 5 points", "halve" are
 #: changes relative to the baseline, never the target value, and the target is taught.
 _TARGET_CUE = re.compile(r"(?:\bto|\btarget(?:\s+of)?|\bunder|\bbelow|\bless than|\blower than|\bat most|"
@@ -69,11 +71,11 @@ _TARGET_CUE = re.compile(r"(?:\bto|\btarget(?:\s+of)?|\bunder|\bbelow|\bless tha
 
 
 def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
-    """ADR-0086 (A8, founder 2026-10-13): what a confirmed goal states for the target, parsed in code —
+    """ADR-0086 (A8): what a confirmed goal states for the target, parsed in code —
     `target_value` a MetricValue (the goal's last figure, read as a limit, after any baseline figure:
-    "from 23% to under 5%" is under 5 %) or None, and `target_date` the date phrase as the goal writes it,
-    or None. The value counts only as `_judged_in_code` would accept a typed target (G-120, ADR-0071): in
-    the baseline's unit, and different from the baseline."""
+    "from 23% to under 5%" is under 5 %) or None, and `target_date` the goal's date as an ISO calendar
+    date (`calendar_date`), or None. The value counts only as `nodes_common._judged_in_code` would accept a
+    typed target (G-120, ADR-0071): in the baseline's unit, and different from the baseline."""
     text = str(goal or "")
     date = _GOAL_DATE.search(text)
     rest = _GOAL_DATE.sub(" ", text)
@@ -88,7 +90,7 @@ def goal_targets(goal: Any, artifacts: dict[str, Any]) -> dict[str, Any]:
         if mv["value"] is not None and mv["unit"] and (not base_unit or mv["unit"] == base_unit) \
                 and not (baseline and baseline.get("value") == mv["value"]):
             value = {**mv, "raw": text.strip()}
-    # ADR-0088 decision 5 (the ADR-0086 note of 2026-10-16): the date is stored as an ISO calendar date.
+    # ADR-0088 decision 5: the date is stored as an ISO calendar date.
     found = calendar_date(date.group(0)) if date else None
     return {"target_value": value, "target_date": found[0] if found else None}
 
@@ -315,7 +317,8 @@ def team_rows(text: Any) -> list[dict[str, str]]:
 def missing_parts(field: str, value: Any) -> list[str]:
     """ADR-0088 decision 6: the required parts of an element R7 names that `value` lacks, in the Belt's words —
     the seven 5W2H answers (DEF-R04); a champion, a process owner and training stated (DEF-R02); customers, needs
-    and at least one measurable CTQ (DEF-R03). Empty when complete, or for an element with no parts to check."""
+    and at least one measurable CTQ (DEF-R03); a calendar target date (decision 5); when the saving shows (G-255).
+    Empty when complete, or for an element with no parts to check."""
     def text(v: Any) -> str:
         return " ".join(str(x) for x in v.values()) if isinstance(v, dict) else str(v or "")
     if field == "problem_5w2h" and isinstance(value, dict):
@@ -342,7 +345,7 @@ def missing_parts(field: str, value: Any) -> list[str]:
     return []
 
 
-#: G-255 (founder ruling 2026-10-24): when the saving shows — a schedule by period, or a start with the saving
+#: G-255: when the saving shows — a schedule by period, or a start with the saving
 #: sustained or ongoing.
 _BY_PERIOD = re.compile(r"\b(?:a|per|each|every)\s+(?:week|month|quarter|year)\b"
                         r"|\b(?:weekly|monthly|quarterly|annually|yearly)\b", re.I)
@@ -352,7 +355,7 @@ _SUSTAINED = re.compile(r"\bsustain|\bon-?going\b|\bevery year\b|\brecurr", re.I
 
 
 def realisation_stated(benefits: Any) -> bool:
-    """G-255 (founder ruling 2026-10-24): the benefits' `realisation` criterion, read in code — in Define a schedule by
+    """G-255: the benefits' `realisation` criterion, read in code — in Define a schedule by
     period meets it, and so does a start date with the saving sustained or ongoing (said in the schedule or as the
     impact type)."""
     b = benefits if isinstance(benefits, dict) else {}
@@ -395,9 +398,8 @@ def five_w_two_h_question(store: Any) -> str:
 
 
 def _is_year(m: "re.Match[str]") -> bool:
-    """G-135 (2026-09-29): a four-digit 1900-2099 with no unit of its own is a year — "January
-    to June 2026" — never a baseline or a target. The run-through read "2026" as the baseline
-    when the read-back carried no metric unit (IMPR-2026-02C, turn 13)."""
+    """G-135: a four-digit 1900-2099 with no unit of its own is a year — "January to June 2026" —
+    never a baseline or a target."""
     word = (m.group(2) or "").strip().lower()
     known = word in ("%", "percent", "per cent", "prozent") or word in _UNIT_OF_WORD
     return bool(re.fullmatch(r"(?:19|20)[0-9]{2}", m.group(1))) and not known
@@ -482,7 +484,7 @@ _UNIT_OF_WORD = {w: u for u, ws in _UNITS.items() for w in ws}
 _DIRECTION = {"below": "<=", "above": ">=", "equal": "="}
 #: Words by which the Belt MARKS a Define value as an estimate (R17). Rounding words ("about 23%",
 #: "around", "etwa") are not among them: "about 23% today, from the AP ledger" is real data, and
-#: reading it as an estimate made the grader fail DEF-R05 on the 2026-09-29 run-through (IMPR-2026-730).
+#: reading it as an estimate would fail DEF-R05 (real data, not a best guess).
 _ESTIMATE = re.compile(
     r"(?<![a-zäöüß])(rough(?:ly)?|estimate[ds]?|estimated|estimation|guess(?:ed|timate)?|"
     r"geschätzt|schätzung|schätzen|grob)(?![a-zäöüß])", re.I)
@@ -495,7 +497,8 @@ def normal_unit(unit: str) -> str:
 
 
 def is_estimate(text: str) -> bool:
-    """The Belt marked the figure as an estimate ("about", "roughly", "geschätzt" …)."""
+    """The Belt marked the figure as an estimate ("roughly", "estimated", "geschätzt" …); a rounding word
+    ("about", "around") does not."""
     return bool(_ESTIMATE.search(text or ""))
 
 
@@ -507,7 +510,7 @@ _GOAL_UP = re.compile(r"(?<![a-zäöüß])(increase|increasing|raise|raising|gro
 
 
 def wrong_side(baseline: Optional[float], target: dict[str, Any], goal: Any = "") -> Optional[str]:
-    """G-245 (audit D2; SKILL.md `direction`): why the target lies on the wrong side of the baseline, or None. The side
+    """G-245 (SKILL.md `direction`): why the target lies on the wrong side of the baseline, or None. The side
     is the target's own limit ("under" / "at least") or, with none, the goal's verb ("reduce" / "increase"); with
     neither, or with no number, nothing is refused. The ONE check, for the element and the gate."""
     value = target.get("value")
@@ -557,21 +560,21 @@ _PLURAL_UNITS = frozenset({"seconds", "minutes", "hours", "days", "weeks", "mont
 
 
 def metric_text(value: Any) -> str:
-    """A MetricValue as the Belt reads it: "at most 5 %", "23 % (an estimate)"; a value that is
-    not a number yet says so and shows the Belt's words."""
+    """A MetricValue as the Belt reads it: "at most 5%", "23% (an estimate)", "12 days"; a value that
+    is not a number yet says so and shows the Belt's words."""
     mv = as_metric(value)
     if mv["value"] is None:
         return f"not a number yet — {mv['raw']}" if mv["raw"] else "not given"
     unit = str(mv["unit"] or "")
     if mv["value"] == 1 and unit.endswith("s") and unit.split()[-1] in _PLURAL_UNITS:
-        unit = unit[:-1]                    # founder ruling 2026-10-21 (P16): "1 day", never "1 days"
+        unit = unit[:-1]                    # "1 day", never "1 days"
     figure = f"{mv['value']:g}{'' if unit in ('', '%') else ' '}{unit}".strip()
     words = _WORDS.get(mv.get("direction") or "", "")
     return (f"{words} {figure}".strip() + (" (an estimate)" if mv.get("is_estimate") else ""))
 
 
 def limit_phrase(value: Any) -> str:
-    """DEF-221 (finding 52; ADR-0071 kept): the Belt's own words for a target's limit — "under 10%" — found in the
+    """DEF-221 (ADR-0071): the Belt's own words for a target's limit — "under 10%" — found in the
     MetricValue's raw words around its figure, with the limit word before it. "" when the words carry no limit word
     or say it as the read-back does ("at most 10%")."""
     mv = as_metric(value, target=True)
@@ -841,7 +844,7 @@ def _matches(named: str, step: str) -> bool:
     return bool({w for w in a.split() if len(w) >= 5} & {w for w in b.split() if len(w) >= 5})
 
 
-#: A location written "from → to" (founder note under ADR-0078, 2026-10-22): an arrow between its two ends.
+#: A location written "from → to" (ADR-0078's note): an arrow between its two ends.
 _RANGE_ARROW = re.compile(r"\s*(?:→|->|=>)\s*")
 
 
@@ -855,7 +858,7 @@ def _found(name: str, steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def located_steps(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
-    """R18 (ADR-0078 point 5 and the founder's note of 2026-10-22): where the problem statement places the
+    """R18 (ADR-0078 point 5 and its note): where the problem statement places the
     problem in the process — THE matching; `link_mismatch` and the drawn flow's marks both read it.
 
     A "from → to" location (one arrow between two ends) is every step from its start step to its end step:

@@ -62,7 +62,7 @@ class ControlPhaseInput(BaseModel):
         description="Name of sponsor who confirmed project closure."
     )
 
-    # ── actual_close_date — Tier 2, added at the Control review (F-12) ──
+    # ── actual_close_date — Tier 2 (F-12) ────────────────────────────
     actual_close_date: Optional[str] = Field(
         None,
         description=(
@@ -73,10 +73,9 @@ class ControlPhaseInput(BaseModel):
         ),
     )
 
-    # ── phase_metrics — on all five schemas (§40, §63.9, S-C39) ───────
-    # NOTE: this class is still the v1 `ControlPhaseInput`. `phase_metrics` is added
-    # here so the uniform-on-all-five rule holds today; it carries through the
-    # v2 `ControlOutput` rebuild at procedure step 3.4 unchanged.
+    # ── phase_metrics — on all five schemas ───────────────────────────
+    # Declared on this v1 input class as well as on `ControlOutput`, so the
+    # on-all-five rule holds for both.
     phase_metrics: List[dict] = Field(
         default_factory=list,
         description=(
@@ -99,13 +98,13 @@ from backend.phases.gate_assembly import (  # noqa: E402
 
 # =======================================================================
 # CONTROL'S GATE DOCUMENT -- 17 fields (3 Tier 1, 9 Tier 2,
-# `phase_metrics`, 4 gate metadata). Canonical: S-C31 (63.5) + 40.
-# Procedure step 3.4, closing G-28 for this phase.
+# `phase_metrics`, 4 gate metadata). The assembly below references every
+# one of them (G-28).
 #
 # Assembled ONCE, at `gate_apply`, by Pydantic construction over values
-# already captured -- there is NO LLM CALL in this path (20, 33).
+# already captured -- there is NO LLM CALL in this path.
 #
-# THE ACCESS PATTERN ENCODES THE TIER (40.1):
+# THE ACCESS PATTERN ENCODES THE TIER:
 #   Tier 1  artifacts["field"]        a KeyError is CORRECT -- Layer 2b
 #                                     should have blocked the gate
 #   Tier 2  artifacts.get(field, "")  an empty value RECORDS that the Belt
@@ -143,7 +142,7 @@ class ControlOutput(BaseModel):
     training plan authored and never run.
     """
 
-    # -- Tier 1 -- gate-required (35) ----------------------------------
+    # -- Tier 1 -- gate-required ---------------------------------------
     control_plan: dict = Field(
         ...,
         description=(
@@ -163,7 +162,7 @@ class ControlOutput(BaseModel):
         ),
     )
 
-    # -- Tier 2 -- rubric-recommended; at worst a `warning` (35) --------
+    # -- Tier 2 -- rubric-recommended; at worst a `warning` -------------
     improvement_delta: str = Field(
         default_factory=str,
         description=(
@@ -219,7 +218,7 @@ class ControlOutput(BaseModel):
         ),
     )
 
-    # -- On all five schemas (63.9, S-C39) -----------------------------
+    # -- On all five schemas -------------------------------------------
     phase_metrics: list[dict] = Field(
         default_factory=list,
         description=(
@@ -233,7 +232,7 @@ class ControlOutput(BaseModel):
         ),
     )
 
-    # -- Gate metadata -- the same four on all five schemas (40) --------
+    # -- Gate metadata -- the same four on all five schemas -------------
     computation_results: list[dict] = Field(default_factory=list)
     acknowledged_gaps: list[str] = Field(
         default_factory=list,
@@ -254,19 +253,19 @@ def assemble_control_gate_document(
     uploads: list[dict],
     acknowledged_gaps: list[str],
 ) -> ControlOutput:
-    """Construct Control's gate document from captured values (S-F28).
+    """Construct Control's gate document from captured values.
 
-    Both S-F28 invariants run first, inside `build_gate_document`: metric
-    single authority (39.2.3), then field coverage. Every one of the 17
+    Both assembly invariants run first, inside `build_gate_document`: metric
+    single authority, then field coverage. Every one of the 17
     schema fields is referenced below -- that IS invariant 1, and G-28 is the
     risk it exists to close.
     """
     values = {
-        # Tier 1 -- direct access; a KeyError is correct (40.1)
+        # Tier 1 -- direct access; a KeyError is correct
         "control_plan": tier_1(artifacts, "control_plan"),
         "post_improvement_metrics": tier_1(artifacts, "post_improvement_metrics"),
         "issues_and_barriers": tier_1(artifacts, "issues_and_barriers"),
-        # Tier 2 -- .get(); an empty value records a conscious gap (35)
+        # Tier 2 -- .get(); an empty value records a conscious gap
         "improvement_delta": tier_2(artifacts, "improvement_delta"),
         "financial_impact_verified": tier_2(artifacts, "financial_impact_verified"),
         "sustainability_check": tier_2(artifacts, "sustainability_check"),
@@ -276,9 +275,9 @@ def assemble_control_gate_document(
         "project_signoff": tier_2(artifacts, "project_signoff"),
         "secondary_metrics": tier_2(artifacts, "secondary_metrics"),
         "actual_close_date": tier_2(artifacts, "actual_close_date"),
-        # On all five schemas (63.9)
+        # On all five schemas
         "phase_metrics": artifacts.get("phase_metrics", []),
-        # Gate metadata (40)
+        # Gate metadata
         "computation_results": artifacts.get("computation_results", []),
         "acknowledged_gaps": acknowledged_gaps,
         "citations": citations,
@@ -287,10 +286,10 @@ def assemble_control_gate_document(
     return build_gate_document(ControlOutput, "control", artifacts, values)
 
 
-#: §41 / S-C33 — all FIVE sub-plans required. A control plan written is not a
-#: control plan delivered, and a training plan authored and never run is the
-#: most common real Control failure (B1). **Here rather than in `validate.py`
-#: (moved at step 6.3)** — see the note on Measure's equivalent.
+#: All FIVE sub-plans required. A control plan written is not a control plan
+#: delivered, and a training plan authored and never run is the most common
+#: real Control failure. **Declared here rather than in `validate.py`** — see
+#: the note on Measure's equivalent.
 CONTROL_PLAN_KEYS: tuple[str, ...] = (
     "documentation", "monitoring", "response", "training",
     "aligning_systems",

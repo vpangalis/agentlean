@@ -1,32 +1,18 @@
-"""Shared mechanics for the ten boundary mappers — procedure step 3.3.
+"""Shared mechanics for the ten boundary mappers.
 
-Architecture: **§9** (the Store and boundary mappers) · canonical entries
-**S-F10** (`define_input_mapper`), **S-F11** (`define_output_mapper`) and
-**S-F12** (the other four pairs). Schema: **S-C02**.
+The ten mappers differ in two places only: which Store key the input mapper
+reads, and what goes into `phase_context`. Everything else is shared: copy
+identity down, seed `messages`, initialise the other author-populated fields,
+and on the way out write the gate document and return the three orchestration
+values.
 
-WHY A SHARED MODULE RATHER THAN FIVE COPIES
-    The ten mappers differ in exactly two places — which Store key the input
-    mapper reads, and what goes into `phase_context`. Everything else is
-    identical: copy identity down, seed `messages`, initialise the other
-    author-populated fields, and on the way out write the gate document and
-    return the three orchestration values.
+One module rather than five copies, so a new `PhaseState` field cannot land in
+some mappers and not others. The skeleton is checked against
+`PHASE_STATE_AUTHOR_POPULATED_FIELDS`, so a schema change fails loudly rather
+than silently skipping a mapper.
 
-    Written out five times that is five copies of a twenty-key dict literal,
-    and **the twenty-first field would land in four of them.** That is not a
-    hypothetical: this file exists because step 3.1 shipped a nineteen-field
-    `PhaseState` while the build target specified twenty-one, and
-    `phases/define/validate.py` already carries the lesson in its own words —
-    *"two hand-maintained copies of one list is precisely how the three drift
-    apart."* The skeleton is built from `PHASE_STATE_AUTHOR_POPULATED_FIELDS`,
-    so a schema change breaks the build rather than silently skipping a mapper.
-
-    **Not in Appendix B's `New` file list**, which enumerates
-    `phases/{phase}/{graph,nodes,mappers}.py` and no common module. Flagged
-    rather than assumed: the alternative is the duplication above.
-
-§0.24 — the Store is used through `BaseStore.get` / `.put` and nothing else.
-No blob client, no path building, no serialisation. `AzureBlobStore` (S-C06)
-already owns all of that.
+The Store is used through `BaseStore.get` / `.put` and nothing else: no blob
+client, no path building, no serialisation. `AzureBlobStore` owns all of that.
 """
 from __future__ import annotations
 
@@ -43,13 +29,13 @@ from backend.core.substate import (
     PhaseState,
 )
 
-#: The fixed DMAIC order. Phase transitions are static (§15) — there is
+#: The fixed DMAIC order. Phase transitions are static — there is
 #: nothing to reason about, so nothing reasons.
 PHASE_ORDER: tuple[str, ...] = (
     "define", "measure", "analyse", "improve", "control",
 )
 
-#: Store namespace kinds (§9). `gate_documents` is RETIRED and must not return.
+#: Store namespace kinds. `gate_documents` is retired and must not come back.
 KIND_CASE = layout.KIND_CASE
 KIND_ARTIFACTS = layout.KIND_ARTIFACTS
 
@@ -63,7 +49,7 @@ def prior_phase(phase: str) -> str | None:
 def read_case_record(store: BaseStore, case_id: str) -> dict[str, Any]:
     """Define's framing source — the case record written at session start.
 
-    §9: the `case` namespace is a session-start COPY so that mappers depend on
+    The `case` namespace is a session-start copy so that mappers depend on
     `BaseStore` alone; `cases/case_{id}.json` stays the system of record.
     """
     item = store.get((layout.STORE_ROOT, case_id, KIND_CASE), layout.CASE_RECORD_KEY)
@@ -71,75 +57,69 @@ def read_case_record(store: BaseStore, case_id: str) -> dict[str, Any]:
 
 
 #: The framing fields `define_input_mapper` composes `phase_context` from.
-#: Named here rather than in the mapper because the WRITER has to know what the
-#: reader needs — WATCH 19 existed for six steps because those two facts lived
-#: in different files and neither named the other.
+#: Named here, beside the writer, because the writer has to know what the
+#: reader needs.
 CASE_RECORD_FRAMING_FIELDS = (
     "title", "department", "belt_level", "leader", "target_date",
 )
 
 #: Where the uploads inventory sits inside the Store's `case` record.
-#: **Not one of the framing fields** — it is not part of `phase_context` and
-#: must not leak into it; it is carried in the same record because the record
-#: is already the one thing the input mappers read (§9), and adding a second
-#: Store namespace for it would give `PhaseState.uploads` a writer that the
-#: `case` backfill could not keep current.
+#: Not one of the framing fields — it is not part of `phase_context` and
+#: must not leak into it. It is carried in this record because the record is
+#: already the one thing the input mappers read; a second Store namespace
+#: would give `PhaseState.uploads` a writer that the `case` backfill could not
+#: keep current.
 CASE_RECORD_UPLOADS = "uploads_by_phase"
 
 #: Where each phase's captured values sit inside the Store's `case` record —
-#: step 6.33. **The accumulator's source.** `new_phase_state` seeded
-#: `artifacts` to `{}` from step 3.1 to 6.33, so a value captured on turn 1 was
-#: gone by turn 2 and `artifacts` — documented as *"the accumulation"* — could
-#: only ever hold one turn's worth. **This is the same seam `uploads` was
-#: missing at 6.11 and the same argument** (`CASE_RECORD_UPLOADS` below says
-#: it): the mapper is the only thing that builds `PhaseState`, so a constant
-#: there means nothing can reach a gate document.
+#: the seed of `PhaseState.artifacts`, so a value captured on one turn is
+#: still there on the next. The mapper is the only thing that builds
+#: `PhaseState`, so without this seed nothing captured could reach a gate
+#: document.
 #:
-#: A COPY, per §9 — `cases/case_{id}.json` stays the system of record and this
-#: is rebuilt from it by `case_record_from_document` on every turn.
+#: A copy — `cases/case_{id}.json` stays the system of record and this is
+#: rebuilt from it by `case_record_from_document` on every turn.
 CASE_RECORD_CAPTURED = "captured_by_phase"
 
-#: Where each phase's field change log sits inside the Store's `case` record —
-#: step 6.33. Travels beside `CASE_RECORD_CAPTURED` rather than anywhere else
-#: **because the log and the values it is a log OF must cross the turn
-#: boundary together**: persisted on different schedules they can disagree,
-#: and a disagreement between a value and its own history looks exactly like a
-#: change that never happened.
+#: Where each phase's field change log sits inside the Store's `case` record.
+#: Travels beside `CASE_RECORD_CAPTURED` because the log and the values it
+#: records must cross the turn boundary together: persisted on different
+#: schedules they can disagree, and a value that disagrees with its own
+#: history looks like a change that never happened.
 CASE_RECORD_FIELD_LOG = "field_log_by_phase"
 
-#: Where the open asks sit inside the Store's `case` record — step 6.12.
-#: **The upload route cannot read `PhaseState`.** An ask is created by the
+#: Where the open asks sit inside the Store's `case` record.
+#: The upload route cannot read `PhaseState`: an ask is created by the
 #: planner during a coaching turn and must be resolvable by an upload arriving
 #: moments later, and the route has the case blob and the Store, not the
-#: checkpoint. This mirrors `CASE_RECORD_UPLOADS` exactly, which 6.11
-#: established for the same reason in the other direction.
+#: checkpoint. Mirrors `CASE_RECORD_UPLOADS`, for the same reason in the other
+#: direction.
 CASE_RECORD_ASKS = "asks_by_phase"
 
-#: Where each phase's field statuses sit inside the Store's `case` record —
-#: step 6.61 (R5). Beside the captured values and their log, for the same
-#: reason: the three must cross the turn boundary together.
+#: Where each phase's field statuses sit inside the Store's `case` record
+#: (R5). Beside the captured values and their log, for the same reason: the
+#: three must cross the turn boundary together.
 CASE_RECORD_FIELD_STATUS = "field_status_by_phase"
 
 
 def case_record_from_document(case: Any) -> dict[str, Any]:
-    """The Store's `case` copy, from the blob case document (§9, S-F10).
+    """The Store's `case` copy, from the blob case document.
 
-    **A COPY, deliberately, and not the whole document.** §9: the `case`
-    namespace exists so mappers depend on `BaseStore` alone;
-    `cases/case_{id}.json` stays the system of record. Copying only the framing
-    fields keeps the copy small and makes the drift surface obvious — if the
-    mapper ever needs a sixth field, `CASE_RECORD_FRAMING_FIELDS` is the one
-    place that has to change.
+    A copy, and not the whole document: the `case` namespace exists so
+    mappers depend on `BaseStore` alone; `cases/case_{id}.json` stays the
+    system of record. Copying only the framing fields keeps the copy small and
+    the drift surface obvious — if the mapper needs another field,
+    `CASE_RECORD_FRAMING_FIELDS` is the one place that has to change.
     """
     record: dict[str, Any] = {
         f: getattr(case, f, None) for f in CASE_RECORD_FRAMING_FIELDS
         if getattr(case, f, None)
     }
     record[CASE_RECORD_UPLOADS] = uploads_from_document(case)
-    # Step 6.33 — the accumulator and its history, keyed by phase like the
-    # uploads inventory above and carried for the same reason: the input
-    # mapper reads `BaseStore` and nothing else (S-F10 B1), so anything it
-    # must seed has to arrive through this record.
+    # The captured values and their history, keyed by phase like the uploads
+    # inventory above and carried for the same reason: the input mapper reads
+    # `BaseStore` and nothing else, so anything it seeds has to arrive through
+    # this record.
     record[CASE_RECORD_CAPTURED] = captured_from_document(case)
     record[CASE_RECORD_FIELD_LOG] = field_log_from_document(case)
     record[CASE_RECORD_FIELD_STATUS] = {
@@ -150,20 +130,16 @@ def case_record_from_document(case: Any) -> dict[str, Any]:
 
 
 def captured_from_document(case: Any) -> dict[str, dict[str, Any]]:
-    """Every phase's captured values, keyed by phase — step 6.33.
+    """Every phase's captured values, keyed by phase — the seed of
+    `PhaseState.artifacts`.
 
-    **This is `PhaseState.artifacts`'s missing SEED**, the other end of the
-    defect `uploads` had at 6.11. The field was initialised to `{}` by the
-    input mapper on every turn, so it accumulated within one turn and was
-    blanked at the start of the next — which made `artifacts` and `draft`
-    permanently identical, against S-F04's Output where `draft` is this turn's
-    extraction and `artifacts` is *"the accumulation"*.
+    Without this seed `artifacts` would be blanked at the start of every turn
+    and would always equal `draft`; `draft` is this turn's extraction and
+    `artifacts` is the accumulation.
 
-    **Keyed by phase and the whole inventory travels**, exactly as
-    `uploads_from_document` carries all five: the mapper takes its own slice,
-    and a later step wanting a cross-phase view needs no second writer.
-
-    §9's copy rule is unchanged: a COPY for mappers to read, rebuilt from
+    Keyed by phase, and the whole inventory travels, as in
+    `uploads_from_document`: the mapper takes its own slice, and a cross-phase
+    view needs no second writer. A copy for mappers to read, rebuilt from
     `cases/case_{id}.json` every turn.
     """
     return {
@@ -173,7 +149,7 @@ def captured_from_document(case: Any) -> dict[str, dict[str, Any]]:
 
 
 def field_log_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
-    """Every phase's field change log, keyed by phase — step 6.33."""
+    """Every phase's field change log, keyed by phase."""
     return {
         phase: [dict(e) for e in (getattr(record, "field_log", None) or [])]
         for phase, record in (getattr(case, "phases", {}) or {}).items()
@@ -181,24 +157,21 @@ def field_log_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
 
 
 def uploads_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
-    """Every phase's uploads, in §6's entry shape, keyed by phase — step 6.11.
+    """Every phase's uploads, in the `PhaseState.uploads` entry shape, keyed by
+    phase.
 
-    **This is `PhaseState.uploads`'s missing writer, at the Store end.** The
-    field was declared in `PhaseState` from step 3.1 and set to `[]` by the
-    input mapper with nothing ever putting anything in it; the route persisted
-    an `UploadRecord` to the case blob instead and the two halves never met.
-    Gate assembly reads `PhaseState.uploads`, and §6 says an empty list means
-    *"the phase reached its conclusions from typed statements alone, and a
-    reviewer should be able to see that"* — so **every gate document asserted
-    that, including for phases where the Belt had uploaded** (Part AP1).
+    The Store end of `PhaseState.uploads`'s writer: the route persists an
+    `UploadRecord` to the case blob, and this carries it to the input mapper.
+    Gate assembly reads `PhaseState.uploads`, and an empty list there means the
+    phase reached its conclusions from typed statements alone — so an upload
+    missing here makes the gate document say that falsely. A file flagged as
+    not for the coach is left out (T72).
 
-    **Keyed by phase, and the whole inventory travels.** The input mapper takes
-    its own phase's slice. Carrying all five costs a few hundred bytes in the
-    Store copy and means a later step that needs a cross-phase view — 7.6's
-    evidence supersession is the named one — does not need a second writer.
-
-    §9's copy rule is unchanged: this is a COPY for mappers to read, and
-    `cases/case_{id}.json` stays the system of record.
+    Keyed by phase, and the whole inventory travels. The input mapper takes
+    its own phase's slice; carrying all five costs a few hundred bytes and
+    means a cross-phase view (evidence supersession) needs no second writer.
+    A copy for mappers to read; `cases/case_{id}.json` stays the system of
+    record.
     """
     inventory: dict[str, list[dict[str, Any]]] = {}
     for phase, record in (getattr(case, "phases", {}) or {}).items():
@@ -218,12 +191,10 @@ def uploads_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
 def write_case_record(store: BaseStore, case_id: str, record: dict[str, Any]) -> None:
     """Put the case record at `("projects", case_id, "case") / "record"`.
 
-    **This is WATCH 19's missing writer.** `read_case_record` has read this key
-    since step 3.3 and nothing anywhere wrote it, so every read returned `{}`
-    and Define's `phase_context` was composed entirely from labelled fallbacks
-    — silently, from 6.3 when the coach started being handed that context, to
-    6.8 when this landed. Idempotent by key, which is what makes the lazy
-    backfill safe to run on every turn.
+    The writer `read_case_record` depends on: without it every read returns
+    `{}` and Define's `phase_context` is composed entirely from labelled
+    fallbacks. Idempotent by key, which is what makes the lazy backfill safe
+    to run on every turn.
     """
     store.put((layout.STORE_ROOT, case_id, KIND_CASE), layout.CASE_RECORD_KEY, record)
 
@@ -231,11 +202,11 @@ def write_case_record(store: BaseStore, case_id: str, record: dict[str, Any]) ->
 def read_gate_document(store: BaseStore, case_id: str, phase: str) -> dict[str, Any]:
     """The approved gate document for `phase`, written by `gate_apply_node`.
 
-    **A `None` here is a real ordering fault, not missing data** (S-C06 failure
-    modes): it means the prior gate never applied, and a caller that papers
-    over it with a default hides a broken phase transition. So this returns
-    `{}` only for the caller to detect — callers MUST NOT treat `{}` as an
-    acceptable framing; `compose_phase_context` raises on it.
+    **A missing document is an ordering fault, not missing data**: it means
+    the prior gate never applied, and a caller that papers over it with a
+    default hides a broken phase transition. So this returns `{}` only for the
+    caller to detect — callers MUST NOT treat `{}` as an acceptable framing;
+    `compose_phase_context` raises on it.
     """
     item = store.get((layout.STORE_ROOT, case_id, KIND_ARTIFACTS), phase)
     return dict(item.value) if item is not None else {}
@@ -248,7 +219,7 @@ class PriorGateDocumentMissing(RuntimeError):
 def asks_for_phase(
     case_record: dict[str, Any], phase: str
 ) -> list[dict[str, Any]]:
-    """This phase's asks, from the Store's `case` copy — step 6.12."""
+    """This phase's asks, from the Store's `case` copy."""
     inventory = case_record.get(CASE_RECORD_ASKS) or {}
     return [dict(a) for a in (inventory.get(phase) or [])]
 
@@ -273,11 +244,10 @@ def write_asks(
 def uploads_for_phase(
     case_record: dict[str, Any], phase: str
 ) -> list[dict[str, Any]]:
-    """This phase's uploads, in §6's entry shape — step 6.11.
+    """This phase's uploads, in the `PhaseState.uploads` entry shape.
 
-    Returns `[]` when the case has none, which is the honest answer and the
-    one §6 gives meaning to. **The difference this step makes is that `[]` is
-    now a fact about the phase rather than a fact about the wiring.**
+    Returns `[]` when the phase has none — the honest answer, which the gate
+    document reads as a phase that worked from typed statements alone.
     """
     inventory = case_record.get(CASE_RECORD_UPLOADS) or {}
     entries = inventory.get(phase) or []
@@ -287,12 +257,9 @@ def uploads_for_phase(
 def captured_for_phase(
     case_record: dict[str, Any], phase: str
 ) -> dict[str, Any]:
-    """This phase's captured values, from the Store's `case` copy — step 6.33.
+    """This phase's captured values, from the Store's `case` copy.
 
-    Returns `{}` when the phase has captured nothing, which is the honest
-    answer on turn one of a phase. **From turn two on, `{}` is now a fact
-    about the phase rather than a fact about the wiring** — the same sentence
-    `uploads_for_phase` earns at 6.11, and for the same reason.
+    Returns `{}` when the phase has captured nothing yet.
     """
     inventory = case_record.get(CASE_RECORD_CAPTURED) or {}
     return dict(inventory.get(phase) or {})
@@ -301,7 +268,7 @@ def captured_for_phase(
 def field_status_for_phase(
     case_record: dict[str, Any], phase: str
 ) -> dict[str, dict[str, Any]]:
-    """This phase's field statuses, from the Store's `case` copy — step 6.61.
+    """This phase's field statuses, from the Store's `case` copy (R5).
     `{}` means every field is "not taught"."""
     inventory = case_record.get(CASE_RECORD_FIELD_STATUS) or {}
     return {f: dict(v) for f, v in (inventory.get(phase) or {}).items()}
@@ -310,7 +277,7 @@ def field_status_for_phase(
 def field_log_for_phase(
     case_record: dict[str, Any], phase: str
 ) -> list[dict[str, Any]]:
-    """This phase's field change log, from the Store's `case` copy — step 6.33."""
+    """This phase's field change log, from the Store's `case` copy."""
     inventory = case_record.get(CASE_RECORD_FIELD_LOG) or {}
     return [dict(e) for e in (inventory.get(phase) or [])]
 
@@ -325,16 +292,15 @@ def new_phase_state(
     field_log: list[dict[str, Any]] | None = None,
     field_status: dict[str, dict[str, Any]] | None = None,
 ) -> PhaseState:
-    """The twenty author-populated fields, initialised (S-C02 B1).
+    """The twenty author-populated fields, initialised.
 
     **`remaining_steps` is deliberately absent.** It is the one declared field
     the input mapper SHALL NOT populate — LangGraph's execution loop supplies
     it, and writing it here would replace a live managed value with a stale
-    integer, which is how the five-hop cap stopped firing in the first place
-    (§0.16).
+    integer and stop the five-hop cap firing.
 
     **`case_id` and `current_phase` are copied down from the parent here, and
-    this is their only writer** (S-C02 B4/B8). `current_phase` is taken from
+    this is their only writer.** `current_phase` is taken from
     `phase` rather than from `parent["current_phase"]` so the mapper cannot be
     invoked for one phase while carrying another's identity — the parent's
     value is asserted equal below.
@@ -358,24 +324,21 @@ def new_phase_state(
         # content
         "coaching_plan":      None,
         "field_index":        0,
-        # THIS TURN's extraction, and it is right that it starts empty
-        # (S-F04's Output). The field beneath it is the accumulation, and
-        # until step 6.33 both were blanked here — which is why the two were
-        # always identical and why nothing captured could reach a second turn.
+        # THIS TURN's extraction, so it starts empty. The field beneath it is
+        # the accumulation.
         "draft":              {},
-        # **Seeded, not blanked** (step 6.33), on the argument the `uploads`
-        # comment below has carried since 6.11: this function is the only
-        # thing that builds `PhaseState`, so a constant here is not a default,
-        # it is a ceiling. `{}` now means the phase has captured nothing yet.
+        # **Seeded, not blanked**: this function is the only thing that builds
+        # `PhaseState`, so a constant here would not be a default, it would be
+        # a ceiling. `{}` means the phase has captured nothing yet.
         "artifacts":          dict(artifacts or {}),
         "step_log":           [],
         # Seeded for the same reason, and from the same record. The channel's
-        # reducer (`merge_field_log`) is what stops a node REPLACING it; the
-        # seed is what carries it across the turn boundary, which the reducer
-        # cannot — the subgraph gets a fresh `checkpoint_ns` per parent turn,
-        # so nothing in the child state survives a turn on its own.
+        # reducer (`merge_field_log`) stops a node REPLACING it; the seed
+        # carries it across the turn boundary, which the reducer cannot — the
+        # subgraph gets a fresh `checkpoint_ns` per parent turn, so nothing in
+        # the child state survives a turn on its own.
         "field_log":          list(field_log or []),
-        # Seeded, not blanked — step 6.61 (R5): where each field stands.
+        # Seeded, not blanked (R5): where each field stands.
         "field_status":       {f: dict(v) for f, v in (field_status or {}).items()},
         "belt_edits":         {},
         "turn_count":         0,
@@ -385,10 +348,9 @@ def new_phase_state(
         "validator_feedback": [],
         "rejection_feedback": [],
         "citations":          [],
-        # **Seeded, not blanked** (step 6.11). This literal was `[]` from 3.1
-        # to 6.11 and was the entire reason `PhaseState.uploads` had no
-        # writer: the mapper is the only thing that builds this dict, so a
-        # constant here meant no upload could ever reach a gate document.
+        # **Seeded, not blanked**: the mapper is the only thing that builds
+        # this dict, so a constant here would mean no upload could ever reach
+        # a gate document.
         "uploads":            list(uploads or []),
         # Seeded from the Store copy for the same reason `uploads` is: the
         # upload route has to resolve an arriving file against an ask created
@@ -431,22 +393,21 @@ def new_phase_state(
 
 
 def advance(parent: SupervisorState, phase: str) -> dict[str, Any]:
-    """The three orchestration values, written together (§5 B2, S-F11 B1).
+    """The three orchestration values, written together.
 
     **This is the single site that writes any of them.** `phase_index` and
     `current_phase` are derived from `gate_passed` and stored for readability;
-    §5's exemption is safe only because they have exactly one writer, and this
-    is it.
+    storing derived values is safe only because they have exactly one writer,
+    and this is it.
 
-    `gate_passed` is MERGED, never replaced (S-F11 B2) — the re-approval
-    cascade (§37) sets a phase back to `False`, and a wholesale replace would
-    drop the other phases' entries.
+    `gate_passed` is MERGED, never replaced — the re-approval cascade sets a
+    phase back to `False`, and a wholesale replace would drop the other
+    phases' entries.
 
-    **Returns orchestration values ONLY** (S-F11 B3), and deliberately does not
-    return `case_id` or `current_phase`… except that `current_phase` IS one of
-    the three the parent owns. The prohibition in S-C02 B9 / S-F11 B4 is on a
-    node *inside the subgraph* returning it; the output mapper runs in the
-    PARENT's node function and is `current_phase`'s designated writer.
+    **Returns orchestration values ONLY.** `current_phase` is one of the three
+    the parent owns: the rule against returning it applies to a node *inside
+    the subgraph*; the output mapper runs in the PARENT's node function and is
+    `current_phase`'s designated writer.
     """
     idx = PHASE_ORDER.index(phase)
     is_last = idx == len(PHASE_ORDER) - 1
@@ -465,10 +426,9 @@ def write_gate_document(
 ) -> None:
     """Put the approved gate document at `("projects", case_id, "artifacts")`.
 
-    Idempotent by key (§47), which is what makes the duplication safe:
-    `gate_apply_node` (S-F07 B1) already wrote this same document to this same
-    key. **Which of the two is the authoritative writer is not stated in either
-    section** — recorded as a finding in §66 and not resolved here.
+    Idempotent by key, which is what makes the duplication safe:
+    `gate_apply_node` already writes this same document to this same key.
+    Which of the two is the authoritative writer is not settled.
     """
     store.put((layout.STORE_ROOT, parent["case_id"], KIND_ARTIFACTS), phase, child["final"])
 
@@ -478,12 +438,12 @@ def compose_phase_context(
     gate_document: dict[str, Any],
     fields: tuple[str, ...],
 ) -> str:
-    """Frame a phase from the prior phase's gate document (S-F12 B1).
+    """Frame a phase from the prior phase's gate document.
 
-    **Named fields, never prose** (S-F12 B4): a value is read out of the
-    structured document by key. String-interpolating a previous phase's output
-    into the next phase's prompt is BANNED, and the ban is the reason this
-    takes a field list rather than a formatted string.
+    **Named fields, never prose**: a value is read out of the structured
+    document by key. String-interpolating a previous phase's output into the
+    next phase's prompt is BANNED, which is why this takes a field list rather
+    than a formatted string.
 
     A field the prior phase did not capture is rendered as an explicit
     "not captured" line rather than omitted — a planner that cannot tell
@@ -498,7 +458,7 @@ def compose_phase_context(
             f"(S-C06 failure modes)."
         )
 
-    # G-252 (founder ruling 2026-10-23, item 2b-c): display names and plain value text, never Python's dict text.
+    # G-252: display names and plain value text, never Python's dict text.
     from backend.middleware.state_injection import display_name, value_text
     lines = [f"Carried forward from the approved {prior} gate document:"]
     for field in fields:

@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 203 of 203 Define features pass (core 194 of 194) — A 83/83 · B 40/40 · C 59/59 · integrator 21/21 · M1: 76 proven · 0 awaiting fresh run · 0 open |
-| **Next — lane A** | every feature passes |
-| **Next — lane B** | every feature passes |
-| **Next — lane C** | every feature passes |
-| **Next — lane integrator** | DEF-241 — The fact-ownership check runs at the commit gate over the staged governed documents, whatever wrote them (G-59) |
-| **Run-through record** | current |
+| **Headline** | 163 of 203 Define features pass, 34 more proven on earlier code (core 160 of 194) — A 55/83 · B 37/40 · C 58/59 · integrator 13/21 · M1: 51 proven · 23 awaiting fresh run · 3 open |
+| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
+| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
+| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
 | **Block regenerated** | 2026-10-24 |

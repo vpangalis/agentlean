@@ -1,4 +1,4 @@
-"""DEF-204 — the project's status, computed once by the backend (W2; DEF-089 merged; G-205, founder finding 45).
+"""DEF-204 — the project's status, computed once by the backend (W2; G-205).
 
 Every figure the screens show about where a project stands — its phase, the days since the case was opened, the
 target date and the days left, the days spent in each phase, how many elements are confirmed, what is open and what
@@ -66,7 +66,7 @@ def project_status(case: Any, element_rows: list[dict[str, Any]], waiting: Optio
     phase = str(getattr(case, "current_phase", "define") or "define")
     figure = confirmed_figure(element_rows)
     if phase == "define":
-        # G-259 (audit D8): in Define the one figure is define_progress's — the reply's and the bar's.
+        # G-259: in Define the one figure is define_progress's — the reply's and the bar's.
         from backend.phases.define.schema import define_progress
         record = (getattr(case, "phases", {}) or {}).get("define")
         p = define_progress(dict((record.structured if record is not None else None) or {}))
@@ -92,7 +92,7 @@ WHERE_WE_STAND = "Where do we stand?"
 
 def next_steps(element_name: str, card: Optional[dict[str, Any]]) -> list[str]:
     """DEF-095 (C4): two or three next steps under a reply, computed in code from what is missing — never a model
-    call, and always about the element the reply works on (W4: choosing another element is on the post-Define list).
+    call, and always about the element the reply works on (W4).
     What the reply's card still misses comes first ("Add …"); with nothing missing, an example of the element or what
     it needs; "Where do we stand?" always last."""
     missing = [str(m) for m in ((card or {}).get("missing") or [])]

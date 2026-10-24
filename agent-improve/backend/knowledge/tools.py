@@ -1,74 +1,60 @@
 """The three `rag_lookup_*` tools, plus the four unbound cross-agent tools.
 
-Canonical: **§59.5 — S-F14** (`rag_lookup_methodology`), **§59.6 — S-F15**
-(`rag_lookup_evidence`), **§59.7 — S-F16** (`rag_lookup_case_history`).
-Architecture: **§24** (the three tools), **§25** (multi-query + RRF), **§23**
-(index schemas), §27 (failure semantics), §29.4 (the cross-agent four).
-Procedure step **5.2**.
+Also here: the two proposal tools (`propose_template`, `propose_diagram`), `load_evidence_series`, `read_upload`,
+and `UNIVERSAL_TOOLS`, the list every phase's coach is given.
 
-THE THREE SUPERSEDED NAMES ARE GONE
------------------------------------
-The three `search_improve_{knowledge,cases,evidence}` tools are retired (§24)
-and **no v2 code may reference them**. `grep-absence` targets those three
-literal strings, which is why they are written in brace form here — a docstring
-that spelled them out would make the check pass only by explanation.
+THE RETIRED TOOL NAMES
+----------------------
+The three `search_improve_{knowledge,cases,evidence}` tools are retired and
+**no code may reference them**. `grep-absence` targets those three literal
+strings, which is why they are written in brace form here — a docstring that
+spelled them out would make the check pass only by explanation.
 
 **Only the tool layer is retired.** `knowledge/retriever.py`'s
 `search_knowledge` / `search_cases` / `search_evidence` are what these tools
-call and **keep their names**, along with §27's failure semantics. Do not
-grep-absence those — §24 corrected itself on exactly this point on 2026-08-21,
-after naming `search_evidence` as retired when §27 requires it to survive.
+call and **keep their names**, along with their failure semantics. Do not
+grep-absence those.
 
 WHAT EACH TOOL DOES, AND WHERE THE COMPLEXITY LIVES
 ---------------------------------------------------
-Every tool: generate 3–5 query variants, search the original **plus** each
-variant, fuse with RRF at k=60, return the top slice. All of that is inside
-`knowledge/fusion.py` and none of it is visible to the model, which sees a
-clean `rag_lookup_*(query, ...)` signature (§25's encapsulation rule).
+Every `rag_lookup_*` tool: generate 3–5 query variants, search the original
+**plus** each variant, fuse with RRF at k=60, return the top slice. All of
+that is inside `knowledge/fusion.py` and none of it is visible to the model,
+which sees a clean `rag_lookup_*(query, ...)` signature.
 
-**`AzureSearch` with the filter at call time, never `AzureAISearchRetriever`**
-(§24). The latter takes `filters` at *construction*, which would force
-per-call instantiation once the filter carries a dynamic `phase` — and would
-throw away the cached module-level singleton. This is a ratified rejection, not
-an oversight: §24 records that the question was re-examined on 2026-08-21 and
-no advantage was found.
+**`AzureSearch` with the filter at call time, never `AzureAISearchRetriever`.**
+The latter takes `filters` at *construction*, which would force per-call
+instantiation once the filter carries a dynamic `phase` — and would throw away
+the cached module-level singleton. A rejected design, not an oversight.
 
 `response_format="content_and_artifact"` on all three. The **content** is what
 the model reads — formatted text carrying `source_file` and `page_number` so
-citations are checkable (§50) — and the **artifact** is the `list[Document]`
-S-F14/15/16 specify as the output, available programmatically for
-`CoachingResponse.citations` at 6.2 without the model having to re-transcribe
-it. One return, both readings satisfied.
+citations are checkable — and the **artifact** is the `list[Document]`, which
+`phases/nodes_common._attach_sources` turns into the reply's `citations`
+without the model having to re-transcribe it. One return, both readings.
 
 WRITTEN AGAINST THE LIVE INDEX SCHEMA, NOT THE TARGET ONE
 ---------------------------------------------------------
-ONE ratified schema change is **NOT YET APPLIED** in Azure (§23), and this file
-writes against what exists today:
-
-  * **`rag_lookup_evidence` takes no `order_by` — and since 2026-09-10 that is
-    a DESIGN CHOICE, not a schema constraint.** This paragraph read *"a tool
-    cannot sort on a field the index does not have"*; `improve_evidence_index`
-    has had top-level `uploaded_at` and `phase` since step 6.13 landed §23.2's
-    seven fields, and `uploaded_at` is both filterable and sortable. Ruled at
-    ARCHITECTURE.md v1.20 (D), S-F15 B3 discharged. **What keeps `order_by` out
-    of the signature now is the fusion**: retrieval is multi-query + RRF and
-    this returns a fused rank, which an `$orderby` would discard in favour of
+  * **`rag_lookup_evidence` takes no `order_by` — a design choice, not a
+    schema constraint** (`uploaded_at` is a top-level, sortable field). The
+    fusion is what keeps it out: retrieval is multi-query + RRF and this
+    returns a fused rank, which an `$orderby` would discard in favour of
     recency — a different tool. Recency is answered by a FILTER on
-    `uploaded_at`, never by sorting the fused set. **`phase` defaults OFF** — a
-    Control-phase Belt comparing against the Measure baseline is the normal
-    case.
-  * **`rag_lookup_case_history` uses `embedding`, not `content_vector`.**
+    `uploaded_at`, never by sorting the fused set. It takes no `phase`
+    either — a Control-phase Belt comparing against the Measure baseline is
+    the normal case.
+  * **`rag_lookup_case_history` searches `embedding`, not `content_vector`.**
     `improve_case_index` is the one index whose vector field is not
-    `content_vector`; the rename is ratified and pending. Per-tool local
-    knowledge of the field name is what makes that asymmetry safe (§23) — no
-    shared code hides it, so nothing can fail silently on it.
+    `content_vector`; a rename is ratified and not yet applied in Azure. Each
+    retriever function names its own vector field (`retriever.search_cases`),
+    so no shared code hides the asymmetry and nothing can fail silently on it.
 
 **Never write code against the target schema before the reindex lands.**
 
 FAILURE IS NEVER AN ABSENCE
 ---------------------------
-Each tool catches `KnowledgeSearchError` and returns a message that says the
-search FAILED, distinct from its empty-result message (§27). *"No cases found"*
+Each `rag_lookup_*` tool catches `KnowledgeSearchError` and returns a message
+that says the search FAILED, distinct from its empty-result message. *"No cases found"*
 when the search never ran is worse than an error, because the Belt acts on it.
 """
 from __future__ import annotations
@@ -98,13 +84,13 @@ from backend.knowledge.retriever import (
 
 logger = logging.getLogger(__name__)
 
-#: §23.1 — the cross-phase value on `improve_knowledge_index` is `general`.
+#: The cross-phase value on `improve_knowledge_index` is `general`.
 #: NEVER `all` (no document carries it, so the corpus silently narrows) and
 #: NEVER a `phase` field (it does not exist, so Azure rejects the whole query).
-#: Both were wrong in earlier revisions; one fails loudly and one does not.
+#: One of those mistakes fails loudly and the other does not.
 CROSS_PHASE_RELEVANCE = "general"
 
-#: §25 — the model asks for `top_k`; each variant fetches this many before
+#: The model asks for `top_k`; each variant fetches this many before
 #: fusion. Fetching only `top_k` per variant would starve RRF of the
 #: lower-ranked agreements that are the entire signal it reads.
 PER_VARIANT_K = 10
@@ -113,9 +99,9 @@ PER_VARIANT_K = 10
 def _as_documents(rows: list[dict], content_key: str = "content") -> list[Document]:
     """Retriever dicts -> `Document`s, for the tool's artifact half.
 
-    S-F14/15/16 all specify `list[Document]` as the output. The retriever layer
-    returns `list[dict]` (S-F18), so the conversion happens here — at the
-    boundary the specs describe — rather than by changing a function §27 owns.
+    The tools return `list[Document]` as their artifact; the retriever layer
+    returns `list[dict]`, so the conversion happens here, at the tool
+    boundary, rather than in the retriever.
     """
     docs = []
     for row in rows:
@@ -126,7 +112,7 @@ def _as_documents(rows: list[dict], content_key: str = "content") -> list[Docume
 
 
 def _failure_message(kind: str, error_code: str, not_this: str) -> str:
-    """§27's coach-facing wording: a failure must not read as an absence.
+    """The coach-facing wording of a failed search: a failure must not read as an absence.
 
     `not_this` names the wrong conclusion explicitly, because that is the one
     the coach will otherwise reach and state to the Belt as fact.
@@ -139,7 +125,9 @@ def _failure_message(kind: str, error_code: str, not_this: str) -> str:
 
 
 def _phase_filter(phase: str) -> str | None:
-    """The §24 filter, or None for an unfiltered search.
+    """The phase filter, or None for an unfiltered search — what a failed
+    methodology search logs; `retriever._phase_filter` builds the one the
+    search sends.
 
     **The field is `phase_relevance`, and the cross-phase value is `general`.**
     Not `phase` — that field does not exist on this index and asking for it
@@ -156,10 +144,10 @@ def _phase_filter(phase: str) -> str | None:
 
 
 def _citation_suffix(row: dict) -> str:
-    """`source_file` and `page_number`, where the row carries them (§50).
+    """`source_file` and `page_number`, where the row carries them.
 
     "This came from page 47 of the BB eBook" is what makes a citation
-    checkable rather than decorative. **The label says PDF page** — WATCH 5:
+    checkable rather than decorative. **The label says PDF page**:
     `page_number` is the PDF index and the printed number is piecewise-offset,
     so calling it "page" invites the Belt to look in the wrong place.
     """
@@ -229,27 +217,24 @@ async def rag_lookup_methodology(
 
 
 def _evidence_record(row: dict) -> str:
-    """One §24 structured record — attributes as VALUES, then the excerpt.
+    """One structured evidence record — attributes as VALUES, then the excerpt.
 
-    **The shape is §24's, field for field**: role · kind · description ·
-    phase · uploaded_at · shape_match, then blob_path · content_digest, then
-    the excerpt. Applied at step 6.13 with §23.2's seven index fields, three
-    of which this reads.
+    The shape, line by line: role · kind · phase, then description, then
+    uploaded_at · shape_match, then blob_path · content_digest, then filename,
+    then the excerpt.
 
-    **Two reasons it is not rendered prose**, each sufficient (§24). The coach
-    has to CHOOSE a file — *"which of these three is the current cycle-time
+    **Two reasons it is not rendered prose**, each sufficient. The coach has
+    to CHOOSE a file — *"which of these three is the current cycle-time
     data"* is a question about `role`, `uploaded_at` and `shape_match`, not
     about similarity, and prose forces the model to re-derive from sentences
-    what the index already holds as values. And §50's citations are built from
-    source, page and summary: a coach can only cite accurately what it received
-    as values, so returning prose and asking for the citation back is the
-    transcription anti-pattern §22 exists to prevent, performed on the
-    platform's own retrieval layer.
+    what the index already holds as values. And citations are built from
+    source, page and summary: a coach can only cite accurately what it
+    received as values, so returning prose and asking for the citation back
+    is a transcription the model should never be asked to make.
 
-    **`blob_path` and `content_digest` are here for §6's citation anchor** —
-    what §37 / step 7.6's cascade compares to detect that an approved gate
-    rested on a file that has since been replaced. A record omitting them
-    would leave that cascade with nothing to compare.
+    **`blob_path` and `content_digest` anchor a citation to the exact file**,
+    so a check can tell that an approved gate rested on a file that has since
+    been replaced. A record omitting them would leave nothing to compare.
 
     An empty value is rendered as `unknown` rather than omitted: a missing
     line reads as "this file has no role", and it means "this index document
@@ -369,9 +354,7 @@ async def rag_lookup_case_history(
     return (content, docs)
 
 
-#: §29.2 — the retrieval third of the universal seven. The other four
-#: (`propose_template`, `propose_diagram`, `check_gate_status`,
-#: `request_human_approval`) land with the executor at stage 6.
+#: The three retrieval tools; they lead `UNIVERSAL_TOOLS` below.
 RAG_LOOKUP_TOOLS = [
     rag_lookup_methodology,
     rag_lookup_evidence,
@@ -492,47 +475,31 @@ def search_flow_vsm(query: str) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# The two universal proposal tools — procedure step 6.2
+# The two universal proposal tools
 #
-# **Owed by step 5.2.** S-F19 and S-F20 both say "Procedure: step 5.2", whose
-# prose covered only the three `rag_lookup_*` tools above, so they were missed.
-# Built at 6.2 because that is where the executor binds `UNIVERSAL_TOOLS`
-# (§29.2) — and because without `propose_diagram` the Define SIPOC the UI
-# already renders would disappear the moment `create_agent` replaces the v1
-# executor that emits it.
+# WHAT THEY ARE: Agent Improve does not export documents; the assembled
+# {Phase}Output shown on the UI is the record. `propose_diagram` returns
+# structured JSON the UI renders (renderSipocDiagram, render5W2HMindmap).
+# `propose_template` returns a str the coach presents inside its coaching
+# message for the Belt to complete — no UI renderer, by design. Neither emits a
+# file; both are coaching aids, not document generators. A change that makes
+# one emit a file, or routes the template through a renderer, is outside what
+# they are for.
 #
-# **NEITHER CLOSES ITS SPEC-GAP.** G-29 (template types and `fill_data`
-# schemas) and G-30 (the diagram catalogue) are open and founder-owned. What is
-# built here is the minimum the executor needs, against contracts that already
-# exist: the four template types §29.2 names, and the two diagram types
-# `ui/index.html` already draws. Adding a type is a founder decision plus a
-# renderer, not an entry added here.
-#
-# ── FOUNDER RULING, 2026-09-03 — what these two tools ARE ─────────────────
-#
-#   "Agent Improve does not export documents. The assembled {Phase}Output
-#    shown on the UI is the record. propose_diagram returns structured JSON
-#    rendered by the UI (renderSipocDiagram, render5W2HMindmap).
-#    propose_template returns a str (S-F19 signature) that the coach presents
-#    inside its coaching message for the Belt to complete — no UI renderer, by
-#    design. Neither emits a file; both are coaching aids, not document
-#    generators."
-#
-# **This is the scoping the two gaps were waiting on, and it is why the narrow
-# build above is correct rather than provisional.** Read it before extending
-# either tool: a change that makes one emit a file, or that routes the template
-# through a renderer, is outside what they are for. The gaps themselves stay
-# OPEN in §66 — closing them is a §56 amendment, not a build step's to make.
-# ─────────────────────────────────────────────────────────────────────────
+# G-29 (template types and `fill_data` schemas) and G-30 (the diagram
+# catalogue) are open and founder-owned. What is built is the minimum the coach
+# needs: the four template types below and the diagram types `ui/index.html`
+# draws. Adding a type is a founder decision plus a renderer, not an entry
+# added here.
 # ══════════════════════════════════════════════════════════════════════════
 
-#: §29.2's four named scaffolds. G-29 calls this list "open, which is not a
-#: specification" — so it is transcribed, not extended.
+#: The four scaffolds `propose_template` offers. The list is open under G-29,
+#: so it is not extended here.
 TEMPLATE_TYPES: tuple[str, ...] = (
     "problem_statement", "sipoc", "data_collection_plan", "fishbone",
 )
 
-#: G-258 (audit D4, D5): Define's two scaffolds are built from the Define script and the schema's keys — the questions
+#: G-258: Define's two scaffolds are built from the Define script and the schema's keys — the questions
 #: and columns the element is graded on — never typed here.
 _FROM_THE_SCRIPT = ("problem_statement", "sipoc")
 #: A SIPOC column's label where it is not its key with the underscore dropped.
@@ -658,23 +625,6 @@ def propose_diagram(diagram_type: str, data: dict) -> tuple[str, dict]:
     )
 
 
-#: §29.2 — **the universal seven, five of which exist.** Passed to every phase
-#: executor via `tools=` on `create_agent` (§18).
-#:
-#: **Two are still owed, and by the spec's own step assignments they cannot be
-#: here yet:**
-#:
-#:   `check_gate_status`      S-F21 — procedure step 7.1; it reports Tier-1
-#:                            readiness and needs `DMAICGateValidator`, which
-#:                            is 7.1's deliverable
-#:   `request_human_approval` S-F22 — procedure step 7.5; it escalates, and the
-#:                            escalation path is 7.5's
-#:
-#: So the per-phase totals are 6 / 13 / 10 / 6 / 10 until 7.5, against §30's
-#: 8 / 15 / 12 / 8 / 12. **That is an interim shortfall, not a redefinition of
-#: §30** — recorded as WATCH 25, and `test_computation.py` asserts the
-#: arithmetic (7 ratified, 5 built, 2 owed) so the steps that add them have to
-#: come back and update it.
 @tool(args_schema=LoadEvidenceSeriesArgs, response_format="content_and_artifact")
 async def load_evidence_series(
     blob_path: str, column: str
@@ -709,9 +659,9 @@ async def load_evidence_series(
             {"ok": False, "reason": "unreadable"},
         )
 
-    # B1 — RE-PARSE. It reads no stored copy of the values and creates none:
-    # `UploadRecord.rows` is a row count, and a second copy of the table is the
-    # drift §39.2's single-authority rule exists to prevent.
+    # RE-PARSE. No stored copy of the values is read or created:
+    # `UploadRecord.rows` is a row count, and a second copy of the table could
+    # drift from the file, which is the one authority.
     parsed = parse_upload(filename, raw, _content_type_for(filename))
     if not parsed.get("parsed"):
         return (
@@ -722,7 +672,7 @@ async def load_evidence_series(
     columns = parsed.get("columns") or []
     match = _match_column(column, columns)
     if match is None:
-        # B2 — a Belt-readable reformatting request naming what IS there,
+        # A Belt-readable reformatting request naming what IS there,
         # never a bare failure.
         listed = ", ".join(columns) if columns else "none"
         return (
@@ -748,7 +698,7 @@ async def load_evidence_series(
     mean = sum(values) / n if n else 0.0
     sigma = (sum((v - mean) ** 2 for v in values) / (n - 1)) ** 0.5 if n > 1 else 0.0
 
-    # B5 — a mixed column carries the parse's own report rather than being
+    # A mixed column carries the parse's own report rather than being
     # silently coerced. A mixed column is a coaching question.
     mixed = profile.get("mixed")
     mixed_note = (
@@ -758,7 +708,7 @@ async def load_evidence_series(
         f"figures." if mixed else ""
     )
 
-    # B3 — STRINGS, so the twenty computation tools consume them unchanged.
+    # STRINGS, so the computation tools consume them unchanged.
     summary = {
         "column": match, "n": str(n), "mean": f"{mean:.4f}",
         "sigma": f"{sigma:.4f}",
@@ -855,29 +805,26 @@ async def first_numeric_column(blob_path: str) -> str | None:
     """The file's first numeric column, read from its own header — G-63.
 
     **The second source for a routed read's column.** The first is the ask
-    that solicited the upload (S-F13, §17); this exists because
-    `SHAPES_BY_PHASE["define"]` is empty by ruling AR-R2, so in Define every
-    ask declares no columns and the node had nothing to name. It named a
-    placeholder instead, the tool could only answer `no_such_column`, and the
-    routed read loaded nothing while the span still reported success (G-63).
+    that solicited the upload; this one exists because
+    `SHAPES_BY_PHASE["define"]` is empty, so in Define no ask declares
+    columns and the node would otherwise have nothing to name.
 
-    **It lives HERE rather than in the node, and that placement is the point.**
-    The download, the parse, the column vocabulary and `_numeric_columns` are
-    already this module's. A second parse site in `nodes_common` would be a
-    second answer to *"what columns does this file have"*, which is the
-    single-authority drift §39.2 exists to prevent — the same reason
-    `_match_column` is not reimplemented at the call site.
+    **It lives HERE rather than in the node.** The download, the parse, the
+    column vocabulary and `_numeric_columns` are already this module's. A
+    second parse site in `nodes_common` would be a second answer to *"what
+    columns does this file have"* — the same reason `_match_column` is not
+    reimplemented at the call site.
 
     **NUMERIC, not merely first.** `load_evidence_series` returns a SERIES
     with n, mean and sigma, so a date or a free-text `reason` column satisfies
-    the letter of *"a column the file has"* and none of its purpose. On the
-    G-63 trace's own file — `date, complaints, reason` — the first column is a
-    date and the only useful answer is `complaints`.
+    the letter of *"a column the file has"* and none of its purpose. In a file
+    of `date, complaints, reason` the first column is a date and the only
+    useful answer is `complaints`.
 
     Returns `None` when the file cannot be read, cannot be parsed, or carries
     no numeric column at all. **`None` is a caller's signal not to dispatch,
-    never a failure**: a file with nothing to read is a coaching fact, and
-    §4.8 forbids turning it into a hard failure for the Belt.
+    never a failure**: a file with nothing to read is a coaching fact, never a
+    hard failure for the Belt.
     """
     from backend.storage import blob as blob_store
     from backend.upload.parsers import parse_upload
@@ -927,6 +874,9 @@ def _column_values(parsed: dict, column: str) -> list[float]:
     return out
 
 
+#: Bound to every phase's coach, with the phase's computation tools, via `tools=` on `create_agent`
+#: (`nodes_common`); `turn_tools` offers a subset per turn. The ratified total also counts `check_gate_status` and
+#: `request_human_approval`, which are not built; `test_computation.py` asserts both counts.
 UNIVERSAL_TOOLS: list[BaseTool] = [
     *RAG_LOOKUP_TOOLS,
     propose_template,

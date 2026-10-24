@@ -62,10 +62,9 @@ class ImprovePhaseInput(BaseModel):
         description="Name of sponsor or process owner who approved."
     )
 
-    # ── phase_metrics — on all five schemas (§40, §63.9, S-C39) ───────
-    # NOTE: this class is still the v1 `ImprovePhaseInput`. `phase_metrics` is added
-    # here so the uniform-on-all-five rule holds today; it carries through the
-    # v2 `ImproveOutput` rebuild at procedure step 3.4 unchanged.
+    # ── phase_metrics — on all five schemas ───────────────────────────
+    # Declared on this v1 input class as well as on `ImproveOutput`, so the
+    # on-all-five rule holds for both.
     phase_metrics: List[dict] = Field(
         default_factory=list,
         description=(
@@ -88,13 +87,13 @@ from backend.phases.gate_assembly import (  # noqa: E402
 
 # =======================================================================
 # IMPROVE'S GATE DOCUMENT -- 14 fields (4 Tier 1, 5 Tier 2,
-# `phase_metrics`, 4 gate metadata). Canonical: S-C30 (63.4) + 40.
-# Procedure step 3.4, closing G-28 for this phase.
+# `phase_metrics`, 4 gate metadata). The assembly below references every
+# one of them (G-28).
 #
 # Assembled ONCE, at `gate_apply`, by Pydantic construction over values
-# already captured -- there is NO LLM CALL in this path (20, 33).
+# already captured -- there is NO LLM CALL in this path.
 #
-# THE ACCESS PATTERN ENCODES THE TIER (40.1):
+# THE ACCESS PATTERN ENCODES THE TIER:
 #   Tier 1  artifacts["field"]        a KeyError is CORRECT -- Layer 2b
 #                                     should have blocked the gate
 #   Tier 2  artifacts.get(field, "")  an empty value RECORDS that the Belt
@@ -129,7 +128,7 @@ class ImproveOutput(BaseModel):
     know what you are choosing between.
     """
 
-    # -- Tier 1 -- gate-required (35) ----------------------------------
+    # -- Tier 1 -- gate-required ---------------------------------------
     selected_solution: str = Field(
         ...,
         description=(
@@ -155,7 +154,7 @@ class ImproveOutput(BaseModel):
         ),
     )
 
-    # -- Tier 2 -- rubric-recommended; at worst a `warning` (35) --------
+    # -- Tier 2 -- rubric-recommended; at worst a `warning` -------------
     solution_linked_to_root_cause: dict = Field(
         default_factory=dict,
         description=(
@@ -187,7 +186,7 @@ class ImproveOutput(BaseModel):
         ),
     )
 
-    # -- On all five schemas (63.9, S-C39) -----------------------------
+    # -- On all five schemas -------------------------------------------
     phase_metrics: list[dict] = Field(
         default_factory=list,
         description=(
@@ -201,7 +200,7 @@ class ImproveOutput(BaseModel):
         ),
     )
 
-    # -- Gate metadata -- the same four on all five schemas (40) --------
+    # -- Gate metadata -- the same four on all five schemas -------------
     computation_results: list[dict] = Field(default_factory=list)
     acknowledged_gaps: list[str] = Field(
         default_factory=list,
@@ -222,28 +221,28 @@ def assemble_improve_gate_document(
     uploads: list[dict],
     acknowledged_gaps: list[str],
 ) -> ImproveOutput:
-    """Construct Improve's gate document from captured values (S-F28).
+    """Construct Improve's gate document from captured values.
 
-    Both S-F28 invariants run first, inside `build_gate_document`: metric
-    single authority (39.2.3), then field coverage. Every one of the 14
+    Both assembly invariants run first, inside `build_gate_document`: metric
+    single authority, then field coverage. Every one of the 14
     schema fields is referenced below -- that IS invariant 1, and G-28 is the
     risk it exists to close.
     """
     values = {
-        # Tier 1 -- direct access; a KeyError is correct (40.1)
+        # Tier 1 -- direct access; a KeyError is correct
         "selected_solution": tier_1(artifacts, "selected_solution"),
         "pilot_result": tier_1(artifacts, "pilot_result"),
         "experiment_justification": tier_1(artifacts, "experiment_justification"),
         "issues_and_barriers": tier_1(artifacts, "issues_and_barriers"),
-        # Tier 2 -- .get(); an empty value records a conscious gap (35)
+        # Tier 2 -- .get(); an empty value records a conscious gap
         "solution_linked_to_root_cause": tier_2(artifacts, "solution_linked_to_root_cause", {}),
         "implementation_plan": tier_2(artifacts, "implementation_plan"),
         "explanatory_power": tier_2(artifacts, "explanatory_power"),
         "process_owner_buyin": tier_2(artifacts, "process_owner_buyin"),
         "secondary_metrics": tier_2(artifacts, "secondary_metrics"),
-        # On all five schemas (63.9)
+        # On all five schemas
         "phase_metrics": artifacts.get("phase_metrics", []),
-        # Gate metadata (40)
+        # Gate metadata
         "computation_results": artifacts.get("computation_results", []),
         "acknowledged_gaps": acknowledged_gaps,
         "citations": citations,

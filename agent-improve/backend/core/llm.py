@@ -1,14 +1,12 @@
 # backend/core/llm.py
 """Single source of truth for all LangChain LLM instances in Agent Improve.
 
-All nodes import from here — never instantiate `AzureChatOpenAI` inline
-(CLAUDE.md §4.1 · reference §21).
+All nodes import from here — never instantiate `AzureChatOpenAI` inline.
 
-**Module-level functions only.** Reference §54 and CLAUDE.md §2 name the LLM
-factory explicitly among the files where no class may live, which is why the
-v1 `LLMProvider` class is gone. It also carried a real bug: `@lru_cache` on a
-*method* keys on `self` and keeps the instance alive for the process. The
-cache is now on a module-level function, where it belongs.
+**Module-level functions only.** CLAUDE.md names the LLM factory among the
+files where no class may live. `@lru_cache` on a *method* keys on `self` and
+keeps the instance alive for the process, so the cache is on a module-level
+function.
 """
 from __future__ import annotations
 
@@ -27,9 +25,9 @@ from backend.core.config import settings
 
 load_dotenv(override=True)  # MUST use override=True — project requirement
 
-# G-194 (finding 75): AzureChatOpenAI._create_chat_result (langchain-openai 1.1.11, chat_models/azure.py) dumps
+# G-194: AzureChatOpenAI._create_chat_result (langchain-openai 1.1.11, chat_models/azure.py) dumps
 # the raw response to look for a content-filter stop, `parsed` included — and the SDK types that field None, so
-# every structured-output call (the rubric's GraderVerdict, the planner's judgment) warned "Expected `none`
+# every structured-output call (the rubric's GraderVerdict, the planner's judgment) warns "Expected `none`
 # … field_name='parsed'". The parsed object itself is untouched; only that dump warns. Exactly that warning is
 # filtered. Remove when the Azure class excludes `parsed` from its dump, as the base class already does.
 import warnings  # noqa: E402
@@ -45,13 +43,11 @@ def quiet_parsed_field_warning() -> None:
 quiet_parsed_field_warning()
 
 
-# ── The two deployment tiers (§21) ────────────────────────────────────────
+# ── The two deployment tiers ──────────────────────────────────────────────
 #
-# §21: "Two deployment tiers, addressed by role." Two, not three. The v1 map
-# addressed a third setting, LLM_INTENT_DEPLOYMENT ('intent-model'), for the
-# `intent` role; §21 puts `intent` on the operational tier with the other
-# cheap roles. The setting still exists in config.py and is simply no longer
-# read here — removing it is config surface, not this step's business.
+# Two deployment tiers, addressed by role. Two, not three: `intent` is on the
+# operational tier with the other cheap roles, so the LLM_INTENT_DEPLOYMENT
+# setting in config.py is not read here.
 #
 # Model tiering is a COST rule, not a style preference: gpt-4o-mini is roughly
 # 15x cheaper, so only genuinely premium work is addressed to the premium tier.
@@ -59,57 +55,56 @@ PREMIUM_TIER = settings.LLM_PREMIUM_DEPLOYMENT       # operational-premium, gpt-
 OPERATIONAL_TIER = settings.LLM_REASONING_DEPLOYMENT  # operational-model, gpt-4o-mini
 
 
-# ── The eleven roles (§21 · CLAUDE.md §4.2) ───────────────────────────────
+# ── The eleven roles ──────────────────────────────────────────────────────
 #
 # This map IS the role vocabulary. A name not in it is not a role, and
-# **new roles require a §56 amendment** — which is why an unknown name now
-# raises instead of being passed through as a literal deployment name. That
-# v1 fallback is how `get_llm("operational-premium", ...)` came to exist in
-# upload/agent.py: a deployment name masquerading as a role, invisible to
-# every check.
+# **new roles require an amendment** — which is why an unknown name raises
+# instead of being passed through as a literal deployment name: a deployment
+# name passed as a role is invisible to every check.
 ROLE_DEPLOYMENTS: dict[str, str] = {
     # premium tier — gpt-4o
     "coach":       PREMIUM_TIER,   # Coaching content, max_tokens=1500
     "planner":     PREMIUM_TIER,   # Phase planner structured decisions
-    "synthesis":   PREMIUM_TIER,   # Multi-hop synthesis (§26)
+    "synthesis":   PREMIUM_TIER,   # Multi-hop synthesis
     "vision":      PREMIUM_TIER,   # Multimodal upload analysis
     # operational tier — gpt-4o-mini
     "reasoning":   OPERATIONAL_TIER,  # Default reasoning, intermediate hops
     "extraction":  OPERATIONAL_TIER,  # Field extraction
-    "coherence":   OPERATIONAL_TIER,  # Layer 2a (§19.7)
-    "constraint":  OPERATIONAL_TIER,  # Layer 2c (§34)
-    "grader":      OPERATIONAL_TIER,  # Rubric grading (§36)
-    "summarizer":  OPERATIONAL_TIER,  # Context compression (§19.3)
+    "coherence":   OPERATIONAL_TIER,  # Layer 2a
+    "constraint":  OPERATIONAL_TIER,  # Layer 2c
+    "grader":      OPERATIONAL_TIER,  # Rubric grading
+    "summarizer":  OPERATIONAL_TIER,  # Context compression
     "intent":      OPERATIONAL_TIER,  # Short classification
 }
 
 
-# ── Per-role temperature defaults (§21 temperature table) ─────────────────
+# ── Per-role temperature defaults ─────────────────────────────────────────
 #
-# §21 ratifies a temperature for SEVEN of the eleven roles. Where it gives a
-# band, the entry below takes the reproducible end of it. The remaining four
-# — reasoning, summarizer, intent, vision — have no ratified figure, so they
-# fall through to DEFAULT_TEMPERATURE rather than carry a number invented here
-# that would read as ratified. Pinning one is a §56 amendment, not an edit.
+# A temperature is ratified for SEVEN of the eleven roles. Where the ratified
+# figure is a band, the entry below takes the reproducible end of it. The
+# remaining four — reasoning, summarizer, intent, vision — have no ratified
+# figure, so they fall through to DEFAULT_TEMPERATURE rather than carry a
+# number invented here that would read as ratified. Pinning one is an
+# amendment, not an edit.
 DEFAULT_TEMPERATURE = 0.2
 
 ROLE_TEMPERATURES: dict[str, float] = {
-    "coach":      0.5,  # §21 band 0.5-0.7 — natural variation for the Belt
-    "synthesis":  0.1,  # §21 band 0.1-0.2 — reproducible evidence assembly
+    "coach":      0.5,  # band 0.5-0.7 — natural variation for the Belt
+    "synthesis":  0.1,  # band 0.1-0.2 — reproducible evidence assembly
     "grader":     0.1,  # HARD requirement — see below
     "coherence":  0.1,  # consistent verdicts
     "constraint": 0.1,  # consistent verdicts
     "planner":    0.1,  # deterministic decomposition
-    "extraction": 0.0,  # §21 band 0.0-0.2 — field extraction and validators
+    "extraction": 0.0,  # band 0.0-0.2 — field extraction and validators
 }
 
-# The grader's 0.1 is a hard requirement, not a tuning knob (§21): a grader
-# that returns different verdicts across runs makes §52's regression
+# The grader's 0.1 is a hard requirement, not a tuning knob: a grader
+# that returns different verdicts across runs makes the regression
 # thresholds meaningless — you cannot detect a 10% quality drop against a
 # baseline that moves on its own. `test_llm.py` asserts it.
 
 
-#: G-157 / DEF-093 (founder ruling 2026-10-12, option B; ADR-0080): every model call has a REQUEST
+#: G-157 / DEF-093 (ADR-0080): every model call has a REQUEST
 #: TIMEOUT, set on the model client per role (the framework's own `timeout`), so a stalled call ends
 #: instead of waiting for the SDK default of 600 s. A judge that runs out is recorded "not checked
 #: (time)" and the coach's finished reply is kept; the turn as a whole is bounded by the route's 45 s
@@ -128,7 +123,7 @@ ROLE_TIMEOUTS: dict[str, float] = {
     "intent": 8.0,
 }
 
-#: Founder ruling 2026-10-22 midday, item 1 (option a): the two upload calls — the interpretation
+#: The two upload calls — the interpretation
 #: (`extraction`) and the image read (`vision`) — pass this as `get_llm(..., timeout=)`. A file's
 #: reading runs longer than a lookup's query variants, which keep the extraction role's 8 s.
 UPLOAD_TIMEOUT: float = 30.0
@@ -140,7 +135,7 @@ REQUEST_TIMEOUTS: tuple[type[BaseException], ...] = (openai.APITimeoutError,)
 
 
 def is_token_limit(exc: BaseException) -> bool:
-    """Was the call refused for its size? (HTTP 400, `context_length_exceeded` — §4.8, T36.) Not a
+    """Was the call refused for its size? (HTTP 400, `context_length_exceeded` — T36.) Not a
     fallback case: a smaller model has no larger window, so the context is fixed instead (ADR-0082)."""
     if getattr(exc, "code", None) == "context_length_exceeded":
         return True
@@ -165,12 +160,12 @@ def _build_llm(
     timeout: float | None = None,
 ) -> AzureChatOpenAI:
     """Construct one `AzureChatOpenAI`, cached per (deployment, temperature,
-    max_tokens).
+    max_tokens, timeout).
 
     The cache is `functools.lru_cache` deliberately. LangChain ships a
     *response* cache (`langchain_core.caches.BaseCache`) and no model-INSTANCE
-    cache, so there is no framework primitive being reinvented here (§0.24,
-    checked against the pinned langchain-core 1.6.0). `AzureChatOpenAI` is
+    cache, so there is no framework primitive being reinvented here (the
+    pinned langchain-core 1.6.0). `AzureChatOpenAI` is
     itself the framework's model construction; nothing about the model is
     hand-managed.
     """
@@ -183,24 +178,17 @@ def _build_llm(
         api_key=os.environ["AZURE_OPENAI_API_KEY"],
         temperature=temperature,
         max_tokens=max_tokens,
-        # G-157 / DEF-093 (ADR-0080): the role's request timeout — §44's bounded request timeout.
+        # G-157 / DEF-093 (ADR-0080): the role's bounded request timeout.
         timeout=timeout,
-        # ── RETRY IS THE MIDDLEWARE'S, AND ONLY THE MIDDLEWARE'S (step 6.4) ──
+        # ── RETRY IS THE MIDDLEWARE'S, AND ONLY THE MIDDLEWARE'S ──
         #
         # **The zero is explicit and must stay explicit.** Deleting this line
         # does not disable SDK retry — it inherits `DEFAULT_MAX_RETRIES = 2`
         # (openai 2.29.0) and quietly restores the stacking. `test_llm.py`
         # asserts the literal `0` on the AST for that reason.
         #
-        # The constructor previously carried a hardcoded retry of three,
-        # deferred from step 2.7 and removed here — sequenced after 6.3
-        # deliberately, because removing it before `ModelRetryMiddleware`
-        # existed would have left a window with no retry at all. §19.4 and
-        # CLAUDE.md §8.7: the middleware provides the wrap, the backoff and the
-        # attempt counter, and hand-rolled retry plumbing is BANNED. (The old
-        # number is spelled in prose, not as the keyword: this step's verify is
-        # `grep-absence` on that literal, and quoting it would defeat the check
-        # that proves the deletion.)
+        # `ModelRetryMiddleware` provides the wrap, the backoff and the
+        # attempt counter, and hand-rolled retry plumbing is BANNED.
         #
         # **TWO LAYERS MULTIPLY, THEY DO NOT ADD.** Both counters mean
         # "attempts after the initial call" — `range(self.max_retries + 1)` in
@@ -212,23 +200,18 @@ def _build_llm(
         # **The SDK honours `Retry-After` for up to 60s, and that is the harm
         # rather than the benefit.** Those waits happen INSIDE one middleware
         # attempt, so the visible layer never sees the error and cannot report,
-        # fall back (§4.8) or degrade. Two projects hit this exact shape and
-        # both fixed it this way: nanobot #2511 — twelve requests for one
-        # transient failure, no user feedback, up to twelve minutes of silent
-        # hanging — and pydantic-ai #3267.
+        # fall back or degrade. Other projects fix the same shape this way
+        # (nanobot #2511, pydantic-ai #3267).
         #
         # **Losing SDK `Retry-After` awareness is an ACCEPTED, DELIBERATE
-        # TRADE. Do not "restore" it as a bugfix** (DECISIONS Part AI). What
-        # replaces it is one visible retry layer plus §44's bounded request
-        # timeout, which step 8.2 owns and which both sources pair with this
-        # setting — the SDK default had been covering for its absence.
+        # TRADE. Do not "restore" it as a bugfix.** What replaces it is one
+        # visible retry layer plus the bounded request timeout above.
         max_retries=0,
     )
 
 
-#: Step 6.54 (G-93) — ONE build per model, however many threads miss the cache
-#: together. `lru_cache` does not stop N concurrent misses from each building:
-#: six lookup threads did exactly that on a first turn (trace 01a0d357…).
+#: G-93 — ONE build per model, however many threads miss the cache together:
+#: `lru_cache` does not stop N concurrent misses from each building.
 _BUILD_LOCK = threading.Lock()
 
 #: Every `get_llm` call a Define turn makes, with the arguments its call site
@@ -245,7 +228,7 @@ TURN_LLM_CALLS: tuple[tuple[str, dict[str, Any]], ...] = (
 
 
 def warm_turn_llms() -> None:
-    """Build every model a turn uses, so no Belt waits for a build (6.54)."""
+    """Build every model a turn uses, so no Belt waits for a build."""
     for role, kwargs in TURN_LLM_CALLS:
         get_llm(role, **kwargs)
     get_fallback_llm("coach")                  # T34's level 2 (ADR-0082)
@@ -258,18 +241,18 @@ def get_llm(
     max_tokens: int | None = None,
     timeout: float | None = None,
 ) -> AzureChatOpenAI:
-    """Resolve one of the eleven §21 roles to a cached model.
+    """Resolve one of the eleven roles to a cached model.
 
         llm = get_llm("coach", max_tokens=1500)
 
-    `temperature` defaults to the role's ratified value (§21); pass one only
+    `temperature` defaults to the role's ratified value; pass one only
     to override deliberately. `max_tokens` of None leaves the Azure default
     in place — pass 1500 for coaching turns. `timeout` of None keeps the
     role's request timeout (`ROLE_TIMEOUTS`); only the upload calls pass one
-    (`UPLOAD_TIMEOUT`, ruling 2026-10-22).
+    (`UPLOAD_TIMEOUT`).
 
-    Raises `ValueError` for a name that is not one of the eleven roles. §21
-    requires an amendment to add a role, so an unrecognised name is a bug at
+    Raises `ValueError` for a name that is not one of the eleven roles.
+    Adding a role requires an amendment, so an unrecognised name is a bug at
     the call site, not a deployment name to pass through.
     """
     try:
@@ -303,20 +286,19 @@ def get_fallback_llm(role: str = "coach", max_tokens: int | None = 1500) -> Azur
 def block_text(message: BaseMessage) -> str:
     """Return a model response's text, read from its TYPED content blocks.
 
-    CLAUDE.md §4.5 · reference §21: read `response.content_blocks`.
-    String-indexing or substring-parsing the raw `content` field is a
-    violation — it breaks the moment a provider returns a multi-part
-    response. The returned text is stripped, which is what all callers want.
+    Read `response.content_blocks`: string-indexing or substring-parsing the
+    raw `content` field is a violation — it breaks the moment a provider
+    returns a multi-part response. The returned text is stripped, which is
+    what all callers want.
 
     **Not `message.text`.** That accessor reads `self.content` directly
-    (verified against the pinned langchain-core 1.6.0), so it IS the raw-
-    content path §4.5 bans, and it skips the provider translator that
-    `content_blocks` runs to normalise Azure output into standard blocks.
+    (in the pinned langchain-core 1.6.0), so it IS the banned raw-content
+    path, and it skips the provider translator that `content_blocks` runs to
+    normalise Azure output into standard blocks.
 
-    langchain-core ships no blocks-to-text helper of its own (checked
-    2026-08-31 against 1.6.0), so this thin adapter over the primitive is
-    §0.24's declared framework-gap case, not a reinvention of one. It is
-    the single place the extraction is defined — 20 call sites read it.
+    langchain-core 1.6.0 ships no blocks-to-text helper of its own, so this
+    thin adapter over the primitive is a declared framework gap, not a
+    reinvention of one. It is the single place the extraction is defined.
     """
     return "".join(
         block["text"]

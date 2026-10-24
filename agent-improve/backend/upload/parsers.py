@@ -1,10 +1,6 @@
 """Deterministic extraction for the four formats a Belt actually uploads.
 
-Architecture: **§29.1** (the evidence channel), **§23.2** (the index),
-**§65.4 S-F35** (the upload handler). Procedure step **6.11**. Rulings:
-`docs/_archive/DECISIONS.md` Part AP2.
-
-RULING 4 — PARSE IS DETERMINISTIC FIRST
+PARSE IS DETERMINISTIC FIRST
     Columns, row count, types and ranges come from the file. **Only meaning
     costs a model call, once, at ingest.** Nothing in this module calls an
     LLM, imports one, or knows one exists. A premium model must never be
@@ -12,17 +8,16 @@ RULING 4 — PARSE IS DETERMINISTIC FIRST
     module returns are the ones the interpretation call is *given* rather
     than asked to invent.
 
-RULING 5 — REFUSED OR REPORTED, NEVER SILENTLY ACCEPTED
+REFUSED OR REPORTED, NEVER SILENTLY ACCEPTED
     Every function here returns a dict carrying `parsed: bool`. A file this
     module cannot read comes back `parsed=False` with a Belt-readable
     `refusal_reason`, and the route turns that into a 422 the Belt can act on.
-    **It never returns an empty success.** Before this step, four formats were
-    accepted and dropped and two of them reported as supported — a Belt could
-    upload a spreadsheet, see it stored, and have it be invisible to the coach
-    and absent from the index, with no error anywhere (Part AP1).
+    **It never returns an empty success** — a Belt must never upload a file,
+    see it stored, and have it be invisible to the coach and absent from the
+    index, with no error anywhere.
 
-NO CLASSES (`CLAUDE.md` §2)
-    `backend/upload/` is not on §2's permitted-class list, so everything here
+NO CLASSES (`CLAUDE.md`)
+    `backend/upload/` is not on the permitted-class list, so everything here
     is a module-level function returning a plain dict. The refusal path is a
     dict field rather than an exception for the same reason — and because a
     refusal is an ordinary, expected outcome of this module, not an error.
@@ -68,7 +63,7 @@ _DATE_FORMATS = (
 
 
 def refusal(reason: str) -> dict[str, Any]:
-    """The one shape a Belt-readable refusal takes (ruling 5).
+    """The one shape a Belt-readable refusal takes.
 
     Written as a helper rather than repeated so that every refusal in this
     module is the same shape — a caller checks `parsed` and nothing else.
@@ -170,8 +165,8 @@ def _column_profile(values: list[Any]) -> tuple[str, dict[str, Any]]:
 
     # **`whole number` and `decimal` are ONE column, not two.** Excel stores
     # 63.0 as 63, so a column of 41.5 / 63.0 / 55.25 comes back as two
-    # decimals and one integer — and treating those as different types put
-    # the largest value outside the reported range and into `mixed`. A
+    # decimals and one integer — and treating those as different types would
+    # put the largest value outside the reported range and into `mixed`. A
     # min/max that silently excludes the round numbers is worse than no
     # min/max: it is wrong in the direction of looking right. `percentage`
     # is deliberately NOT in the family — "50%" beside "0.5" is a real
@@ -426,8 +421,7 @@ def parse_text(file_bytes: bytes) -> dict[str, Any]:
 
 #: content_type (from `classify_content_type`) → its deterministic parser.
 #: **Membership here is what `is_supported` means.** One table, so a format
-#: cannot report as supported while having no parser — which is exactly the
-#: state pdf and docx were in before this step (Part AP1).
+#: cannot report as supported while having no parser.
 PARSERS = {
     "spreadsheet": None,   # resolved by extension below — csv and xlsx differ
     "pdf": parse_pdf,
@@ -439,7 +433,7 @@ PARSERS = {
 def parse_upload(
     filename: str, file_bytes: bytes, content_type: str
 ) -> dict[str, Any]:
-    """Deterministic parse for one upload. **Never calls a model** (ruling 4).
+    """Deterministic parse for one upload. **Never calls a model.**
 
     Returns the `parsed=True` shape or a `parsed=False` refusal — the caller
     checks that one key. `image` is not handled here: an image has no

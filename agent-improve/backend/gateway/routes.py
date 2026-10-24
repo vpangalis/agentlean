@@ -56,10 +56,10 @@ from backend.upload.asks import (
     open_ask_for_role,
 )
 
-#: Purpose label → §23.2.1 role, for an upload nobody asked for. **Not a
-#: filename heuristic** — the purpose is what the Belt declared, and AP2.2
-#: forbids inferring identity from a filename. Anything unrecognised falls to
-#: the vocabulary's own catch-all, which is what those two rows exist for.
+#: Purpose label → upload role, for an upload nobody asked for. The purpose is
+#: what the page declared — or, when it sends none, `auto_detect_purpose`'s
+#: guess from the filename. Anything unrecognised falls to the vocabulary's
+#: catch-all, `other evidence` (`_role_from_purpose`).
 _PURPOSE_TO_ROLE = {
     "Process map": "as-is process map",
     "Data file": "baseline defect data",
@@ -114,7 +114,7 @@ async def health() -> HealthResponse:
 
 @router.post("/summarise", response_model=SummariseResponse)
 async def summarise_session(request: SummariseRequest) -> SummariseResponse:
-    """Generate a 2-3 sentence AI summary of a session's conversation turns. G-262 (audit A4): the dialogue comes from
+    """Generate a 2-3 sentence AI summary of a session's conversation turns. G-262: the dialogue comes from
     the browser, so it is screened by the input guard's own check before any model reads it; the prompt is
     core/prompts.py's."""
     from backend.core import guard, llm
@@ -160,7 +160,7 @@ async def create_case(request: CaseCreateRequest, response: Response) -> CaseCre
 
     ADR-0092 "Unique case numbers and a safe case list": the number is reserved by a create-only-if-absent
     write and redrawn on a clash, up to five times; a sixth clash is a readable error (W10). The case list
-    is then updated by a conditional write. Existing case numbers never change (ruling a)."""
+    is then updated by a conditional write. Existing case numbers never change."""
     from datetime import datetime, timezone
 
     from backend.core.errors import CaseNumberTaken
@@ -194,9 +194,8 @@ async def create_case(request: CaseCreateRequest, response: Response) -> CaseCre
     head = case.people[0]
     if head.email:                    # ADR-0091 decision 1: the creator is not asked again on this browser
         access.set_session(response, case_id, head.email)
-    # WATCH 19's writer, at the site the watch names (step 6.8). §9: the Store's
-    # `case` namespace is a session-start COPY so that boundary mappers depend
-    # on `BaseStore` alone; the blob above stays the system of record.
+    # The Store's `case` namespace is a COPY, so the boundary mappers depend on
+    # `BaseStore` alone; the blob above stays the system of record.
     _ensure_case_record(case)
     return CaseCreateResponse(case_id=case_id, title=request.title)
 
@@ -217,7 +216,7 @@ def _person(p: Any, *, role: str = "", status: str = "member", by: str = "") -> 
 def _people_from_request(request: CaseCreateRequest) -> list:
     """ADR-0090 decision 1: the creator is the project lead (from `lead`, else the typed `leader`), then the
     members (from `people`, else `team`). Full name required for everyone, a role for every member; the e-mail
-    is not required at creation (ruling a). Refused in plain words, nothing created."""
+    is not required at creation. Refused in plain words, nothing created."""
     from backend.gateway.schemas import PersonIn as _In
     from backend.storage import people as people_mod
     from backend.storage.models import PROJECT_LEAD
@@ -238,19 +237,19 @@ def _people_from_request(request: CaseCreateRequest) -> list:
 
 
 def _ensure_case_record(case: CaseDocument) -> None:
-    """Copy the case's framing fields into the Store — WATCH 19, both halves.
+    """Copy the case's framing fields into the Store.
 
-    **Called at creation AND on every turn.** `write_case_record` is idempotent
-    by key, so the second call is a cheap overwrite rather than a branch, and
-    that is deliberate: a branch that checked "does it exist yet" would be one
-    more place for the record to be silently absent. WATCH 19 named exactly
-    these two sites — *"the write belongs at case creation (`POST /cases`) and,
-    for cases that predate it, lazily on first read"* — and every case in the
-    registry today predates it.
+    **Called at creation AND on every request that enters the graph** (a turn,
+    a gate submission, a gate decision), and after an upload changes the case.
+    `write_case_record` is idempotent by key, so a repeat call is a cheap
+    overwrite rather than a branch, and that is deliberate: a branch that
+    checked "does it exist yet" would be one more place for the record to be
+    silently absent. The per-request call also covers a case created before
+    the creation-time write existed.
 
     **Failure here must not fail the turn.** The Store is a copy; the blob is
     the system of record. A Store write that fails leaves the mapper on its
-    labelled fallbacks, which now says so loudly rather than silently.
+    labelled fallbacks, and is logged as a warning.
     """
     from backend.core.store import get_store
     from backend.phases.mappers_common import (
@@ -270,26 +269,24 @@ def _ensure_case_record(case: CaseDocument) -> None:
 
 
 class ClientGone(Exception):
-    """The Belt's client disconnected before the turn finished (§47 ABANDON)."""
+    """The Belt's client disconnected before the turn finished; the turn is abandoned (`_run_turn`)."""
 
 
 async def _until_disconnect(http: Request) -> None:
     """Return as soon as the client is gone. Blocks forever otherwise.
 
     ⚠ **`Request.is_disconnected()` DOES NOT WORK FOR THIS, and polling it is
-    the obvious wrong answer.** It was tried first and verified not to fire:
-    the client went, the poll kept returning `False`, and the turn ran to
-    completion exactly as it had with a plain inline `await`.
+    the obvious wrong answer**: the client goes, the poll keeps returning
+    `False`, and the turn runs to completion.
 
-    The reason is in uvicorn's own `receive()` (read from the installed
-    0.29.0, `protocols/http/httptools_impl.py`), which does two things in
-    order — `self.flow.resume_reading()`, then `await self.message_event.wait()`
-    — and only then reports `http.disconnect`. **Starlette's
-    `is_disconnected()` wraps that call in an immediately-cancelled
-    `CancelScope`**, so the resume happens and the wait is torn down in the
-    same tick: the socket read is re-armed and nothing ever waits for the
-    protocol to deliver the EOF. Polling it in a loop just re-arms the read
-    forever.
+    The reason is in uvicorn's own `receive()`
+    (`protocols/http/httptools_impl.py`), which does two things in order —
+    `self.flow.resume_reading()`, then `await self.message_event.wait()` — and
+    only then reports `http.disconnect`. **Starlette's `is_disconnected()`
+    wraps that call in an immediately-cancelled `CancelScope`**, so the resume
+    happens and the wait is torn down in the same tick: the socket read is
+    re-armed and nothing ever waits for the protocol to deliver the EOF.
+    Polling it in a loop just re-arms the read forever.
 
     Awaiting the raw ASGI `receive()` does both halves. It parks until uvicorn
     has a message, and uvicorn sets `message_event` on `connection_lost` — so
@@ -308,10 +305,9 @@ async def _until_disconnect(http: Request) -> None:
 
 # `state` is the graph input: a state dict for a turn, or `Command(resume=...)`
 # when `decide_gate` resumes the Define pause — hence `Any`, not `dict`.
-#: DEF-093 / G-157 (founder ruling 2026-10-12, option B; ADR-0080): the coaching turn's limit, counted from
-#: `turn_started` (stamped by `_graph_config`), less the closing reserve — both owned by `core/config.py`.
-#: LangGraph has no whole-run deadline (per node `TimeoutPolicy`, per superstep `step_timeout` only —
-#: checked 2026-10-12), so the route bounds the run itself.
+#: DEF-093 / G-157 (ADR-0080): the coaching turn's limit, counted from `turn_started` (stamped by
+#: `_graph_config`), less the closing reserve — both owned by `core/config.py`. LangGraph has no whole-run
+#: deadline (only a per-node `TimeoutPolicy` and a per-superstep `step_timeout`), so the route bounds the run.
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S  # noqa: E402
 
 
@@ -320,48 +316,32 @@ class TurnDeadline(Exception):
 
 
 async def _run_turn(graph, state: Any, config: dict, http: Request, deadline: bool = False):
-    """Run one turn, ABANDONING it if the client goes first (§47 req 1).
+    """Run one turn, ABANDONING it if the client goes first.
 
-    ═══════════════════════════════════════════════════════════════════════
-    WHY A RACE, AND NOT THE INLINE `await` THIS ORIGINALLY SHIPPED WITH
-    ═══════════════════════════════════════════════════════════════════════
-    Step 4.2 first shipped a plain `await graph.ainvoke(...)`, commented as the
-    deliberate ABANDON shape on the reasoning that the run is the handler's own
-    task and therefore dies with the client. **That reasoning is wrong on this
-    stack, and the step's own `azure-query` verification disproved it**:
-    a client killed 3s into a 30s turn left the turn running, and it completed
-    5s later, wrote 12 checkpoint blobs across the parent and the subgraph
-    namespace, and appended two turns to the case blob. **The Belt saw nothing
-    and the checkpoint says the turn happened** — §47's opening finding, word
-    for word.
-
-    **Starlette does not cancel an endpoint coroutine on disconnect.** Verified
-    against the installed starlette 0.50.0 / uvicorn 0.29.0, not assumed: the
+    **Starlette does not cancel an endpoint coroutine on disconnect**: the
     server notes the disconnect on the receive channel, and a handler that
-    never awaits `receive()` is never notified, so it runs to completion. Only
-    a streaming response (whose generator is closed) or an explicit
-    `is_disconnected()` poll observes it.
+    never awaits `receive()` is never notified, so a plain
+    `await graph.ainvoke(...)` runs to completion behind a Belt who left — the
+    checkpoint says the turn happened and the Belt saw nothing.
 
-    So the shape §47 requires for a non-streaming handler is this one: run the
-    graph as a task, watch the connection alongside it, and **`cancel()` the
-    task the moment the client is gone**. It is `t.cancel()` — §47's own
-    prescription — with an `is_disconnected()` poll standing in for the
-    streaming generator's `finally`. **This is NOT `asyncio.create_task` with
-    no disconnect handling**, which §47 bans; the disconnect handling is the
-    entire point of the function.
+    So the graph runs as a task, `_until_disconnect` awaits the raw ASGI
+    `receive()` alongside it, and **the task is cancelled the moment the
+    client is gone**. A bare `asyncio.create_task` with no disconnect handling
+    would be the same accident; the disconnect handling is the entire point of
+    the function. A streaming route (none exists) would make this choice in its
+    own generator's `finally` rather than inherit this one.
 
-    **It does not build streaming.** `/ask/stream` (§49) is still step 10.1's,
-    and when it lands its `gen()` must make this same choice explicitly in its
-    own `finally` rather than inherit this one.
-
-    **What ABANDON actually guarantees, stated precisely.** Cancellation lands
-    at the next `await` inside the graph, so an in-flight Azure OpenAI call is
+    **What ABANDON guarantees, stated precisely.** Cancellation lands at the
+    next `await` inside the graph, so an in-flight Azure OpenAI call is
     abandoned rather than un-sent, and LangGraph may already have checkpointed
     the nodes that completed BEFORE the disconnect. The guarantee is that **no
     node runs, and no checkpoint is written, after the client is gone** — not
-    that the turn leaves no trace. A partially-executed turn is exactly what
-    resuming from `latest.json` is for. What it prevents is the whole turn
-    completing, and the case blob being written, behind a Belt who left.
+    that the turn leaves no trace. What it prevents is the whole turn
+    completing behind a Belt who left.
+
+    The run holds the case's Blob lease (T11): a second writer is answered 409
+    (`CASE_BUSY`) and nothing of its turn runs. With `deadline` the run is also
+    bounded in time (`_run_turn_held`).
     """
     # T11 (DEF-115, ADR-0018): one writer per thread_id at a time — the case's Blob lease is held for
     # the whole run; a second writer is told, in plain words, and nothing of its turn runs.
@@ -385,15 +365,15 @@ def _bind(case_id: Any, phase: Any) -> None:
     set_phase(str(phase) if phase else None)
 
 
-#: DEF-219 (founder ruling 2026-10-22 evening, item 2b; ADR-0043): LangGraph's own durability mode for every run of
+#: DEF-219 (ADR-0043): LangGraph's own durability mode for every run of
 #: the graph — a turn and a gate resume. The installed LangGraph's modes: "sync", "async" (its default), "exit".
 GRAPH_DURABILITY: Literal["sync", "async", "exit"] = "async"
 
 
 async def _run_turn_held(graph, state: Any, config: dict, http: Request, deadline: bool = False):
     """`_run_turn`'s body, inside the case's lease. With `deadline` (a coaching turn, DEF-093), the run is
-    cancelled — exactly as a disconnect cancels it — when the turn's 45 s, less the closing reserve, are
-    spent: `TurnDeadline`."""
+    cancelled — exactly as a disconnect cancels it — when the turn's `TURN_LIMIT_S`, less the closing reserve,
+    are spent: `TurnDeadline`."""
     task = asyncio.create_task(graph.ainvoke(state, config=config, durability=GRAPH_DURABILITY))
     watch = asyncio.create_task(_until_disconnect(http))
     left = None
@@ -428,9 +408,8 @@ async def _run_turn_held(graph, state: Any, config: dict, http: Request, deadlin
 
 # ── the graph boundary ────────────────────────────────────────────────────
 #
-# §1.1 and §49: the compiled graph is the ONLY runtime path, and a route that
-# does anything beyond `await graph.ainvoke(...)` plus envelope marshalling is
-# a violation. Everything between here and `/gate` is that marshalling.
+# The compiled graph is the ONLY runtime path for a turn: a route that runs it
+# does nothing beyond invoking it and marshalling the envelope.
 
 
 
@@ -443,10 +422,10 @@ def _mirror_asks(case_id: str, phase: str, result: Any) -> None:
     something has to carry it across. This is that something, and it runs
     AFTER the turn rather than during it.
 
-    **Same mechanism `uploads` already uses in the other direction** (step
-    6.11): the Store's `case` record is the one thing both a mapper and a route
-    can see. A second namespace would need a second writer that the existing
-    backfill could not keep current.
+    **Same mechanism `uploads` uses in the other direction**: the Store's
+    `case` record is the one thing both a mapper and a route can see. A
+    second namespace would need a second writer that the existing backfill
+    could not keep current.
 
     **Fails soft.** The Store is a copy; the checkpoint holds the real asks. A
     failed mirror costs the next upload its ask binding, which degrades to
@@ -477,9 +456,9 @@ async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None,
 
     `at` (a checkpoint id) reads the case as it was reloaded at that checkpoint — every phase record the
     checkpoint holds, whatever the blob has since approved. No route passes it; the capability rows
-    use it to read a case as it stood before its approval (DEF-064, founder 2026-10-15).
+    use it to read a case as it stood before its approval (DEF-064).
 
-    G-261 (audit W3): when the checkpoint cannot be read the blob copy is shown, and `lost` (when given) receives the
+    G-261: when the checkpoint cannot be read the blob copy is shown, and `lost` (when given) receives the
     case id, so the route tells the Belt that the work since the last confirmed answer was not kept."""
     from backend.core.graph import get_graph
     from backend.phases import record as phase_record
@@ -523,30 +502,18 @@ async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None,
 def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> None:
     """Fold one turn's product into the case record — **MERGE, never replace**.
 
-    ═══════════════════════════════════════════════════════════════════════
-    STEP 6.33 — THE HALF OF G-78 THAT LIVED HERE
-    ═══════════════════════════════════════════════════════════════════════
-    This was four lines in `ask()`: build `clean` from THIS turn's extraction,
-    then `case.phases[phase].structured = clean`. **An assignment, so every
-    coached capture destroyed the ones before it** — a Belt filling Define's
-    thirteen fields across a dozen turns arrived at the gate with one. Five
-    turns, five fields, one survivor; the reproduction is in
-    `test_capture_accumulates.py`.
+    An assignment would let every coached capture destroy the ones before it
+    (G-78): a Belt filling Define's thirteen fields across a dozen turns would
+    arrive at the gate with one. A reply that carries the phase record
+    (`phase_record.KEY`) is folded onto the case's record as what its turn
+    changed; a payload without one merges field by field.
 
-    **It was invisible because the other half hid it.** The input mapper
-    blanked `artifacts` every turn, so `clean` was usually empty, so
-    `if clean` skipped the write and the prior value survived by accident.
-    Fixing either half alone turns a silent no-op into silent data loss —
-    which is why both land in one commit.
+    No route calls this: a turn's record lives in the checkpoint and the case
+    blob is not written per turn (ADR-0066). It needs a case document and a
+    dict, not a FastAPI request, a case blob and Azure, so the tests
+    (`test_capture_accumulates.py`) drive the merge through it.
 
-    **Extracted from the route body deliberately.** `ask()` needs a FastAPI
-    request, a case blob and Azure; this needs a case document and a dict, so
-    a test can drive five turns through the code that ships rather than
-    through a copy of it. §49's "the route marshals the envelope and nothing
-    else" is unchanged — this IS the marshalling, named.
-
-    Silent about a phase the case has no record for, as the assignment's own
-    `and request.phase in case.phases` guard was.
+    Silent about a phase the case has no record for.
     """
     record = case.phases.get(phase)
     if record is None:
@@ -554,7 +521,7 @@ def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> No
     from backend.phases import record as phase_record
     prior = {"structured": record.structured, "field_status": record.field_status, "field_log": record.field_log}
     # DEF-219: a reply carries the record as what its turn changed — folded onto the case's record; a payload with
-    # no record (an older caller) merges as before.
+    # no record merges field by field.
     merged = (phase_record.apply_delta({**phase_record.empty(phase), **prior}, payload[phase_record.KEY], phase)
               if isinstance(payload.get(phase_record.KEY), dict) else phase_record.merge(prior, payload, phase))
     record.structured = merged["structured"]
@@ -567,7 +534,7 @@ def _requested_phase(case: CaseDocument, requested: str) -> str:
 
     **The case record wins, and a disagreement is refused rather than resolved.**
     `case.current_phase` is the system of record for which phase a project is in
-    (§10.4) and is what seeds `SupervisorState.current_phase`; `request.phase` is
+    and is what seeds `SupervisorState.current_phase`; `request.phase` is
     what the UI believes. They are normally equal — the UI sets its phase from
     the case document and locks every later one.
 
@@ -594,38 +561,33 @@ def _requested_phase(case: CaseDocument, requested: str) -> str:
 
 def _graph_config(case: CaseDocument, phase: str, user: str, entry: str,
                   started: float | None = None) -> dict:
-    """The per-run config: `thread_id`, and the framing the v1 seam needs.
+    """The per-run config: `thread_id`, the entry mode, the turn's start, and the framing the phase reads.
 
-    **`thread_id` IS `case_id`** (§16) — never per phase, never concatenated.
-    One `thread_id` per project is what lets two Belts on two projects share no
+    **`thread_id` IS `case_id`** — never per phase, never concatenated. One
+    `thread_id` per project is what lets two Belts on two projects share no
     state at any layer without a multi-tenancy mechanism being written.
 
-    ⚠ **§47 REQUIREMENT 5 IS NOT MET, AND THIS IS THE LINE WHERE IT SHOWS.**
-    `case_id` arrives from the request body. §47 requires it to be derived from
-    the authenticated session, because `case_id` is the tenancy boundary and a
-    client-supplied `thread_id` lets any caller resume any Belt's session. There
-    is no auth layer to derive it from — §17 places that post-refactor — so it
-    stays client-supplied for now and is carried as a WATCH rather than papered
-    over with a check that cannot fail. **Do not read the presence of
-    `thread_id` here as the requirement being satisfied.**
+    ⚠ `case_id` is the tenancy boundary and it arrives from the request, not
+    from the session. The routes that act on a case check the session with
+    `access.person` (ADR-0091; a session for another case is refused), and a
+    case that does not ask for sign-in yet is open to any caller who names it.
+    **Do not read the presence of `thread_id` here as tenancy enforced.**
 
-    `recursion_limit` is §16's backstop against a genuine infinite loop, NOT the
-    per-turn hop budget — that is `RemainingSteps`, read inside the executor
-    (§26). Fifty, per the step.
+    `recursion_limit` is the backstop against a genuine infinite loop, NOT the
+    per-turn hop budget — that is `RemainingSteps`, read inside the executor.
 
-    The three seam keys — `current_user`, `case_metadata`, `v1_phase_inputs` —
-    carry what `orchestrate_{phase}` needs and `PhaseState` may not declare
-    (§56). They are deleted with the seam at 11.1; see
-    `phases/nodes_common.py`.
+    `current_user`, `case_metadata` and `v1_phase_inputs` carry what
+    `PhaseState` does not declare: they are read by the input guard,
+    `BeforeModelStateInjection`, `core/graph.py` and `phases/nodes_common.py`.
     """
     return {
         "configurable": {
             "thread_id": case.case_id,
             "entry": entry,
             "current_user": user,
-            # DEF-014 / ADR-0080: when the turn started — G-166 (founder ruling 2026-10-13): for a coaching
-            # turn, the request's ARRIVAL (`started`), so the deadline covers the whole request as the Belt
-            # experiences it, the case load and the unfinished-work read included.
+            # DEF-014 / ADR-0080: when the turn started — for a coaching turn the request's ARRIVAL (`started`,
+            # G-166), so the deadline covers the whole request as the Belt experiences it, the case load and
+            # the unfinished-work read included.
             "turn_started": started if started is not None else time.time(),
             "case_metadata": {
                 "title": case.title,
@@ -637,9 +599,8 @@ def _graph_config(case: CaseDocument, phase: str, user: str, entry: str,
             # Measure seeds its metric confirmations from Define, and Analyse,
             # Improve and Control each build a cross-phase brief from the
             # phases before them (`nodes_common.to_v1_state`). Passing only the
-            # current phase — which is all the Define-only seam needed before
-            # step 4.4 — would leave every brief empty and every upstream fact
-            # missing from the prompt, with no error anywhere.
+            # current phase would leave every brief empty and every upstream
+            # fact missing from the prompt, with no error anywhere.
             "v1_phase_inputs": {
                 name: dict(record.structured or {})
                 for name, record in case.phases.items()
@@ -653,28 +614,26 @@ async def _graph_input(graph, config: dict, case: CaseDocument,
                        new_messages: list) -> dict:
     """What to hand `ainvoke`: the whole state on turn one, the delta after.
 
-    **`SupervisorState.messages` reduces with `operator.add`** (§5), so a state
+    **`SupervisorState.messages` reduces with `operator.add`**, so a state
     update is APPENDED to what the checkpoint already holds. Passing the whole
     conversation every turn would duplicate it, and passing the whole state
-    every turn would re-write `current_phase` from the route — exactly the
-    second writer §5 B2 forbids, and exactly what the v1 eleven-field literal
-    did on every request.
+    every turn would re-write `current_phase` from the route — a second writer
+    of a field that has one.
 
     So the seven fields are written **once**, when the thread has no checkpoint,
     and every later turn sends only the new message. The first-turn seed also
-    carries the case document's existing conversation: a case created before 4.2
-    has history in the case blob and nothing in the checkpoint, and dropping it
-    would hand the coach a blank slate mid-project.
+    carries the case document's existing conversation: a case whose history is
+    in the case blob and not in the checkpoint would otherwise hand the coach a
+    blank slate mid-project.
 
     **The two records of `current_phase` are checked against each other, and a
     disagreement is a 409 rather than a silent pick.** From the second turn on,
     `current_phase` comes from the checkpoint and the case document is not
     consulted for it — so if the two ever diverge, the graph would run one phase
-    while the route reported another and read a third's artifacts. It can
-    diverge: `write_phase_gate` advances `case.current_phase` on a gate pass,
-    and the checkpoint's copy is written only by the output mapper, which 4.2
-    does not call. Unreachable while the Define gate is inert (WATCH 7), and
-    checked anyway, because the failure is silent and the check is two lines.
+    while the route reported another and read a third's artifacts. They have
+    separate writers (`write_phase_gate` advances `case.current_phase` on a gate
+    pass; the checkpoint's copy is written inside the graph), the failure is
+    silent, and the check is two lines.
     """
     snapshot = await graph.aget_state(config)
     if snapshot.values:
@@ -722,34 +681,16 @@ def _last_ai(result: dict):
 async def ask(request: AskRequest, http: Request) -> AskResponse:
     """One coaching turn, through the compiled graph.
 
-    ═══════════════════════════════════════════════════════════════════════
-    §47 REQUIREMENT 1 — THE HANDLER SHAPE IS INLINE `await`, DELIBERATELY
-    ═══════════════════════════════════════════════════════════════════════
-    **This is a choice, not a default.** §47's finding is that once checkpoints
-    write, the handler's control-flow shape — not the checkpointer — decides
-    what survives a client disconnect, and that *a handler which has not chosen
-    has chosen COMPLETE by accident*. The two permitted shapes are inline
-    `await` and an explicit ABANDON policy calling `t.cancel()` in a streaming
-    generator's `finally`; **a bare `asyncio.create_task` with no disconnect
-    handling is banned.**
+    Once checkpoints write, the handler's control-flow shape — not the
+    checkpointer — decides what survives a client disconnect, and a handler
+    which has not chosen has chosen COMPLETE by accident. This one ABANDONS:
+    the disconnect race in `_run_turn` cancels the run when the client goes.
+    ABANDON, not COMPLETE: a silently-completed gate approval the Belt never
+    saw is unacceptable in a system whose premise is that the Belt approves
+    what gets committed.
 
-    The shape is the disconnect race in `_run_turn`, and **it replaced an
-    inline `await` that this step originally shipped.** The reasoning for the
-    inline version — that the run is the handler's own task and so dies with
-    the client — is false on this stack, and the step's own `azure-query`
-    verification disproved it rather than any review catching it: a client
-    killed 3s into a 30s turn left the turn running to completion, writing 12
-    checkpoint blobs and two case-blob turns the Belt never saw. Starlette does
-    not cancel an endpoint coroutine on disconnect. Full account in `_run_turn`.
-
-    **`/ask/stream` (§49) still does not exist**, and building it here would be
-    building step 10.1's scope inside 4.2. When it lands, its `gen()` must make
-    this choice explicitly in its own `finally` — inheriting this one silently
-    is the accident §47 names.
-
-    Ratified policy is ABANDON, not COMPLETE: a silently-completed gate approval
-    the Belt never saw is unacceptable in a system whose premise is that the
-    Belt approves what gets committed.
+    A coaching turn also has a deadline (`TurnDeadline`, ADR-0080), and a
+    person over the turn rate (T93) is refused before the graph runs.
     """
     arrived = time.time()                   # G-166: the turn's clock starts when the request arrives
     _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
@@ -762,8 +703,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     who = access.person(http, case, 'ask')          # ADR-0091 decision 3
     if who is not None:                              # the session names the person, never a typed name
         request = request.model_copy(update={"user": who.full_name})
-    # WATCH 19's lazy half — every case in the registry predates the writer. From the blob
-    # only: the Store's case copy never carries unfinished work (ADR-0066).
+    # The case's framing into the Store, from the blob only: the Store's case copy never carries
+    # unfinished work (ADR-0066).
     _ensure_case_record(case)
     case = await _with_unfinished_work(case)
 
@@ -793,7 +734,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     phase = _requested_phase(case, request.phase)
     graph = get_graph()
     config = _graph_config(case, phase, request.user, entry="ask", started=arrived)
-    # Step 6.61 (R4) — a Confirm / Change click rides beside the entry mode.
+    # R4 — a Confirm / Change click rides beside the entry mode.
     config["configurable"]["belt_action"] = request.action
     config["configurable"]["belt_element"] = request.element      # W9 (DEF-079)
 
@@ -801,7 +742,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         state = await _graph_input(
             graph, config, case, [conversation.turn_to_message(user_turn)]
         )
-        # §47 requirement 1 — ABANDON on disconnect. See `_run_turn`.
+        # ABANDON on disconnect, and the coaching turn's deadline. See `_run_turn`.
         result = await _run_turn(graph, state, config, http, deadline=True)
         _mirror_asks(request.case_id, phase, result)
     except TurnDeadline:
@@ -834,7 +775,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     except Exception as e:
         logger.exception("ask() error: %s", e)
         from backend.core.prompts import TURN_FAILED
-        raise HTTPException(500, TURN_FAILED)          # G-261 (audit W8): the exception's text stays in the log
+        raise HTTPException(500, TURN_FAILED)          # G-261: the exception's text stays in the log
 
     reply = _last_ai(result)
     payload = conversation.transport(reply) if reply is not None else {}
@@ -857,12 +798,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
             phase=request.phase,
             passed=bool(verdict.get("passed", False)),
             # NOT a hardcoded 0. The counter lives on `PhaseState`, is written
-            # by `validation_stack` and is reported from the graph result —
-            # §1.7's rule that it may never sit in route scope. What it does not
-            # yet do is SURVIVE across turns: the input mapper rebuilds the child
-            # state on every invoke because there is no `interrupt()` holding the
-            # subgraph open, so the cap of 3 still cannot accumulate. That lands
-            # with the interrupt at stage 7 — carried as a WATCH.
+            # by `validation_stack` and is reported from the graph result — it
+            # never sits in route scope.
             attempts=int(verdict.get("gate_attempts", 0)),
             missing_fields=list(verdict.get("missing") or []),
         ),
@@ -884,8 +821,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         visualisation=extra.get("visualisation"),
         section_completed=extra.get("section_completed"),
         escalated=bool(verdict.get("escalated", False)),
-        # Step 10.0 — the four blocks and the warning, projected from the
-        # reply message the executor put them on (`_attach_blocks`).
+        # The four blocks and the warning, projected from the reply message
+        # the executor put them on (`_attach_blocks`).
         **{k: str((extra.get("coaching_blocks") or {}).get(k) or "")
            for k in ("explanation", "example", "prompt", "progress")},
         grader_warning=extra.get("grader_warning") or None,
@@ -901,7 +838,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
 
 
 async def _reconcile_team(case_id: str, phase: str, record: Any, by: str) -> None:
-    """ADR-0090 decision 3, ruling b: once Define's element 2 (the team) is confirmed, every person its rows name
+    """ADR-0090 decision 3: once Define's element 2 (the team) is confirmed, every person its rows name
     who is not on the case is added as a proposed member — the team panel lists them for the lead to confirm.
     Element 2 stays confirmed. A failure here never fails the turn: it is logged, and the next turn retries."""
     from datetime import datetime, timezone
@@ -958,8 +895,8 @@ async def _as_lead(case_id: str, actor: str, http: Optional[Request] = None) -> 
 
 @router.get("/cases/{case_id}/sign-in", response_model=SignInInfo)
 async def sign_in_info(case_id: str) -> SignInInfo:
-    """W17 — what the sign-in window says: the case, who may enter, the lead. Whether the case asks for sign-in
-    (ruling b). Nothing else of the case."""
+    """W17 — what the sign-in window says: the case, who may enter, the lead. Whether the case asks for sign-in.
+    Nothing else of the case."""
     _bind(case_id, None)
     case = await blob.load_case(case_id)
     if case is None:
@@ -1047,7 +984,7 @@ async def add_person(case_id: str, change: PersonChange, http: Request) -> Peopl
 async def change_person(case_id: str, who: str, change: PersonChange, http: Request,
                         confirm: bool = False) -> PeopleResponse:
     """ADR-0090: the lead completes a person's details; with `confirm`, confirms a proposed member — only with
-    an e-mail (ruling b). `who` is the person's e-mail or full name."""
+    an e-mail. `who` is the person's e-mail or full name."""
     from backend.storage import people as people_mod
     _bind(case_id, None)
     await _as_lead(case_id, change.actor, http)
@@ -1085,7 +1022,7 @@ async def remove_person(case_id: str, who: str, body: PersonRemoval, http: Reque
 
 @router.post("/cases/{case_id}/lead", response_model=PeopleResponse)
 async def hand_over_lead(case_id: str, body: LeadHandover, http: Request) -> PeopleResponse:
-    """DEF-105 (R8c, founder ruling 2026-10-21): the lead hands the role to another registered member. The case
+    """DEF-105 (R8c): the lead hands the role to another registered member. The case
     record's lead is updated (the people list, written as every team change is — ADR-0090 decision 2), and the
     handover is recorded in the Store's cross-phase audit (`step_log`): who, to whom, when, why."""
     import secrets
@@ -1116,15 +1053,14 @@ async def hand_over_lead(case_id: str, body: LeadHandover, http: Request) -> Peo
 async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResponse:
     """The assembled gate document, shown to the Belt BEFORE approval.
 
-    §9.1 steps 3-4 of the nine-step HITL gate: the Belt sees validated output
-    and checks it. This is the READ half — the interrupt-based approve/reject
-    flow is step 7.3, and the conflict panel and tier progress bars are step
-    10.2. Building either here would be building 10.2's scope inside 3.4.
+    The READ half of the gate: the Belt sees the validated output and checks
+    it; the decision is `POST /gate/decision`. For Define the response also
+    carries the readable report (R5) and whether it awaits the team's decision.
 
     Tier is carried per field because it is what the Belt needs to know:
-    **a Tier 1 gap blocks, a Tier 2 gap is theirs to accept** (§35). The
-    document is assembled only when assembly would succeed, so the screen never
-    shows a half-built document as though it were the real one.
+    **a Tier 1 gap blocks, a Tier 2 gap is theirs to accept**. The document is
+    assembled only when no Tier 1 field is missing, so the screen never shows
+    a half-built document as though it were the real one.
     """
     _bind(case_id, phase)   # T43 (DEF-129): every log line of the request names them
     if phase not in GATE_SPECS:
@@ -1159,11 +1095,11 @@ async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResp
             ).model_dump()
         except Exception as e:
             # Assembly raising with every Tier 1 field present is a CODE
-            # DEFECT (S-F28), not an incomplete phase — surface it rather
-            # than rendering an empty document as though the gate were open.
+            # DEFECT, not an incomplete phase — surface it rather than
+            # rendering an empty document as though the gate were open.
             logger.exception("gate assembly failed for %s/%s: %s", case_id, phase, e)
             from backend.core.prompts import REPORT_NOT_ASSEMBLED
-            raise HTTPException(500, REPORT_NOT_ASSEMBLED)  # G-261 (audit W8)
+            raise HTTPException(500, REPORT_NOT_ASSEMBLED)  # G-261
 
     report = None
     if phase == "define":
@@ -1237,16 +1173,16 @@ def _case_file_id(case_id: str, filename: str, uploaded_at: str) -> str:
 
 
 def _classification_for(purpose: str, content_type: str, indexed: bool) -> str:
-    """Encode purpose+content_type+indexed into the existing
-    UploadRecord.classification field so the projection can recover
-    the purpose later. New format: 'purpose=<p> · <type> · <status>'."""
+    """Encode purpose+content_type+indexed into
+    UploadRecord.classification so the projection can recover
+    the purpose later. Format: 'purpose=<p> · <type> · <status>'."""
     status = "indexed" if indexed else "pending"
     return f"{_PURPOSE_PREFIX}{purpose} · {content_type} · {status}"
 
 
 def _purpose_from_classification(classification: str, fallback_filename: str) -> str:
     """Recover a purpose label from a UploadRecord.classification.
-    Records persisted before the purpose tag was added fall back to
+    A classification without the purpose tag falls back to
     auto-detect on the filename."""
     if not classification:
         return auto_detect_purpose(fallback_filename)
@@ -1267,23 +1203,21 @@ async def upload_file(
     kind: str = Form(""),
     role: str = Form(""),
 ):
-    """§29.1's external-data channel — procedure step 6.11.
+    """The external-data channel: a file the team adds to the case.
 
     Classify, parse DETERMINISTICALLY, refuse what cannot be read, interpret
     once, then route by kind: **evidence goes to `improve_evidence_index`; an
-    artefact does not** (ruling 3). The upload record is persisted to the case
-    blob, which is the system of record, and reaches `PhaseState.uploads`
-    through the Store copy at the next phase entry.
+    artefact does not**. The upload record is persisted to the case blob,
+    which is the system of record, and reaches `PhaseState.uploads` through
+    the Store copy.
 
     **A file that cannot be extracted is refused with a Belt-readable reason
-    and is not stored** (ruling 5). Before 6.11 the opposite happened: csv and
-    xlsx bucketed as `other`, pdf and docx reported as supported with no
-    extractor, `_index_upload` returned early on empty text, and the file was
-    saved to blob regardless — so a Belt could upload a spreadsheet, see it
-    accepted, and have it be invisible to the coach and absent from the index.
+    and is not stored**, so the Belt never sees a file accepted that could not
+    be read. A file kept but not used by the coach (T72), or not indexed, says
+    so in the response's `message`.
 
-    Returns a flat ``file`` dict in the CaseFile shape alongside the legacy
-    response fields for backward compatibility.
+    Returns a flat ``file`` dict in the CaseFile shape alongside the older
+    response fields, which callers still read.
     """
     _bind(case_id, phase)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
@@ -1297,10 +1231,9 @@ async def upload_file(
         raise HTTPException(413, guard_messages.D_UPLOAD_MAX.format(limit_mb=UPLOAD_MAX_MB))
     notice = guard_messages.D_UPLOAD_NOTICE.format(size_mb=size_mb) if size_mb > UPLOAD_NOTICE_MB else None
     mime_type = file.content_type or "application/octet-stream"
-    # `UploadFile.filename` is `str | None`. Resolved ONCE here rather than
-    # at each of the four use sites — those four were carried as mypy DEBT
-    # and are retired with this step, since a nameless upload is a real case
-    # (some clients omit it) and every downstream consumer wants a `str`.
+    # `UploadFile.filename` is `str | None`. Resolved ONCE here: a nameless
+    # upload is a real case (some clients omit it) and every downstream
+    # consumer wants a `str`.
     filename = file.filename or "upload"
 
     case = await blob.load_case(case_id)
@@ -1339,15 +1272,16 @@ async def upload_file(
     # be settled before anything is spent.
     resolved_purpose = (purpose or "").strip() or auto_detect_purpose(filename)
 
-    # ── Ask-binding, step 6.12 ────────────────────────────────────────
+    # ── Ask-binding ───────────────────────────────────────────────────
     #
     # **The digest is the VERSION identity and is computed before anything
-    # else** (§23.2). The same bytes re-uploaded are not a new version.
+    # else.** The same bytes re-uploaded are not a new version.
     digest = content_digest(file_bytes)
 
-    # `role` is the LOGICAL identity, with `case_id` (ruling AP2.2). **From
-    # the ask when the upload was solicited, from the Belt's declared purpose
-    # when it was not** — never from the filename, which AP2.2 forbids.
+    # `role` is the LOGICAL identity, with `case_id`: the role the page
+    # declares; else the ask's, when the upload was solicited (the only open
+    # ask, when the page names no role); else from the purpose — which is
+    # `auto_detect_purpose`'s guess from the filename when the page sends none.
     open_asks = asks_for_phase(read_case_record(get_store(), case_id), phase)
     declared_role = (role or "").strip()
     matched_ask = (open_ask_for_role(open_asks, declared_role)
@@ -1359,12 +1293,11 @@ async def upload_file(
         or _role_from_purpose(resolved_purpose)
     )
 
-    # ── Parse BEFORE storing (ruling 5) ───────────────────────────────
+    # ── Parse BEFORE storing ──────────────────────────────────────────
     #
     # **The refusal has to come before the blob write, or it is not a
     # refusal.** A file saved and then rejected leaves the Belt with an
-    # upload they can see in the case and the coach cannot use — which is
-    # the state this step exists to end, arrived at from the other side.
+    # upload they can see in the case and the coach cannot use.
     upload_record = await process_upload(
         case_id=case_id,
         filename=filename,
@@ -1379,8 +1312,8 @@ async def upload_file(
     )
 
     # Shape check against the ask — **a mismatch is a coaching question, not
-    # a rejection**, so it classifies and never blocks (the step's own ruling;
-    # AP2.5 governs unreadable files, not incomplete ones).
+    # a rejection**, so it classifies and never blocks; only an unreadable
+    # file is refused.
     shape_match, missing_columns = check_shape(
         matched_ask, upload_record.get("columns") or [])
 
@@ -1400,7 +1333,7 @@ async def upload_file(
         except Exception as exc:  # noqa: BLE001 — the audit write must not refuse the upload
             logger.error("upload: the personal-data masking could not be recorded: %s", exc)
 
-    # ── Supersession, resolved on (case_id, role) by digest (§23.2) ────
+    # ── Supersession, resolved on (case_id, role) by digest ───────────
     #
     # **Same digest is not a new version.** The Belt re-uploading the identical
     # file gets the existing record back, with no blob write, no re-index and
@@ -1456,12 +1389,12 @@ async def upload_file(
     upload_record["blob_path"] = blob_path
     interpretation = dict(upload_record.get("interpretation") or {})
     if interpretation:
-        # Ruling 6: the interpretation cites its source upload, and the blob
-        # path is the half only this layer knows.
+        # The interpretation cites its source upload; the blob path is the
+        # half only this layer knows.
         interpretation["source_blob_path"] = blob_path
         upload_record["interpretation"] = interpretation
 
-    # ── Route by kind (ruling 3) ──────────────────────────────────────
+    # ── Route by kind ─────────────────────────────────────────────────
     #
     # **Evidence describes the world and goes to the index. An artefact is
     # what the team designed and does not.** One bucket would let a proposed
@@ -1469,7 +1402,7 @@ async def upload_file(
     # as a fact about the present.
     upload_kind = upload_record.get("kind", CLASSIFIER_EVIDENCE)
     evidence_index_id = None
-    not_indexed = None                       # G-261 (audit W4): what the Belt is told when indexing fails
+    not_indexed = None                       # G-261: what the Belt is told when indexing fails
     used_by_coach = upload_record.get("used_by_coach", True) is not False
     if not used_by_coach:
         logger.info("Upload %s kept, not used by the coach (T72) — not indexed.", filename)
@@ -1518,9 +1451,8 @@ async def upload_file(
             not_used_reason=upload_record.get("not_used_reason"),
         ))
         await blob.save_case(case)
-        # The Store's `case` copy is what the input mappers read (§9), so it
-        # has to move with the blob or `PhaseState.uploads` goes stale by one
-        # upload — the same two-ends problem WATCH 19 was.
+        # The Store's `case` copy is what the input mappers read, so it has to
+        # move with the blob or `PhaseState.uploads` goes stale by one upload.
         _ensure_case_record(case)
 
     # CaseFile-shaped dict for the UI (matches gateway.schemas.CaseFile)
@@ -1537,14 +1469,14 @@ async def upload_file(
 
     return {
         "file": case_file,
-        # Legacy fields kept for callers that read them
+        # Older response fields, kept for callers that read them
         "blob_path": blob_path,
         "filename": filename,
         "content_type": upload_record["content_type"],
         "summary": upload_record["summary"],
         "sipoc_columns": upload_record.get("sipoc_columns"),
         "indexed": indexed,
-        # ── step 6.11 ────────────────────────────────────────────────
+        # ── what the channel resolved: identity, version, parse ──────
         "kind": upload_kind,
         "role": resolved_role,
         "shape_match": shape_match,
@@ -1560,7 +1492,7 @@ async def upload_file(
         "column_ranges": upload_record.get("column_ranges") or {},
         "interpretation": upload_record.get("interpretation"),
         "used_by_coach": used_by_coach,
-        # The PII line (founder ruling 2026-10-12): what was hidden from the coach, said at upload.
+        # The PII line (T87, ADR-0062): what was hidden from the coach, said at upload.
         "message": upload_record.get("not_used_reason") or " ".join(x for x in (notice, (
             PII_HIDDEN_UPLOAD.format(what=pii.described(upload_record["pii_masked"]))
             if upload_record.get("pii_masked") else None), not_indexed) if x) or None,
@@ -1644,18 +1576,17 @@ async def _index_upload(case_id: str, upload_record: dict, *,
                         content_digest: str) -> str:
     """Index one evidence upload into `improve_evidence_index`. Returns its id.
 
-    **Returns the document id rather than None** — §6 names
-    `evidence_index_id` as what makes the evidence trail traversable, and
-    before 6.11 this function computed the id and dropped it, so a reviewer
-    reading a gate document had no way back to the indexed chunk.
+    **The document id is what makes the evidence trail traversable**: the
+    upload record keeps it (`evidence_index_id`), so a reviewer reading a gate
+    document can get back to the indexed chunk, and a removal can delete it
+    (`_unindex_upload`).
 
-    **The empty-text early return is gone.** It used to swallow every
-    unparsed file silently (Part AP1); a file with nothing to index now
-    cannot reach this function at all, because `parse_upload` refuses it at
-    the route. An empty text here is therefore a real fault and raises, which
-    the caller logs and turns into `indexed=False`.
+    **A file with nothing to index cannot reach this function**: the parse
+    refuses it at the route. An empty text here is therefore a real fault and
+    raises, which the caller logs: the file is kept, not indexed, and the Belt
+    is told.
 
-    **Only evidence reaches this function** (ruling 3). The caller does that
+    **Only evidence reaches this function.** The caller does that
     routing; nothing here re-checks it, because a second opinion on the same
     question is how two answers to it come to exist.
     """
@@ -1681,12 +1612,11 @@ async def _index_upload(case_id: str, upload_record: dict, *,
         .encode()
     ).hexdigest()[:32]
 
-    # **`upload_phase` and `timestamp` KEEP THEIR NAMES**, now for a different
-    # reason than before 6.13. They were the keys the reindex was to backfill
-    # `phase` and `uploaded_at` from; the backfill has run, both are top-level
-    # fields below, and these two stay because `scripts/backfill_evidence_index.py`
-    # reads them for any document it has to reconstruct from the index alone
-    # (DECISIONS Part AT2 — one live document has no case-blob record).
+    # **`upload_phase` and `timestamp` KEEP THEIR NAMES**: `phase` and
+    # `uploaded_at` are the top-level fields below, and these two stay because
+    # `scripts/backfill_evidence_index.py` reads them for any document it has
+    # to reconstruct from the index alone (one live document has no case-blob
+    # record).
     metadata = json.dumps({
         "case_id": case_id,
         "upload_phase": upload_record.get("phase"),
@@ -1695,7 +1625,7 @@ async def _index_upload(case_id: str, upload_record: dict, *,
         "blob_path": upload_record.get("blob_path"),
         "uploaded_by": upload_record.get("uploaded_by"),
         "timestamp": upload_record.get("timestamp"),
-        # The deterministic parse (ruling 4), carried so a retrieved chunk can
+        # The deterministic parse, carried so a retrieved chunk can
         # say what shape it came from without a second read of the file.
         "kind": upload_record.get("kind"),
         "structure": upload_record.get("structure"),
@@ -1703,10 +1633,9 @@ async def _index_upload(case_id: str, upload_record: dict, *,
         "row_count": upload_record.get("row_count"),
     })
 
-    # §23.2's seven, applied at 6.13. **Each is TOP-LEVEL, not a metadata key**
-    # — that distinction is the whole of §23.4: a value buried in the metadata
-    # blob is unreachable by `$filter`, with no error raised, which is exactly
-    # how `phase_relevance` went unpopulated. All seven are server-set; a
+    # The seven index fields after `case_id`. **Each is TOP-LEVEL, not a
+    # metadata key**: a value buried in the metadata blob is unreachable by
+    # `$filter`, with no error raised. All seven are server-set; a
     # Belt-entered value for any of them makes it unreliable as a filter or a
     # sort key.
     document = {
@@ -1718,12 +1647,11 @@ async def _index_upload(case_id: str, upload_record: dict, *,
         "phase": upload_record.get("phase") or "",
         "uploaded_at": upload_record.get("timestamp") or "",
         "role": role,
-        # Derived from `role` upstream and carried, never re-derived here —
-        # §23.2.1 makes an inconsistent pair unrepresentable by having one
-        # source, and a second opinion on the same question is how two
-        # answers to it come to exist.
+        # Classified upstream (`classify_kind`: the declared kind, else from the
+        # purpose) and carried, never re-derived here — a second opinion on the
+        # same question is how two answers to it come to exist.
         "kind": upload_record.get("kind") or "",
-        # A PROJECTION of `UploadRecord.summary` (§23.2). The case blob is the
+        # A PROJECTION of `UploadRecord.summary`. The case blob is the
         # system of record; this copy exists because it must be searchable,
         # which the blob cannot serve. Changing the summary means re-indexing
         # the document, never editing this in place.
@@ -1752,34 +1680,22 @@ def assemble_gate_document(
 ) -> tuple[dict[str, Any], dict[str, list[dict]]]:
     """The approved gate document, and the evidence that must travel with it.
 
-    ═══════════════════════════════════════════════════════════════════════
-    STEP 6.42 — THE WRITING DOOR USES THE READING DOOR'S FUNCTION
-    ═══════════════════════════════════════════════════════════════════════
-    `POST /gate` built its document from `phase_data.get("_validated", {})`.
-    **Nothing in the tree has ever set `_validated`** — `validate_define` does
-    not write it — so the expression resolved to `{}`, the document was written
-    EMPTY, and the phase advanced anyway. The code's own comment had said so
-    since step 4.2; it was unreachable while the gate could not pass, and steps
-    6.48 and 6.20 made it reachable.
-
-    `GET /gate/review` one route away has assembled correctly since 3.4 and
-    returns a complete document on a real case as of `01e8f8a`. **This is not
-    new logic** — it is `GATE_SPECS[phase].assemble`, called by the path that
-    WRITES rather than only by the path that READS.
-
-    **Extracted rather than left inline** so the step's own proofs drive the
-    function that ships, not a copy of its logic — the same reason
-    `apply_capture` was lifted out at 6.33.
+    **The writing door uses the reading door's function**: this is
+    `GATE_SPECS[phase].assemble`, the same assembly `GET /gate/review` shows,
+    called by the path that WRITES — so the written document is the reviewed
+    one. A function of its own so tests drive the code that ships, not a copy
+    of its logic.
 
     **It REFUSES rather than returning a partial document.** Assembly raising
-    with the validator already satisfied is a CODE DEFECT (S-F28), not an
-    incomplete phase, and writing anyway is what let a phase advance to Measure
-    with nothing behind it. The caller never reaches its write, so the phase
-    does not advance — the write is what advances it.
+    with the validator already satisfied is a CODE DEFECT, not an incomplete
+    phase, and writing anyway would advance the phase with nothing behind it.
+    The caller never reaches its write, so the phase does not advance — the
+    write is what advances it.
 
-    Returns `(document, evidence)`, where `evidence` is the `citations` and
-    `uploads` kwargs for `write_phase_gate`, read from the record ONCE here so
-    the write cannot disagree with the document about what the phase rested on.
+    Returns `(document, evidence)`, where `evidence` is the `citations`,
+    `uploads` and `field_log` kwargs for `write_phase_gate`, read from the
+    record ONCE here so the write cannot disagree with the document about what
+    the phase rested on.
     """
     record = case.phases.get(phase)
     artifacts = dict((record.structured or {}) if record else {})
@@ -1841,13 +1757,15 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     """R6 — approve or reject the Define report, RESUMING the paused graph.
 
     `POST /gate` validated the report and the graph paused in `gate_review`
-    (`interrupt()`); this resumes it with `Command(resume=...)`. APPROVE: the
-    graph assembles `final` and ends, and this route writes the gate document
-    and advances the phase — the write that `POST /gate` made before R6, now
-    only after the team's approval, with the actor recorded. REJECT: the graph
-    re-opens the named element(s) and runs one coaching turn that guides the
-    Belt back to the first of them; this route persists it as `/ask` does.
-    Until R8 the Belt is the actor.
+    (`interrupt()`); this resumes it with `Command(resume=...)`. APPROVE (the
+    project lead only, DEF-100): the graph's approval node writes the gate
+    document — the Store's record and the case's — and advances the phase
+    (ADR-0087); this route writes neither, and answers "approved" only when it
+    can see both records and the phase moved on. REJECT: the graph re-opens
+    the named element(s) and runs one coaching turn that guides the Belt back
+    to the first of them; that turn is in the checkpoint, as `/ask`'s is
+    (ADR-0066). The actor is the session's person when the case asks for
+    sign-in, else the name the page sends.
     """
     _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
     from langgraph.types import Command
@@ -1860,7 +1778,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
     who = access.person(http, case, 'gate decision')          # ADR-0091 decision 3
-    if who is not None:                              # decision 4: the session's person, never a typed name
+    if who is not None:                              # ADR-0091 decision 4: the session's person, never a typed name
         request = request.model_copy(update={"actor": who.full_name})
     _ensure_case_record(case)
     case = await _with_unfinished_work(case)   # ADR-0066
@@ -1870,8 +1788,8 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         raise HTTPException(409, "The Define report is not awaiting a decision — "
                                  "submit it for acceptance first (POST /gate).")
     elements = sorted({element_of(e) for e in request.elements})
-    # R6 amendment (DEF-100): the approval is recorded against the project lead, on behalf of the
-    # team — until single sign-on (R8) the signed-in lead is the case's leader by name.
+    # R6 (DEF-100): the approval is the project lead's, on behalf of the team — the actor is checked
+    # against the case's leader by name.
     if request.decision == "approve" and case.leader and request.actor.strip() != case.leader.strip():
         raise HTTPException(403, APPROVE_LEAD_ONLY.format(lead=case.leader))
     if request.decision == "reject":
@@ -1900,14 +1818,14 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
 
     if request.decision == "approve" and (getattr(_last_ai(result), "additional_kwargs", None) or {}).get("degraded"):
         # G-242: an approval whose run failed (its gate document could not be assembled) changed nothing — the
-        # approval message, so the lead approves again.
+        # route answers with the approval-failed message, so the lead approves again.
         from backend.core import graph as _graph
         raise HTTPException(503, _graph.APPROVAL_FAILED)
     _refuse_degraded(result)                                   # T29 (DEF-122)
     if request.decision == "approve":
         # ADR-0087 decision 2: the approval node wrote both records — the Store's and the case's; the route
-        # writes neither. Founder ruling 2026-10-21 (item 3): it answers "approved" only when it can see that
-        # both exist and the phase advanced — never on a run that merely returned.
+        # writes neither. It answers "approved" only when it can see that both exist and the phase advanced —
+        # never on a run that merely returned.
         from backend.core.store import get_store
         from backend.phases.mappers_common import read_gate_document
         stored = read_gate_document(get_store(), request.case_id, request.phase)
@@ -1941,18 +1859,17 @@ async def submit_gate(request: GateSubmitRequest,
                       http: Request) -> GateSubmitResponse:
     """Submit the phase for gate review — through the same compiled graph.
 
-    **The same graph object as `/ask`** (§12, §49). The two differ only in the
-    per-run `entry` on `config["configurable"]`, which the planner reads to
-    decide whether this turn coaches or validates. There is no second dispatch
-    table and no second runtime: `validate_map` and the five `validate_*`
-    imports are gone, and the validator now runs where §34 puts it — inside
-    `validation_stack`, in the subgraph.
+    **The same graph object as `/ask`.** The two differ only in the per-run
+    `entry` on `config["configurable"]`, which the planner reads to decide
+    whether this turn coaches or validates. There is no second dispatch table
+    and no second runtime: the validator runs inside `validation_stack`, in
+    the subgraph.
 
-    R6 (2026-09-26): FOR DEFINE THIS PAUSES. A validated Define report stops
-    in `gate_review`'s `interrupt()` and this returns `awaiting_acceptance`
-    with NOTHING written; `POST /gate/decision` resumes it, and only an
-    approval writes the gate document and advances the phase. The other four
-    phases, which have no report to accept yet, still write here when they pass.
+    R6: FOR DEFINE THIS PAUSES. A validated Define report stops in
+    `gate_review`'s `interrupt()` and this returns `awaiting_acceptance` with
+    NOTHING written; `POST /gate/decision` resumes it, and only an approval
+    writes the gate document and advances the phase. The other four phases,
+    which have no report to accept, write here when they pass.
     """
     _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
@@ -1963,8 +1880,8 @@ async def submit_gate(request: GateSubmitRequest,
     who = access.person(http, case, 'gate submission')          # ADR-0091 decision 3
     if who is not None:
         request = request.model_copy(update={"submitted_by": who.full_name})
-    # WATCH 19's lazy half — /gate enters a phase subgraph too, so the input
-    # mapper runs here as well and needs the same record.
+    # /gate enters a phase subgraph too, so the input mapper runs here as well
+    # and needs the case record in the Store.
     _ensure_case_record(case)
     case = await _with_unfinished_work(case)   # ADR-0066
 
@@ -1976,10 +1893,9 @@ async def submit_gate(request: GateSubmitRequest,
 
     try:
         state = await _graph_input(graph, config, case, [])
-        # §47 requirement 1 — ABANDON, the same shape `/ask` uses. A gate
-        # submission is the LAST turn that may complete behind a departed
-        # Belt: it is the one the whole nine-step gate exists to keep in
-        # front of them.
+        # ABANDON on disconnect, as `/ask`: a gate submission is the LAST turn
+        # that may complete behind a departed Belt — the gate exists to keep
+        # it in front of them.
         result = await _run_turn(graph, state, config, http)
     except ClientGone:
         logger.info(
@@ -1994,7 +1910,7 @@ async def submit_gate(request: GateSubmitRequest,
     except Exception as e:
         logger.exception("submit_gate() error: %s", e)
         from backend.core.prompts import SUBMIT_FAILED
-        raise HTTPException(500, SUBMIT_FAILED)        # G-261 (audit W8)
+        raise HTTPException(500, SUBMIT_FAILED)        # G-261
 
     if result.get("__interrupt__"):
         # R6 — the Define report passed validation and the graph PAUSED in
@@ -2015,19 +1931,8 @@ async def submit_gate(request: GateSubmitRequest,
     missing = list(verdict.get("missing") or [])
 
     if passed:
-        # ── 6.42 — THE WRITING DOOR NOW USES THE READING DOOR'S FUNCTION ──
-        #
-        # This read `phase_data.get("_validated", {})`. **Nothing in the tree
-        # has ever set `_validated`** — `validate_define` does not write it —
-        # so the expression resolved to `{}` and the gate document was written
-        # EMPTY, while the phase advanced and the Belt was moved to Measure.
-        # The code's own comment had said so since 4.2; it was unreachable
-        # while the gate could not pass, and 6.48 and 6.20 made it reachable.
-        #
-        # `GET /gate/review` one route away already assembles correctly and
-        # has returned a complete document on a real case since 01e8f8a. **This
-        # is not new logic. It is the same assembly, called by the path that
-        # WRITES rather than only by the path that READS.**
+        # The document written is the one `GET /gate/review` assembles — see
+        # `assemble_gate_document`.
         document, evidence = assemble_gate_document(case, request.phase)
 
         await blob.write_phase_gate(
@@ -2036,10 +1941,9 @@ async def submit_gate(request: GateSubmitRequest,
             structured=document,
             submitted_by=request.submitted_by,
             summary=f"Gate passed by {request.submitted_by}",
-            # Passed EXPLICITLY, from what assembly already read. The old call
-            # passed neither, and the `[]` defaults then replaced the Belt's
-            # evidence trail with nothing at the one moment a reviewer goes
-            # looking for it.
+            # Passed EXPLICITLY, from what assembly already read: the `[]`
+            # defaults would replace the Belt's evidence trail with nothing at
+            # the one moment a reviewer goes looking for it.
             citations=evidence["citations"],
             uploads=evidence["uploads"],
             field_log=evidence["field_log"],                    # G-147 (DEF-061)
@@ -2123,12 +2027,12 @@ def _refuse_degraded(result: Any) -> None:
         raise HTTPException(503, DEGRADED_REPLY)
 
 
-#: R6 amendment (DEF-100) — an approval sent by someone other than the project lead.
+#: R6 (DEF-100) — an approval sent by someone other than the project lead.
 APPROVE_LEAD_ONLY = ("Only the project lead, {lead}, approves the Define report, on behalf of the team. "
                      "Ask {lead} to approve it — or reject it naming what to change, which anyone may do.")
 
-#: Founder ruling 2026-10-21 (ADR-0087 amendment, item 3): the approval ran but the route cannot see both records
-#: and the phase moved on, so it is not reported as approved.
+#: ADR-0087: the approval ran but the route cannot see both records and the phase moved on, so it is not
+#: reported as approved.
 APPROVAL_INCOMPLETE = ("The approval ran but was not saved completely, so the Define report is not shown as "
                        "approved. Please open the report again before approving.")
 
@@ -2203,7 +2107,7 @@ async def get_case(case_id: str, http: Request):
     case = await _with_unfinished_work(case, lost=lost)   # ADR-0066: read through the graph
 
     payload = case.model_dump()
-    if lost:                                       # G-261 (audit W3): never a silent fall-back
+    if lost:                                       # G-261: never a silent fall-back
         from backend.core.prompts import RELOAD_UNFINISHED_LOST
         payload["notice"] = RELOAD_UNFINISHED_LOST
     # W9 (DEF-079) — the progress view's elements, computed here once from the statuses the
@@ -2227,7 +2131,7 @@ async def get_case(case_id: str, http: Request):
     # DEF-214 (W1): the Define overview, served from the skill (its opening and section F).
     from backend.phases.define.welcome import briefings, overview
     payload["define_overview"] = overview()
-    payload["define_briefings"] = briefings()      # G-258 (audit D6): the tool briefings, from the skill
+    payload["define_briefings"] = briefings()      # G-258: the tool briefings, from the skill
     # DEF-200 (W3): the welcome, assembled in code from the phase state and the skill — greeting the signed-in person.
     if case.current_phase == "define":
         from backend.phases.define.welcome import welcome

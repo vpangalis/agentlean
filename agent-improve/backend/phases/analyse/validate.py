@@ -1,20 +1,17 @@
 """Analyse phase gate validator — Layer 2b.
 
-Architecture 34 (the three-layer validation stack) - 35 (two tiers) -
-S-C29 (63.3). Procedure step 3.4.
-
-**One third of an atomic unit** (56.1): `schema.py` owns the field names and
+**One third of an atomic unit**: `schema.py` owns the field names and
 types, this file owns WHICH OF THEM BLOCK THE GATE, and
 `skills/dmaic-analyse-phase/SKILL.md` coaches those names in the same order.
 The tier tuples are IMPORTED from `schema.py` rather than retyped here —
 two hand-maintained copies of one list is how the three drift apart.
 
-**This is Layer 2b — field presence, DETERMINISTIC, no LLM** (9.2). Layer 2a
+**This is Layer 2b — field presence, DETERMINISTIC, no LLM.** Layer 2a
 (coherence) is retired (ADR-0083); 2c (constraints) and 2d (the
 rubric) run in the same `validation_stack` node but are not this function's
 business.
 
-**Two tiers, and the difference is the whole point** (35):
+**Two tiers, and the difference is the whole point:**
 
 | Tier | This validator | The grader (2d) | The Belt |
 |---|---|---|---|
@@ -46,7 +43,7 @@ from backend.phases.gate_registry import missing_gate_fields
 
 logger = logging.getLogger(__name__)
 
-#: Sourced from `schema.py` — the single declaration (56.1).
+#: Sourced from `schema.py` — the single declaration.
 ANALYSE_REQUIRED_FOR_GATE = list(ANALYSE_TIER_1_FIELDS)
 
 
@@ -62,7 +59,7 @@ def _is_empty(value: object) -> bool:
 
 
 def acknowledged_gaps(data: dict) -> list[str]:
-    """Tier 2 fields the Belt is proceeding without (35, 9.7).
+    """Tier 2 fields the Belt is proceeding without.
 
     Recorded rather than dropped: it is what turns a silent omission into a
     conscious decision the audit trail can show, and the next phase's planner
@@ -80,7 +77,7 @@ async def validate_analyse(state: ImproveGraphState) -> dict:
 
     Gate enforcement is a **completeness check against the Tier 1 set** — not a
     Pydantic required-field check. `AnalyseOutput` is the gate DOCUMENT, assembled
-    once at `gate_apply` after Belt approval (33); it is not the mechanism that
+    once at `gate_apply` after Belt approval; it is not the mechanism that
     decides whether the gate opens.
 
     Signature and return shape match the LangGraph node contract
@@ -92,11 +89,11 @@ async def validate_analyse(state: ImproveGraphState) -> dict:
     attempts = state.get("gate_attempts") or 0
 
     # -- Layer 2b: presence of every Tier 1 field ----------------------
-    # **ONE computation, shared with the prompt** (step 6.3). `gate_registry.
+    # **ONE computation, shared with the prompt.** `gate_registry.
     # missing_gate_fields` is what `BeforeModelStateInjection` also calls, so
     # the coach cannot ask for a field this gate does not want, or stay silent
-    # about one it does (§19.1, S-C11 B3). The Tier-1 loop and the structured
-    # sub-field checks that used to live in this file are there now.
+    # about one it does. The Tier-1 loop and the structured sub-field checks
+    # live there.
     missing = missing_gate_fields("analyse", data)
 
     passed = len(missing) == 0

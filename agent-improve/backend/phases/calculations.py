@@ -1,4 +1,4 @@
-"""Calculations run in code, never by the coach — ADR-0077 (founder, 2026-10-11).
+"""Calculations run in code, never by the coach — ADR-0077.
 
 Each calculation belongs to one element. Its inputs come, in order, from the case's confirmed values
 (read here, from state) and otherwise from the planner's one judgment call, which extracts from the
@@ -9,7 +9,7 @@ how it was calculated (`how_it_was_calculated`). The coach explains the calculat
 
 Define has one: the expected savings of the benefits analysis. The other phases add theirs here.
 
-Module-level functions only (CLAUDE.md §2).
+Module-level functions only, per CLAUDE.md.
 """
 from __future__ import annotations
 

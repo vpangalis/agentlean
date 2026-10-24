@@ -1,36 +1,32 @@
-"""Pydantic arg schemas for the twenty computation tools — procedure step 5.3.
-
-Canonical: **§31** (tool arg schemas and docstrings), **§69** (the twenty
-interfaces, S-F37–S-F56), **§60.6 — S-F24** (the EARS behaviours binding on all
-twenty). Architecture §30 (per-phase binding), §7 (the typing law).
+"""Pydantic arg schemas for the twenty computation tools and the universal tools.
 
 EVERY TOOL HAS ITS OWN SCHEMA — NO RAW SIGNATURE INFERENCE
 ----------------------------------------------------------
-§31: *"No tools with raw signature inference — inferred schemas produce vague
-parameter descriptions, and the parameter description is what the model reads
-when deciding how to call."* Twenty tools, twenty schemas, one each.
+Inferred schemas produce vague parameter descriptions, and the parameter
+description is what the model reads when deciding how to call. Twenty tools,
+twenty schemas, one each.
 
-**Parameterised grouping is BANNED** (§30, S-F24 B4), which is why there are
-twenty schemas and not, say, four families. `CpkArgs` and `PostImprovementCpkArgs`
-are separate despite sharing three fields, because the two tools are separate.
+**Parameterised grouping is BANNED**, which is why there are twenty schemas
+and not, say, four families. `CpkArgs` and `PostImprovementCpkArgs` are
+separate despite sharing three fields, because the two tools are separate.
 
 WHY THE SCALAR INPUTS ARE `str` AND NOT `float`
 -----------------------------------------------
 This is the load-bearing choice in this file, and it follows from two behaviours
 that would otherwise contradict each other:
 
-  * **B2** — *"parse what it needs out of the string at the point of use, since
-    every captured field is a `str`"*. §7's typing law makes every captured
-    field a string: `baseline_estimate` is `"12.3% invoice error rate, measured
-    over Q2 2026"`, not `12.3`.
-  * **B3** — *"unable to parse its input, return a clear reformatting request to
-    the Belt rather than **raising** or guessing"*.
+  * a tool parses what it needs out of the string at the point of use, since
+    every captured field is a `str` — `baseline_estimate` is `"12.3% invoice
+    error rate, measured over Q2 2026"`, not `12.3`;
+  * a tool unable to parse its input returns a clear reformatting request to
+    the Belt rather than **raising** or guessing.
 
 Declaring `mean: float` would satisfy neither. Pydantic would coerce `"12.3"`
 happily and then **raise** a `ValidationError` on `"12.3% error rate"` — the
-exact behaviour B3 forbids, at a layer the tool cannot intercept to produce a
-plain-language request. So every scalar a Belt might have written as prose is
-`str`, and `computation._num()` does the parsing and produces the request.
+exact behaviour the second rule forbids, at a layer the tool cannot intercept
+to produce a plain-language request. So every scalar a Belt might have written
+as prose is `str`, and `computation._num()` does the parsing and produces the
+request.
 
 **Structured collections stay typed.** `subgroups`, `contingency_table`,
 `x_values` and the rest are `list[...]`: they are built by the coach from data
@@ -38,14 +34,14 @@ it has read, not lifted from a captured-field sentence, and a malformed one is a
 genuine call error that Pydantic should reject. The split is *"prose the Belt
 typed"* versus *"a table the coach assembled"*, and the semantic checks those
 collections need — at least two steps, equal subgroup sizes, expected cell
-counts ≥ 5 — are methodology preconditions, which §69.1 says are NOT argument
-validation. Those live in the tools and return requests.
+counts ≥ 5 — are methodology preconditions, NOT argument validation. Those
+live in the tools and return requests.
 """
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-# ── Define — 1 tool (S-F37) ───────────────────────────────────────────────
+# ── Define — 1 tool ───────────────────────────────────────────────────────
 
 
 class ExpectedSavingsArgs(BaseModel):
@@ -71,7 +67,7 @@ class ExpectedSavingsArgs(BaseModel):
     )
 
 
-# ── Measure — 8 tools (S-F38–S-F45) ───────────────────────────────────────
+# ── Measure — 8 tools ─────────────────────────────────────────────────────
 
 
 class SigmaLevelArgs(BaseModel):
@@ -186,7 +182,7 @@ class SampleSizeMeanArgs(BaseModel):
     )
 
 
-# ── Analyse — 5 tools (S-F46–S-F50) ───────────────────────────────────────
+# ── Analyse — 5 tools ─────────────────────────────────────────────────────
 
 
 class TTestArgs(BaseModel):
@@ -243,7 +239,7 @@ class LinearRegressionArgs(BaseModel):
     )
 
 
-# ── Improve — 1 tool (S-F51) ──────────────────────────────────────────────
+# ── Improve — 1 tool ──────────────────────────────────────────────────────
 
 
 class DoeMainEffectsArgs(BaseModel):
@@ -261,7 +257,7 @@ class DoeMainEffectsArgs(BaseModel):
     )
 
 
-# ── Control — 5 tools (S-F52–S-F56) ───────────────────────────────────────
+# ── Control — 5 tools ─────────────────────────────────────────────────────
 
 
 class XbarRArgs(BaseModel):
@@ -315,11 +311,9 @@ class PostImprovementCpkArgs(BaseModel):
     )
 
 # ══════════════════════════════════════════════════════════════════════════
-# The two universal proposal tools (S-F19, S-F20) — procedure step 6.2
-#
-# Owed by step 5.2: both entries say "Procedure: step 5.2", whose prose covered
-# only the three `rag_lookup_*` tools. Built at 6.2 because the executor binds
-# them (§29.2) and Define's SIPOC rendering depends on `propose_diagram`.
+# The universal tools' arg schemas — evidence and upload readers, and the
+# two proposal tools. The executor binds them for every phase, and Define's
+# SIPOC rendering depends on `propose_diagram`.
 # ══════════════════════════════════════════════════════════════════════════
 
 

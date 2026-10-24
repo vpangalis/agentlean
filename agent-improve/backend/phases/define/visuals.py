@@ -1,4 +1,4 @@
-"""Define's visuals, drawn by the program — ADR-0070 (founder, 2026-09-28; C1, C2, R2).
+"""Define's visuals, drawn by the program — ADR-0070 (C1, C2, R2).
 
 ONE drawing function per visual, `draw`, used by both the coach's reply (a read-back, marked "not
 yet confirmed", from the coach's structured values; after Confirm, from the stored values) and the
@@ -9,6 +9,7 @@ report picture can never differ. No model call draws.
     element 5  baseline               baseline → target    (target still open)
     element 7  goal statement         baseline → target    (target read from the goal's words)
     element 8  target value           baseline → target
+    element 10 benefits analysis      benefit timeline     (cost of the gap, saving, when it lands)
     element 12 SIPOC                  SIPOC diagram
 """
 from __future__ import annotations
@@ -81,7 +82,7 @@ def _date(value: Any) -> Optional[str]:
 
 
 def _marks(values: dict[str, Any]) -> dict[str, list[int]]:
-    """DEF-211 (founder note under ADR-0078, point 4): the flow's marks when the problem statement places the
+    """DEF-211 (ADR-0078's note, point 4): the flow's marks when the problem statement places the
     problem — `located`, the numbers of the steps it is located in (a "from → to" location: every step between its
     ends); `flagged`, the numbers of steps with problem notes outside them. `parse.located_steps` is the matching."""
     from backend.phases.define.parse import located_steps, process_steps
@@ -97,7 +98,7 @@ def _marks(values: dict[str, Any]) -> dict[str, list[int]]:
             "flagged": [i + 1 for i, s in enumerate(steps) if s["problems"] and s["id"] not in hit]}
 
 
-#: DEF-211 (founder note under ADR-0070, 2026-10-22): the SIPOC's worked example, a structured file in the skill.
+#: DEF-211 (ADR-0070's note): the SIPOC's worked example, a structured file in the skill.
 SIPOC_EXAMPLE = "sipoc_example.json"
 
 

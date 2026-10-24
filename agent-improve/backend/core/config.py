@@ -7,14 +7,12 @@ from typing import Optional
 from pydantic.v1 import BaseSettings, Field
 
 #: The methodology index the coach reads when `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`
-#: is unset — the CURRENT one: the BB-eBook-only rebuild (`871637f`, 1,184 docs).
-#: Until 2026-09-27 the default was the index the rebuild replaced (the contaminated
-#: corpus), so a missing variable silently coached from it (inventory Z05). That index
-#: and the two other unused ones are named nowhere in code or config since 2026-09-30,
-#: so the founder can delete them in the portal; drift pattern-12 bans the old name.
+#: is unset — the CURRENT one: the BB-eBook-only rebuild (1,184 docs). The index it
+#: replaced (a contaminated corpus) is named nowhere in code or config, and drift
+#: pattern-12 bans its old name, so a missing variable never coaches from it.
 KNOWLEDGE_INDEX_DEFAULT = "improve_knowledge_index_v3"
 
-#: DEF-093 / G-157 (founder ruling 2026-10-12; ADR-0080): R13's limit for one coaching turn, in seconds, and
+#: DEF-093 / G-157 (ADR-0080): R13's limit for one coaching turn, in seconds, and
 #: the time kept for closing the turn after the graph returns. The route's deadline and the re-ask's time
 #: guard (ADR-0079) read the same two numbers, so neither plans past the other.
 TURN_LIMIT_S = 45.0
@@ -221,7 +219,7 @@ settings = Settings(
     CONTENT_SAFETY_KEY=os.getenv("CONTENT_SAFETY_KEY"),
 )
 
-#: T67 (DEF-139), §11.4: the credentials Agent Improve cannot run a turn without — the coaching
+#: T67 (DEF-139): the credentials Agent Improve cannot run a turn without — the coaching
 #: models, retrieval and the case store. Missing at start-up, the app exits with status 1.
 REQUIRED_CREDENTIALS: tuple[str, ...] = (
     "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
@@ -244,7 +242,7 @@ def missing_credentials(s: "Settings | None" = None) -> list[str]:
 
 def check_credentials() -> None:
     """T67: name every missing credential on stderr and exit with status 1 — before the app
-    accepts a request, so a container without them never receives traffic (§11.4)."""
+    accepts a request, so a container without them never receives traffic."""
     missing = missing_credentials()
     if missing:
         print("Agent Improve cannot start — required credential(s) missing: " + ", ".join(missing)

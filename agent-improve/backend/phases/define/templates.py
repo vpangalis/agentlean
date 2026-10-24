@@ -1,4 +1,4 @@
-"""Element templates — ADR-0093 "Element templates and the Gate view" (founder, 2026-10-19).
+"""Element templates — ADR-0093 "Element templates and the Gate view".
 
 Each Define element is shown as its acceptance criteria, one row each, with the value that goes into the Gate
 and where it came from: the read-back card (before a Confirm, from the exact value a Confirm will store) and the
@@ -14,7 +14,7 @@ Gate's element card (after it, from the stored value) are drawn from the SAME ro
   parts, a number, a date, the SIPOC's columns, both scope halves); otherwise by the judgment's verdict.
 
 Pure functions, no model call, nothing stored: the rows are a view of the stored value (ADR-0093 "Rejected").
-Module-level functions only (CLAUDE.md §2).
+Module-level functions only.
 """
 from __future__ import annotations
 
@@ -142,7 +142,7 @@ def _metric(field: str) -> Callable[[dict[str, Any]], Read]:
             return None, False
         mv = parse.as_metric(v, target=field == "target_value")
         text = parse.metric_text(mv)
-        # DEF-221 (ruled 2026-10-20): the limit in words, with the Belt's own wording beside it when it differs.
+        # DEF-221: the limit in words, with the Belt's own wording beside it when it differs.
         said = parse.limit_phrase(mv) if field == "target_value" else ""
         return (f"{text} (you wrote “{said}”)" if said else text), mv["value"] is not None
     return read
@@ -178,7 +178,8 @@ def _benefit(key: str) -> Callable[[dict[str, Any]], Read]:
 
 
 def _realisation(values: dict[str, Any]) -> Read:
-    """G-255: when the saving shows, met by the code check the Confirm and the gate share (parse.missing_parts)."""
+    """G-255: when the saving shows, met by the code check the Confirm and the gate share (`parse.realisation_stated`,
+    which `parse.missing_parts` applies)."""
     b = values.get("benefits_analysis")
     return _benefit("realisation_schedule")(values)[0], (parse.realisation_stated(b) if isinstance(b, dict) else None)
 
@@ -587,12 +588,12 @@ def _time_of(m: dict[str, Any]) -> str:
 
 
 def _team_table(artifacts: dict[str, Any], case: dict[str, Any]) -> dict[str, Any]:
-    """DEF-176 (gate_view_mockup.html, section A; founder 2026-10-22, the older people block folded in): ONE table,
+    """DEF-176 (gate_view_mockup.html, section A): ONE table,
     Name | Role | Function | Time | Training | Status — the project lead first under the case's one name for the
     lead (ADR-0090 decision 4), then the champion (named as such), the process owner and the members, each as
     their confirmed entry states it, with member / proposed from their person record; then anyone on the case
     element 2 does not name. "—" where nothing states a value. The department is one case-level line above the
-    table (Desktop, 2026-10-22), not a column."""
+    table, not a column."""
     def _norm(t: Any) -> str:
         return " ".join(str(t or "").lower().split())
     team = _team(artifacts)

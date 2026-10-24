@@ -1,6 +1,4 @@
-"""One place that knows all five gate documents — procedure step 3.4.
-
-Architecture §40 · §35 (the two tiers) · S-C27–S-C31 · S-F28.
+"""One place that knows all five gate documents.
 
 The five `{Phase}Output` schemas, their tier sets and their assembly functions,
 keyed by phase. Without this, every caller that needs "the Define document"
@@ -68,8 +66,8 @@ class GateSpec(NamedTuple):
     assemble: Callable[..., BaseModel]
 
 
-#: **Define carries no Tier 2** — Option A (§39.1.2): every field blocks the
-#: gate, so there is no `acknowledged_gaps` path out of Define. Its Tier-1 set
+#: **Define carries no Tier 2**: every field blocks the gate, so there is no
+#: `acknowledged_gaps` path out of Define. Its Tier-1 set
 #: is therefore the whole gate-required list, and its Tier-2 set is
 #: deliberately empty rather than omitted, so callers can treat all five
 #: phases uniformly.
@@ -117,8 +115,8 @@ def declared_type(phase: str, field: str) -> Any | None:
     `None` means the schema does not declare the field at all — which is a
     different condition from "declares it loosely", and the caller must not
     conflate them. A name the schema does not know is not type-checked here;
-    that it was captured at all is a separate question (§39.x.2 tells the coach
-    the exact names) and is not this step's.
+    that it was captured at all is a separate question, and not this
+    function's.
     """
     spec = GATE_SPECS.get(phase)
     if spec is None:
@@ -132,7 +130,7 @@ def split_by_declared_type(
 ) -> tuple[dict[str, Any], dict[str, str]]:
     """Captured values split into those carrying their declared type and those not.
 
-    **Step 6.48 — the type is enforced AT CAPTURE.** Returns
+    **The type is enforced AT CAPTURE.** Returns
     `(conforming, malformed)`, where `malformed` maps a field name to the
     declared type it failed, so the report can name both.
 
@@ -142,11 +140,10 @@ def split_by_declared_type(
     the field stays uncaptured. **Coercing prose into a declared shape invents
     the Belt's data** — a sentence about three people is not a list of three
     `{name, role, function}` entries, and anything that turns one into the
-    other is guessing which words were the names. §7's whole argument for
-    string fields is that *"the gate document shows the Belt's exact words"*.
-    Measured before relying on it: Pydantic rejects prose for `dict` and
-    `list[dict]` in lax mode as well as strict, so the check does not depend on
-    a mode setting that a later edit could relax.
+    other is guessing which words were the names. String fields exist so that
+    *"the gate document shows the Belt's exact words"*. Pydantic rejects prose
+    for `dict` and `list[dict]` in lax mode as well as strict, so the check
+    does not depend on a mode setting that a later edit could relax.
 
     **A field the schema does not declare passes through untouched.** It has no
     declared type to carry, so there is nothing to enforce; reporting it here
@@ -179,7 +176,7 @@ def tier_of(phase: str, field: str) -> int | None:
 
 
 def review_rows(phase: str, artifacts: dict[str, Any]) -> list[dict[str, Any]]:
-    """One row per content field, tier-labelled, for §50's gate-review screen.
+    """One row per content field, tier-labelled, for the gate-review screen.
 
     Ordered Tier 1 then Tier 2 — the order the Belt should read them in, since
     only the first group can block. Gate metadata and `phase_metrics` are not
@@ -212,23 +209,19 @@ def _is_empty(value: object) -> bool:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Gate completeness — ONE implementation, two callers (procedure step 6.3)
+# Gate completeness — ONE implementation, two callers
 #
-# **§19.1's whole point: the prompt and the gate cannot disagree about what is
-# missing.** `BeforeModelStateInjection` reports missing fields to the coach
-# every turn (S-C11 B3), and `validate_{phase}` decides whether the gate opens.
-# Before 6.3 those were two loops in six files; a divergence in either would
-# have shown as a coach confidently asking for a field the gate did not want,
-# or staying silent about one it did.
+# **The prompt and the gate cannot disagree about what is missing.**
+# `BeforeModelStateInjection` reports missing fields to the coach every turn,
+# and `validate_{phase}` decides whether the gate opens. Two loops would let
+# them diverge: a coach confidently asking for a field the gate does not want,
+# or staying silent about one it does.
 #
-# So the loop lives HERE, in the file whose own header says *"without this,
-# every caller that needs 'the Define document' re-derives the mapping by hand,
-# and the fifth caller gets it wrong."* The five `validate.py` call it, and so
-# does the middleware.
+# So the loop lives HERE, in the one place that knows all five gate documents.
+# The five `validate.py` call it, and so does the middleware.
 #
-# **Import direction is unchanged and still one-way** — registry -> schema.
-# This module imports no `validate.py`, which is what lets the validators
-# import it without a cycle.
+# **Import direction is one-way** — registry -> schema. This module imports no
+# `validate.py`, which is what lets the validators import it without a cycle.
 # ══════════════════════════════════════════════════════════════════════════
 
 def _absent_keys(container: Any, keys: tuple[str, ...]) -> list[str]:
@@ -252,11 +245,11 @@ def _missing_entries(rows: Any, keys: tuple[str, ...], label: str) -> list[str]:
 
 
 def missing_structured(phase: str, data: dict[str, Any]) -> list[str]:
-    """Sub-field checks for the fields that are not plain strings (§41, S-C33).
+    """Sub-field checks for the fields that are not plain strings.
 
     **A dict that is present but half-filled passes a presence check and fails
-    the Belt at the gate.** §41 calls this the partial-map failure, and it is
-    the reason those fields are dicts rather than prose: a four-of-six SIPOC
+    the Belt at the gate.** This is the partial-map failure, and it is the
+    reason those fields are dicts rather than prose: a four-of-six SIPOC
     looks complete until someone tries to use it.
 
     Analyse and Improve have no structured field and return `[]` — stated
@@ -307,12 +300,11 @@ def missing_gate_fields(phase: str, data: dict[str, Any]) -> list[str]:
     """Which Tier-1 fields block this phase's gate, given what is captured.
 
     **The one computation.** `validate_{phase}` calls it to decide the gate;
-    `BeforeModelStateInjection` calls it to tell the coach what is still owed
-    (S-C11 B3). Derived from `data` every time — S-C11 B3 forbids reading a
-    stored list, and §5 removed `open_items` for the same reason: a stored
+    `BeforeModelStateInjection` calls it to tell the coach what is still owed.
+    Derived from `data` every time, never read from a stored list: a stored
     readiness list is a second source of truth that can disagree with the gate.
 
-    **Tier 2 is deliberately not here.** Only Tier 1 blocks (§35); a Tier-2 gap
+    **Tier 2 is deliberately not here.** Only Tier 1 blocks; a Tier-2 gap
     the Belt proceeds past is recorded as `acknowledged_gaps`, not as missing.
     """
     spec = GATE_SPECS[phase]
@@ -323,7 +315,7 @@ def missing_gate_fields(phase: str, data: dict[str, Any]) -> list[str]:
 
 def captured_count(phase: str, data: dict[str, Any]) -> tuple[int, int]:
     """How many of the phase's Tier-1 fields hold a value, and how many there are — the count degraded
-    mode names (§4.8, T34 level 4)."""
+    mode names (T34 level 4)."""
     tier_1 = GATE_SPECS[phase].tier_1
     return sum(not _is_empty(data.get(f)) for f in tier_1), len(tier_1)
 

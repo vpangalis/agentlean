@@ -1,8 +1,7 @@
 """Where Agent Improve keeps things — the ONE owner of the storage layout.
 
-Founder, 2026-09-27 (Part G): every Blob path, Store namespace and search-index
-field list that had no single owner is declared HERE, the code that reads and
-writes them points here, and ARCHITECTURE.md's generated data-models block is
+Every Blob path, Store namespace and search-index field list without another
+owner is declared HERE, the code that reads and writes them points here, and ARCHITECTURE.md's generated data-models block is
 generated from here (`tools/architecture/generate_models.py`, which reads this
 file with `ast` and never imports it). The knowledge index keeps its own owner,
 `knowledge/retriever.py::KNOWLEDGE_INDEX_FIELDS`.
@@ -55,7 +54,7 @@ BLOB_PATHS: tuple[tuple[str, str, str], ...] = (
     ("store/{namespace}/{key}.json", "core/store.py", "One Store item"),
 )
 
-# ── Store — `BaseStore` namespaces (§9) ─────────────────────────────────────
+# ── Store — `BaseStore` namespaces ──────────────────────────────────────────
 STORE_ROOT = "projects"
 KIND_CASE = "case"
 KIND_ARTIFACTS = "artifacts"
@@ -75,7 +74,7 @@ STORE_NAMESPACES: tuple[tuple[str, str, str], ...] = (
 # default. `knowledge/retriever.py::KNOWLEDGE_INDEX_FIELDS` owns the knowledge
 # index.
 
-#: `improve_evidence_index` (§23.2). Written by `gateway/routes.py::_index_upload`
+#: `improve_evidence_index`. Written by `gateway/routes.py::_index_upload`
 #: (its document's keys are exactly these names), read by `search_evidence`.
 EVIDENCE_INDEX: tuple[dict[str, Any], ...] = (
     {"name": "id", "kind": "simple", "type": "Edm.String", "key": True, "filterable": True},
@@ -100,13 +99,13 @@ EVIDENCE_SELECT: tuple[str, ...] = (
     "description", "content_digest", "shape_match",
 )
 
-#: DEF-165 (T95; founder and Desktop 2026-10-22, option a): the `status` of a completed case, the only value
+#: DEF-165 (T95): the `status` of a completed case, the only value
 #: past-case search returns. ADR-0102's writer (T98) writes it on the Control gate's approval.
 CASE_STATUS_COMPLETED = "completed"
 CASE_COMPLETED_FILTER = "status eq 'completed'"
 
-#: `improve_case_index` (§23.3). Created by `scripts/create_indexes.py`, read by
-#: `search_cases`; no code writes it yet (inventory Z07).
+#: `improve_case_index`. Created by `scripts/create_indexes.py`, read by
+#: `search_cases`; no code writes it yet.
 CASE_INDEX: tuple[dict[str, Any], ...] = (
     {"name": "id", "kind": "simple", "type": "Edm.String", "key": True, "filterable": True},
     {"name": "case_id", "kind": "simple", "type": "Edm.String", "filterable": True, "sortable": True},
@@ -135,7 +134,7 @@ CASE_INDEX: tuple[dict[str, Any], ...] = (
     {"name": "embedding", "kind": "vector", "type": "Collection(Edm.Single)",
      "dimensions": 3072, "profile": "improve-vector-profile"},
 )
-#: What `search_cases` asks the index to return. `id` is there for RRF dedup (S-F17).
+#: What `search_cases` asks the index to return. `id` is there for RRF dedup.
 CASE_SELECT: tuple[str, ...] = (
     "id", "content_text", "case_id", "title", "current_phase", "rag_status",
 )

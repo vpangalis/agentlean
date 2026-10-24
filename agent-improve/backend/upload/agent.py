@@ -1,17 +1,10 @@
 """Upload processing — classify, parse deterministically, interpret once.
 
-Architecture: **§29.1** (the evidence channel), **§6** (the uploads entry
-shape), **§23.2** (the index). Procedure step **6.11**. Rulings:
-`docs/_archive/DECISIONS.md` Part AP2.
-
-THE ORDER IS THE RULING
+THE ORDER IS THE RULE
     Classify → parse deterministically → refuse if unreadable → interpret
-    ONCE. Ruling 4 puts the deterministic parse first and confines the model
-    to meaning; ruling 5 puts the refusal before the model call, so an
-    unreadable file costs nothing and comes back with a reason rather than an
-    empty success. Before this step the order was inverted in effect: images
-    got a premium vision call, every other format got a stub summary saying
-    extraction was "not yet available", and the file was stored anyway.
+    ONCE. The deterministic parse comes first and the model is confined to
+    meaning; the refusal comes before the model call, so an unreadable file
+    costs nothing and comes back with a reason rather than an empty success.
 
 ONE CALL PER UPLOAD, NOT ONE PER QUESTION
     The interpretation is computed here, at ingest, and persisted on the
@@ -20,10 +13,10 @@ ONE CALL PER UPLOAD, NOT ONE PER QUESTION
 
 BOTH CALLS BIND STRUCTURED OUTPUT (ADR-0104)
     The interpretation binds `with_structured_output(UploadInterpretation)` and the image read
-    `with_structured_output(ImageRead)` — its five typed fields (ADR-0104's note). §4.6 scopes the
-    builder-style call to a plain model invocation; pattern 2 excludes exactly this file. Nothing
-    is parsed out of the model's text (§4.3), so an unreadable reply can no longer be lost silently
-    as an empty JSON object: it fails the call and takes the stated fallback.
+    `with_structured_output(ImageRead)` — its five typed fields. The builder-style call is for a
+    plain model invocation; the drift registry's pattern 2 excludes exactly this file. Nothing is
+    parsed out of the model's text, so an unreadable reply cannot be lost silently as an empty
+    JSON object: it fails the call and takes the stated fallback.
 """
 from __future__ import annotations
 
@@ -73,7 +66,7 @@ async def process_upload(
     Returns a dict. **`parsed` is the key the caller must check**: `False`
     means the file was refused and `refusal_reason` carries a Belt-readable
     explanation. Nothing is indexed and nothing is persisted for a refusal —
-    that decision belongs to the route, and it is ruling 5's whole content.
+    that decision belongs to the route.
     """
     content_type = classify_content_type(filename, mime_type)
     kind, kind_declared = classify_kind(purpose, declared_kind)
@@ -134,7 +127,7 @@ async def process_upload(
         **base,
         "parsed": True,
         "refusal_reason": None,
-        # ── the deterministic half (ruling 4) ─────────────────────────
+        # ── the deterministic half ────────────────────────────────────
         "structure": parsed.get("structure"),
         "columns": parsed.get("columns") or [],
         "row_count": parsed.get("row_count"),
@@ -145,7 +138,7 @@ async def process_upload(
         "process_steps": parsed.get("process_steps") or [],
         "metrics_found": parsed.get("metrics_found") or [],
         "sipoc_columns": parsed.get("sipoc_columns"),
-        # ── the one model call (ruling 4), with its citation (ruling 6)
+        # ── the one model call, with its source citation ──────────────
         "summary": interpretation.summary,
         "interpretation": interpretation.model_dump(),
         # T87 — the count per type, never the value; the route writes it to step_log.
@@ -178,19 +171,18 @@ async def _interpret(
     phase: str,
     element: str | None = None,
 ) -> UploadInterpretation:
-    """The single meaning call (ruling 4), with its source citation (ruling 6).
+    """The single meaning call, with its source citation.
 
-    **Operational tier, via the `extraction` role.** Ruling 4's own words are
-    that a premium model must not be spent being told a spreadsheet has
-    fourteen columns — and this call is not asked to find the columns, it is
-    handed them. A new role would need a §56 amendment (`core/llm.py`), and
-    `extraction` is the ratified role whose tier and temperature (0.0) match
-    what this is.
+    **Operational tier, via the `extraction` role.** A premium model must not
+    be spent being told a spreadsheet has fourteen columns — and this call is
+    not asked to find the columns, it is handed them. A new role would need an
+    amendment (`core/llm.py`), and `extraction` is the ratified role whose tier
+    and temperature (0.0) match what this is.
 
     **A failed interpretation is not a failed upload.** The deterministic
     parse succeeded, so the file is real and indexable; the summary degrades
     to a stated fallback rather than discarding a file the Belt provided. The
-    fallback SAYS that it is one — ruling 5's principle, applied to the half
+    fallback SAYS that it is one — the refusal principle, applied to the half
     of the pipeline that is allowed to fail softly.
     """
     citation = {
@@ -223,7 +215,7 @@ async def _interpret(
     try:
         llm = get_llm("extraction", timeout=UPLOAD_TIMEOUT).with_structured_output(UploadInterpretation)
         # G-143: the instructions are the system message, the file only the user message (in T72's
-        # labelled block) — as one user message the deployment's jailbreak filter refused it.
+        # labelled block) — as one user message the deployment's jailbreak filter refuses it.
         instructions = (SystemMessage(content_blocks=system) if len(system) > 1  # type: ignore[arg-type]
                         else SystemMessage(content=UPLOAD_INTERPRET_SYSTEM))
         result = await llm.ainvoke([instructions, HumanMessage(content=data)])
@@ -247,7 +239,7 @@ def _table_value(interpretation: UploadInterpretation, parsed: dict[str, Any], p
                  element: Any) -> UploadInterpretation:
     """G-236 (DEF-229): for a table file and a list element (the team), the value a read-back shows is the
     file's own rows as the parser labelled them — every column, written in code — not the model's copy, which
-    dropped the training column live. The model still judges whether the file answers the element (an empty
+    can drop a column. The model still judges whether the file answers the element (an empty
     value stays empty) and each criterion."""
     from backend.phases.define import parse as define_parse
     check = interpretation.element_check
@@ -277,22 +269,20 @@ def _interpretation_unavailable(
     parsed: dict[str, Any],
     citation: dict[str, str],
 ) -> UploadInterpretation:
-    """The fallback, and it SAYS it is one (step 6.11a).
+    """The fallback, and it SAYS it is one.
 
-    **The first version of this read like a summary**, and that is exactly how
-    a dead interpretation path survived 781 green tests: every upload came back
-    with a fluent sentence about the file's shape, so nothing — not the Belt,
-    not the gate document, not the test suite — could tell that the meaning
-    call had produced no meaning. It took a live run to find, and only because
-    the sentence was read closely.
+    **A fallback that reads like a summary would hide a dead interpretation
+    path**: a fluent sentence about the file's shape would leave nothing — not
+    the Belt, not the gate document, not the test suite — able to tell that
+    the meaning call had produced no meaning.
 
-    **Ruling 5 one level down.** An unextractable FILE is refused outright; an
-    uninterpreted file is real, parsed and indexable, so it is kept — but it is
-    *reported*, never passed off as interpreted. The marker follows §6's
-    `phase_context` convention from step 6.8: a WARNING for whoever reads logs,
+    **The refusal principle one level down.** An unextractable FILE is refused
+    outright; an uninterpreted file is real, parsed and indexable, so it is
+    kept — but it is *reported*, never passed off as interpreted. The marker
+    follows the `phase_context` convention: a WARNING for whoever reads logs,
     and `[!] … UNAVAILABLE` inside the value itself for whoever reads the
     artefact, because those are different people and the log reaches only one
-    of them. `summary` is what §6's uploads entry shape carries into the gate
+    of them. `summary` is what the uploads entry shape carries into the gate
     document, so this text is what a reviewer sees there.
     """
     columns = parsed.get("columns") or []

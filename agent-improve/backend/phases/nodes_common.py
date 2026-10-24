@@ -1,45 +1,33 @@
-"""The five node bodies, parameterised by phase — procedure step 4.4.
-
-Canonical: reference **§13** (the five nodes), **§14** (the node contract),
-**§15** (routing), **§34** (the validation stack). Architecture §17.
+"""The five node bodies, parameterised by phase.
 
 WHY A SHARED MODULE RATHER THAN FIVE COPIES
-    §13's five nodes are **identical across all five phases**. They differ in
-    exactly three places — the phase name, which `orchestrate_{phase}` the
-    executor delegates to, and which `validate_{phase}` the validation stack
-    calls — and nothing else. Written out five times that is five copies of the
-    planner's routing table, five copies of the v1 bridge, and five copies of
-    the deterministic `step_log` key.
+    The five nodes are **identical across all five phases**. They differ in
+    exactly two places — the phase name, and which `validate_{phase}` the
+    validation stack calls — and nothing else. Written out five times that is
+    five copies of the planner's routing table, five copies of the v1 bridge,
+    and five copies of the deterministic `step_log` key.
 
-    **`phases/mappers_common.py` exists for the same reason and states it
-    plainly:** *"the twenty-first field would land in four of them."* The same
-    applies here with more force, because these bodies carry live rules — §47's
-    key format, §34's "do not validate a coaching turn", the WATCH 7 seam — and
-    a rule enforced in four of five places is not enforced.
-
-    **Not in Appendix B's `New` file list**, which enumerates
-    `phases/{phase}/{graph,nodes,mappers}.py` and no common module. Flagged
-    rather than assumed, the same call `mappers_common.py` records.
+    `phases/mappers_common.py` exists for the same reason. These bodies carry
+    live rules — the `step_log` key format, "do not validate a coaching turn",
+    "nothing is stored before the Belt confirms" — and a rule enforced in four
+    of five places is not enforced.
 
 WHAT EACH PHASE'S `nodes.py` STILL OWNS
-    Every phase keeps five real `async def`s at module level, because §14
-    requires module-level async functions and `test_phase_subgraphs.py` asserts
-    `fn.__module__` is that phase's module. They are two lines each and they
-    delegate here. **That is deliberate rather than lazy**: generating the
+    Every phase keeps five real `async def`s at module level, because the node
+    contract requires module-level async functions and `test_phase_subgraphs.py`
+    asserts `fn.__module__` is that phase's module. They are two lines each and
+    they delegate here. **That is deliberate rather than lazy**: generating the
     functions in a factory and assigning them would make `__module__` point at
-    this file, and satisfying the §14 assertion would then mean rewriting the
+    this file, and satisfying that assertion would then mean rewriting the
     function's `__module__` to something it is not.
 
-THE WATCH 7 SEAM APPLIES TO ALL FIVE PHASES NOW
-    DECISIONS Part X (Route A): every `orchestrate_{phase}.py` keeps writing the
-    v1 field names until its v2 capture path lands, and all five are deleted at
-    step 11.1. So `draft` is the v1 accumulator for every phase and `artifacts`
-    stays empty for every phase — putting v1 names into `artifacts` would put
-    them on the v2 gate path, which the ruling exists to prevent.
-
-    **The four gates beyond Define are inert for the same reason Define's is**:
-    each `validate_{phase}` requires its §39.x v2 names and its orchestrator
-    emits the v1 ones.
+`ARTIFACTS` AND `DRAFT`
+    `artifacts` is the phase's accumulation of confirmed values, under their v2
+    names; the executor writes it. `draft` is seeded from the phase record when
+    the subgraph is entered (`core/graph.py`) and, after a coaching turn, holds
+    what that turn stored — the route writes it into the case record. On a gate
+    submission it is this phase's entry in the v1 `ImproveGraphState` that
+    `validate_{phase}` reads (`to_v1_state`).
 """
 from __future__ import annotations
 
@@ -132,8 +120,8 @@ from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
 
-#: §13 — exactly these five, in this order, for every phase. A sixth requires a
-#: §56 amendment. `policy_advisory` and `revise` are BANNED names.
+#: Exactly these five, in this order, for every phase. A sixth is an architecture
+#: decision (an ADR), not an edit. `policy_advisory` and `revise` are BANNED names.
 NODE_NAMES: tuple[str, ...] = (
     "planner",
     "executor",
@@ -142,28 +130,27 @@ NODE_NAMES: tuple[str, ...] = (
     "gate_apply",
 )
 
-#: A node body's delegate: `orchestrate_{phase}` or `validate_{phase}`.
+#: The validation stack's delegate, `validate_{phase}`: it reads the v1 `ImproveGraphState`.
 V1Node = Callable[[ImproveGraphState], Awaitable[dict[str, Any]]]
 
 
 def step_key(phase: str, turn_count: int, step_name: str) -> str:
     """The deterministic `step_log` identity of one step of one turn.
 
-    **§47 requirement 2** — ``f"{phase}:{turn_count}:{step_name}"``, never a raw
-    timestamp as identity. An abandoned-then-retried turn re-executes the same
-    logical step; a timestamp key records it as two events, a deterministic key
-    records it as one. **Every `step_log` write site goes through here**, which
-    is what makes the requirement checkable rather than a habit — and what makes
-    it true for all five phases rather than for the one it was written in.
+    ``f"{phase}:{turn_count}:{step_name}"``, never a raw timestamp as identity.
+    An abandoned-then-retried turn re-executes the same logical step; a
+    timestamp key records it as two events, a deterministic key records it as
+    one. **Every `step_log` write site goes through here**, which makes the
+    rule checkable rather than a habit, for all five phases.
     """
     return f"{phase}:{turn_count}:{step_name}"
 
 
 def _step(phase: str, turn_count: int, step_name: str, *, rejections: int = 0,
           **fields: Any) -> dict[str, Any]:
-    """One `step_log` entry, keyed deterministically. Dicts only — §10.3.
+    """One `step_log` entry, keyed deterministically. Dicts only, never tuples.
 
-    ADR-0107 (note, option a): the pass after a gate rejection repeats steps of the same run under the same
+    ADR-0107: the pass after a gate rejection repeats steps of the same run under the same
     turn, so it carries `:r1`, `:r2` … in its key (`rejections` = `len(rejection_feedback)`, `_rejections`)."""
     return {
         "key": step_key(phase, turn_count, step_name) + (f":r{rejections}" if rejections else ""),
@@ -182,10 +169,9 @@ def entry_mode(config: Optional[RunnableConfig]) -> str:
     """``"ask"`` (a coaching turn) or ``"gate"`` (a gate submission).
 
     Per-run intent, so it rides on `config` rather than on state — the same
-    channel `thread_id` uses. **This is the stand-in for the Belt saying "I am
-    ready for the gate" in conversation**, which is what DP1 will read at 6.1;
-    it is a route-level signal only because the route-level distinction
-    (`/ask` vs `/gate`) is what exists today.
+    channel `thread_id` uses. **It stands in for the Belt saying "I am ready
+    for the gate" in conversation** (the routing predicate, G-01); it is a
+    route-level signal because the route distinguishes `/ask` from `/gate`.
     """
     return ((config or {}).get("configurable") or {}).get("entry", "ask")
 
@@ -195,23 +181,22 @@ def entry_mode(config: Optional[RunnableConfig]) -> str:
 
 
 def _anchored(citations: list[dict], state: PhaseState) -> list[dict]:
-    """Citations with `blob_path` and `content_digest` attached — step 6.12.
+    """Citations with `blob_path` and `content_digest` attached.
 
-    **Enriched in CODE, never by the model** (clause 7). The coach is shown a
-    `role` in the manifest and cites it; the anchor is looked up here, so a
-    64-character digest never has to survive a round trip through a language
-    model that was never shown it.
+    **Enriched in CODE, never by the model.** The coach is shown a `role` in
+    the manifest and cites it; the anchor is looked up here, so a 64-character
+    digest never has to survive a round trip through a language model that was
+    never shown it.
 
-    **Matched on ROLE, not on filename.** Ruling AP2.2 forbids inferring a
-    document's identity from what it is called, and matching on filename would
-    reintroduce exactly that through the back door.
+    **Matched on ROLE, not on filename.** A document's identity is never
+    inferred from what it is called, and matching on filename would do exactly
+    that.
 
-    **ONLY HALF OF CLAUSE 7 IS SATISFIABLE HERE, and the seam is deliberate.**
-    A citation the coach made against an upload it saw in the manifest can be
-    anchored now, because `PhaseState.uploads` carries both fields. **One
-    sourced from `rag_lookup_evidence` cannot** — the structured record that
-    would carry them is §24's, and that is step 6.13. Those citations pass
-    through unanchored rather than being given a guessed anchor.
+    **Only citations of uploads are anchored.** A citation the coach made
+    against an upload it saw in the manifest is anchored, because
+    `PhaseState.uploads` carries both fields. One sourced from
+    `rag_lookup_evidence` passes through unanchored rather than being given a
+    guessed anchor.
     """
     by_role = {u.get("role"): u for u in (state.get("uploads") or [])
                if u.get("role")}
@@ -242,14 +227,13 @@ def _mark_consumed(
 ) -> tuple[list[dict], int]:
     """`(uploads, n_marked)` — stamp `consumed_at` on what this turn read.
 
-    **S-F57 B4, placed at the node because a tool cannot write state.** An
-    upload counts as consumed when `load_evidence_series` was called on its
-    `blob_path`, or when a citation anchored to it.
+    **Placed at the node because a tool cannot write state.** An upload counts
+    as consumed when `load_evidence_series` was called on its `blob_path`, or
+    when a citation anchored to it.
 
     **`consumed_at = None` at a gate on an upload bound to an open ask means
     the Belt supplied evidence and the coaching proceeded without it.** That
-    condition is undetectable without this write, which is why the field is
-    part of 6.12 rather than of the Stage 7 validation that will read it.
+    condition is undetectable without this write.
     """
     uploads = [dict(u) for u in (state.get("uploads") or [])]
     if not uploads:
@@ -282,26 +266,24 @@ def _mark_consumed(
 def _unconsumed_for_open_ask(
     state: PhaseState, asks: Optional[list[dict]] = None,
 ) -> dict | None:
-    """An upload bound to an open ask that nothing has read yet — step 6.12.
+    """An upload bound to an open ask that nothing has read yet — or, when no
+    ask is open, the first unread upload.
 
     **This is what turns "the coach will use the file" from a hope into a
-    fact.** §24 makes retrieval discretionary by design, so no prompt can
-    carry the guarantee; per S-F13 DP1 the planner owns the routing decision
-    and the planner is code.
+    fact.** Retrieval is discretionary by design, so no prompt can carry the
+    guarantee; the planner owns the routing decision, and the planner is code.
 
-    Matched on `role`, never on filename — ruling AP2.2 forbids inferring a
-    document's identity from what it happens to be called.
+    Matched on `role`, never on filename — a document's identity is never
+    inferred from what it happens to be called.
 
-    **`asks` IS EXPLICIT SINCE STEP 6.21, AND THAT IS A CORRECTNESS FIX.**
-    Option C has the executor DISPATCH what this returns, so the planner and
-    the executor must reach the same answer or the turn's prose and its action
-    disagree. They read different states: the planner decides before its own
-    `update["asks"]` is applied, the executor after. With Define carrying no
-    ask shapes the two agreed by accident; in Measure, `ensure_ask` opening an
-    ask for a role no upload carries would narrow `open_roles` between the two
-    reads and the executor would dispatch nothing while the plan said to. The
-    planner now passes the asks it just computed, so both sides decide on the
-    same input by construction rather than by coincidence.
+    **`asks` is explicit so the planner and the executor reach the same
+    answer.** The executor DISPATCHES what this returns, so the two must agree
+    or the turn's prose and its action disagree. They read different states:
+    the planner decides before its own `update["asks"]` is applied, the
+    executor after. `ensure_ask` opening an ask for a role no upload carries
+    would narrow `open_roles` between the two reads, and the executor would
+    dispatch nothing while the plan said to. The planner passes the asks it
+    just computed, so both sides decide on the same input by construction.
     """
     open_roles = {a.get("role") for a in
                   (asks if asks is not None else state.get("asks") or [])
@@ -315,10 +297,9 @@ def _unconsumed_for_open_ask(
 
 
 def _unread_upload(state: PhaseState, asks: Optional[list[dict]] = None) -> dict | None:
-    """The upload this turn reads — ARCHITECTURE §3.6 and W5 (DEF-108, founder 2026-10-01):
-    every new upload makes the next turn an upload turn. One bound to an open ask comes first
-    (step 6.12's routing); otherwise the newest unread upload, read against the current element.
-    Before DEF-108 an unsolicited file under an open ask of another role was never read."""
+    """The upload this turn reads — W5 (DEF-108): every new upload makes the next turn an upload
+    turn. One bound to an open ask comes first; otherwise the newest unread upload, read against
+    the current element."""
     bound = _unconsumed_for_open_ask(state, asks)
     if bound is not None:
         return bound
@@ -333,25 +314,21 @@ async def planner(
 ) -> Command[Literal["executor", "validation_stack"]]:
     """Produce the `CoachingPlan` and make the phase's ONE routing decision.
 
-    §13: the planner fires many times per phase, not once. After each executor
-    step control returns here to decide whether to keep coaching the current
-    field, advance to the next, or trigger the gate.
+    The planner fires many times per phase, not once. After each executor step
+    control returns here to decide whether to keep coaching the current field,
+    advance to the next, or trigger the gate.
 
-    **STEP 6.61 — THE MOVE IS DECIDED IN CODE** (founder ruling 2026-09-25,
-    §17 v1.75). `_plan_turn` derives the focus field, its status and THIS
-    TURN'S MOVE with `phases/moves.decide`; the `planner`-role model makes ONE
-    judgment — is the Belt's answer sufficient, with a reason — and only when
-    the Belt has answered. Until 6.61 the model chose the field and wrote the
-    move as free text (`next_action`), which reached no channel the coach read
-    (G-49) and so decided nothing: the coach waited after a read-back, moved
-    on, or re-asked, turn by turn.
+    **THE MOVE IS DECIDED IN CODE.** `_plan_turn` derives the focus field, its
+    status and THIS TURN'S MOVE with `phases/moves.decide`; the `planner`-role
+    model makes ONE judgment — is the Belt's answer sufficient, with a reason —
+    and only when the Belt has answered. A move the model wrote as free text
+    would reach no channel the coach reads (G-49).
 
     **THE MODEL IS CALLED ONLY ON THE EXECUTOR-BOUND PATH**, and on it only when
     a judgment is needed. On the way to `validation_stack` the previous plan
-    stands — B3 governs what happens when a NEW plan is produced, not that one
-    must be.
+    stands.
 
-    **THE ROUTING PREDICATE IS STILL A PLACEHOLDER** (G-01, founder-owned):
+    **THE ROUTING PREDICATE IS A PLACEHOLDER** (G-01; DP1 is founder-owned):
 
     ==========  ==============  ==========================
     ``entry``   ``turn_count``  goto
@@ -383,7 +360,7 @@ async def planner(
         plan = await _plan_turn(phase, state, config)
         update["coaching_plan"] = plan
 
-        # ── Ask-binding, step 6.12 (ruling AR-R1) ─────────────────────
+        # ── Ask-binding ───────────────────────────────────────────────
         #
         # **The PLANNER derives the ask; the model never declares one.** Keyed
         # on ROLE, not on field (`ensure_ask`): Measure's baseline and
@@ -395,10 +372,9 @@ async def planner(
         if asks != list(state.get("asks") or []):
             update["asks"] = asks
 
-        # **Routing on an unread upload is the guarantee's third leg.** The
-        # executor dispatches the read itself (§17, 6.21 option C); the plan
-        # carries no instruction for it — since 6.61 no free-text move exists
-        # to carry one, and none ever reached the coach (G-49).
+        # **Routing on an unread upload.** The asks are written so the executor
+        # decides on the same ones, and the executor dispatches the read itself
+        # (`_dispatch_routed_read`); the plan carries no instruction for it (G-49).
         pending_upload = _unread_upload(state, asks)
         if pending_upload is not None:
             update["asks"] = asks
@@ -451,10 +427,10 @@ async def planner(
 
 
 def _retrieval_strategy(phase: str) -> str:
-    """§28's per-phase DEFAULT. **Analyse is the one phase that plans
-    multi-hop** — root-cause validation is layered. Since 6.61 no model plans
-    the turn, so the default is the strategy: `retrieval_strategy` is set here
-    and `retrieval_hops` stays empty."""
+    """The per-phase retrieval strategy. **Analyse is the one phase that plans
+    multi-hop** — root-cause validation is layered. No model plans the turn, so
+    the default is the strategy: `retrieval_strategy` is set here and
+    `retrieval_hops` stays empty."""
     return "multi_hop" if phase == "analyse" else "single_hop"
 
 
@@ -486,10 +462,11 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
                  latest: str, reading_back: str) -> SufficiencyJudgment:
     """THE PLANNER MODEL'S ONE JUDGMENT — a plain invocation, never an agent.
 
-    **`planner` role, temperature 0.1** (§17, §4.7) — the role default, not an
-    override. **Structured output, never JSON parsed out of raw text** (S-C04
-    B1): a plain model call takes the builder-style form (§4.6). It dispatches
-    to no tools.
+    What code can decide (`_judged_in_code`) is decided first, with no model
+    call. **`planner` role, temperature 0.1** — the role default, not an
+    override. **Structured output, never JSON parsed out of raw text**: a plain
+    model call takes the builder-style form (`with_structured_output`). It
+    dispatches to no tools.
     """
     in_code = _judged_in_code(phase, state, field, previous, latest)
     if in_code is not None:
@@ -539,13 +516,14 @@ def _number_required(phase: str, field: str, previous: str, latest: str,
 
 def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
                     latest: str) -> Optional[SufficiencyJudgment]:
-    """G-120 (DEF-032), founder ruling 3, 2026-09-28: a target written as a number or a limit
-    ("under 5%", "höchstens 5 %") is parsed in code into number, unit and direction BEFORE any
-    model judgment. In the baseline's unit and different from the baseline, it meets
-    `number-and-unit` — sufficient, no model call. ADR-0071 (DEF-076): in ANOTHER unit than the
-    baseline's, it is insufficient, decided here, and the reason names both units so the coach
-    asks for it again in the baseline's. Anything else goes to the model as before. The one
-    parser reads both values (`parse.metric_value` / `as_metric`)."""
+    """G-120 (DEF-032): a target written as a number or a limit ("under 5%", "höchstens 5 %")
+    is parsed in code into number, unit and direction BEFORE any model judgment. In the
+    baseline's unit and different from the baseline, it meets `number-and-unit` — sufficient,
+    no model call — unless it lies on the wrong side of the baseline, which fails `direction`
+    (G-245). ADR-0071 (DEF-076): in ANOTHER unit than the baseline's, it is insufficient,
+    decided here, and the reason names both units so the coach asks for it again in the
+    baseline's. Anything else goes to the model. The one parser reads both values
+    (`parse.metric_value` / `as_metric`)."""
     if phase != "define" or field != "target_value":
         return None
     from backend.phases.define import parse
@@ -570,7 +548,7 @@ def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
         return None
     side = parse.wrong_side((baseline or {}).get("value"), target, artifacts.get("goal_statement"))
     if side:
-        # G-245 (audit D2): the element's `direction` criterion, decided in code by the gate's own check.
+        # G-245: the element's `direction` criterion, decided in code by the gate's own check.
         return _checked_criterion(phase, field, SufficiencyJudgment(
             verdict="insufficient", failed_criterion="direction", reason=f"decided in code (G-245): {side}"))
     logger.info("%s.planner: target judged in code (G-120): %s %s%s, the baseline's unit",
@@ -614,7 +592,7 @@ async def _plan_turn(phase: str, state: PhaseState,
     judged: dict[str, dict[str, Any]] = {}
 
     async def judge(field: str, previous: str, latest: str, reading_back: str) -> SufficiencyJudgment:
-        # DEF-224 (G-225, founder ruling 2026-10-21): what code decides runs first — it reads other elements'
+        # DEF-224 (G-225): what code decides runs first — it reads other elements'
         # values, not only this answer; then a verdict kept for the same answer is reused with no model call.
         if _judged_in_code(phase, state, field, previous, latest) is not None:
             return await _judge(phase, state, field, previous, latest, reading_back)    # decided there, in code
@@ -656,31 +634,21 @@ async def _plan_turn(phase: str, state: PhaseState,
 
 # ── the v1 bridge ─────────────────────────────────────────────────────────
 #
-# Everything from here to `executor` exists to be deleted with the five
-# `orchestrate.py` files at step 11.1 (DECISIONS Part X, Route A).
+# `validate_{phase}` reads the v1 `ImproveGraphState`; `to_v1_state` builds it
+# from `PhaseState` for the validation stack.
 
 def to_v1_state(
     phase: str,
     state: PhaseState,
     config: Optional[RunnableConfig],
 ) -> ImproveGraphState:
-    """Bridge `PhaseState` to the v1 `ImproveGraphState` the orchestrator reads.
+    """Bridge `PhaseState` to the v1 `ImproveGraphState` that `validate_{phase}` reads.
 
-    **This is the WATCH 7 seam, and it is temporary by ruling.** The field-name
-    mismatch it carries across is known and accepted: `artifacts` holds the v2
-    names of §39.x while `orchestrate_{phase}` reads and writes the v1 ones,
-    which is why `draft` and not `artifacts` is what it is handed.
-
-    **`phase_inputs` carries EVERY phase, not just this one, and that is the
-    change step 4.4 had to make.** Define is the only phase that reads its own
-    inputs alone; Measure seeds its metric confirmations from Define's
-    `primary_metric` / `secondary_metric`, and Analyse, Improve and Control each
-    build a cross-phase brief from the phases before them. Handing them
-    `{phase: draft}` — which is all the Define-only seam needed — would leave
-    every brief empty and every upstream fact missing from the prompt, with no
-    error anywhere. The full map arrives on `config` as `v1_phase_inputs`; this
-    phase's entry is overlaid with `draft`, which is the live accumulator and so
-    is newer than the case document's copy.
+    `phase_inputs` carries every phase's values from `config`
+    (`v1_phase_inputs`, which the route assembles from the case document), and
+    this phase's entry is replaced by `draft` — seeded from the phase record
+    when the subgraph is entered, so newer than the case document's copy.
+    `validate_{phase}` checks this phase's entry and passes the rest through.
     """
     configurable = (config or {}).get("configurable") or {}
     messages = list(state.get("messages") or [])
@@ -705,27 +673,25 @@ def to_v1_state(
 
 # ── executor ──────────────────────────────────────────────────────────────
 
-#: §16 — a backstop against a genuine infinite loop, NOT the hop cap. Equal to
+#: A backstop against a genuine infinite loop, NOT the hop cap. Equal to
 #: `core.graph.RECURSION_LIMIT` and kept as its own name because this module
 #: cannot import that one: `core.graph` imports the phase subgraphs, which
 #: import this file. `test_the_coach_backstop_matches_the_graph_backstop`
 #: imports both and asserts they agree, so the two cannot drift silently.
 #:
-#: **It was 11 from step 6.2 to 6.6, and that was the WATCH 26 defect.**
-#: `2 * max_hops + 1 = 11` was §3.7's formula for capping hops, which §16
-#: rejects and which is short by one besides: measured on LangGraph 1.1.10 and
-#: 1.2.11 alike, five hops consume all eleven steps and raise BEFORE the model can
-#: compose, so a well-behaved five-hop turn could only ever end in `_CAP_MESSAGE`.
+#: **Not derived from the hop cap.** A hop-based limit (`2 * max_hops + 1`) is
+#: consumed by the hops themselves and raises BEFORE the model can compose, so
+#: a well-behaved turn at the cap would only ever end in the backstop.
 COACH_RECURSION_BACKSTOP = 50
 
 #: What one hop COSTS, measured rather than assumed — the number that decides
-#: the cap below, and the provenance is kept because a constant justified by a
+#: the cap below. The provenance is kept because a constant justified by a
 #: measurement nobody can find is a constant nobody can revise.
 #:
-#: **§25's multi-query fusion makes a hop far more than one search**: one MODEL
-#: CALL to generate variants, then six searches, then RRF. Measured **~9.5s**
-#: on G-63's trace (2026-09-14) and consistent with rid `ca6ba417`
-#: (2026-09-15), where three hops plus the coach's own calls reached 52.2s.
+#: **Multi-query fusion makes a hop far more than one search**: one MODEL
+#: CALL to generate variants, then six searches, then RRF. Measured at
+#: **~9.5s** on G-63's trace, consistent with run `ca6ba417`, where three
+#: hops plus the coach's own calls reached 52.2s.
 MEASURED_HOP_SECONDS = 9.5
 
 #: Reserved out of the node budget for everything that is NOT a hop: the
@@ -733,62 +699,57 @@ MEASURED_HOP_SECONDS = 9.5
 #: the cap's hops must still fit here or the turn degrades instead of capping.
 HOP_BUDGET_COMPOSE_RESERVE = 10.0
 
-#: §3.7 — `rag_lookup_*` calls per Belt turn. **This is the hop cap**, and
+#: `rag_lookup_*` calls per Belt turn (ADR-0032). **This is the hop cap**, and
 #: it is enforced by `_budgeted_rag_tools` rather than by any step counter:
 #: hops and steps are different units (see `REMAINING_STEPS_FLOOR`). Past the
 #: budget the retrieval tools stay bound and stay callable, and answer with
 #: `_HOP_BUDGET_SPENT` instead of searching — so the coach reads a plain result
 #: and composes, exactly as it does for a search that found nothing.
 #:
-#: **FIVE → THREE, founder ruling 2026-09-18, closing G-83.** Five was never
-#: reachable: at `MEASURED_HOP_SECONDS` a fifth hop lands at ~47.5s against a
-#: 40s node budget, so the turn died on the wall before the cap could fire and
-#: `_HOP_BUDGET_SPENT` was unreachable code. **It was dead the day it was
-#: written** — fusion landed at step 5.2 and the cap at 6.7, so the cap was
-#: built on top of a per-hop cost that already excluded it.
-#:
-#: **THIS COSTS NO CAPABILITY.** Hops four and five could never be taken; the
-#: declared cap now matches the ceiling that was always in force. What changes
-#: is that the limit is REACHABLE, so the coach gets `_HOP_BUDGET_SPENT` and
-#: composes — instead of the engine cancelling it mid-search.
+#: **Three, so the cap is REACHABLE (G-83).** At `MEASURED_HOP_SECONDS` one more
+#: hop would not fit inside `EXECUTOR_RUN_TIMEOUT` with
+#: `HOP_BUDGET_COMPOSE_RESERVE` kept for composing: the turn would die on the
+#: wall before the cap could fire, and `_HOP_BUDGET_SPENT` would be
+#: unreachable. At three the coach gets `_HOP_BUDGET_SPENT` and composes,
+#: instead of the engine cancelling it mid-search.
 #:
 #: **The arithmetic is a TEST, not a comment**
 #: (`test_hop_cap.py::test_the_cap_can_actually_fire_inside_the_node_budget`).
-#: An unreachable cap is unfalsifiable, which is exactly how five survived
-#: eleven steps.
+#: An unreachable cap is unfalsifiable.
 COACH_HOP_BUDGET = 3
 #: T69 / G-119 (ADR-0059) — an ordinary coaching turn makes at most this many model calls,
 #: retries included: the planner's judgment (when the Belt answered), the coach, and the one
-#: after-agent check (the grader; the coherence judge is retired, ADR-0083). The coach's share is what
-#: is left, enforced by
-#: `ModelCallLimitMiddleware(run_limit=…)`. The tools stay bound as §3.6 designs; a coach that
-#: calls one past its share is stopped and the move's reply is written in code.
+#: after-agent check (the grader; the coherence judge is retired, ADR-0083). The coach's share is
+#: what is left, enforced by `ModelCallLimitMiddleware(run_limit=…)`. The tools stay bound; a coach
+#: that calls one past its share is stopped and the move's reply is written in code.
 TURN_MODEL_CALLS = 4
 AFTER_AGENT_CALLS = 1
 
-#: §26 / S-F09 B1 — the graceful off-ramp, and a DIFFERENT guard from the hop
-#: budget above. `remaining_steps` is `recursion_limit` minus graph-node
-#: transitions; the coach's whole tool loop runs inside ONE node, so this
-#: counter moves by 1 per executor turn no matter how many hops that turn made.
-#: Measured. It therefore cannot enforce five hops — and the hop budget cannot
-#: notice the GRAPH running out of room, which is what this catches. At or
-#: below the floor the executor coaches with no retrieval tools at all: it
-#: composes from what is in hand rather than starting a chain it cannot finish.
+#: The graceful off-ramp, and a DIFFERENT guard from the hop budget above.
+#: `remaining_steps` is `recursion_limit` minus graph-node transitions; the
+#: coach's whole tool loop runs inside ONE node, so this counter moves by 1 per
+#: executor turn no matter how many hops that turn made. It therefore cannot
+#: count hops — and the hop budget cannot notice the GRAPH running out of room,
+#: which is what this catches. At or below the floor the executor coaches with
+#: no retrieval tools at all: it composes from what is in hand rather than
+#: starting a chain it cannot finish.
 REMAINING_STEPS_FLOOR = 2
 
 #: T70 (DEF-078) — the executor's time limit, ENFORCED BY LANGGRAPH: the subgraph registers the
 #: node with `timeout=TimeoutPolicy(run_timeout=EXECUTOR_RUN_TIMEOUT)` and
 #: `error_handler=executor_timeout_handler(phase)` (`subgraph_common.py`). When the wall fires, the
 #: engine cancels the node and runs the handler, which composes the move's own reply in code —
-#: never a 500 (G-84), never a hand-written `asyncio.wait_for` budget (what this replaced).
+#: never a 500 (G-84), and no hand-written `asyncio.wait_for` budget.
 #: 40 s, not 45: the planner's judgment and the composition sit inside the same turn, and R13
 #: holds the whole turn to 45 s.
 EXECUTOR_RUN_TIMEOUT = 40.0
 
-#: What the Belt reads when the coach ran out of time. **§4.8: never a hard
-#: failure.** Addressed to the BELT, unlike `_HOP_BUDGET_SPENT` — it is the
-#: turn's answer, not a tool result, and it says plainly what happened rather
-#: than pretending the turn succeeded or returning nothing.
+#: The plain-language text for a turn the coach ran out of time on — never a hard
+#: failure, and it says plainly what happened rather than pretending the turn
+#: succeeded or returning nothing. Addressed to the BELT, unlike `_HOP_BUDGET_SPENT`.
+#: **This module does not send it**: a timed-out turn answers with the move's own
+#: reply, written in code (`_fallback_reply`, through `executor_timeout_handler`).
+#: The tests recognise it as a degraded answer.
 _TIMEOUT_MESSAGE = (
     "I ran out of time on that one before I could finish composing an answer "
     "— I was still gathering material when the turn's limit was reached. "
@@ -808,12 +769,12 @@ _HOP_BUDGET_SPENT = (
     "part you would look into next turn if something is still missing."
 )
 
-#: What the Belt reads when the backstop fires. §3.7: a partial answer, never a
-#: stack trace. It says what happened in plain language (§13) and hands the
-#: turn back rather than pretending the coach finished. **Since 6.7 this is
-#: the last-ditch path, not the ordinary one** — the hop budget and the
-#: `remaining_steps` floor both off-ramp into a composed answer, so reaching
-#: here means a genuine runaway loop, which is what §16 says the backstop is for.
+#: The plain-language text for a turn that hit the backstop: a partial answer,
+#: never a stack trace, handing the turn back rather than pretending the coach
+#: finished. **This module does not send it**: the backstop path answers with the
+#: move's own reply, written in code (`_fallback_reply`). The hop budget and the
+#: `remaining_steps` floor both off-ramp into a composed answer first, so the
+#: backstop firing means a genuine runaway loop.
 _CAP_MESSAGE = (
     "I went further than I should have chasing that one down, and I have run "
     "out of room this turn. Could you narrow it slightly — a single question, "
@@ -821,37 +782,36 @@ _CAP_MESSAGE = (
     "back up? Nothing you have told me is lost."
 )
 
-#: §19.3, verified against the installed `SummarizationMiddleware` before use
-#: (§16.3 — this is where `max_retries` vs `retries` was learned). The current
-#: parameter names are `trigger` and `keep`; `max_tokens_before_summary` and
-#: `messages_to_keep` are the DEPRECATED spellings the class still warns on, so
-#: a document copied from an older revision would look plausible and warn at
+#: The `SummarizationMiddleware` settings (`SUMMARIZATION_TRIGGER` and
+#: `SUMMARIZATION_KEEP`, below), verified against the installed class. The
+#: current parameter names are `trigger` and `keep`; `max_tokens_before_summary`
+#: and `messages_to_keep` are the DEPRECATED spellings the class still warns on,
+#: so code copied from an older revision would look plausible and warn at
 #: runtime rather than fail.
 #:
 #: 100_000 is ~78% of gpt-4o's 128k window; 20 turns of raw conversation are
 #: kept below the summary. **Safe because facts do not live in `messages`** —
-#: they are in `artifacts`, `step_log`, `citations` and the Store (§19.3).
+#: they are in `artifacts`, `step_log`, `citations` and the Store.
 #: Summarising conversation into prose is correct; summarising FACTS into prose
 #: is the failure this policy prevents.
 #: The `Literal` in each annotation is the installed signature's, not
 #: decoration: `tuple[str, int]` type-checks here and is REJECTED at the call
 #: site, because the middleware discriminates the trigger kind on that literal.
-#: §19.4 and §19.5 — both retry middlewares, both at 2. **"Attempts after the
+#:
+#: `RETRY_MAX` — both retry middlewares, both at 2. **"Attempts after the
 #: initial call"**, verified in source (`range(self.max_retries + 1)`), so this
 #: is THREE attempts, not two.
 #:
-#: **This is one of two retry caps and they are not merged** (§19): model 2
-#: here and the validation stack's shared 3 at the gate (§34) — the coherence
-#: re-ask that made a third is retired (ADR-0083). Different failure modes,
+#: **This is one of two retry caps and they are not merged**: model 2 here and
+#: the validation stack's shared 3 at the gate. Different failure modes,
 #: different counters, no shared state — merging them would have a network
 #: flake consume a gate attempt.
 RETRY_MAX = 2
 
-#: §19.5. **`"continue"` is current; `"return_message"` and `"raise"` are
-#: DEPRECATED values the class still accepts and warns on** (verified against
-#: the installed middleware — accepted is not the same as current, which is the
-#: §16.3 distinction 6.3 learned on `SummarizationMiddleware`). The current set
-#: is `"continue"`, `"error"`, or a callable.
+#: **`"continue"` is current; `"return_message"` and `"raise"` are DEPRECATED
+#: values the class still accepts and warns on** (verified against the installed
+#: middleware — accepted is not the same as current). The current set is
+#: `"continue"`, `"error"`, or a callable.
 TOOL_RETRY_ON_FAILURE: Literal["continue"] = "continue"
 
 SUMMARIZATION_TRIGGER: tuple[Literal["tokens"], int] = ("tokens", 100_000)
@@ -870,17 +830,12 @@ _DIAGRAM_TO_UI_KEY = {
 def _routed_column(state: PhaseState, upload: dict) -> str | None:
     """The column to read, from the ask that solicited this upload.
 
-    **Returns `None` when no ask declares one, and that is the G-63 fix.**
-
-    It used to return a `"(not specified)"` placeholder, on the reasoning that
-    the tool answers a miss by naming the columns the file DOES have (its B2
-    path) and that this is a useful coaching move. **The reasoning was sound
-    and the consequence was not.** `SHAPES_BY_PHASE["define"]` is empty by
-    ruling AR-R2, so in Define NO ask ever declares a column — the placeholder
-    was not an edge case there, it was every routed read. The tool could only
-    answer `no_such_column`, the coach held no data and searched anyway, and
-    the executor hit its 45s wall (trace `01a09ff4`). A read that can only
-    fail is worse than no read, because the span still reports success.
+    **Returns `None` when no ask declares one (G-63)**, never a placeholder
+    column. `SHAPES_BY_PHASE["define"]` is empty, so in Define NO ask ever
+    declares a column: a placeholder would make every routed read answer
+    `no_such_column`, the coach would hold no data and search anyway, and the
+    span would still report success. A read that can only fail is worse than
+    no read.
 
     `None` is the honest answer: the ask layer has nothing to say. The caller
     decides whether to find a column elsewhere or to decline the dispatch.
@@ -898,26 +853,22 @@ def _routed_column(state: PhaseState, upload: dict) -> str | None:
 ROUTED_READ_FAILED: contextvars.ContextVar[bool] = contextvars.ContextVar("routed_read_failed", default=False)
 
 
-# §51 / step 8.0 slice — the executor's setup, between node entry and the
-# agent, is spanned so a trace shows where the pre-agent seconds go.
+# The executor's setup, between node entry and the agent, is spanned so a
+# trace shows where the pre-agent seconds go.
 @child_span(run_type="chain", name="executor.setup.dispatch_routed_read",
            process_inputs=lambda i: {})
 async def _dispatch_routed_read(state: PhaseState) -> list:
-    """The planner's named call, EXECUTED HERE — §17, step 6.21, option C.
+    """The planner's routed read, EXECUTED HERE — the model is not offered this decision.
 
-    **FOUNDER RULING 2026-09-11, and it changes what §17 means.** The planner
-    owns the routing decision (S-F13 DP1) and G-49 was that the decision never
-    reached the model: `executor()` invoked the agent with `{"messages":
-    prior}`, so the one point in the loop that was not the model's discretion
-    was, in fact, entirely the model's discretion. Options A and B put the
-    instruction in front of the model and leave it free to rank a retrieval
-    tool above it — which is the behaviour 6.18 measured, 18 evidence searches
-    against a file the plan named. **C removes the decision from the model.**
+    The planner owns the routing decision, and it has to reach the turn (G-49).
+    An instruction put in front of the model leaves it free to rank a retrieval
+    tool above it; dispatching the read in the node removes the decision from
+    the model.
 
     **SCOPED TO ONE CASE, deliberately.** This dispatches `load_evidence_series`
-    and only when `_unconsumed_for_open_ask` routes to an unread upload. Every
-    other tool stays model-chosen: §24's "no unconditional retrieval pipeline"
-    is untouched, and nothing here decides WHAT to coach.
+    and only when `_unread_upload` routes to an unread upload. Every other tool
+    stays model-chosen — there is no unconditional retrieval pipeline — and
+    nothing here decides WHAT to coach.
 
     **The result arrives as a real tool exchange**, an `AIMessage` carrying the
     call plus its `ToolMessage`, prepended to the turn's messages. Three things
@@ -926,35 +877,34 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
     from the same call it already scans for; and the next turn's history shows
     the file was read, so the coach does not read it again.
 
-    **No hop is spent.** §3.7's budget counts `rag_lookup_*` calls and
+    **No hop is spent.** The hop budget counts `rag_lookup_*` calls and
     `load_evidence_series` is not one — the same accounting as when the model
     issues it. A node-issued read that cost a hop would make the guarantee
     compete with the retrieval the coach still needs.
 
     **Fails soft, and says so.** A blob that cannot be read is a coaching fact,
     not a dead turn: the tool's own message carries it. An exception here
-    returns no messages at all, leaving the manifest to make the coach aware —
-    the pre-6.21 behaviour, which is degraded rather than broken.
+    returns no messages at all and sets `ROUTED_READ_FAILED`, leaving the
+    manifest to make the coach aware — degraded rather than broken.
     """
     upload = _unread_upload(state)
     if upload is None or not upload.get("blob_path"):
         return []
     blob_path = str(upload["blob_path"])
 
-    # ── the column: two sources and a refusal — G-63 ───────────────────
+    # ── the column: two sources and a refusal (G-63) ───────────────────
     #
-    # 1. THE ASK that solicited the upload (§17, S-F13). Authoritative when it
-    #    exists, because it is what the coach asked the Belt for.
+    # 1. THE ASK that solicited the upload. Authoritative when it exists,
+    #    because it is what the coach asked the Belt for.
     # 2. THE FILE'S OWN HEADER, when no ask declares one. Define populates no
-    #    ask shapes (ruling AR-R2), so this is Define's normal path, not its
-    #    exception. `first_numeric_column` owns the read — a parse here would
-    #    be a second answer to a question `knowledge/tools.py` already owns.
-    # 3. NEITHER — and then DO NOT DISPATCH. This is the half of the fix that
-    #    is easy to miss: a read naming a column the file lacks IS G-63. The
-    #    tool answers `no_such_column`, the coach holds nothing, and the span
-    #    reports success either way. Declining leaves the manifest to make the
-    #    coach aware — the pre-6.21 behaviour, degraded rather than broken,
-    #    and §4.8's "never a hard failure to the Belt".
+    #    ask shapes, so this is Define's normal path, not its exception.
+    #    `first_numeric_column` owns the read — a parse here would be a second
+    #    answer to a question `knowledge/tools.py` already owns.
+    # 3. NEITHER — and then DO NOT DISPATCH. A read naming a column the file
+    #    lacks can only answer `no_such_column`: the coach holds nothing, and
+    #    the span reports success either way. Declining leaves the manifest to
+    #    make the coach aware — degraded rather than broken, and never a hard
+    #    failure to the Belt.
     column = _routed_column(state, upload)
     column_source = "ask"
     if column is None:
@@ -1000,21 +950,21 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
 
 def _executor_status(hit_cap: bool, off_ramp: bool,
                      timed_out: bool = False, filtered: bool = False, degraded: Optional[str] = None) -> str:
-    """The `step_log` status for one coaching turn — §10.3, dicts not tuples.
+    """The `step_log` status for one coaching turn — a dict entry, never a tuple.
 
-    Four outcomes, deliberately distinguished. **`"coached_no_retrieval"` is
+    The outcomes are deliberately distinguished, and checked in this order: a
+    content-filter refusal (T92), a model failure or a token limit (T34 level 4),
+    a timeout, the backstop, then a coached turn. **`"coached_no_retrieval"` is
     not a failure**: the graph was low on steps, so the coach answered from
-    what it held (§26, S-F09 B1). That is the design working, and lumping it
-    in with `"partial_cap_reached"` would hide exactly the signal WATCH 26
-    needed — a turn that off-ramped cleanly looks nothing like one that died.
+    what it held. That is the design working, and lumping it in with
+    `"partial_cap_reached"` would hide the signal — a turn that off-ramped
+    cleanly looks nothing like one that died.
 
-    **`"partial_timeout"` is the G-84 outcome and is FIRST, because it is the
-    one that must never be silent.** A degraded turn that leaves no trace is
-    the same error class G-84 closes — the Belt got an answer, so nothing else
-    in the system would notice the coach never finished. This entry is what
-    notices: `step_log` reaches the parent as `history` keys
-    (`core/graph.py`), so it is checkpointed with the turn rather than living
-    only in a log line.
+    **`"partial_timeout"` must never be silent (G-84).** The Belt got an
+    answer, so nothing else in the system would notice the coach never
+    finished. This entry is what notices: `step_log` reaches the parent as
+    `history` keys (`core/graph.py`), so it is checkpointed with the turn
+    rather than living only in a log line.
     """
     if filtered:
         return "content_filter"                  # T92: refused by the Azure filter, not retried
@@ -1030,20 +980,20 @@ def _executor_status(hit_cap: bool, off_ramp: bool,
 def _budgeted_rag_tools(
     tools: list[Any], budget: int, spent: list[int], hops: Optional[list[str]] = None,
 ) -> list[Any]:
-    """§3.7's hop cap of three (ADR-0032) — per-turn copies of the three `rag_lookup_*` tools.
+    """The hop cap of three (ADR-0032) — per-turn copies of the three `rag_lookup_*` tools.
 
     **This is where the hop cap lives**, and it is a count of retrieval calls,
-    not a step counter. §16 rejects `recursion_limit` for this, and §26's
-    `remaining_steps` cannot do it either: the whole coach loop runs inside one
+    not a step counter. `recursion_limit` is not the hop cap, and
+    `remaining_steps` cannot be either: the whole coach loop runs inside one
     graph node, so `remaining_steps` moves by 1 per turn however many hops the
-    turn made (measured — see `REMAINING_STEPS_FLOOR`). Neither counter can
-    see a hop, so the hops are counted here.
+    turn made (see `REMAINING_STEPS_FLOOR`). Neither counter can see a hop, so
+    the hops are counted here.
 
     **Copies, made fresh per turn**, so the count cannot leak between turns or
     between concurrent cases. `model_copy` keeps `name`, `description`,
-    `args_schema` and `response_format` exactly — §5.4 makes those docstrings
-    load-bearing, and a hand-built replacement tool would quietly reword them.
-    Only the coroutine is swapped.
+    `args_schema` and `response_format` exactly — the tool docstrings are what
+    the model reads, and a hand-built replacement tool would quietly reword
+    them. Only the coroutine is swapped.
 
     **Past the budget the tool still answers**, with `_HOP_BUDGET_SPENT` rather
     than a search. That is the graceful part: the coach reads an ordinary tool
@@ -1057,8 +1007,8 @@ def _budgeted_rag_tools(
     turn's set of document ids already returned; a round that returns documents, none of them new, ends the
     search, and every later lookup this turn answers `SEARCH_NOTHING_NEW` without searching. A round that
     returns nothing at all does not end it — the hop cap bounds those. `hops`, when given, is the executor's
-    record of each hop, one line each; the executor returns it as `PhaseState.hop_results` (state.md §10.1:
-    hop results are state, never a node local).
+    record of each hop, one line each; the executor returns it as `PhaseState.hop_results` (hop results are
+    state, never a node local).
     """
     from backend.core.prompts import SEARCH_NOTHING_NEW
     seen: set[str] = set()
@@ -1113,15 +1063,16 @@ def _executor_tools(
 ) -> list[Any]:
     """What the coach gets to call this turn — the two guards, applied.
 
-    **`hop_budget == 0` is the `remaining_steps` off-ramp** (§26, S-F09 B1):
-    the three `rag_lookup_*` tools are not bound at all, so the coach cannot
-    start a retrieval chain the graph has no room to finish. **The other four
-    of the universal seven stay**, and so do the phase's computation tools —
-    the off-ramp is about not STARTING new retrieval, not about coaching with
-    one hand tied. `propose_template`, `propose_diagram`, `check_gate_status`
-    and `request_human_approval` all read state the executor already holds.
+    **`hop_budget == 0` is the `remaining_steps` off-ramp**: the three
+    `rag_lookup_*` tools are not bound at all, so the coach cannot start a
+    retrieval chain the graph has no room to finish. **The other four of the
+    universal seven stay** (`propose_template`, `propose_diagram`,
+    `load_evidence_series`, `read_upload`), and so do the phase's computation
+    tools — the off-ramp is about not STARTING new retrieval, not about
+    coaching with one hand tied.
 
-    Any other budget binds all seven, with the retrieval three counted (§3.7).
+    Any other budget binds all seven, with the retrieval three counted
+    (`_budgeted_rag_tools`).
     """
     tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
     if hop_budget <= 0:
@@ -1142,50 +1093,37 @@ def _build_executor(
     turn_type: str = turn_tools.TEACHING,
     attempts: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
-    """The phase coach — `create_agent`, per §18's ratified template.
+    """The phase coach — `create_agent`.
 
     **Both parameter names were verified against the installed
-    `langchain.agents.create_agent`** (§16.3, and CLAUDE.md §0.10 records what
-    it cost last time): the signature carries `system_prompt` and has **no**
-    `prompt` parameter, so `prompt=` would raise `TypeError` at construction
-    rather than being silently ignored.
+    `langchain.agents.create_agent`**: the signature carries `system_prompt`
+    and has **no** `prompt` parameter, so `prompt=` would raise `TypeError` at
+    construction rather than being silently ignored.
 
     **Tools are passed to `create_agent(tools=...)`, never bound onto the
-    model.** Binding onto a bare model bypasses the entire middleware stack
-    (§18) — grading, skills, compression, state injection, retry and
-    contradiction — and does it silently.
-    `pattern-8-bind-tools-in-phase-executor` guards this file for that reason.
+    model.** Binding onto a bare model bypasses the entire middleware stack —
+    grading, skills, compression, state injection, retry and contradiction —
+    and does it silently. `pattern-8-bind-tools-in-phase-executor` guards this
+    file for that reason.
 
-    **MIDDLEWARE POSITIONS 1-3 MOUNT HERE (step 6.3).** Declaration order is
-    execution order for hooks of the same kind, so this order is binding
-    (§19). `BeforeModelStateInjection` MUST be first — project facts have to
-    reach the top of the prompt before skills loading and summarisation shape
-    it (§19, S-C11 B4). Positions 4-5 land at 6.4 and 6-8 at 6.5.
+    **Declaration order is execution order for hooks of the same kind**, so the
+    middleware order is binding. `BeforeModelStateInjection` MUST be first —
+    project facts have to reach the top of the prompt before skills loading
+    and summarisation shape it.
 
-    **The system prompt is now STATIC per phase.** Step 6.2 composed this
-    turn's project facts into it by hand, because there was no middleware to
-    do it; §19.1 is the ratified home and that hand-composition came out at
-    6.3. Leaving both would inject the same facts twice — once from the
-    middleware and once from the prompt — and the second copy would be the one
-    that drifted, because only one of them is derived from the shared gate
-    computation.
+    **The system prompt is STATIC per phase.** This turn's project facts arrive
+    through `BeforeModelStateInjection`, never composed into the prompt here:
+    both would inject the same facts twice, and the copy not derived from the
+    shared gate computation would drift.
 
-    Still constructed per turn: the two custom middlewares are built with this
-    turn's state, so the agent cannot outlive it. That is cheap next to the
+    Still constructed per turn: several middlewares are built with this turn's
+    state and plan, so the agent cannot outlive it. That is cheap next to the
     model call it wraps.
     """
-    # B6's sink. A list the node owns, so the middleware writes an audit
-    # record without reaching into state — which is what keeps B7's
-    # "internals never reach PhaseState" true by construction.
+    # The grader's sink: a list the node owns, so the grader writes its audit
+    # record without reaching into state (internals never reach PhaseState),
+    # and per turn, so it cannot outlive the turn.
     grader_log: list[dict[str, Any]] = []
-    # Built here rather than inline because position 8 holds a reference to it:
-    # a dict returned from one `after_agent` is NOT visible to the next hook in
-    # the same pass, so S-C13 B3's skip cannot travel through state. Per turn,
-    # so the reference cannot outlive the turn (B7).
-    #
-    # G-96 — told the planner's focus field, so a reply that captures nothing
-    # is judged against the step that teaches it, and handed a sink so every
-    # verdict reaches `step_log` the way the grader's does.
     plan = state.get("coaching_plan")
     agent = create_agent(
         # ADR-0101 decision 1: the coach's inner agent is not checkpointed — None would inherit the parent's
@@ -1194,7 +1132,7 @@ def _build_executor(
         checkpointer=False,
         model=get_llm("coach", max_tokens=1500),
         tools=_executor_tools(phase, hop_budget, hops_spent, hop_results),
-        response_format=coaching_response_model(phase),   # §20 — never a {Phase}Output; G-252: typed per phase
+        response_format=coaching_response_model(phase),   # never a {Phase}Output; typed per phase (G-252)
         middleware=[
             # 1 — before_agent. FIRST, and that is a rule, not a preference.
             BeforeModelStateInjection(
@@ -1206,27 +1144,22 @@ def _build_executor(
             # 2 — before_agent + a registered `load_skill` tool.
             DMAICSkillsMiddleware(
                 phase,
-                # 6.46 — each delivery of the phase script, for step_log.
+                # Each delivery of the phase script, for step_log.
                 on_delivery=script_log.append if script_log is not None else None,
-                # 6.61 (item 4) — the current field's block; the opening only
-                # while the conversation holds no coach reply.
+                # The current field's block; the opening only while the
+                # conversation holds no coach reply.
                 focus_field=plan.focus_field if plan else None,
                 opening=not any(isinstance(m, AIMessage) for m in (state.get("messages") or [])),
             ),
-            # 3 — before_model. LangChain core, used as shipped (§19.3).
+            # 3 — before_model. LangChain core, used as shipped.
             SummarizationMiddleware(
                 model=get_llm("summarizer"),
                 trigger=SUMMARIZATION_TRIGGER,
                 keep=SUMMARIZATION_KEEP,
             ),
-            # 4 — wrap_model_call. The INVISIBLE retry tier (§19.4): the
-            # network flaked, so retry the same call. Distinct from §4.8's
-            # fallback chain, which swaps the model. `max_retries` is
-            # "attempts after the initial call", so 2 means three attempts.
-            # T92 (ADR-0067): a content-filter refusal is never retried.
-            # ADR-0069 (founder rulings 1 and 6, 2026-09-28) — LangChain's dynamic tool selection:
-            # every tool stays registered; this wrap_model_call offers the model only the turn
-            # type's tools (`request.override(tools=…)`) — none on an answer turn.
+            # ADR-0069 — LangChain's dynamic tool selection: every tool stays registered; this
+            # wrap_model_call offers the model only the turn type's tools (`request.override(tools=…)`)
+            # — none on an answer turn.
             turn_tools.turn_tools_middleware(turn_type, coach_limit),
             # T69 / G-119 (ADR-0059) — the coach's share of the turn's model calls. Declared
             # before the retry, so it encloses it: a retried call is one call of the budget.
@@ -1235,27 +1168,26 @@ def _build_executor(
             # T34 (ADR-0059 decision 2, ADR-0082) — level 2: when the premium call has failed through its
             # retries, the same request on the operational deployment, retried the same way. As shipped.
             ModelFallbackMiddleware(get_fallback_llm("coach")),
-            # Level 1. `on_failure="error"`, so a call that fails through its retries reaches the fallback.
+            # Level 1 — wrap_model_call, the INVISIBLE retry tier: the network flaked, so retry the same
+            # call (the fallback above swaps the model). `max_retries` is "attempts after the initial
+            # call", so 2 means three attempts. `on_failure="error"`, so a call that fails through its
+            # retries reaches the fallback. T92 (ADR-0067): a content-filter refusal is never retried.
             ModelRetryMiddleware(max_retries=RETRY_MAX, retry_on=content_safety.retry_on, on_failure="error"),
-            # ADR-0082 — innermost of the three: a content-filter refusal (T92) or a token-limit 400 (§4.8)
+            # ADR-0082 — innermost of the three: a content-filter refusal (T92) or a token-limit 400
             # becomes a marked reply, so neither the retry nor the fallback sees it; every attempt is logged.
             model_fallback.kept_from_fallback_middleware(attempts),
             # **The same nesting rule, one layer out.** Position 1 is declared
-            # first, so it is the OUTERMOST layer — and since 6.3 it also wraps
-            # the model call. Its wrap therefore encloses this retry, which is
-            # why the project-state block is composed and prepended ONCE and a
-            # retry re-sends the built request rather than rebuilding it per
-            # attempt. Measured: 3 model calls, 1 composition, 1 prepend.
-            #
-            # §19 calls positions 4 and 5 independent of everything else. That
-            # was true before 6.3 and is not now — and it is the same conflation
-            # as the trio below: declaration is nesting, positions are
-            # execution. `test_position_1_wrap_encloses_position_4_retry` pins
-            # it, because if the layering inverted, three attempts would mean
-            # three Store reads and three missing-field computations.
+            # first, so it is the OUTERMOST layer, and it also wraps the model
+            # call. Its wrap therefore encloses the retry: the project-state
+            # block is composed and prepended ONCE, and a retry re-sends the
+            # built request rather than rebuilding it per attempt (3 model
+            # calls, 1 composition, 1 prepend). Declaration is nesting;
+            # `test_position_1_wrap_encloses_position_4_retry` pins it, because
+            # if the layering inverted, three attempts would mean three Store
+            # reads and three missing-field computations.
             #
             # 5 — wrap_tool_call. A failed retrieval is not a failed model
-            # call and `ModelRetryMiddleware` never sees it (§19.5).
+            # call and `ModelRetryMiddleware` never sees it.
             # `on_failure="continue"` is what keeps the coaching loop alive:
             # the coach reads a failure result and works around it instead of
             # the graph dying mid-session.
@@ -1267,7 +1199,7 @@ def _build_executor(
             # the model reads it (`before_model`); never the Belt's own messages. One per type.
             *pii.executor_middleware(),
             # ══════════════════════════════════════════════════════════════
-            # THIS LIST IS NESTING ORDER. POSITIONS 6/7/8 ARE EXECUTION ORDER.
+            # THIS LIST IS NESTING ORDER, NOT EXECUTION ORDER.
             #
             #   **The list is outermost-first** — LangChain's documented model,
             #   "first in list as outermost layer". A `before_*` hook fires on
@@ -1278,11 +1210,10 @@ def _build_executor(
             #   the last thing to touch the answer on its way out.
             #   **Contradiction innermost**, because it should be first to see
             #   the coach's raw output and able to interrupt before anything
-            #   else spends effort on it. (The coherence judge that sat between
-            #   them is retired, ADR-0083.)
+            #   else spends effort on it.
             #
-            #   So the layering below IS the intent, not a workaround for it,
-            #   and the execution order it produces is §19's 6, 7, 8.
+            #   So the layering below IS the intent, not a workaround for it:
+            #   on the way out, contradiction runs first and the grader last.
             #   `test_the_declared_middleware_list_is_the_ratified_layering`
             #   asserts what executes, not what is listed.
             #
@@ -1292,19 +1223,18 @@ def _build_executor(
             # ══════════════════════════════════════════════════════════════
             DMAICGraderMiddleware(
                 phase, on_evaluation=grader_log.append,
-                # 6.61 (item 3) — graded as the move it was asked to make.
+                # Graded as the move it was asked to make.
                 move=plan.move if plan else None,
-                # B2 (founder ruling 2026-10-13) — the case's confirmed values, for "already given".
+                # The case's confirmed values, for the "already given" criterion.
                 context=_grader_context(phase, state, plan.focus_field if plan else None),
-                # Option A (founder ruling 2026-10-15): the coach's own sources — the element's script
-                # block as the coach was given it, the Belt's words for the element, the answer awaiting
-                # a Confirm.
+                # The coach's own sources — the element's script block as the coach was given it, the
+                # Belt's words for the element, the answer awaiting a Confirm.
                 purpose=_grader_method(phase, plan.focus_field if plan else None),
                 sources=_grader_sources(plan),
             ),
             ContradictionDetectionMiddleware(),
         ],
-        system_prompt=PHASE_COACH_PROMPT[phase],   # NOT `prompt=` (§18)
+        system_prompt=PHASE_COACH_PROMPT[phase],   # NOT `prompt=`
     )
     return agent, grader_log
 
@@ -1314,20 +1244,13 @@ def _build_executor(
 def _prior_gate_documents(
     phase: str, config: Optional[RunnableConfig] = None
 ) -> dict[str, dict]:
-    """Earlier phases' approved values, for S-C11 B5.
+    """Earlier phases' approved values, for the coach's prompt (`BeforeModelStateInjection`).
 
-    **Read from the seam that carries them today.** §9 makes the Store the
-    home of cross-phase gate documents and `gate_apply` the writer — and
-    `gate_apply` writes nothing until stage 7 (DECISIONS Z2), so there is
-    nothing in the Store to read yet. What exists is `v1_phase_inputs` on
-    `config`, which the route already assembles from the case document for
-    every phase.
-
-    **This is the seam, not the design.** When `gate_apply` starts writing at
-    stage 7, this reads the Store instead — and B5 is why it matters that it
-    reads something: without prior committed values in the prompt the coach has
-    nothing to compare against, and §37's contradiction check silently detects
-    nothing, which is the exact failure of the mechanism it replaced.
+    Read from `v1_phase_inputs` on `config`, which the route assembles from the
+    case document for every phase; only the phases before this one are kept.
+    **It matters that it reads something**: without prior committed values in
+    the prompt the coach has nothing to compare against, and the contradiction
+    check silently detects nothing.
     """
     configurable = (config or {}).get("configurable") or {}
     prior = configurable.get("v1_phase_inputs") or {}
@@ -1346,16 +1269,18 @@ def captured_entries(reply: Optional[CoachingResponse]) -> list[dict[str, Any]]:
 
 
 def _captured_fields(phase: str, reply: CoachingResponse) -> dict[str, Any]:
-    """`fields_captured` -> the dict written into `artifacts` (§20, S-F04 B4).
+    """`fields_captured` as a dict, field name -> value: the coach's captures, from which a
+    read-back's pending value is taken. Nothing reaches `artifacts` from here before the Belt
+    confirms.
 
     **Entries without a `field_name` are dropped, not guessed.** The coach is
     told the exact names; an entry that does not carry one is a malformed
     capture, and inferring which field was meant is how a value lands under the
     wrong key and reaches a gate document unnoticed.
 
-    `value` stays whatever the model sent — `Any`, deliberately (§20): it must
-    carry both plain strings and the three cross-phase reference dicts, and
-    coercing to `str` here would make `causal_hypothesis` uncapturable.
+    `value` stays whatever the model sent — `Any`, deliberately: it must carry
+    both plain strings and the three cross-phase reference dicts, and coercing
+    to `str` here would make `causal_hypothesis` uncapturable.
     """
     out: dict[str, Any] = {}
     for entry in captured_entries(reply):
@@ -1371,21 +1296,20 @@ def _captured_fields(phase: str, reply: CoachingResponse) -> dict[str, Any]:
 
 
 def _turn_ordinal(state: PhaseState) -> int:
-    """Which Belt turn this is, counted in the conversation itself — step 6.33.
+    """Which Belt turn this is, counted in the conversation itself.
 
     **NOT `turn_count`, and the difference is load-bearing.** `turn_count` is
     seeded to `0` by the input mapper on every invoke and read by `core/graph.py`
     as the ENTRY MODE — `0` means "coach one turn", non-zero means "we are here
-    for the gate" — so on a coaching turn it is `0` every time. That is why
-    every `step_log` key of every turn of a phase reads `{phase}:0:{node}`. A
-    change log keyed on it would have each turn overwrite the one before, which
-    is the defect this step exists to end, reproduced in the fix.
+    for the gate" — so on a coaching turn it is `0` every time, and every
+    `step_log` key of every turn of a phase reads `{phase}:0:{node}`. A change
+    log keyed on it would have each turn overwrite the one before.
 
     **The conversation is the one thing that does accumulate**: the parent's
     `messages` carry it across turns and the input mapper copies it down, so the
     number of Belt messages IS the turn ordinal. It is also stable under a
     REPLAY — a resumed turn has the same conversation and so the same ordinal —
-    which is what makes §11's key idempotent rather than merely unique.
+    which makes the `field_log` key idempotent rather than merely unique.
     """
     return sum(1 for m in (state.get("messages") or [])
                if isinstance(m, HumanMessage))
@@ -1421,30 +1345,26 @@ def _field_log_entries(
     pending: Optional[dict[str, Any]] = None,
     by: Optional[str] = None,
 ) -> list[dict[str, Any]]:
-    """One entry per CHANGE this turn made to a captured field — step 6.33.
+    """One entry per CHANGE this turn made to a captured field.
 
     **The first capture of a field is a change too**, and carries
     `prior_value: None`. A re-statement of the value already held is NOT: the
     Belt repeating themselves is not a revision, and logging it would bury the
     revisions that matter under turns where nothing moved.
 
-    **`reason` is the Belt's stated reason WHERE GIVEN, and today it is given
-    nowhere — G-89.** It is read from a `reason` key on the capture entry, which
-    `CoachingResponse.fields_captured` permits — the entries are free-form
-    dicts — but which nothing asks the coach to supply. So it will be `None` on
-    every turn until the schema's field description asks for one, and that is a
-    §56 amendment to `CoachingResponse` rather than something to slip in here.
-    **Recorded as a known-empty column rather than left out**: a column that
-    exists and is empty says "nobody was asked"; a column that does not exist
-    says nothing at all, and the next reader has to rediscover why.
+    **`reason` is the Belt's stated reason for a revision, where given** (G-89):
+    the capture entry's `reason` (`CapturedValue.reason`), or the one the
+    confirmed read-back carried on the pending value (DEF-021). A first capture
+    carries `reason: None`. **Kept as a column even when empty**: a column that
+    exists and is empty says "no reason was given"; a column that does not
+    exist says nothing at all, and the next reader has to rediscover why.
 
     `prior_value: None` also reads as "first capture" when the prior value was
-    itself empty. Unambiguous going forward — `split_captures` keeps empty
-    values out of `artifacts` from this step on — and not reconstructable for
-    anything captured before it.
+    itself empty; `split_captures` keeps empty values out of `artifacts`, so an
+    empty prior comes only from a record written some other way.
     """
-    # DEF-021 (G-89's fix): since 6.61 a value is stored on the Confirm turn, from the read-back the
-    # Belt confirmed — so the reason the coach captured THEN travels on the pending value.
+    # DEF-021: a value is stored on the Confirm turn, from the read-back the Belt confirmed — so the
+    # reason the coach captured then travels on the pending value.
     reasons: dict[str, str] = {str(k): str(v) for k, v in ((pending or {}).get("reasons") or {}).items() if v}
     for entry in captured_entries(reply):
         name = str(entry.get("field_name") or "").strip()
@@ -1480,12 +1400,12 @@ _STRUCTURED_PREFIX = "Returning structured response: "
 
 
 def _with_progress(messages: list, reply: CoachingResponse, label: str) -> list:
-    """Set `reply.progress` to the computed step, and re-render the one
-    structured-response message that carried the model's count (6.57).
+    """Set `reply.progress` to the computed figure, and re-render the one
+    structured-response message that carried the model's count.
 
     A new `ToolMessage` with the same id, name and `tool_call_id`, so the
     tool-call pairing the next model call depends on is unchanged. Plain
-    string content, which §21 allows for a message this code constructs.
+    string content: this code constructs the message.
     """
     reply.progress = label
     after = f"{_STRUCTURED_PREFIX}{reply}"
@@ -1499,7 +1419,7 @@ def _with_progress(messages: list, reply: CoachingResponse, label: str) -> list:
     ]
 
 
-#: §50.1's render contract — the blocks besides `message`, in render order.
+#: The render contract — the blocks besides `message`, in render order.
 COACHING_BLOCKS: tuple[str, ...] = ("explanation", "example", "prompt", "progress")
 
 
@@ -1534,9 +1454,9 @@ def _previous_sample(state: Any) -> str:
 
 def _attach_blocks(messages: list, reply: CoachingResponse | None,
                    warning: str | None) -> None:
-    """Put this turn's §50.1 blocks, and the grader's warning, on the reply.
+    """Put this turn's coaching blocks, and the grader's warning, on the reply.
 
-    Step 10.0. **Beside `message`, never instead of it:** the AI message's
+    **Beside `message`, never instead of it:** the AI message's
     content stays `message` — the transcript entry, what `messages` and
     summarisation carry — and the blocks ride on `additional_kwargs`, the
     channel `_attach_diagram` already uses for a turn's extras. Mutates in
@@ -1556,15 +1476,15 @@ def _attach_blocks(messages: list, reply: CoachingResponse | None,
 
 def _move_record(plan: CoachingPlan | None, pending: dict | None,
                  stored: dict[str, Any]) -> dict[str, Any] | None:
-    """What the next turn's planner reads to know where this field stands —
-    step 6.61. The field this reply worked on, the move, the Belt's words so
-    far, the read-back awaiting confirmation (PENDING), what was stored."""
+    """What the next turn's planner reads to know where this field stands:
+    the field this reply worked on, the move, the Belt's words so far, the
+    read-back awaiting confirmation (PENDING), what was stored."""
     if plan is None:
         return None
     carries_answer = plan.move in (moves.CHALLENGE, moves.READ_BACK, moves.RESPOND)
     return {
         "field": plan.focus_field,
-        # ADR-0086 (A8): a store turn that ends with the target read back from the goal shows a
+        # ADR-0086: a store turn that ends with the target read back from the goal shows a
         # read-back — its Confirm and Change buttons are the target's.
         "move": moves.READ_BACK if goal_read_back(plan) is not None else plan.move,
         "status": plan.status,
@@ -1579,7 +1499,7 @@ def _move_record(plan: CoachingPlan | None, pending: dict | None,
 
 def _element_purpose(phase: str, field: Optional[str]) -> str:
     """The element's purpose as the script gives it (its explanation block) and its acceptance criteria,
-    for the grader (founder ruling 2026-10-14: from the phase script, no retrieval)."""
+    for the grader — from the phase script, no retrieval."""
     if not field:
         return ""
     from backend.middleware.skills import acceptance_criteria, teaching_blocks
@@ -1589,7 +1509,7 @@ def _element_purpose(phase: str, field: Optional[str]) -> str:
 
 
 def _grader_method(phase: str, field: Optional[str]) -> str:
-    """Option A (founder ruling 2026-10-15): the method for the element exactly as the coach was given it —
+    """The method for the element exactly as the coach was given it —
     its block of the phase script (what it is, why it matters, the worked example, the ask, the acceptance
     criteria); with no element, the closing block."""
     from backend.middleware.skills import script_section
@@ -1597,7 +1517,7 @@ def _grader_method(phase: str, field: Optional[str]) -> str:
 
 
 def _grader_sources(plan: Optional[CoachingPlan]) -> str:
-    """Option A (founder ruling 2026-10-15): what the Belt has given for the element this turn works on —
+    """What the Belt has given for the element this turn works on —
     their words so far — and the answer awaiting their Confirm, as the coach had them."""
     if plan is None:
         return ""
@@ -1613,9 +1533,9 @@ def _grader_sources(plan: Optional[CoachingPlan]) -> str:
 
 
 def _grader_context(phase: str, state: PhaseState, field: Optional[str]) -> str:
-    """B2: the case's confirmed values, for the grader's "already given" criterion. G-252 (founder ruling
-    2026-10-23, item 2a-c): never cut — the element's own values and those it builds on whole, every other one in
-    one line written in code; display names, each value in its tag."""
+    """The case's confirmed values, for the grader's "already given" criterion. G-252: never cut — the
+    element's own values and those it builds on whole, every other one in one line written in code;
+    display names, each value in its tag."""
     from backend.middleware.state_injection import reads_whole, value_tag
     whole = reads_whole(phase, field)
     artifacts = {k: v for k, v in dict(state.get("artifacts") or {}).items()
@@ -1625,11 +1545,11 @@ def _grader_context(phase: str, state: PhaseState, field: Optional[str]) -> str:
 
 
 def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """This turn's quality verdict, for the NEXT turn's section 5 (§19.1
-    v1.75): the grader's failed criteria with their feedback. `None` when it did
-    not run or runs log-only (the coherence judge is retired, ADR-0083)."""
-    # Founder ruling 2026-10-13: a judge in `log_only` mode changes nothing — its verdict is recorded in
-    # step_log and does not reach the coach's next turn.
+    """This turn's quality verdict, for the NEXT turn's section 5: the grader's
+    failed criteria with their feedback. `None` when it did not run or runs
+    log-only (the coherence judge is retired, ADR-0083)."""
+    # A judge in `log_only` mode changes nothing — its verdict is recorded in step_log and does not
+    # reach the coach's next turn.
     g = grader_log[-1] if grader_log and grader_mode.GRADER_MODE == "enforce" else None
     if g is None:
         return None
@@ -1724,11 +1644,13 @@ def _script_ask(phase: str, field: Optional[str]) -> str:
 
 
 def _fallback_reply(phase: str, plan: Optional[CoachingPlan]) -> CoachingResponse:
-    """The move's reply, written by CODE — step 6.61 (item 1).
+    """The move's reply, written by CODE.
 
-    Used when the coach model did not finish (the node's time budget, or the
-    runaway backstop). The move is already decided, so the Belt still gets
-    that move — never a message about the system running out of room."""
+    Used when the coach model did not finish its move (the node's time limit,
+    the runaway backstop, the call limit, a turn with no structured reply) or
+    its reply could not be kept (a number no source gives). The move is already
+    decided, so the Belt still gets that move — never a message about the
+    system running out of room."""
     if plan is None:
         return CoachingResponse(message=_script_ask(phase, None), prompt=_script_ask(phase, None))
     label = (plan.focus_field or "").replace("_", " ")
@@ -1752,7 +1674,7 @@ def _refused_turn(phase: str, state: PhaseState, plan: Optional[CoachingPlan], p
                   filtered: bool) -> tuple[CoachingResponse, dict[str, Any]]:
     """A turn the coach model did not answer, answered in code (ADR-0082): a content-filter refusal gets
     T92's guidance reply; a model failure through both levels, or a token-limit 400, gets the level-4
-    reply naming the phase and the captured count (§4.8). Either way the exchange is marked as the
+    reply naming the phase and the captured count. Either way the exchange is marked as the
     guard marks a block, so `guard.without_blocked` keeps it from every later model call and the
     reload: the Belt sends the message again and it is not doubled."""
     if filtered:
@@ -1791,14 +1713,14 @@ def _with_teaching_blocks(phase: str, plan: Optional[CoachingPlan], reply: Coach
     return reply.model_copy(update=filled)
 
 
-#: G-170 (founder ruling A1, C3 amended 2026-10-13) — the moves that ask for new information: their
+#: G-170 (C3) — the moves that ask for new information: their
 #: example block is the element's worked example from the script. A read-back asks for none.
 SAMPLE_MOVES = (moves.TEACH, moves.CHALLENGE, moves.STORE_AND_ADVANCE, moves.RESPOND)
 
 
 def _with_script_sample(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse) -> CoachingResponse:
     """G-170: the example block is the phase script's worked example for the element being asked for,
-    inserted by code — never the coach's, so never the Belt's or the case's values (C3 as amended). A
+    inserted by code — never the coach's, so never the Belt's or the case's values (C3). A
     move that asks for nothing new (a read-back) shows none. Returns a COPY, or `reply`."""
     example = ""
     if plan is not None and plan.move in SAMPLE_MOVES and plan.focus_field and goal_read_back(plan) is None:
@@ -1808,7 +1730,7 @@ def _with_script_sample(phase: str, plan: Optional[CoachingPlan], reply: Coachin
 
 
 def _teach_next(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse) -> CoachingResponse:
-    """G-175 (founder ruling A6, 2026-10-13; row 132229#33): after a store, the reply teaches the NEXT
+    """G-175: after a store, the reply teaches the NEXT
     element — its explanation and its question come from that element's script (its sample is G-170's);
     and the message's own questions go, so the one ask is the next element's. Returns a COPY, or `reply`."""
     if plan is None or plan.move != moves.STORE_AND_ADVANCE or not plan.focus_field:
@@ -1826,8 +1748,8 @@ def _teach_next(phase: str, plan: Optional[CoachingPlan], reply: CoachingRespons
     return reply.model_copy(update=update)
 
 
-#: DEF-220 (G-221, founder test finding 50) — words that present a sample: the coach writes none of its own (G-170's is
-#: the script's, inserted by code).
+#: DEF-220 (G-221) — words that present a sample: the coach writes none of its own (G-170's is the script's,
+#: inserted by code).
 _SAMPLE_INTRO = re.compile(r"(?<![a-z])(for example|for instance|e\.g\.|an example|example:|illustration|"
                            r"let me show|a good (?:answer|goal|statement) (?:looks|might look|could look|would look))"
                            r"(?![a-z])", re.I)
@@ -1835,7 +1757,7 @@ _SAMPLE_INTRO = re.compile(r"(?<![a-z])(for example|for instance|e\.g\.|an examp
 
 def _lead_in_only(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse, opening: bool,
                   belt: str = "") -> CoachingResponse:
-    """DEF-220 (G-221; founder test finding 50 and the founder's reply shape): on a teaching move whose explanation
+    """DEF-220 (G-221): on a teaching move whose explanation
     block is shown, the coach's own STATEMENTS are one lead-in sentence — the first that names the element in focus,
     else the first that presents no sample. The explanation lives once, in its block (WHY IT MATTERS); the sample is
     the script's, so a sentence presenting one of the coach's own goes. Kept whole: a question (G-171 owns repeats of
@@ -1919,7 +1841,7 @@ def upload_check_text(phase: str, upload: Optional[dict], focus: Optional[str]) 
 def _with_upload_check(phase: str, reply: CoachingResponse, upload: Optional[dict],
                        focus: Optional[str]) -> CoachingResponse:
     """ADR-0074 point 2: on an upload turn the file part goes ahead of the coach's `message`,
-    written in code — the coach is no longer responsible for it. Returns a COPY, or `reply`."""
+    written in code — the coach is not responsible for it. Returns a COPY, or `reply`."""
     text = upload_check_text(phase, upload, focus)
     if not text:
         return reply
@@ -1929,7 +1851,7 @@ def _with_upload_check(phase: str, reply: CoachingResponse, upload: Optional[dic
 #: G-117 — a sentence that says a value was stored. A negated or conditional one ("nothing is
 #: stored until you confirm") is not a claim and stays.
 _STORE_CLAIM = re.compile(r"(?<![A-Za-z])(recorded|stored|saved|logged)(?![A-Za-z])"
-                          # G-136 (2026-09-29): "has been successfully captured" — the passive only;
+                          # G-136: "has been successfully captured" — the passive only;
                           # "here is what I've captured" opens every read-back and is no claim.
                           r"|(?<![A-Za-z])(has|have|is|are|was|were)\s+(now\s+)?(been\s+)?(successfully\s+)?captured(?![A-Za-z])",
                           re.I)
@@ -1962,7 +1884,7 @@ def _without_store_claims(text: str, belt: str = "") -> str:
     return chr(10).join(lines).strip()
 
 
-#: G-171 (founder ruling A2, 2026-10-13) — a part of the message that repeats the example or the question
+#: G-171 — a part of the message that repeats the example or the question
 #: block: this share of its words or more come from the block.
 REPEAT_SHARE = 0.6
 _WORD = re.compile(r"[a-z0-9£€%]+")
@@ -2182,7 +2104,7 @@ def _r18_link(phase: str, field: Optional[str], store: dict[str, Any],
     from backend.phases.define import parse
     sipoc, fivew = pair
     gap = parse.link_mismatch(fivew.get("steps"), sipoc)
-    # DEF-211 (founder note under ADR-0078): an end of a "from → to" location found nowhere, or at more than one
+    # DEF-211 (ADR-0078): an end of a "from → to" location found nowhere, or at more than one
     # step, is asked about first.
     parts = [(LINK_END_AMBIGUOUS.format(verb=e["end"], name=e["name"], steps=" or ".join(f"“{n}”" for n in e["found"]))
               if e["found"] else LINK_END_UNMATCHED.format(verb=e["end"], name=e["name"])) for e in gap["ends"]]
@@ -2209,7 +2131,7 @@ def _r18_pair(phase: str, field: Optional[str], store: dict[str, Any],
 
 def _r18_located(phase: str, field: Optional[str], store: dict[str, Any],
                  prior: dict[str, Any]) -> Optional[str]:
-    """DEF-211 (founder note under ADR-0078, 2026-10-22): a "from → to" location whose two ends are found — the
+    """DEF-211 (ADR-0078): a "from → to" location whose two ends are found — the
     steps between them read back in code ("The problem occurs in steps 3–4: is that right?"), for the read-back's
     one Confirm; None otherwise."""
     pair = _r18_pair(phase, field, store, prior)
@@ -2228,8 +2150,7 @@ def _r18_located(phase: str, field: Optional[str], store: dict[str, Any],
 
 
 def _with_text(messages: list, text: str) -> list:
-    """The messages with the last AI message's text replaced — a NEW message (§4.5), its extras
-    kept."""
+    """The messages with the last AI message's text replaced — a NEW message, its extras kept."""
     for i in range(len(messages) - 1, -1, -1):
         msg = messages[i]
         if isinstance(msg, AIMessage):
@@ -2246,7 +2167,7 @@ def _with_carried(messages: list, reply: CoachingResponse | None, phase: str,
     the Belt under this one, in code, so what a Confirm stores is what the Belt saw."""
     if not carried:
         return messages
-    from backend.phases.define.templates import plain        # G-260 (audit H2)
+    from backend.phases.define.templates import plain        # G-260
     lines = chr(10).join(READ_BACK_CARRIED.format(name=f.replace("_", " "), value=plain(v))
                          for f, v in carried.items())
     for i in range(len(messages) - 1, -1, -1):
@@ -2302,7 +2223,7 @@ def _metric_meaning(store: dict[str, Any]) -> Optional[str]:
 
 
 def _with_code_line(messages: list, reply: CoachingResponse | None, line: str) -> list:
-    """The last AI message with one line written in code after it — a NEW message (§4.5)."""
+    """The last AI message with one line written in code after it — a NEW message."""
     for i in range(len(messages) - 1, -1, -1):
         msg = messages[i]
         if isinstance(msg, AIMessage) and msg.text.strip():
@@ -2331,13 +2252,13 @@ def turn_type_of(plan: Optional[CoachingPlan], state: PhaseState) -> str:
 _LIMIT_NOTICE = "Model call limits exceeded"
 
 
-#: The question a Change click is answered with (ruling on 6.61's review).
+#: The question a Change click is answered with (R4).
 CHANGE_QUESTION = "What would you like to change?"
 
 
 def goal_read_back(plan: Optional[CoachingPlan]) -> Optional[dict[str, Any]]:
     """The read-back a store turn ends with for the NEXT position — its pending record, or None:
-    ADR-0086 (A8), the target the confirmed goal states (`moves.from_goal`); DEF-098 (R15), a value an earlier
+    ADR-0086, the target the confirmed goal states (`moves.from_goal`); DEF-098 (R15), a value an earlier
     answer gave for it (`moves.from_offer`). Both decided in the planner."""
     if plan is None or plan.move != moves.STORE_AND_ADVANCE or not plan.focus_field:
         return None
@@ -2355,14 +2276,14 @@ def _offer_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[CoachingR
     from backend.core import prompts as P
     field = str(pending.get("field") or "")
     value = (pending.get("proposed") or {}).get(field)
-    from backend.phases.define.templates import plain        # G-260 (audit H2): never a MetricValue as JSON
+    from backend.phases.define.templates import plain        # G-260: never a MetricValue as JSON
     shown = str(pending.get("belt_words") or "") or plain(value)
     head = P.OFFER_HEAD.format(element=guard_messages.element_name(phase, field))
     return CoachingResponse(message=head + chr(10) + f"“{shown}”" + chr(10) * 2 + P.OFFER_ASK, prompt=P.OFFER_ASK)
 
 
 def _goal_target_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
-    """ADR-0086 (A8): after the goal's Confirm, the target it states read back IN CODE for one Confirm —
+    """ADR-0086: after the goal's Confirm, the target it states read back IN CODE for one Confirm —
     the value and the date, or the one the goal gives (the other is taught next). No model call."""
     pending = goal_read_back(plan)
     if pending is None or phase != "define" or not pending.get("from_goal"):
@@ -2383,10 +2304,9 @@ def _goal_target_reply(phase: str, plan: Optional[CoachingPlan]) -> Optional[Coa
 
 
 def _change_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
-    """R4's Change click, answered IN CODE — founder ruling on 6.61's review,
-    2026-09-25: the Belt's exact current words, then the one question. No
-    model call: live, the model asked the question but left the words out in
-    3 of 3 runs, so nothing here is left to it. `None` for every other move."""
+    """R4's Change click, answered IN CODE: the Belt's exact current words, then
+    the one question. No model call, so the Belt's words are always there.
+    `None` for every other move."""
     if plan is None or plan.move != moves.CHALLENGE or plan.reason != moves.CHANGE_REASON:
         return None
     words = str((plan.pending or {}).get("belt_words") or plan.answer or "").strip()
@@ -2394,7 +2314,7 @@ def _change_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
                             prompt=CHANGE_QUESTION)
 
 
-#: G-173 (founder ruling A4, 2026-10-13; ADR-0077) — a number as it is written: digits with thousands
+#: G-173 (ADR-0077) — a number as it is written: digits with thousands
 #: commas, a decimal part, and a k or m multiplier; a digit inside a word ("5W2H", "Q2") is not one.
 _NUMBER = re.compile(r"(?<![A-Za-z0-9.,])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?\s?([kKmM])?(?![A-Za-z0-9])")
 
@@ -2440,7 +2360,7 @@ def _unsourced_numbers(reply: CoachingResponse, sources: set[float]) -> list[str
     return [spelled for spelled, vals in _number_values(text) if not vals & sources]
 
 
-#: G-173, founder ruling 2026-10-17 (item 2) — a list item's marker; the space between two sentences; a line
+#: G-173 — a list item's marker; the space between two sentences; a line
 #: that introduces what follows it (a lead-in ending in a colon, a heading, a bold label).
 _LIST_MARKER = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
 _SENTENCE_GAP = re.compile(r"(?<=[.!?])[\"”’)]*\s+(?=[\"“‘(]?[A-Z0-9£€$])")
@@ -2483,7 +2403,7 @@ def _trim_block(text: str, sources: set[float]) -> tuple[str, list[str]]:
 
 
 def _without_unsourced(reply: CoachingResponse, sources: set[float]) -> tuple[Optional[CoachingResponse], list[str]]:
-    """G-173, founder ruling 2026-10-17 (item 2): the coach's reply with only its sentences holding a number
+    """G-173: the coach's reply with only its sentences holding a number
     no source gives left out, every block, and one line in code saying so (before the closing question).
     None when too little remains — fewer than eight words or no whole sentence in the message, or the
     question block emptied — and the move's reply is written in code instead."""
@@ -2508,7 +2428,7 @@ def _without_unsourced(reply: CoachingResponse, sources: set[float]) -> tuple[Op
     return reply.model_copy(update={**update, "message": message}), removed
 
 
-#: G-174 (founder ruling A5, 2026-10-13) — a part of a value that is not filled in: a bracketed
+#: G-174 — a part of a value that is not filled in: a bracketed
 #: placeholder, "TBD", "to be confirmed", or the coach's own note that a part still needs something.
 _PLACEHOLDER = re.compile(r"\[[^\]\n]{3,80}\]|\b(TBD|TBC|to be (confirmed|defined|determined|decided|agreed))\b|"
                           r"\(\s*needs?\b[^)]{0,80}\)|\?\?+|\bX{2,}\b", re.I)
@@ -2526,7 +2446,7 @@ def placeholders(store: dict[str, Any]) -> list[str]:
     return [m.group(0) for text in leaves(list(store.values())) for m in _PLACEHOLDER.finditer(text)]
 
 
-#: G-172 (founder ruling A3, 2026-10-13; DEF-020) — a question about where the project stands.
+#: G-172 (DEF-020) — a question about where the project stands.
 STATUS_QUESTION = re.compile(r"\b(where (do|are) we(\s+(stand|at|now))?|what('s| is| have we)?\s+(done|left|missing|"
                              r"still open|next)|how far (have we|are we)|(our|my) progress|progress so far|"
                              r"(project|our|my) status|status update)\b",
@@ -2565,12 +2485,12 @@ def _status_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan]) -
 
 
 def _conversation(messages: list) -> list:
-    """The conversation as the coach is shown it — step 6.61 (item 4, section
-    6): each Belt message, and each coach turn as ONE message carrying its
-    reply text. A coach turn's tool-call stubs and the framework's
-    "Returning structured response" message are dropped; a turn with no reply
-    text (a timeout) contributes nothing. Built fresh — the stored messages
-    are never edited (§21: content is read through `.text`)."""
+    """The conversation as the coach is shown it (section 6 of its input): each
+    Belt message, and each coach turn as ONE message carrying its reply text. A
+    coach turn's tool-call stubs and the framework's "Returning structured
+    response" message are dropped; a turn with no reply text (a timeout)
+    contributes nothing. Built fresh — the stored messages are never edited
+    (content is read through `.text`)."""
     out: list = []
     for m in messages:
         if isinstance(m, HumanMessage):
@@ -2586,7 +2506,7 @@ def _conversation(messages: list) -> list:
 def _with_coaching_text(messages: list, reply: CoachingResponse) -> list:
     """Guarantee the Belt-facing prose is present in `messages`.
 
-    §18: *"the structured response and the coaching text coexist"* — the agent
+    *The structured response and the coaching text coexist* — the agent
     writes prose into `messages` AND returns the structured response. The two
     normally carry the same text. **When the terminal message has no text**, as
     happens when a provider puts everything in the structured payload, the
@@ -2598,9 +2518,8 @@ def _with_coaching_text(messages: list, reply: CoachingResponse) -> list:
     return [*messages, AIMessage(content=reply.message)]
 
 
-#: The twenty computation tools, by name. Derived from the registry rather
-#: than typed, so a tool added at 5.3's successor is picked up here without a
-#: second list to remember — the failure `MARKER_HOME` was deleted for.
+#: The computation tools, by name. Derived from the registry rather than
+#: typed, so a new tool is picked up here without a second list to remember.
 _COMPUTATION_TOOL_NAMES: frozenset = frozenset(
     t.name for t in COMPUTATION_TOOLS
 )
@@ -2609,21 +2528,19 @@ _COMPUTATION_TOOL_NAMES: frozenset = frozenset(
 def _computation_results(
     messages: list, phase: str, turn: int,
 ) -> list[dict]:
-    """§7's five-key rows for the computation tools THIS turn called.
+    """The five-key rows for the computation tools THIS turn called.
 
-    **The same inspection `_mark_consumed` already does, over a different tool
-    set.** Ruling AR-R4: *a `@tool` receives only its arguments and cannot
-    reach `PhaseState`, so the node inspects the turn's tool calls afterwards.*
-    No new pattern, and `computation.py` says the rest outright — each tool
-    returns the `result` sub-dict and *"the executor wraps it in §7's full
-    `{"tool", "inputs", "result", "turn", "phase"}` shape … the turn and phase
-    are not knowable here."*
+    **The same inspection `_mark_consumed` does, over a different tool set.** A
+    `@tool` receives only its arguments and cannot reach `PhaseState`, so the
+    node inspects the turn's tool calls afterwards. Each tool returns the
+    `result` sub-dict and the executor wraps it in the full
+    `{"tool", "inputs", "result", "turn", "phase"}` shape — the turn and phase
+    are not knowable inside the tool.
 
-    **THE GRADER IS WHY THIS IS NOT A DICT KEY.** §35 and §41 have it answer
-    *"was a hypothesis test actually run?"* by scanning this list for
-    `"tool": "t_test"` rather than by reading the coach's prose — the whole
-    anti-hallucination design. Against a list nothing wrote, its answer was
-    always **no**, and a gate document recorded that a project did no analysis
+    **The record of what was computed is this list, never the coach's prose.**
+    The gate document carries it, and the Define report and the coach's
+    project-state block read the calculations from it. Against a list nothing
+    wrote, a gate document would record that a project did no analysis
     whatever the Belt and the coach actually did.
 
     **The result is read as JSON, not parsed by hand.** LangChain serialises a
@@ -2632,12 +2549,11 @@ def _computation_results(
 
         calculate_sigma_level -> '{"sigma_level": "3.76", "dpmo": "12000", …}'
 
-    so `json.loads` recovers `Result` exactly. G-48 records what hand-parsing a
-    structured payload costs; this is the same shape and takes the standard
-    format instead. A tool whose content stops being JSON lands in the row as
-    a `parse_error` rather than vanishing — **a computation that ran and could
-    not be recorded is a finding, and dropping it silently would leave the
-    grader in exactly the state this step exists to end.**
+    so `json.loads` recovers `Result` exactly (G-48: never hand-parse a
+    structured payload). A tool whose content stops being JSON lands in the
+    row as a `parse_error` rather than vanishing — **a computation that ran and
+    could not be recorded is a finding, and dropping it silently would leave
+    the record blind to it.**
     """
     by_id: dict[str, ToolMessage] = {
         str(m.tool_call_id): m
@@ -2675,28 +2591,20 @@ def _computation_results(
 def _advance_field_index(phase: str, artifacts: dict) -> int | None:
     """Where the coach is in the phase's ordered field list, or `None`.
 
-    §39.x.7 says `field_index` *"walks the §39.x.2 list"*. It was set to `0` by
-    the input mapper and **advanced by nothing**, so it indexed the first field
-    for the whole phase.
-
-    **Define only, and that is the step's scope rather than an omission.** Only
+    `field_index` walks the phase's ordered field list. **Define only**: only
     Define has an ordered `DEFINE_FIELD_ORDER`; Measure, Analyse, Improve and
-    Control expose tier SETS, so the §39.x.2 sequence does not exist in code
-    for four of the five phases whose §39.x.7 tells this to walk it. Returning
-    `None` for those four leaves `field_index` untouched rather than writing a
-    number derived from an order nobody declared — **a number that looks
-    walked and is not is worse than one that never moved**, which is what the
-    original `0` at least made obvious.
+    Control expose tier SETS, so no ordered sequence exists in code for them.
+    Returning `None` for those four leaves `field_index` untouched rather than
+    writing a number derived from an order nobody declared — **a number that
+    looks walked and is not is worse than one that never moved**.
 
-    The index is the first field NOT yet captured, so it names what to work on
-    next; once every field is in, it rests on the LAST field rather than
+    The index is the first element NOT yet complete, so it names what to work
+    on next; once every element is in, it rests on the LAST one rather than
     running off the end, because there is no next one to point at.
 
-    **6.57 — it is `define_position` minus one**, the same computation the
-    Belt's "Step n of 13" is delivered from, so the index the planner walks
-    and the step the Belt is told cannot disagree. That moves one case:
-    position 5 now waits for `metric_definitions` as well as
-    `baseline_estimate` (§39.1.9).
+    **It is `define_position` minus one** — the position `define_progress`
+    reports, so the index and the position cannot disagree. Position 5 waits
+    for `metric_definitions` as well as `baseline_estimate`.
     """
     if phase != "define" or not DEFINE_FIELD_ORDER:
         return None
@@ -2707,7 +2615,7 @@ def _attach_diagram(messages: list) -> None:
     """Lift this turn's `propose_diagram` payload onto the reply, for the UI.
 
     `gateway/routes.py` reads `sipoc_diagram` and `visualisation` off the
-    reply's `additional_kwargs`; the v1 orchestrator used to put them there.
+    reply's `additional_kwargs`, and this is what puts them there.
     The tool returns its payload as a ToolMessage **artifact** rather than as
     content, so this reads a real dict instead of parsing one back out of a
     string. Mutates in place — the last AI message is the reply.
@@ -2788,65 +2696,45 @@ async def executor(
 ) -> dict[str, Any]:
     """Run one coaching turn. **Returns plainly — emits no routing `Command`.**
 
-    §17: the executor consumes the plan and decides no strategy. Control returns
-    to the planner on the static edge, and the planner chooses what happens next.
+    The executor consumes the plan and decides no strategy: the coach does not
+    pick the field, does not choose the retrieval mode, and does not route.
+    Control returns to the planner on the static edge, and the planner chooses
+    what happens next.
 
-    **THIS IS THE V2 FIELD WRITER, AND ITS EXISTENCE CLEARS WATCH 7.** Step 6.2
-    replaces the v1 delegation with `create_agent` +
-    `response_format=CoachingResponse` (§18, §20). `fields_captured` is written
-    into `artifacts` under the §39.x names — which is what `validate_{phase}`
-    has been reading since the rename, and why every phase's gate was inert
-    until now (DECISIONS Part X, Route A). **`orchestrate.py` and
-    `EXTRACTION_{PHASE}` are now dead code awaiting deletion at 11.1**; nothing
-    calls them, and per the ruling they are not migrated.
+    **This is the v2 field writer.** The coach is `create_agent` with the
+    phase's `CoachingResponse` model as `response_format`. What reaches
+    `artifacts`, under the v2 names `validate_{phase}` reads, is decided by the
+    plan, never by what the coach returned: nothing is stored before the Belt
+    confirms (the store block below).
 
-    **§17's contract, and what step 6.21 changed about it.** The coach decides
-    no strategy: it does not pick the field, does not choose the retrieval mode,
-    and does not route.
-
-    **That sentence was FALSE between steps 6.2 and 6.21 and this docstring
-    asserted it anyway.** It said the contract was "now fully true" and that the
-    coach "is told the plan's `focus_field`" — the coach was told neither. The
-    plan reached no channel the model reads (G-49, diagnosed at 6.18 as layer
-    2: system prompt 7,770 chars, injected block 797, messages 5, and the
-    planner's imperative in none of them). A docstring claiming a contract holds
-    is the last place a reader looks for the news that it does not.
-
-    **It is true now, for the one case the planner routes**: an unread upload's
-    read is dispatched by this node (`_dispatch_routed_read`), so the model is
-    not offered that decision at all. Everything else the coach calls is still
-    the coach's choice, and the plan's `focus_field` still reaches the model
-    through nothing — which is transport A or B's job if it is ever wanted, and
-    is NOT claimed here.
-
-    **Middleware positions 1–3 are mounted as of step 6.3** (§19); 4–5 land at
-    6.4 and 6–8 at 6.5. So the per-turn project facts now arrive through
-    `BeforeModelStateInjection` rather than being composed into the prompt
-    here — 6.2 did that by hand only because there was no middleware to do it,
-    and leaving both would inject the same facts twice. One consequence is
-    still live and is not a defect: there is no
-    `ContradictionDetectionMiddleware` until 6.5, so a `contradiction_flag` the
-    coach sets is carried into `step_log` and read by nobody until then.
+    **How the plan reaches the coach**: the focus field and the move through
+    the project-state block (`BeforeModelStateInjection`) and the focus
+    field's block of the phase script (`DMAICSkillsMiddleware`); the grader
+    judges the reply as that move. An unread upload's read is dispatched by this node
+    (`_dispatch_routed_read`), so the model is not offered that decision at
+    all; every other tool the coach calls is its own choice.
 
     The coach's answer goes into `messages` as an `AIMessage`. A `propose_diagram`
     payload from this turn rides on `additional_kwargs` under the key the UI
     already reads — `sipoc_diagram` for a SIPOC, `visualisation` for the 5W2H
     mind map (`gateway/routes.py` reads exactly those).
+
+    `written`, when given, is the turn's reply composed in code, and no model is
+    called; `engine_timeout` marks a turn the engine's wall ended
+    (`executor_timeout_handler`).
     """
     turn_count = state.get("turn_count") or 0
     plan = state.get("coaching_plan")
 
-    # ── guard 1 of 2 — §26 / S-F09 B1, the graceful off-ramp ──────────
+    # ── guard 1 of 2 — the graceful off-ramp ──────────────────────────
     # `remaining_steps` is a `RemainingSteps` managed value LangGraph fills in
-    # on its own; declaring it on `PhaseState` is what activates it (§10.1).
+    # on its own; declaring it on `PhaseState` is what activates it.
     # Low means the GRAPH is running out of room, so the coach is built with no
-    # retrieval tools and answers from what is in hand — B1's *"rather than
-    # beginning a hop chain it cannot finish"*. It coaches; it does not cap.
+    # retrieval tools and answers from what is in hand rather than beginning a
+    # hop chain it cannot finish. It coaches; it does not cap.
     #
     # `or 0` and not a `.get` default: an ABSENT field must fail this test, not
-    # pass it. `state.get("remaining_steps", 10)` was §0.16's bug in the other
-    # direction — a default that made the guard unfireable — and a default here
-    # would make it fire on every turn instead.
+    # pass it — a default value would decide the guard instead of the graph.
     remaining = state.get("remaining_steps") or 0
     off_ramp = 0 < remaining <= REMAINING_STEPS_FLOOR
     hop_budget = 0 if off_ramp else COACH_HOP_BUDGET
@@ -2858,15 +2746,15 @@ async def executor(
             phase, remaining, REMAINING_STEPS_FLOOR, COACH_RECURSION_BACKSTOP,
         )
 
-    # ── guard 2 of 2 — §3.7's three hops (ADR-0032), counted in the tools ─
+    # ── guard 2 of 2 — the three hops (ADR-0032), counted in the tools ──
     # A different unit from the one above and not substitutable for it: this
     # counts `rag_lookup_*` CALLS, `remaining_steps` counts graph-node
     # transitions. The list is the sink `_budgeted_rag_tools` mutates, read
     # back below for `step_log`.
     hops_spent: list[int] = [0]
-    # T26 / G-85 (DEF-237): one line per hop, filled by the lookups and returned as `hop_results` (state, §10.1).
+    # T26 / G-85 (DEF-237): one line per hop, filled by the lookups and returned as `hop_results` (state).
     hop_log: list[str] = []
-    # T69 (founder, 2026-09-30) — model calls made inside tools, by tool: recorded, not counted
+    # T69 — model calls made inside tools, by tool: recorded, not counted
     # against the coach's limit, capped per lookup by T51.
     tool_model_calls: dict[str, int] = {}
     fusion.TURN_TOOL_MODEL_CALLS.set(tool_model_calls)
@@ -2897,17 +2785,17 @@ async def executor(
     calls_before = 1 if plan is not None and getattr(plan, "judgment", None) is not None else 0
     coach_limit = max(1, TURN_MODEL_CALLS - calls_before - AFTER_AGENT_CALLS)
 
-    # 6.46 — the skills middleware reports every delivery of the phase script
-    # here; the node, which owns step_log, writes the turn's record below.
+    # The skills middleware reports every delivery of the phase script here;
+    # the node, which owns step_log, writes the turn's record below.
     script_log: list[dict[str, Any]] = []
-    # T34 / ADR-0082 — every model attempt the retry and the fallback made, for step_log (§4.8).
+    # T34 / ADR-0082 — every model attempt the retry and the fallback made, for step_log.
     attempts: list[dict[str, Any]] = []
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent, hop_results=hop_log,
         script_log=script_log, coach_limit=coach_limit, turn_type=turn_type, attempts=attempts,
     )
-    # ── the planner's named call, executed before the model runs ──────
-    # §17, step 6.21, option C. `prior` is what the agent is invoked with;
+    # ── the planner's routed read, executed before the model runs ─────
+    # `prior` is what the agent is invoked with;
     # `state["messages"]` is what the tail slice below measures against, so the
     # dispatched exchange is returned as new messages and checkpointed with the
     # turn — which is what stops the next turn re-reading the same file.
@@ -2915,8 +2803,8 @@ async def executor(
     # was the timed-out node's to make.
     ROUTED_READ_FAILED.set(False)
     dispatched = [] if engine_timeout else await _dispatch_routed_read(state)
-    # 6.61 (item 4) — SECTION 6 IS ONE ENTRY PER TURN: the Belt's words and the
-    # coach's reply text — no tool-call stubs, no "Returning structured
+    # SECTION 6 OF THE COACH'S INPUT IS ONE ENTRY PER TURN: the Belt's words and
+    # the coach's reply text — no tool-call stubs, no "Returning structured
     # response" dumps. The stored conversation keeps its full shape (the
     # audit trail); only what the model is shown is cleaned. This turn's
     # dispatched read stays whole: it is this turn's evidence, not history.
@@ -2925,16 +2813,17 @@ async def executor(
     hit_cap = False
     # T70 (DEF-078) — a turn the engine's wall ended arrives here from `executor_timeout_handler`
     # with the move's code-written reply; it composes like any other turn and is recorded as
-    # `partial_timeout`, the fallback marked as the defect it is (6.61).
+    # `partial_timeout`, the fallback marked as the defect it is.
     timed_out = engine_timeout
     filtered = False
     level_4: Optional[str] = None            # T34 level 4 (ADR-0082): "model_unavailable" or "token_limit"
-    # 6.61 — containment, founder 2026-09-25: every use of the code-written
-    # fallback is a DEFECT (the coach did not finish its move) and is logged
-    # as one; the target is zero.
+    # Containment: every use of the code-written fallback is a DEFECT (the
+    # coach did not finish its move) and is logged as one; the target is zero.
     fell_back = engine_timeout
-    # A Change click is answered in code and the coach is not called
-    # (`_change_reply`); every other move is the model's to write.
+    # A Change click, a status question, the goal's target and a value offered
+    # from an earlier answer are answered in code and the coach is not called
+    # (`_change_reply`, `_status_reply`, `_goal_target_reply`, `_offer_reply`);
+    # every other move is the model's to write.
     written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
                                                     or _goal_target_reply(phase, plan) or _offer_reply(phase, plan))
     try:
@@ -2944,23 +2833,21 @@ async def executor(
                   "structured_response": written} if written is not None else \
             await agent.ainvoke(
             {"messages": prior},
-            # §16 — the infinite-loop backstop, NOT the hop cap. Passed
-            # explicitly so it does not depend on what the caller happened to
-            # set: measured, an agent invoked inside a node inherits the
-            # parent's LIMIT with a FRESH counter, which is right when the
-            # route sets 50 and silently wrong when a test or a script invokes
-            # this node directly.
+            # The infinite-loop backstop, NOT the hop cap. Passed explicitly so
+            # it does not depend on what the caller happened to set: an agent
+            # invoked inside a node inherits the parent's LIMIT with a FRESH
+            # counter, which is right when the route sets 50 and silently wrong
+            # when a test or a script invokes this node directly.
             config={"recursion_limit": COACH_RECURSION_BACKSTOP},
         )
     except GraphRecursionError:
-        # §3.7 — MUST be caught here and turned into a partial answer. A Belt
-        # mid-session never sees a stack trace because the coach explored too
-        # broadly. Found by step 6.2's live-run, which looped a real turn.
+        # MUST be caught here and turned into an answer: a Belt mid-session
+        # never sees a stack trace because the coach explored too broadly.
         #
-        # **Belt-and-braces since 6.7, not the primary guard** (§26). The two
-        # guards above off-ramp into a composed answer, so arriving here means
-        # the coach burned 50 graph steps without stopping — a genuine runaway
-        # loop, which is what §16 says the backstop is for.
+        # **Belt-and-braces, not the primary guard.** The two guards above
+        # off-ramp into a composed answer, so arriving here means the coach
+        # burned 50 graph steps without stopping — a genuine runaway loop,
+        # which is what the backstop is for.
         hit_cap = True
         logger.warning(
             "%s.executor: hit the %d-step BACKSTOP (§16) after %d hop(s) — "
@@ -2969,9 +2856,9 @@ async def executor(
             "loop, not broad exploration.",
             phase, COACH_RECURSION_BACKSTOP, hops_spent[0],
         )
-        # 6.61 (item 1) — never the backstop text as a coaching reply: the
-        # move was decided in code, so code writes its reply (_CAP_MESSAGE is kept
-        # for the log). The step_log status still records the degrade.
+        # Never the backstop text as a coaching reply: the move was decided in
+        # code, so code writes its reply. The step_log status still records
+        # the degrade.
         fallback = _fallback_reply(phase, plan)
         fell_back = True
         result = {"messages": [*prior, AIMessage(content=fallback.message)],
@@ -2995,7 +2882,7 @@ async def executor(
     else:
         marked = model_fallback.kept_from_fallback(list(result.get("messages") or [])) if written is None else None
         if marked is not None:
-            # ADR-0082 — the marker kept a refusal (T92) or a token-limit 400 (§4.8) from the retry and the
+            # ADR-0082 — the marker kept a refusal (T92) or a token-limit 400 from the retry and the
             # fallback; the reply is written in code here.
             filtered = marked == model_fallback.CONTENT_FILTER
             level_4 = None if filtered else "token_limit"
@@ -3010,7 +2897,7 @@ async def executor(
                and isinstance(produced[-1], AIMessage) and _LIMIT_NOTICE in str(produced[-1].content))
     limit_diagnosis: dict[str, Any] | None = None
     if limited:
-        # G-139 (founder ruling 2, 2026-09-30): what the coach returned before the limit ended it —
+        # G-139: what the coach returned before the limit ended it —
         # to step_log and the move record, so the run record carries it.
         limit_diagnosis = _limit_diagnosis(produced[len(history):], coach_limit)
         fallback = _fallback_reply(phase, plan)
@@ -3021,7 +2908,7 @@ async def executor(
         produced = [*produced[:-1], AIMessage(content=fallback.message)]
         result = {**result, "messages": produced, "structured_response": fallback}
     # G-153 — the loop ended with no structured reply and no limit notice: the coach's call was cut
-    # off at its token limit (run 152731, turn 5) or ended on text alone. Contained as the limit is:
+    # off at its token limit or ended on text alone. Contained as the limit is:
     # the move's reply is written in code, never an empty turn, and the diagnosis rides on the record.
     unfinished = not limited and result.get("structured_response") is None
     if unfinished:
@@ -3033,10 +2920,10 @@ async def executor(
         ended = produced[-1] if len(produced) > len(history) and isinstance(produced[-1], AIMessage) else None
         produced = [*(produced[:-1] if ended is not None else produced), AIMessage(content=fallback.message)]
         result = {**result, "messages": produced, "structured_response": fallback}
-    # G-173 (founder ruling A4, 2026-10-13; ADR-0077) — every number in the coach's words comes from the
-    # Belt, the case, a computation result or the script. Founder ruling 2026-10-17 (item 2): a reply with
-    # any other number keeps everything but the sentences holding one, and says so in a line written in
-    # code; only when too little remains is the move's reply written in code.
+    # G-173 (ADR-0077) — every number in the coach's words comes from the Belt, the case, a computation
+    # result, the script or this turn's tool results (`_number_sources`). A reply with any other number
+    # keeps everything but the sentences holding one, and says so in a line written in code; only when
+    # too little remains is the move's reply written in code.
     unsourced: list[str] = []
     rejected: Optional[dict[str, str]] = None     # G-173: the rejected reply's own words, for step_log
     left_out: list[str] = []                      # G-173: the sentences left out of a kept reply
@@ -3060,14 +2947,14 @@ async def executor(
     elif unsourced:
         fallback = _fallback_reply(phase, plan)
         if plan is not None and plan.move == moves.RESPOND:
-            # Founder ruling 2026-10-16 (2b): the Belt's question asked for a figure no calculation in code
-            # gives — say so, in code, before the ask, rather than answering with the ask alone.
+            # The Belt's question asked for a figure no calculation in code gives — say so, in code,
+            # before the ask, rather than answering with the ask alone.
             from backend.core.prompts import CALCULATION_FALLBACK, CALCULATION_NEEDS
             from backend.phases import calculations
             arts = dict(state.get("artifacts") or {})
             needs = calculations.missing_inputs(phase, plan.focus_field, arts)
             # In the catalogue (this element has a calculation in code): its own figures when it has run,
-            # else what it still needs; outside it, 2b.
+            # else what it still needs; outside it, `CALCULATION_FALLBACK`.
             said = (calculations.how_it_was_calculated(calculations.latest(arts, phase, plan.focus_field))
                     or (CALCULATION_NEEDS.format(needs=" and ".join(needs.values())) if needs else "")
                     or CALCULATION_FALLBACK)
@@ -3088,12 +2975,12 @@ async def executor(
     # DEF-014: the re-ask's quality feedback was for the coach this turn only — never kept in the
     # conversation, where a later turn would read it (it is in step_log).
     new_messages = [m for m in new_messages if not isinstance(m, SystemMessage)]
-    # DEF-135 (T60, amended 2026-10-22): a series is re-read at use, never stored — its values leave the turn's
-    # messages here; the summary stays, and computation arguments stay as the calculation's audit.
+    # DEF-135 (T60): a series is re-read at use, never stored — its values leave the turn's messages
+    # here; the summary stays, and computation arguments stay as the calculation's audit.
     new_messages = _without_series_values(new_messages)
 
-    # 6.57 — what the model wrote in `progress`, kept before the executor
-    # writes the computed step over it (below, after the capture merge).
+    # What the model wrote in `progress`, kept before the executor writes the
+    # computed figure over it (below, after the capture merge).
     model_progress = reply.progress if reply is not None else None
 
     captured: dict[str, Any] = {}
@@ -3112,15 +2999,15 @@ async def executor(
                 reply = reply.model_copy(update={"message": f"{(reply.message or '').rstrip()}\n\n{line}"})
         new_messages = _with_coaching_text(new_messages, reply)
 
-        # §50.1's four blocks are OPTIONAL as of §56 amendment v1.64, and an
-        # empty one is a FINDING rather than a failure. Required `str` meant a
-        # model omitting `progress` failed the whole turn's structured output
-        # — a hard failure to the Belt, which §4.8 forbids.
+        # The four presentational blocks are OPTIONAL, and an empty one is a
+        # FINDING rather than a failure: a required `str` would make a model
+        # omitting `progress` fail the whole turn's structured output — a hard
+        # failure to the Belt.
         #
-        # **Logged loudly BECAUSE it is no longer fatal.** Making the fields
-        # optional without this would trade a loud failure for a silent one:
-        # the UI would draw four blocks, one of them blank, and nothing would
-        # have noticed. Degraded, not broken — and visible.
+        # **Logged loudly BECAUSE it is not fatal.** Without the log, the UI
+        # would draw four blocks, one of them blank, and nothing would notice.
+        # Degraded, not broken — and visible. On a teaching move the gap is
+        # then filled from the script (`_with_teaching_blocks`).
         gaps = presentational_gaps(reply)
         if gaps:
             logger.warning(
@@ -3133,7 +3020,7 @@ async def executor(
             )
             reply = _with_teaching_blocks(phase, plan, reply, gaps)
         if written is None and not fell_back:
-            # G-175 (founder ruling A6) — after a store, the reply teaches the next element.
+            # G-175 — after a store, the reply teaches the next element.
             # DEF-220: the welcome is the phase's first element taught with no coach reply before it.
             opening = (not any(isinstance(m, AIMessage) for m in (state.get("messages") or []))
                        and plan is not None and plan.focus_field == next(iter(moves.positions(phase)), ("",))[0])
@@ -3144,12 +3031,12 @@ async def executor(
                 new_messages = _with_text(new_messages, str(taught.message))
             reply = taught
         if not (filtered or level_4):
-            # G-170 (founder ruling A1) — the example is the script's worked example, inserted by code.
+            # G-170 — the example is the script's worked example, inserted by code.
             reply = _with_script_sample(phase, plan, reply)
 
-    # R4 — `consumed_at` is written HERE, not inside the tool. A `@tool`
-    # receives only its arguments and cannot reach `PhaseState`; the node
-    # inspects the turn's tool calls afterwards. S-F57 B4.
+    # `consumed_at` is written HERE, not inside the tool. A `@tool` receives
+    # only its arguments and cannot reach `PhaseState`; the node inspects the
+    # turn's tool calls afterwards.
     uploads, consumed = _mark_consumed(state, produced, citations)
     # DEF-108 (W5) — an upload turn READ its file: section 4 named it, whether or not a numeric
     # column was loaded, so the next turn is not an upload turn again for the same file.
@@ -3165,22 +3052,21 @@ async def executor(
     _attach_diagram(new_messages)
     _attach_sources(new_messages)
 
-    # ── 6.33 — the accumulation, and the two ways it used to be lost ──
+    # ── the accumulation ──────────────────────────────────────────────
     #
-    # `state["artifacts"]` is now the phase's whole capture history, seeded by
-    # the input mapper from the case record rather than blanked (G-78, half
-    # one). And an EMPTY capture no longer overwrites a real prior value:
-    # `{**prior, **captured}` with a `None` in `captured` destroyed the value
-    # the gate document reads, while the case-blob write discarded the same
-    # entry — so the two records of one field disagreed, silently, in the
-    # direction that loses data.
+    # `state["artifacts"]` is the phase's whole capture history, seeded by the
+    # input mapper from the case record rather than blanked (G-78). An EMPTY
+    # capture never overwrites a real prior value (`split_captures`, below): a
+    # `None` merged over a prior value would destroy what the gate document
+    # reads while the case record kept it, and the two records of one field
+    # would disagree, silently, in the direction that loses data.
     prior_artifacts = dict(state.get("artifacts") or {})
 
-    # ── 6.61 — NOTHING IS STORED BEFORE THE BELT CONFIRMS (§20 v1.75) ──
+    # ── NOTHING IS STORED BEFORE THE BELT CONFIRMS ────────────────────
     #
-    # Founder ruling 2026-09-25: *"A value is stored only after the Belt
-    # confirms it, in the Belt's words; a tidied version may be proposed in the
-    # read-back and is stored only if the Belt confirms it."* So what reaches
+    # *"A value is stored only after the Belt confirms it, in the Belt's
+    # words; a tidied version may be proposed in the read-back and is stored
+    # only if the Belt confirms it."* So what reaches
     # `artifacts` is decided by the PLAN, never by what the coach returned:
     #   store_and_advance  the plan's `store` — the read-back the Belt just
     #                      confirmed (`moves.pending_store`)
@@ -3212,7 +3098,7 @@ async def executor(
         )
     kept, empty_captures = split_captures(candidate)
 
-    # ── 6.48 — the declared type is enforced HERE, at the capture site ──
+    # ── the declared type is enforced HERE, at the capture site ───────
     #
     # **Not at the model and not at assembly.** The per-phase response schema
     # narrows the shape (ADR-0110) but is not the enforcer: a value the model
@@ -3226,9 +3112,9 @@ async def executor(
     # reader looking for a shape problem in a field the Belt never answered.
     kept, malformed = split_by_declared_type(phase, kept)
 
-    # ── 6.46 — §22: a worked example is NEVER captured as the Belt's data ──
+    # ── a worked example is NEVER captured as the Belt's data ─────────
     #
-    # The script now reaches the model every call, and with it every worked
+    # The script reaches the model every call, and with it every worked
     # example — each a plausible, well-formed value for the field it shows.
     # A capture that reproduces one (skills.example_match: containment either
     # way, or similarity >= 0.80 after normalising) is refused and reported,
@@ -3269,7 +3155,7 @@ async def executor(
             phase, len(empty_captures), ", ".join(empty_captures),
         )
 
-    # 6.61 — a read-back's value is PENDING: it goes on the move record with
+    # A read-back's value is PENDING: it goes on the move record with
     # what a confirmation will store, and nothing reaches `artifacts` now.
     carried: dict[str, Any] = {}
     link: Optional[str] = None
@@ -3325,12 +3211,12 @@ async def executor(
         kept = {}
     artifacts = {**prior_artifacts, **kept}
 
-    # 6.61 (R5) — THE STATUSES, STORED AT TURN END. The plan carries the
+    # R5 — THE STATUSES, STORED AT TURN END. The plan carries the
     # after-change map; a read-back's pending entry gains here what the Belt's
     # yes will store (it needs this turn's read-back to know).
     field_status = {f: dict(v) for f, v in ((plan.field_status if plan else None)
                                             or state.get("field_status") or {}).items()}
-    # G-140 (founder ruling 1, 2026-09-30): a read-back written in CODE whose pending store lacks a
+    # G-140: a read-back written in CODE whose pending store lacks a
     # field of the position is not offered — a Confirm under it could not store. The turn changes
     # nothing: the element keeps its status from before the turn, the reply asks the Belt to send
     # the answer again, and the move record carries no read-back (so no Confirm is drawn).
@@ -3408,9 +3294,8 @@ async def executor(
         field_status[plan.focus_field] = {**field_status.get(plan.focus_field, {}),
                                           "status": moves.ANSWERED, "pending": pending}
 
-    # The field change log — §56 amendment, ratified 2026-09-21. Built from
-    # the SAME `kept` the merge above uses, so the log and the accumulator
-    # cannot disagree about what changed.
+    # The field change log, built from the SAME `kept` the merge above uses,
+    # so the log and the accumulator cannot disagree about what changed.
     turn_ordinal = _turn_ordinal(state)
     log_entries = _field_log_entries(
         phase, turn_ordinal, kept, prior_artifacts, reply,
@@ -3419,9 +3304,8 @@ async def executor(
         by=((config or {}).get("configurable") or {}).get("current_user"),
     )
 
-    # ── 6.20 — the write paths. Three things §39.x.7 specifies were READ by
-    #    the gate document and written by NOTHING; each was a one-directional
-    #    break where the reader existed, was correct, and always found nothing.
+    # ── the write paths for what the gate document and the planner read:
+    #    this turn's computation results, and the field index.
     results = _computation_results(produced, phase, turn_count)
     if results:
         artifacts["computation_results"] = [
@@ -3429,20 +3313,17 @@ async def executor(
         ]
     next_field = _advance_field_index(phase, artifacts)
 
-    # ── 6.57 — the Belt's step is the COMPUTED one, in the reply the turn keeps
-    # Delivery alone did not hold: on 0E5 at 15:05 (trace 01a0d3f3…) the step
-    # sat at the top of the model's input and the model still wrote "13 of
-    # 13" — its own earlier replies put "of 13" in that input 55 times. So the
-    # reply's `progress` is WRITTEN, on every turn, from the same function the
-    # injection block delivered, and the structured-response message the NEXT
-    # turn reads is re-rendered with it. What the model wrote is kept in
-    # step_log below.
+    # ── the Belt's progress is the COMPUTED one, in the reply the turn keeps
+    # The model's own count is not trusted, even with the figure in its input:
+    # the reply's `progress` is WRITTEN, on every turn, from the same function
+    # the injection block delivers from (`define_progress`), and the
+    # structured-response message the NEXT turn reads is re-rendered with it.
+    # What the model wrote is kept in step_log below.
     #
     # **From the artifacts AFTER this turn's capture**, not the turn-start
-    # ones the block was composed from: the reply is read after the turn, and
-    # a Belt who just completed position 1 is on step 2. Computed before the
-    # capture, the label lagged one step on every capture turn (dry run 2,
-    # IMPR-2026-134, turn 2: the model wrote "Step 2", the executor "Step 1").
+    # ones the block was composed from: the reply is read after the turn, so a
+    # figure computed before the capture would lag one element on every
+    # capture turn.
     define_step = define_progress(artifacts) if phase == "define" else None
     delivered = (define_progress(prior_artifacts)["label"]
                  if define_step is not None else None)
@@ -3507,7 +3388,7 @@ async def executor(
                  if move == moves.STORE_AND_ADVANCE and plan is not None and goal_read_back(plan) is not None else
                  visuals.for_field(plan.stored_field, {**prior_artifacts, **kept}, confirmed=True)
                  if move == moves.STORE_AND_ADVANCE and plan is not None else None)
-        # DEF-211 (founder note under ADR-0070, 2026-10-22): the element's worked example, drawn on its teaching
+        # DEF-211 (ADR-0070): the element's worked example, drawn on its teaching
         # turn — taught on its own, or by the move that stores the element before it — from the skill's file.
         teach_drawing = (visuals.teach_example(plan.focus_field)
                          if plan is not None and move in (moves.TEACH, moves.STORE_AND_ADVANCE) else None)
@@ -3519,12 +3400,13 @@ async def executor(
                     msg.additional_kwargs[visual[0]] = visual[1]
                     break
 
-    # ── 10.0 — the four blocks and the grader's warning ride on the reply ──
+    # ── the four blocks and the grader's warning ride on the reply ────
     # The route never holds the `CoachingResponse`, only the graph's
     # messages, so this is the one place the blocks can be put where it reads.
-    # After 6.57's write, so `progress` is the computed step. The warning is
-    # the grader's own B5 text whenever its verdict this turn FAILED — the
-    # dict its `after_agent` returns reaches no reader (G-76, G-103).
+    # After the progress write above, so `progress` is the computed figure.
+    # The warning is the grader's own text (`GRADER_WARNING`) whenever its
+    # verdict this turn FAILED and the grader enforces — the dict its
+    # `after_agent` returns reaches no reader (G-76, G-103).
     failed = any(e.get("status") == "failed" for e in grader_log)
     if resend:
         # G-140 — the reply is the resend sentence alone; the step line stays.
@@ -3559,9 +3441,8 @@ async def executor(
         new_messages = _with_code_line(new_messages, reply, UPLOAD_DRAFT_ASK)
     if (plan is not None and move == moves.RESPOND and plan.reason == moves.POINTS_AT_FILE_REASON and plan.focus_field
             and not (state.get("uploads") or []) and not resend and not refused):
-        # G-250 (founder mark on eval E04): it points at a file and none is attached — the reply is written in code:
-        # ask for the file first, or typing. The coach was not told there is no file (live, it thanked the Belt for
-        # an upload and said it cannot read files), so its words are not kept.
+        # G-250: it points at a file and none is attached — the reply is written in code: ask for the file
+        # first, or typing. The coach is not told there is no file, so its words are not kept.
         from backend.core import guard_messages as _names   # an alias: a bare import would make the name local
         from backend.core.prompts import NO_FILE_ATTACHED
         name = _names.element_name(phase, plan.focus_field)
@@ -3571,16 +3452,16 @@ async def executor(
             reply = reply.model_copy(update={"message": no_file})
     if (located_line and move == moves.READ_BACK and pending is not None and not resend and not refused
             and not sample_challenge and not link_challenge):
-        # DEF-211 (founder note under ADR-0078): the located steps, read back in code, for the read-back's Confirm.
+        # DEF-211 (ADR-0078): the located steps, read back in code, for the read-back's Confirm.
         new_messages = _with_code_line(new_messages, reply, located_line)
-    # The PII line (founder ruling 2026-10-12; T87, ADR-0062): when this turn's lookups read values masked
+    # The PII line (T87, ADR-0062): when this turn's lookups read values masked
     # from an upload, the reply says so, in code — the Belt knows what the coach could not see.
     masked = pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)])
     if masked and not resend and not refused:
         from backend.core.prompts import PII_HIDDEN_TURN
         new_messages = _with_code_line(new_messages, reply, PII_HIDDEN_TURN.format(what=pii.described(masked)))
     if reply is not None and not refused and not fell_back and written is None:
-        # G-171 (founder ruling A2) — the coach's message never repeats the example or the question block
+        # G-171 — the coach's message never repeats the example or the question block
         # (a reply written in code is composed once, its ask included).
         shown = next((m.text for m in reversed(new_messages) if isinstance(m, AIMessage)), "")
         single = _without_repeated_blocks(shown, str(reply.example or ""), str(reply.prompt or ""),
@@ -3589,11 +3470,11 @@ async def executor(
             new_messages = _with_text(new_messages, single)
             reply = reply.model_copy(update={"message": single})
     reply = _with_sample_mark(reply)            # C3 (DEF-083)
-    # Founder ruling 2026-10-13: the grader's warning reaches the Belt only in `enforce` mode.
+    # The grader's warning reaches the Belt only in `enforce` mode.
     _attach_blocks(new_messages, reply,
                    GRADER_WARNING if failed and grader_mode.GRADER_MODE == "enforce" else None)
 
-    # ── 6.61 — the move record and the quality feedback ride on the reply ──
+    # ── the move record and the quality feedback ride on the reply ────
     # The next turn's planner reads the record (status, answer, PENDING); the
     # next turn's coach reads the feedback as section 5 of its input — never as
     # a message from the Belt. Attached even when the turn degraded, so a
@@ -3621,7 +3502,7 @@ async def executor(
             "reply was written by code (containment, not a fix).",
             phase, move, "timeout" if timed_out else "content filter" if filtered else level_4 if level_4 else
             "call limit" if limited else "no structured reply" if unfinished else
-            # G-173: a rejected reply named its own cause — it fell to "runaway loop backstop" before.
+            # G-173: a rejected reply names its own cause.
             "a number no source gives (G-173)" if numbers_rejected else "runaway loop backstop")
         if record is not None:
             record["fallback"] = True
@@ -3649,11 +3530,10 @@ async def executor(
     if completion is not None:
         next(m for m in reversed(new_messages) if isinstance(m, AIMessage)).additional_kwargs[COMPLETION_KEY] = completion
 
-    # **The count that used to disagree with the write, reconciled.** This
-    # line logged `len(captured)` — the KEYS the coach named — while the write
-    # filtered on VALUES, so "captured 1 field(s)" and "nothing reached the
-    # gate document" were both true of the same turn (6.33's trap). It now
-    # reports all three numbers, and they add up.
+    # **The counts reconcile with the write**: the KEYS the coach named
+    # (`captured`) against what reached `artifacts`, what was not stored and
+    # what changed — "captured" alone would not say whether anything reached
+    # the gate document.
     logger.info(
         "%s.executor: focus=%s | turn %d | captured %d -> %d field(s) into "
         "artifacts (%d not stored, %d changed), %d new message(s), %d/%d "
@@ -3666,13 +3546,13 @@ async def executor(
     )
     return {
         "messages": new_messages,
-        # T26 / G-85 (DEF-237): what each hop returned, state rather than a node local (state.md §10.1).
+        # T26 / G-85 (DEF-237): what each hop returned, state rather than a node local.
         "hop_results": list(hop_log),
-        # `draft` is what THIS turn stored, `artifacts` the accumulation
-        # (S-F04's Output). Neither field carries a reducer, so the merge
-        # happens here or not at all. **6.61: `kept`, never `captured`** —
-        # the route writes `draft` into the case record, so a value the coach
-        # returned but the Belt has not confirmed must not be in it (§20 v1.75).
+        # `draft` is what THIS turn stored, `artifacts` the accumulation.
+        # Neither field carries a reducer, so the merge happens here or not at
+        # all. **`kept`, never `captured`** — the route writes `draft` into the
+        # case record, so a value the coach returned but the Belt has not
+        # confirmed must not be in it.
         # ADR-0077: a calculation run this turn reaches the record now — it is not a Belt value
         # awaiting confirmation, and the record only keeps what `draft` carries.
         "draft": ({**kept, "computation_results": artifacts.get("computation_results") or []}
@@ -3693,7 +3573,7 @@ async def executor(
         "step_log": [_step(
             phase, turn_count, "executor", rejections=_rejections(state),
             status=_executor_status(hit_cap, off_ramp, timed_out, filtered, level_4),
-            model_attempts=attempts or None,                     # T34 / ADR-0082 (§4.8)
+            model_attempts=attempts or None,                     # T34 / ADR-0082
             unsourced_numbers=unsourced or None,                 # G-173 (ADR-0077)
             rejected_reply=rejected,                             # G-173: what the coach wrote
             numbers_left_out=left_out or None,                   # G-173: the sentences a kept reply lost
@@ -3701,8 +3581,6 @@ async def executor(
             limit=limit_diagnosis,                                 # G-139
             resend=resend,                                         # G-140
             impl="create_agent",
-            # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one grader
-            # pass; the coherence judge is retired, ADR-0083).
             turn_type=turn_type,                                   # ADR-0068
             # G-139 (ADR-0075) — every normalization: the turn, the element, which shape.
             fields_captured_normalized=[{"turn": turn_ordinal, "element": plan.focus_field if plan else None,
@@ -3714,14 +3592,15 @@ async def executor(
                           if routed is not None else None),
             # T87 — personal data redacted in this turn's tool results, by type and count.
             pii_masked=masked,
+            # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one grader pass).
             call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,
                          "coach_limit": coach_limit, "after": min(len(grader_log), 1),
                          "turn": calls_before + coach_calls + min(len(grader_log), 1),
                          "limited": limited},
             tool_model_calls=dict(sorted(tool_model_calls.items())),   # T69: inside tools, by tool
             focus_field=plan.focus_field if plan else None,
-            # 6.61 — the move code chose, the field's status, and what this
-            # turn stored or holds as pending.
+            # The move code chose, the field's status, and what this turn
+            # stored or holds as pending.
             move=plan.move if plan else None,
             field_status=plan.status if plan else None,
             stored_field=plan.stored_field if plan else None,
@@ -3730,18 +3609,18 @@ async def executor(
             pending_value=((record or {}).get("pending") or {}).get("store"),
             fields_not_stored=not_stored,
             fields_captured=sorted(captured),
-            # 6.33 — what the coach named and what the record now holds, in
-            # the audit trail rather than only in a log line. `fields_empty`
-            # is the clause "reported rather than silently dropped" made
-            # queryable: `len(fields_captured)` and `len(fields_empty)` are
-            # what reconcile a turn's log against its write.
+            # What the coach named and what the record now holds, in the audit
+            # trail rather than only in a log line. `fields_empty` is "reported
+            # rather than silently dropped" made queryable: `len(fields_captured)`
+            # and `len(fields_empty)` are what reconcile a turn's log against
+            # its write.
             fields_empty=empty_captures,
-            # 6.48 — named with the type each needed, so the audit trail can
+            # Named with the type each needed, so the audit trail can
             # answer "why is this field still blank on turn nine" without a
             # re-run. `fields_captured` minus `fields_empty` minus this is what
             # actually reached `artifacts`.
             fields_malformed=dict(sorted(malformed.items())),
-            # 6.46 — §22's refusals, by field.
+            # The worked-example refusals, by field.
             fields_example_refused=example_refused,
             fields_changed=sorted(e["field"] for e in log_entries),
             # Re-derived from the SAME function that built the bound list,
@@ -3749,54 +3628,52 @@ async def executor(
             # had. The throwaway counter is never spent — nothing invokes
             # these copies; only `len()` is read.
             tools_bound=len(_executor_tools(phase, hop_budget, None)),
-            # §3.7's cap and §26's off-ramp, both readable in LangSmith.
-            # "Hitting the cap is a monitoring signal" — a signal nobody can
-            # read is not one, and WATCH 26 went four steps undiagnosed partly
-            # because the hop count was never written down.
+            # The hop cap and the off-ramp, both readable in LangSmith. Hitting
+            # the cap is a monitoring signal, and a signal nobody can read is
+            # not one.
             hops_spent=hops_spent[0],
             hop_budget=hop_budget,
-            # §17 option C — what the NODE called, as against what the model
-            # chose. Empty on every turn with no unread routed upload, which
-            # is most of them.
+            # What the NODE called (`_dispatch_routed_read`), as against what
+            # the model chose. Empty on every turn with no unread routed
+            # upload, which is most of them.
             dispatched=[
                 c["name"] for m in dispatched
                 for c in (getattr(m, "tool_calls", None) or [])
             ],
             remaining_steps=remaining or None,
-            # Carried for the audit trail; §19.6's middleware reads it at 6.5.
+            # For the audit trail; `ContradictionDetectionMiddleware` reads the
+            # reply's flag during the turn.
             contradiction_flag=(reply.contradiction_flag.model_dump()
                                 if reply and isinstance(reply.contradiction_flag, BaseModel)
                                 else reply.contradiction_flag if reply else None),
         ), *(
-            # §19.8 / S-C14 B6 — each grading written to `step_log`, which the
-            # grader's `on_evaluation` callback was always meant to reach.
-            # `grader_log` was collected here and read by nothing until 6.52
-            # B2, so a verdict existed only for the length of the turn
-            # (capability row 13). One grading per reply until 6.53; the
-            # iteration goes into the key should 6.53 ever make more.
+            # Each grading the grader's `on_evaluation` sink collected, written
+            # to `step_log`, so a verdict outlives the turn (capability row 13).
+            # One grading per reply; the iteration goes into the key should
+            # there ever be more.
             _step(phase, turn_count,
                   "coaching_grader" if int(e.get("iteration") or 1) == 1
                   else f"coaching_grader:{e['iteration']}", rejections=_rejections(state), **e)
             for e in grader_log
         ),
-            # 6.46 — did this turn's model calls carry the phase script? One
-            # entry per turn, `delivered` false when no call did: a turn
-            # coached without its method is now distinguishable in the record.
-            # 6.61 — the coach's input as it was sent: the six sections, in
-            # order, read off the system message the model received (the skills
-            # middleware sees it last), and the move section's own text.
+            # The coach's input as it was sent: the six sections, in order, read
+            # off the system message the model received (the skills middleware
+            # sees it last), with the move and the field.
             _step(phase, turn_count, "coach_input", rejections=_rejections(state),
                   sections=list((script_log[0] if script_log else {}).get("sections") or []),
                   move=plan.move if plan else None,
                   field=plan.focus_field if plan else None),
+            # Did this turn's model calls carry the phase script? One entry per
+            # turn, `delivered` false when no call did: a turn coached without
+            # its method is distinguishable in the record.
             _step(phase, turn_count, "coaching_script", rejections=_rejections(state),
                   **{k: v for k, v in (script_log[0] if script_log else script_record(phase)).items()
                      if k != "sections"},
                   delivered=bool(script_log), model_calls=len(script_log)),
-            # 6.57 — the step the reply carries (after the capture), the one
-            # the coach was DELIVERED (turn start), and what the model wrote
-            # in `progress`. A model that counted for itself is on the record,
-            # not only on the screen.
+            # The progress the reply carries (after the capture), the one the
+            # coach was DELIVERED (turn start), and what the model wrote in
+            # `progress`. A model that counted for itself is on the record, not
+            # only on the screen.
             *([_step(phase, turn_count, "define_position", rejections=_rejections(state), **define_step,
                      delivered_label=delivered,
                      reply_progress=model_progress,
@@ -3807,14 +3684,12 @@ async def executor(
     }
 
 
-# ── validation_stack ──────────────────────────────────────────────────────
-
 def executor_timeout_handler(phase: str, goto: str = "planner") -> Any:
     """T70 (DEF-078): the executor node's `error_handler=`. LangGraph runs it when the node fails;
     on the engine's `TimeoutPolicy` (`NodeTimeoutError`) it composes the turn with the move's own
     reply, written in code (`_fallback_reply`), through the executor itself — so a timed-out turn
     stores, records and answers exactly as a finished one, marked `partial_timeout` — and routes on
-    to the planner. Any other failure is raised as before. (A closure, not a class: §2.)"""
+    to the planner. Any other failure is raised. (A closure, not a class.)"""
     from langgraph.errors import NodeError, NodeTimeoutError
 
     async def executor_timed_out(state: PhaseState, error: NodeError,
@@ -3831,6 +3706,8 @@ def executor_timeout_handler(phase: str, goto: str = "planner") -> Any:
 
     return executor_timed_out
 
+
+# ── validation_stack ──────────────────────────────────────────────────────
 
 def _criterion_element(criterion: str) -> str:
     """G-194 — the Define element a rubric criterion judges, by its name (the criterion id when unknown)."""
@@ -3856,41 +3733,32 @@ async def validation_stack(
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> Command[Literal["planner", "gate_review"]]:
-    """The three layers (2b–2d), shared cap of 3 (§34). **Layer 2b only.**
+    """The validation layers at the gate, sharing a cap of 3: layer 2b, field
+    presence (deterministic, `validate_{phase}`), then for Define layer 2d, the
+    rubric (`grade_define`) — cheapest first, each firing only if the previous
+    passed. Layer 2c (constraints) does not run here. **Layer 2a is gone** — the
+    coherence judge on `after_agent` is retired (ADR-0083); this node runs
+    once, at the gate.
 
-    Stage 7 fills it: layer 2b field presence (deterministic), 2c constraints,
-    2d `PHASE_RUBRIC` — cheapest first, each firing only if the previous passed.
-    **Layer 2a is gone** — the coherence judge on `after_agent` is retired
-    (ADR-0083); this node runs once, at the gate.
+    **It runs the validators only on a gate submission.** A coaching turn walks
+    through here on its way out and must NOT be validated: a failed validation
+    counts a gate attempt, so validating every coaching turn would burn the
+    shared cap of 3 in three turns and escalate a Belt who is simply still
+    typing. It is worth stating because the node is on the path either way.
 
-    **It runs the validator only when the planner asked for the gate.** A
-    coaching turn walks through here on its way out (`next_action == "close"`)
-    and must NOT be validated: `validate_{phase}` increments `gate_attempts` on
-    failure, so validating every coaching turn would burn the shared cap of 3 in
-    three turns and escalate a Belt who is simply still typing. That is the §34
-    cap firing on the wrong event, and it is worth stating because the node is
-    on the path either way.
-
-    On the gate path this delegates to the v1 `validate_{phase}` — the same
-    WATCH 7 seam the executor uses, and the same ruling: `validate.py` is
-    carried unchanged and the verdict is the one `/gate` returns today, on the
-    same inputs. **All five gates stay inert**; nothing here makes them less so.
-
-    `gate_attempts` is owned by `validate_{phase}` for the duration of the seam
-    and is carried back onto `PhaseState` — where §6 says it belongs, and the
-    fix for the v1 defect of holding it in route scope.
+    Layer 2b calls `validate_{phase}` on the v1 `ImproveGraphState` that
+    `to_v1_state` builds. `gate_attempts` lives on `PhaseState` and is carried
+    across turns by the phase record: a pass resets it, a resubmission that
+    changed nothing (`submission_fingerprint`) keeps it, and the third counted
+    failure escalates.
     """
     turn_count = state.get("turn_count") or 0
     entry = entry_mode(config)
 
-    # **Reads the per-run intent, not the plan** — changed at step 6.1.
-    # It used to test `coaching_plan["next_action"] != "gate"`, which worked
-    # only because 4.4's stub put the ROUTING verb in that key. S-C04 makes
-    # `next_action` the coaching move — "ask, challenge, show an example, run a
-    # computation" — so a gate submission cannot be spelled there any more, and
-    # the planner no longer produces a plan on this path at all. `entry_mode`
-    # is the same source the planner routes from, which is what keeps the two
-    # nodes from disagreeing about what kind of turn this is.
+    # **Reads the per-run intent, not the plan.** The plan carries the coaching
+    # move, never a routing verb, and the planner produces no plan on this
+    # path. `entry_mode` is the same source the planner routes from, which is
+    # what keeps the two nodes from disagreeing about what kind of turn this is.
     if entry != "gate":
         logger.info("%s.validation_stack: pass-through (coaching turn)", phase)
         return Command(
@@ -3923,7 +3791,7 @@ async def validation_stack(
         "escalated": escalated,
     }]
     # ── Layer 2d — the R7 rubric, Define only, and only on a 2b pass ──────
-    # (cheapest first, §9.2). One verdict per element, pass/fail with the
+    # (cheapest first). One verdict per element, pass/fail with the
     # reason; a failure never reaches `gate_review`'s pause — the report goes
     # back to coaching with the failed criteria named. Shares the cap of 3.
     kept_status: Optional[dict[str, dict[str, Any]]] = None
@@ -3952,7 +3820,7 @@ async def validation_stack(
         })
         logger.info("%s.validation_stack: layer 2d %s (%d of %d criteria failed)%s", phase,
                     "PASSED" if passed else "FAILED", len(failed), len(verdict.verdicts),
-                    # G-194 (finding 75): which criterion, on which element, and why — never a count alone.
+                    # G-194: which criterion, on which element, and why — never a count alone.
                     "".join(f"; {f['criterion']} on {_criterion_element(f['criterion'])}: {f['feedback']}"
                             for f in failed))
     # ADR-0076 (T65, G-150): the count is the phase record's, carried across turns; a pass resets it,
@@ -3974,8 +3842,8 @@ async def validation_stack(
         update={
             "gate_attempts": attempts,
             "gate_fingerprint": fingerprint,
-            # Accumulation is the point (§6): the shared cap of 3 is defensible
-            # only because each attempt is better informed than the last.
+            # This submission's layer verdicts. The field carries no reducer, so
+            # they replace the previous submission's; `gate_apply` clears them.
             "validator_feedback": feedback,
             "step_log": [_step(
                 phase, turn_count, "validation_stack", rejections=_rejections(state),
@@ -3989,8 +3857,8 @@ async def validation_stack(
 
 # ── gate_review ───────────────────────────────────────────────────────────
 
-#: R6 (docs/requirements/business.md, 2026-09-26) — the Belt's decision on the
-#: Define report, delivered by `Command(resume=...)` to the pause below.
+#: R6 (docs/requirements/business.md) — the Belt's decision on the Define
+#: report, delivered by `Command(resume=...)` to the pause below.
 APPROVE, REJECT = "approve", "reject"
 
 
@@ -4023,7 +3891,7 @@ async def gate_review(phase: str, state: PhaseState) -> dict[str, Any]:
 
     **R6: formal acceptance, human in the loop.** When the Define gate has
     passed validation this calls `interrupt()` — a graph-level pause, never
-    `HumanInTheLoopMiddleware` (two confirmed bugs on this use case, §19). The
+    `HumanInTheLoopMiddleware` (two confirmed bugs on this use case). The
     parent graph carries the checkpointer, so the pause is persisted (the
     interrupt and the resume are PENDING WRITES, `AzureBlobCheckpointSaver.
     put_writes`) and survives between the two requests: `POST /gate` pauses
@@ -4036,7 +3904,7 @@ async def gate_review(phase: str, state: PhaseState) -> dict[str, Any]:
     to `step_log`, where `gate_apply` reads it.
 
     Every other turn, and every other phase until its report exists, passes
-    through as before.
+    through.
     """
     turn = state.get("turn_count") or 0
     passage = _gate_passage(phase, state)
@@ -4070,13 +3938,13 @@ async def gate_apply(
 ) -> Command[Literal["planner", "__end__"]]:
     """Apply the Belt's decision on the Define report, and route on (R6).
 
-    **`policy_advisory` is logic here, not a node** — a BANNED node name (§13).
+    **`policy_advisory` is a BANNED node name**: any advisory belongs in this
+    node's logic, never in a node of its own.
 
     APPROVE -> `final` = the gate document, assembled deterministically from
-    the confirmed values (§33, no model call); `gate_attempts` and
-    `validator_feedback` reset here and only here; END. The case blob write and
-    the phase advance stay the route's, after the resumed graph returns (the
-    write moved nowhere — discrepancy D22, recorded for §33.2).
+    the confirmed values (no model call); `gate_attempts` and
+    `validator_feedback` reset; END. The case blob write and the phase advance
+    stay the route's, after the resumed graph returns.
 
     REJECT -> the element(s) the team named are RE-OPENED: status back to
     `asked`, the Belt's current words kept as the answer so far, and the
@@ -4098,8 +3966,8 @@ async def gate_apply(
         )
     artifacts = dict(state.get("artifacts") or {})
     if decision["decision"] == APPROVE:
-        # G-242 (audit A1/W1, founder wave 1 item 1): a gate document that cannot be assembled RAISES — never an
-        # empty `final`, which the approval node would write over the case record's values and advance on.
+        # G-242: a gate document that cannot be assembled RAISES — never an empty `final`, which the approval
+        # node would write over the case record's values and advance on.
         final: dict[str, Any] = GATE_SPECS[phase].assemble(
             artifacts, list(state.get("citations") or []),
             list(state.get("uploads") or []), []).model_dump()
@@ -4110,7 +3978,7 @@ async def gate_apply(
                     "step_log": [_step(phase, turn, "gate_apply", status="approved", rejections=_rejections(state),
                                        actor=decision["actor"], at=decision["at"])]},
         )
-    from backend.phases.define.templates import plain        # G-260 (audit H2)
+    from backend.phases.define.templates import plain        # G-260
     elements = [e for e in decision["elements"] if e in DEFINE_FIELD_ORDER]
     field_status = {f: dict(v) for f, v in (state.get("field_status") or {}).items()}
     for element in elements:

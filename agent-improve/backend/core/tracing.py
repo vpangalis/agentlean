@@ -1,12 +1,12 @@
 """
 LangSmith tracing initialisation for Agent Improve.
 
-Per CLAUDE.md §1.8 and §9, LangSmith tracing is mandatory.
+LangSmith tracing is mandatory (CLAUDE.md).
 This module sets up the required environment variables at app
 startup. Without valid LangSmith credentials, the app fails
 startup in production environments.
 
-Module-level functions only (no classes) per CLAUDE.md §2.
+Module-level functions only (no classes), per CLAUDE.md.
 """
 
 from __future__ import annotations
@@ -85,19 +85,17 @@ def tracing_enabled() -> bool:
 # ── child-only spans — gap G-95 ──────────────────────────────────────────
 #
 # A `@traceable` span with no enclosing run STARTS A TRACE OF ITS OWN, and
-# every trace counts against LangSmith's monthly unique-traces quota. Step
-# 8.0's executor slice (a2067db) put spans on functions that also run with no
-# turn around them — unit tests, the 6.54 startup warm-up — and on 2026-09-24
-# that produced ~4,070 standalone root traces (4,897 with the tests' graph
-# runs, against 19 the day before) and the quota ran out: every trace since,
-# real Belt turns included, is refused with 429.
+# every trace counts against LangSmith's monthly unique-traces quota. A span on
+# a function that also runs with no turn around it — a unit test, the startup
+# warm-up — would start a root trace each time, and once the quota is spent
+# every trace, real Belt turns included, is refused with 429.
 #
 # These wrappers record ONLY inside an already-traced turn. The test is
 # `get_current_run_tree()` — "Access the current run (span) within a traced
 # function", https://docs.langchain.com/langsmith/access-current-span — which
 # the installed SDK (langsmith 0.7.3) reads from a context variable whose
-# default is None. Measured, not assumed: it is set inside LangGraph nodes,
-# sync and async, and inside `asyncio.to_thread`; it is None outside any run.
+# default is None. It is set inside LangGraph nodes, sync and async, and inside
+# `asyncio.to_thread`; it is None outside any run.
 _F = TypeVar("_F", bound=Callable[..., Any])
 _NO_SPAN = SimpleNamespace(end=lambda **_: None)
 

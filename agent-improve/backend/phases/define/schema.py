@@ -1,27 +1,22 @@
 """Define phase gate document.
 
-ARCHITECTURE.md §39.1 · §40 · §63.1 (S-C27) · CLAUDE.md §10.7, §10.8, §2.
-
-**This file is one third of an atomic unit** (§56.1). `schema.py` owns the field
-names, types and shape; `validate.py` owns which of them block the gate; and
-`skills/dmaic-define-phase/SKILL.md` coaches those exact names in the §39.1.2
-order. **They are rebuilt together or not at all.** A mismatch does not fail
-loudly — capture writes `artifacts["x"]`, `DefineOutput(**artifacts)` has no
-`x`, and the gate raises on a Belt who has done nothing wrong, one phase later.
+**This file is one third of a unit that changes together.** `schema.py` owns the
+field names, types and shape; `validate.py` owns which of them block the gate;
+and `skills/dmaic-define-phase/SKILL.md` coaches those exact names in the coached
+order. A mismatch does not fail loudly — capture writes `artifacts["x"]`,
+`DefineOutput(**artifacts)` has no `x`, and the gate raises on a Belt who has
+done nothing wrong, one phase later.
 
 **Define has THIRTEEN elements, all gate-required, with no Tier 1 / Tier 2
-split** — the founder's requirement R4 (`docs/requirements/business.md`,
-2026-09-26) added the benefits analysis to the twelve of Option A (ratified
-2026-08-26). Two consequences follow and both are load-bearing:
-`DEFINE_REQUIRED_FOR_GATE` is the whole coached list plus the fields captured
-inside a position, and **there is no `acknowledged_gaps` path out of Define**
-because no field is skippable.
+split** (R4, which includes the benefits analysis). Two consequences follow and
+both are load-bearing: `DEFINE_REQUIRED_FOR_GATE_FIELDS` is the whole coached
+list plus the fields captured inside a position, and **there is no
+`acknowledged_gaps` path out of Define** because no field is skippable.
 
-**Declaration order IS the coached order** (§39.1.2). With no tiers to group by,
-the schema order and the `field_index` sequence are one list rather than two.
+**Declaration order IS the coached order.** With no tiers to group by, the
+schema order and the `field_index` sequence are one list rather than two.
 
-Classes live here by §2 — `phases/{phase}/schema.py` is one of the named files
-where Pydantic models are permitted.
+`phases/{phase}/schema.py` is one of the files where Pydantic models are allowed.
 """
 from __future__ import annotations
 
@@ -30,10 +25,11 @@ from typing import Any, Literal, Mapping, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 # ── The 13 elements that BLOCK the gate — all of them ──────────────────
-# R4 (founder, 2026-09-26): the twelve of Option A plus the benefits analysis.
+# R4: thirteen elements, the benefits analysis among them.
 # Every Define element is gate-required, so this list is also
 # `DEFINE_FIELD_ORDER` below. Layer 2b checks presence deterministically — no
-# LLM. `validate.py` imports this list; it is not duplicated there.
+# LLM. `validate.py` imports `DEFINE_REQUIRED_FOR_GATE_FIELDS` (this list plus
+# the fields captured inside a position); neither is duplicated there.
 #
 # Ordered as coached. A field's position here is its `field_index`.
 DEFINE_REQUIRED_FIELDS: tuple[str, ...] = (
@@ -53,7 +49,7 @@ DEFINE_REQUIRED_FIELDS: tuple[str, ...] = (
 )
 
 # The order the coach walks and the planner indexes with `field_index`
-# (§39.1.2 — this list closed G-38). It is the same list as
+# (G-38). It is the same list as
 # DEFINE_REQUIRED_FIELDS: nothing is coached that does not block the gate, and
 # nothing blocks the gate that is not coached.
 #
@@ -63,7 +59,7 @@ DEFINE_FIELD_ORDER: tuple[str, ...] = DEFINE_REQUIRED_FIELDS
 
 # Three gate-required fields are captured INSIDE a coached position rather than
 # at their own, because the Belt answers both halves in one exchange:
-#   metric_definitions   the METRIC REGISTRY (§63.8, S-C38), inside position 5 —
+#   metric_definitions   the METRIC REGISTRY, inside position 5 —
 #                        "what are we measuring, in what units" and "what is it
 #                        at today" are one exchange. The PRIMARY metric is the
 #                        first entry (R7: exactly one primary).
@@ -75,17 +71,16 @@ DEFINE_REQUIRED_FOR_GATE_FIELDS: tuple[str, ...] = DEFINE_REQUIRED_FIELDS + (
     "metric_definitions", "critical_to_quality", "problem_5w2h",
 )
 
-# ── Step 6.57 — the Belt's position, COMPUTED ────────────────────────────
+# ── The Belt's position and progress, COMPUTED ──────────────────────────
 #
-# **"Step n of 13" is this function's answer, never the model's count.** On
-# 2026-09-24 every coached turn on 0E5 wrote a count off the gate list, the only
-# count the coach was ever given. The walk has THIRTEEN positions (R4); the
-# three fields captured inside a position (above) make positions 3, 4 and 5
-# complete only when both halves are in.
+# **Where the Belt is and how far they have come are computed here, never
+# counted by the model.** The walk has THIRTEEN positions (R4); the three fields
+# captured inside a position (above) make positions 3, 4 and 5 complete only
+# when both halves are in.
 #
-# ONE function for every reader: the state-injection block delivers it, the
-# executor records it, `field_index` is it minus one, and step 10.3's progress
-# bar must call it rather than count again.
+# ONE function for every reader: the state-injection block delivers
+# `define_progress`, the executor records it, `field_index` is its position
+# minus one, and the progress bar reads it rather than counting again.
 DEFINE_POSITIONS: int = len(DEFINE_FIELD_ORDER)
 
 #: Fields captured INSIDE a coached position rather than at their own.
@@ -112,15 +107,15 @@ class MetricValue(BaseModel):
 
 
 def _is_captured(artifacts: Mapping[str, Any], field: str) -> bool:
-    """`artifacts` carries `str` or structure (§7); blank is not an answer."""
+    """`artifacts` carries `str` or structure; blank is not an answer."""
     return bool(str(artifacts.get(field) or "").strip())
 
 
 def define_position(artifacts: Mapping[str, Any]) -> int:
     """The Define position being coached, 1..13: the first not yet complete.
 
-    Once every position is complete it rests on 12 rather than running off
-    the end — there is no thirteenth step to point at.
+    Once every position is complete it rests on the last, 13, rather than
+    running off the end — there is no fourteenth position to point at.
     """
     for position, field in enumerate(DEFINE_FIELD_ORDER, start=1):
         if not all(_is_captured(artifacts, f)
@@ -131,8 +126,8 @@ def define_position(artifacts: Mapping[str, Any]) -> int:
 
 def define_progress(artifacts: Mapping[str, Any]) -> dict[str, Any]:
     """The position (the first element not complete) and its field, and THE progress figure the Belt is shown —
-    how many of the thirteen are confirmed: the reply, the bar and the project status read this one count (G-259,
-    audit D8; founder finding 45)."""
+    how many of the thirteen are confirmed: the reply, the bar and the project status read this one count
+    (G-259)."""
     position = define_position(artifacts)
     done = sum(1 for field in DEFINE_FIELD_ORDER
                if all(_is_captured(artifacts, f) for f in (field, *_CAPTURED_INSIDE.get(field, ()))))
@@ -141,11 +136,11 @@ def define_progress(artifacts: Mapping[str, Any]) -> dict[str, Any]:
             "label": f"Define · {done} of {DEFINE_POSITIONS} confirmed"}
 
 
-# Keys on each `metric_definitions` entry (§63.8). `name` is the traceability
+# Keys on each `metric_definitions` entry. `name` is the traceability
 # key — written identically in every phase, and the thing the grader matches on.
 METRIC_DEFINITION_KEYS: tuple[str, ...] = ("name", "unit", "meaning")
 
-#: G-252 (founder ruling 2026-10-23, item 2a): the earlier values each element's coaching reads in full; every other
+#: G-252: the earlier values each element's coaching reads in full; every other
 #: confirmed value reaches the coach as one line written in code. The element's own fields are always sent whole.
 ELEMENT_READS: dict[str, tuple[str, ...]] = {
     "voc_summary": ("business_case",),
@@ -161,12 +156,12 @@ ELEMENT_READS: dict[str, tuple[str, ...]] = {
     "issues_and_barriers": ("project_scope", "team"),
 }
 
-# Keys on each `phase_metrics` entry (§63.9). `name` MUST equal a registry
+# Keys on each `phase_metrics` entry. `name` MUST equal a registry
 # `name`; the remaining keys are whatever state the phase produced.
 PHASE_METRIC_REQUIRED_KEYS: tuple[str, ...] = ("name",)
 
 # The six SIPOC keys. Fewer than six filled is the partial-map failure the
-# field exists to catch (§41): a Belt who maps steps 3-5 of a seven-step
+# field exists to catch: a Belt who maps steps 3-5 of a seven-step
 # process produces a project that cannot show improvement, because the
 # baseline never covered the whole thing.
 SIPOC_KEYS: tuple[str, ...] = (
@@ -175,10 +170,10 @@ SIPOC_KEYS: tuple[str, ...] = (
 )
 
 # Both scope halves are required. What the project is deliberately NOT doing
-# is what protects it from ballooning (§39.1.2 B4).
+# is what protects it from ballooning.
 PROJECT_SCOPE_KEYS: tuple[str, ...] = ("in_scope", "out_scope")
 
-# Each team entry carries all three (§39.1.4).
+# Each team entry carries all three.
 TEAM_MEMBER_KEYS: tuple[str, ...] = ("name", "role", "function")
 
 # R4 — each CTQ turns a customer need into a measurable requirement (p. 31, 82).
@@ -207,11 +202,11 @@ class DefineOutput(BaseModel):
     is `DefineOutput.model_fields`'s; this docstring does not own it.
 
     Assembled ONCE, at `gate_apply`, by Pydantic construction over values
-    already captured — **there is no LLM call in this path** (§20, §33). Every
-    one of the 12 is read `artifacts["field"]` so a missing one raises: Layer 2b
+    already captured — **there is no LLM call in this path**. Every gate-required
+    field is read `artifacts["field"]` so a missing one raises: Layer 2b
     should have blocked the gate, and reaching assembly without the field is a
     bug that must surface loudly. **Define never uses the Tier 2
-    `.get(..., "")` pattern** — it has no Tier 2 fields (§40.1, S-F28).
+    `.get(..., "")` pattern** — it has no Tier 2 fields.
 
     **The measurement thread — do not "simplify" these away.** `baseline_estimate`,
     `target_value` and `target_date` are discrete fields on purpose, not
@@ -220,7 +215,7 @@ class DefineOutput(BaseModel):
     **Control extracts to compute target-vs-actual**. Folded into prose, they
     would leave Control with nothing to compare. This mirrors the three-phase
     KPI thread `process_map_sipoc["process_metrics"]` ->
-    `detailed_process_map["baseline_metrics"]` -> `post_improvement_metrics` (§39).
+    `detailed_process_map["baseline_metrics"]` -> `post_improvement_metrics`.
     """
 
     # ── The 13 gate-required elements, in coached order (R4) ──────────
@@ -236,8 +231,8 @@ class DefineOutput(BaseModel):
         description=(
             "Project team. Each entry {name, role, function}, plus every "
             "other column given (training, time on the project) under its "
-            "own key. Roles per "
-            "§39.1.4: Project Leader, Sponsor/Champion, Process Owner, Team "
+            "own key. Roles: "
+            "Project Leader, Sponsor/Champion, Process Owner, Team "
             "Members. Coached early because the people must exist before the "
             "work."
         ),
@@ -254,8 +249,8 @@ class DefineOutput(BaseModel):
         ...,
         description=(
             "ONE SMART statement, composed by the coach from the Belt's own "
-            "5W2H answers and confirmed by the Belt before storage (§39.1.3). "
-            "The 5W2H are coaching prompts, never stored fields."
+            "5W2H answers and confirmed by the Belt before storage. The "
+            "seven answers are `problem_5w2h`, captured in the same exchange."
         ),
     )
     baseline_estimate: MetricValue = Field(
@@ -290,7 +285,7 @@ class DefineOutput(BaseModel):
             "`baseline_estimate`, with its direction (at most / at least / "
             "exactly) — a MetricValue (ADR-0071). Control compares the achieved "
             "value against it. NOT redundant with `goal_statement`: that is "
-            "prose, this is the comparable value (§39.1.2, the measurement thread)."
+            "prose, this is the comparable value (the measurement thread)."
         ),
     )
     target_date: str = Field(
@@ -317,7 +312,7 @@ class DefineOutput(BaseModel):
         ...,
         description=(
             "What could get worse — the side-effect watch. On all five schemas "
-            "alongside `issues_and_barriers` (§40); gate-required in Define."
+            "alongside `issues_and_barriers`; gate-required in Define."
         ),
     )
     process_map_sipoc: dict = Field(
@@ -325,13 +320,13 @@ class DefineOutput(BaseModel):
         description=(
             "SIPOC with six keys: suppliers, inputs, process_steps, outputs, "
             "customers, process_metrics. `process_metrics` carries WHAT is measured "
-            "— the first link of the three-phase measurement thread (§39)."
+            "— the first link of the three-phase measurement thread."
         ),
     )
     issues_and_barriers: str = Field(
         ...,
         description=(
-            "Belt-stated blockers. Gate-required in every phase (§40). 'none "
+            "Belt-stated blockers. Gate-required in every phase. 'none "
             "identified at this stage' is a valid conscious answer; silence "
             "is not."
         ),
@@ -355,7 +350,7 @@ class DefineOutput(BaseModel):
         ),
     )
 
-    # ── The metric registry — Define owns it (§63.8, S-C38) ──────────
+    # ── The metric registry — Define owns it ──────────────────────────
     metric_definitions: list[dict] = Field(
         ...,
         description=(
@@ -368,7 +363,7 @@ class DefineOutput(BaseModel):
         ),
     )
 
-    # ── phase_metrics — on all five schemas (§40, §63.9, S-C39) ───────
+    # ── phase_metrics — on all five schemas ───────────────────────────
     phase_metrics: list[dict] = Field(
         default_factory=list,
         description=(
@@ -377,16 +372,16 @@ class DefineOutput(BaseModel):
             "records the stated starting point and target: "
             "{name, unit, baseline_estimate, target_value, source: 'stated'}. "
             "A phase touching no metric writes 'none this phase' — never a "
-            "silent gap (§40)."
+            "silent gap."
         ),
     )
 
-    # ── Gate metadata — same four on all five schemas (§40) ───────────
+    # ── Gate metadata — same four on all five schemas ─────────────────
     computation_results: list[dict] = Field(default_factory=list)
     acknowledged_gaps: list[str] = Field(
         default_factory=list,
         description=(
-            "Kept for cross-schema uniformity (§40) and ALWAYS EMPTY for "
+            "Kept for cross-schema uniformity and ALWAYS EMPTY for "
             "Define: under Option A no field is skippable, so nothing can be "
             "acknowledged as skipped."
         ),
@@ -401,74 +396,65 @@ from backend.phases.gate_assembly import (  # noqa: E402
 )
 
 
-#: What Define states about a metric, as against what Measure measures (§63.9).
+#: What Define states about a metric, as against what Measure measures.
 #: Written into every entry rather than inferred, because a later phase reading
 #: the trail has to know which kind of number it is looking at.
 DEFINE_METRIC_SOURCE = "stated"
 
-#: What a registry metric this phase did not address writes into its scalars.
-#: **Founder ruling 2026-09-23**, matching Analyse (§39.3.3) and Improve
-#: (§39.4.3), which both write it into the content key of an entry they carry
-#: but did not act on. **Two conventions for one fact would be read by one
-#: grader**, so Define does not invent a third — an empty string would have
-#: been that third, and §63.9's *"never a silent absence"* is the rule both
-#: existing phases already follow.
+#: What a registry metric this phase did not address writes into its scalars —
+#: the marker Analyse and Improve also write into the content key of an entry
+#: they carry but did not act on. One grader reads all three phases, so there is
+#: one convention for this fact; an empty string would be a second one, and a
+#: silent absence.
 #:
-#: **Distinct from `"none this phase"`** (§63.9 B2), which replaces the WHOLE
-#: list when a phase engaged no metric at all. This marks ONE entry inside a
-#: list the phase does carry, which is why the keyed trail stays unbroken.
+#: **Distinct from `"none this phase"`**, which replaces the WHOLE list when a
+#: phase engaged no metric at all. This marks ONE entry inside a list the phase
+#: does carry, which is why the keyed trail stays unbroken.
 NOT_ADDRESSED = "not addressed this phase"
 
 
 def _mirror(value: Any) -> Any:
     """The scalar as the primary entry mirrors it: a MetricValue dict as it is (ADR-0071), else
-    its text (§63.9 B5)."""
+    its text."""
     return dict(value) if isinstance(value, dict) else str(value or "")
 
 
 def define_phase_metrics(artifacts: dict) -> list[dict]:
     """Define's `phase_metrics`, DERIVED from what the Belt already stated.
 
-    **§39.1.9 — one entry per registry metric, assembled deterministically
-    immediately before the `{Phase}Output` is constructed, with no model call.**
-    Five keys: `name` and `unit` verbatim from `metric_definitions` (§63.8 B2 —
-    the registry name is a matching KEY, not prose), `baseline_estimate` and
-    `target_value` from the captured fields of the same names, and
-    `source: "stated"`, because Define states rather than measures.
+    **One entry per registry metric, assembled deterministically immediately
+    before the `DefineOutput` is constructed, with no model call.** Five keys:
+    `name` and `unit` verbatim from `metric_definitions` (the registry name is a
+    matching KEY, not prose), `baseline_estimate` and `target_value` from the
+    captured fields of the same names, and `source: "stated"`, because Define
+    states rather than measures.
 
-    **THE SINGLE-AUTHORITY INVARIANT NOW HOLDS BY CONSTRUCTION, AND THAT IS THE
-    POINT RATHER THAN A SIDE EFFECT.** S-F28 B2 exists because two stores of one
-    number drift invisibly. Deriving the entry from the scalars removes the
-    second author instead of detecting it: there is no value here that anything
-    else authored. **For Define the invariant becomes a tautology** — it still
-    guards Measure and Control, whose entries are captured rather than derived,
-    and a Define-specific drift test would now be testing something that cannot
-    happen. Said out loud so nobody writes that test and reads its green as
-    evidence.
+    **The single-authority invariant holds by construction, and that is the
+    point.** It exists because two stores of one number drift invisibly.
+    Deriving the entry from the scalars removes the second author instead of
+    detecting it: there is no value here that anything else authored. **For
+    Define the invariant is a tautology** — it still guards Measure and Control,
+    whose entries are captured rather than derived — so a Define-specific drift
+    test would test something that cannot happen; its green is not evidence.
 
     **The FIRST emitted entry is the primary**, because `core.metrics.primary_entry`
     defines the primary as the first entry carrying a name, and it is the only
     one the invariant mirrors. Define captures ONE `baseline_estimate` and ONE
-    `target_value` (§39.1.2), so only the first entry can carry them; any further
+    `target_value`, so only the first entry can carry them; any further
     registry metric gets its `name` and `unit` with both scalars set to
-    **`"not addressed this phase"`** — the marker Analyse (§39.3.3) and Improve
-    (§39.4.3) already write into an entry they carry but did not act on.
-    **Founder ruling 2026-09-23**: an empty string would have been a third
-    convention for one fact, and one grader reads all three phases.
+    **`"not addressed this phase"`** (`NOT_ADDRESSED`).
 
-    **`"none this phase"` is NOT written here and the branch is deliberately
-    absent.** §63.9 B2 offers it to a phase that engaged no metric; Define's
-    `baseline_estimate` and `target_value` are both gate-required (§39.1.2,
-    Option A), so a Define gate that reaches assembly has always engaged one. A
-    branch that cannot fire is the unfireable-check class this project keeps
-    paying for — so if the registry is empty, this returns `[]` and S-F28 B3
-    raises with the message it already has: *the value cannot be traced to a
-    registry metric*. That is the correct outcome, not a gap.
+    **`"none this phase"` is NOT written here, deliberately.** It is for a phase
+    that engaged no metric; Define's `baseline_estimate` and `target_value` are
+    both gate-required, so a Define gate that reaches assembly has always engaged
+    one, and the branch could never fire. If the registry is empty this returns
+    `[]` and `assert_single_authority` raises with its own message: *the value
+    cannot be traced to a registry metric*. That is the correct outcome, not a gap.
 
-    Scalars are coerced with `str` per §63.9 B5 — the dict is §7's exception,
-    its values are not. **ADR-0071 (DEF-076): the primary's `baseline_estimate`
-    and `target_value` are the MetricValue dicts themselves**, the same objects
-    the scalars hold, so the mirror stays equal by construction.
+    A scalar that is not a MetricValue dict is coerced with `str` (`_mirror`).
+    **ADR-0071 (DEF-076): the primary's `baseline_estimate` and `target_value`
+    are the MetricValue dicts themselves**, the same objects the scalars hold,
+    so the mirror stays equal by construction.
     """
     registry = artifacts.get("metric_definitions") or []
     if not isinstance(registry, list):
@@ -480,7 +466,7 @@ def define_phase_metrics(artifacts: dict) -> list[dict]:
             continue
         name = str(metric.get("name") or "").strip()
         if not name:
-            continue                    # §63.8 B1 — an unnamed metric is not a key
+            continue                    # an unnamed metric is not a key
         primary = not entries
         entries.append({
             "name": name,
@@ -502,28 +488,26 @@ def assemble_define_gate_document(
     uploads: list[dict],
     acknowledged_gaps: list[str] | None = None,
 ) -> DefineOutput:
-    """Construct Define's gate document from captured values (S-F28).
+    """Construct Define's gate document from captured values.
 
-    **Define is the one phase with no Tier 2** (Option A, §39.1.2), so every
-    content field is a direct `artifacts[...]` access and the
-    `.get(..., "")` pattern never appears here. Sixteen direct accesses: the
-    thirteen coached elements plus the three fields captured inside a
-    position, which are gate-required and therefore read the same way.
+    **Define is the one phase with no Tier 2**, so every content field is a
+    direct `artifacts[...]` access (`tier_1`) and the `.get(..., "")` pattern
+    never appears here. Sixteen direct accesses: the thirteen coached elements
+    plus the three fields captured inside a position, which are gate-required
+    and therefore read the same way.
 
-    `phase_metrics` is the ONE `.get()` in this assembly and it is **not** a
-    Tier 2 access — it defaults to `[]` because a phase may legitimately engage
-    no metric, in which case §63.9 B2 requires `"none this phase"` to be
-    written into it rather than the field being absent.
+    `phase_metrics` is derived here (`define_phase_metrics`), never read from
+    `artifacts`. The one `.get()` is `computation_results`, gate metadata that
+    defaults to `[]`.
 
     `acknowledged_gaps` is **always empty for Define**: nothing is skippable,
     so nothing can be acknowledged as skipped. It stays on the schema for
-    cross-schema uniformity (§40).
+    cross-schema uniformity.
     """
-    # §39.1.9 — derived HERE, immediately before construction, and folded into
-    # the artifacts the invariants run against. `build_gate_document` calls
-    # `assert_single_authority(phase, artifacts)` (S-F28 B1), so an entry that
-    # existed only in `values` would be invisible to the check it exists to
-    # satisfy.
+    # Derived HERE, immediately before construction, and folded into the
+    # artifacts the invariants run against. `build_gate_document` calls
+    # `assert_single_authority(phase, artifacts)`, so an entry that existed
+    # only in `values` would be invisible to the check it exists to satisfy.
     phase_metrics = define_phase_metrics(artifacts)
     artifacts = {**artifacts, "phase_metrics": phase_metrics}
 
@@ -546,12 +530,11 @@ def assemble_define_gate_document(
         "critical_to_quality": tier_1(artifacts, "critical_to_quality"),
         "problem_5w2h": tier_1(artifacts, "problem_5w2h"),
         "metric_definitions": tier_1(artifacts, "metric_definitions"),
-        # On all five schemas (§63.9). DERIVED, never read back out of
-        # `artifacts`: §39.1.9 makes this assembly the single author, so a
-        # `phase_metrics` that arrived some other way is overridden rather
-        # than trusted.
+        # On all five schemas. DERIVED, never read back out of `artifacts`:
+        # this assembly is its single author, so a `phase_metrics` that
+        # arrived some other way is overridden rather than trusted.
         "phase_metrics": phase_metrics,
-        # Gate metadata (§40)
+        # Gate metadata
         "computation_results": artifacts.get("computation_results", []),
         "acknowledged_gaps": list(acknowledged_gaps or []),
         "citations": citations,

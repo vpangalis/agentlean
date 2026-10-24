@@ -1,7 +1,4 @@
-"""`DMAICGraderMiddleware` — position 8 — procedure step 6.5.
-
-Canonical: **§61.5 — S-C14**. Architecture **§19.8**, **§36** (the rubric and
-the two-grader distinction), §21, §11.
+"""`DMAICGraderMiddleware` — middleware position 8.
 
 THERE ARE TWO GRADERS AND CONFUSING THEM IS A VIOLATION
 --------------------------------------------------------
@@ -13,36 +10,35 @@ THERE ARE TWO GRADERS AND CONFUSING THEM IS A VIOLATION
 | Grades | the coach's **process** | the **gate document** |
 | Sees | one response | the complete field set |
 
-**Never point this at a phase rubric** (B1). They are not redundant: this
+**Never point this at a phase rubric.** They are not redundant: this
 catches a coach accepting "poor morale" as a root cause before the Belt sees it;
 2d catches four fields that each look sound while referencing different metrics.
 
 WHAT IT RETURNS, AND WHAT IT KEEPS TO ITSELF
 ---------------------------------------------
-**B3: per criterion, never an overall score. B4: feedback specific, never "try
+**Per criterion, never an overall score; feedback specific, never "try
 again"** — a coach handed an aggregate has nothing to act on.
 
-**B7: iteration count, accumulated evaluations and attempt tracking stay
+**Iteration count, accumulated evaluations and attempt tracking stay
 PRIVATE to this middleware and never reach `PhaseState` or `SupervisorState`.**
 They are instance attributes here for exactly that reason; what leaves is the
-`step_log` entry B6 requires and nothing else.
+`step_log` entry and nothing else.
 
-**One grade per reply** (6.52 B2), its one call counted inside T69's four. On a
+**One grade per reply**, its one call counted inside T69's four. On a
 FAIL in `enforce` mode the reply passes through with `GRADER_WARNING`, which the
 Belt sees; the turn is never blocked. **The grader runs `log_only` until it is
-proven against the founder's labels (founder 2026-10-13)**: every verdict is
-recorded in `step_log`, the warning is not shown and the verdict does not reach
-the coach's next-turn feedback. It grades every reply with text (ADR-0081; the
-coherence judge it once stood down for is retired, ADR-0083); a reply written in
-code is not graded.
+proven against the founder's labels**: every verdict is recorded in `step_log`,
+the warning is not shown and the verdict does not reach the coach's next-turn
+feedback. It grades every reply with text (ADR-0081; there is no coherence
+judge, ADR-0083); a reply written in code is not graded.
 
-> **SPEC-GAP (G-12) is OPEN.** `CoachingGraderVerdict`'s shape — whether it
-> reuses `CriterionVerdict`, and whether `tier` means anything for coaching
+> **G-12 (open):** `CoachingGraderVerdict`'s shape — whether it reuses
+> `CriterionVerdict`, and whether `tier` means anything for coaching
 > criteria — is undecided. See `validation/schemas.py`; `tier` is deliberately
 > absent rather than invented.
-> **SPEC-GAP (G-24):** constructor arguments unstated, *"including how
-> `max_iterations` and `on_evaluation` are passed"*. Both are taken as
-> constructor arguments below, which is the reading §19.8's own prose implies.
+> **G-24:** the constructor arguments are unstated, including how
+> `max_iterations` and `on_evaluation` are passed; both are taken as
+> constructor arguments below.
 """
 from __future__ import annotations
 
@@ -56,7 +52,7 @@ from backend.core.llm import REQUEST_TIMEOUTS, get_llm
 from backend.core.prompts import COACHING_QUALITY_RUBRIC
 from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
 
-#: §50.1's blocks as a judge reads them under the reply's `message`, labelled.
+#: The reply's blocks as a judge reads them under the reply's `message`, labelled.
 REPLY_BLOCKS = (
     ("EXPLANATION", "explanation"),
     ("EXAMPLE - an illustration, not the Belt's data", "example"),
@@ -65,24 +61,24 @@ REPLY_BLOCKS = (
 
 logger = logging.getLogger(__name__)
 
-#: Held for a rewrite on FAIL (step 6.53, not built): today one grade per reply (6.52 B2).
+#: Held for a rewrite on FAIL, which is not built: one grade per reply is made.
 GRADER_MAX_ITERATIONS = 3
 
-#: Founder ruling 2026-10-13 (D3): LOG-ONLY until the grader is proven against the founder's labels —
-#: verdict agreement on replay >= 90% and false fails < 20% (`scripts/judge_replay.py`); then "enforce".
+#: LOG-ONLY until the grader is proven against the founder's labels — verdict agreement on replay
+#: >= 90% and false fails < 20% (`scripts/judge_replay.py`); then "enforce".
 GRADER_MODE = "log_only"
 
-#: What the Belt is shown on a FAIL in `enforce` mode. Plain language (§13) — it names no rubric and no
-#: internal machinery. Founder's wording, 2026-09-25 (step 10.0).
+#: What the Belt is shown on a FAIL in `enforce` mode. Plain language — it names no rubric and no
+#: internal machinery. The founder's wording.
 GRADER_WARNING = (
     "My quality check flagged this reply as weaker than it should be. "
     "If it doesn't help, tell me and I'll try again."
 )
 
-#: Founder ruling 2026-10-14 — WHICH CRITERIA A MOVE IS GRADED ON, an explicit table (it replaces the
-#: keyword exclusions read off the rubric's lines). The move is decided in code; a reply is graded as the
-#: move it was asked to make. G2 (handles the answer) on read-backs and challenges; G4 (guides with the
-#: method) on every move but a plain read-back; G1 and G3 on all.
+#: WHICH CRITERIA A MOVE IS GRADED ON, an explicit table (never keyword exclusions read off the rubric's
+#: lines). The move is decided in code; a reply is graded as the move it was asked to make. G2 (handles the
+#: answer) on read-backs and challenges; G4 (guides with the method) on every move but a plain read-back;
+#: G1 and G3 on all.
 MOVE_CRITERIA: dict[str, tuple[str, ...]] = {
     "teach": ("G1", "G3", "G4"),
     "challenge": ("G1", "G2", "G3", "G4"),
@@ -95,7 +91,7 @@ MOVE_CRITERIA: dict[str, tuple[str, ...]] = {
 ANY_MOVE: tuple[str, ...] = ("G1", "G3", "G4")
 #: G5 (explains results) — Measure and Analyse only, the phases whose computations the coach reports.
 RESULT_PHASES: tuple[str, ...] = ("measure", "analyse")
-#: The old rubric's "no external URLs" — a code check, never asked of the model (founder ruling 2026-10-14).
+#: "No external URLs" — a code check, never asked of the model.
 NO_URLS = "no external URLs"
 _URL = re.compile(r"(?i)\b(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|org|net|io|edu|gov|co\.uk)\b(?:/\S*)?")
 _CRITERION_ID = re.compile(r"\bG[1-5]\b")
@@ -110,7 +106,7 @@ def criteria_for(move: Optional[str], phase: Optional[str] = None) -> tuple[str,
 
 def applies(criterion: str, move: Optional[str], phase: Optional[str] = None) -> bool:
     """Does this criterion (its id, G1–G5) apply to a reply making `move`? A code check applies to every
-    move; a verdict recorded before G1–G5 names no id, and one with no move recorded, are kept as they were."""
+    move; a verdict that names no id, and one with no move recorded, are kept as they are."""
     found = _CRITERION_ID.search(criterion or "")
     return found is None or not move or found.group(0) in criteria_for(move, phase)
 
@@ -133,8 +129,7 @@ def quoted_in(evidence: str, reply: str) -> bool:
 
 
 def url_check(reply: str) -> Optional[CriterionResult]:
-    """The code check that replaces the rubric's URL line: a fail, quoting the sentence, when the reply
-    carries a web address."""
+    """The code check for web addresses: a fail, quoting the sentence, when the reply carries one."""
     for sentence in _SENTENCE.split(reply or ""):
         if _URL.search(sentence):
             return CriterionResult(criterion=NO_URLS, status="fail", evidence=sentence.strip()[:300],
@@ -199,39 +194,37 @@ class DMAICGraderMiddleware(AgentMiddleware):
     ) -> None:
         super().__init__()
         self.phase = phase
-        #: 6.61 (item 3) — the move this reply was asked to make.
+        #: The move this reply was asked to make.
         self.move = move
-        #: The case's confirmed values (founder ruling 2026-10-14: G2's "already given", G3's grounding).
+        #: The case's confirmed values (G2's "already given", G3's grounding).
         self.context = context
-        #: The element's block of the phase script, as the coach was given it (option A, 2026-10-15).
+        #: The element's block of the phase script, as the coach was given it.
         self.purpose = purpose
-        #: The Belt's words for the element and the answer awaiting a Confirm (option A, 2026-10-15).
+        #: The Belt's words for the element and the answer awaiting a Confirm.
         self.sources = sources
         self.max_iterations = max_iterations
-        #: B6 — each iteration goes to `step_log` through this callback. The
+        #: Each iteration goes to `step_log` through this callback. The
         #: middleware does not write state itself; the node owns that.
         self.on_evaluation = on_evaluation
-        # ── B7: PRIVATE. None of these may reach PhaseState. ──────────────
+        # ── PRIVATE. None of these may reach PhaseState. ──────────────────
         self._iterations = 0
         self._evaluations: list[CoachingGraderVerdict] = []
-        #: A fail with no sentence quoted from the reply: recorded, not counted (founder 2026-10-14).
+        #: A fail with no sentence quoted from the reply: recorded, not counted.
         self._uncounted: list[dict[str, str]] = []
 
     async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """B1-B6, on every reply with text (ADR-0081)."""
+        """Grade every reply with text (ADR-0081)."""
         coach_text = self._coach_text(state)
         if not coach_text:
             return None
         belt_text = self._belt_text(state)
         self._uncounted = []
 
-        # 6.52 B2 — ONE GRADING PER DISTINCT REPLY, and inside this hook the
-        # reply cannot change. The loop that stood here re-sent the SAME text
-        # to a temperature-0.1 judge up to `max_iterations` times — trace
-        # 01a0d215…: three calls, identical inputs, and the executor's wall ran
-        # out on the third. Iterating means something only once a FAIL asks
-        # the coach to rewrite (step 6.53, gated on G-83's latency ruling);
-        # until then `max_iterations` is held for that step and one call is made.
+        # ONE GRADING PER DISTINCT REPLY: inside this hook the reply cannot
+        # change, so re-sending the SAME text to a temperature-0.1 judge only
+        # spends the executor's time. Iterating means something only once a
+        # FAIL asks the coach to rewrite (gated on G-83's latency ruling);
+        # `max_iterations` is held for that and one call is made.
         self._iterations = 1
         try:
             verdict = await self._grade(belt_text, coach_text)
@@ -243,7 +236,7 @@ class DMAICGraderMiddleware(AgentMiddleware):
                 self.on_evaluation({"layer": "coaching_grader", "iteration": 1, "status": "not checked (time)",
                                     "criteria_failed": [], "feedback": [], "failed": [], "move": self.move})
             return None
-        # The code check (founder ruling 2026-10-14): a web address in the reply fails, quoted.
+        # The code check: a web address in the reply fails, quoted.
         address = url_check(coach_text)
         if address is not None:
             verdict = verdict.model_copy(update={"criteria": [*verdict.criteria, address]})
@@ -253,9 +246,9 @@ class DMAICGraderMiddleware(AgentMiddleware):
             return None
 
         if GRADER_MODE == "log_only":
-            # Founder 2026-10-13: recorded above (B6); nothing is shown and the turn is unchanged.
+            # Recorded above; nothing is shown and the turn is unchanged.
             return None
-        # B5's end state — the turn passes through, with a warning the Belt sees.
+        # The end state — the turn passes through, with a warning the Belt sees.
         logger.info(
             "%s.grader: %d criterion/criteria failed: %s — passing the turn "
             "through with a Belt-visible warning (one grading per reply until "
@@ -265,14 +258,14 @@ class DMAICGraderMiddleware(AgentMiddleware):
         return {"grader_warning": GRADER_WARNING}
 
     def after_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """Sync entry point — grading is a model call; §1.4 puts it on async."""
+        """Sync entry point — grading is a model call, so it runs on the async hook."""
         return None
 
     async def _grade(self, belt: str, coach: str) -> CoachingGraderVerdict:
-        """One grading call — `grader` role, temperature 0.1 (B2).
+        """One grading call — `grader` role, temperature 0.1.
 
-        **The temperature is a hard requirement, not a tuning knob** (§21): a
-        grader returning different verdicts across runs makes §52's regression
+        **The temperature is a hard requirement, not a tuning knob**: a
+        grader returning different verdicts across runs makes the regression
         thresholds meaningless, because a 10% drop cannot be detected against a
         baseline that moves on its own. It is the role default, so `get_llm`
         supplies it.
@@ -286,8 +279,8 @@ class DMAICGraderMiddleware(AgentMiddleware):
         return self._counted(CoachingGraderVerdict.model_validate(await model.ainvoke(prompt)), coach)
 
     def _counted(self, verdict: CoachingGraderVerdict, coach: str) -> CoachingGraderVerdict:
-        """Founder ruling 2026-10-14: only the move's criteria are kept, and a fail counts only with a
-        sentence quoted from the reply — one without is recorded as not counted and read as a pass."""
+        """Only the move's criteria are kept, and a fail counts only with a sentence quoted from the
+        reply — one without is recorded as not counted and read as a pass."""
         asked = criteria_for(self.move, self.phase)
         kept: list[CriterionResult] = []
         for c in verdict.criteria:
@@ -303,11 +296,11 @@ class DMAICGraderMiddleware(AgentMiddleware):
         return verdict.model_copy(update={"criteria": kept})
 
     def _emit(self, verdict: CoachingGraderVerdict) -> None:
-        """B6 — one `step_log` entry per iteration, via `on_evaluation`.
+        """One `step_log` entry per iteration, via `on_evaluation`.
 
-        **Dicts only** (§10.3): named keys are what make the audit trail
-        queryable, and tuples are banned. The callback is what keeps B7 true —
-        the middleware hands over a record and keeps its counters.
+        **Dicts only**: named keys are what make the audit trail queryable,
+        and tuples are banned. The callback is what keeps the counters
+        private — the middleware hands over a record and keeps its counters.
         """
         if self.on_evaluation is None:
             return
@@ -316,14 +309,14 @@ class DMAICGraderMiddleware(AgentMiddleware):
             "iteration": self._iterations,
             "status": "pass" if verdict.passed else "failed",
             "criteria_failed": [c.criterion for c in verdict.failed],
-            # Founder 2026-10-14 — every asked criterion's verdict (G1–G5, the code check), not only the fails.
+            # Every asked criterion's verdict (G1–G5, the code check), not only the fails.
             "verdicts": {c.criterion: c.status for c in verdict.criteria},
             "feedback": [c.feedback for c in verdict.failed if c.feedback],
-            # 6.61 — each failed criterion WITH its feedback, so section 5 can
+            # Each failed criterion WITH its feedback, so section 5 can
             # keep only what applies to the next turn's move.
             "failed": [{"criterion": c.criterion, "feedback": c.feedback or "", "evidence": c.evidence or ""}
                        for c in verdict.failed],
-            # Founder ruling 2026-10-14: a fail the grader gave without quoting the reply — not counted.
+            # A fail the grader gave without quoting the reply — not counted.
             "not_counted": list(self._uncounted),
             "move": self.move,
         })
@@ -333,8 +326,8 @@ class DMAICGraderMiddleware(AgentMiddleware):
     @staticmethod
     def _coach_text(state: Any) -> str:
         """DEF-015 — the whole reply the Belt sees: `message` and the explanation, example and question
-        blocks (§50.1), and only this turn's (G-153). The rubric's "shows before asking" cannot be graded
-        on `message` alone. (Moved here from the retired coherence judge, ADR-0083.)"""
+        blocks, and only this turn's (G-153). The rubric's "shows before asking" cannot be graded
+        on `message` alone (ADR-0083)."""
         response = (state or {}).get("structured_response") if isinstance(state, dict) \
             else getattr(state, "structured_response", None)
         if response is not None and str(getattr(response, "message", None) or ""):

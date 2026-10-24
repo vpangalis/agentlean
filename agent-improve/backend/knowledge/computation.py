@@ -1,62 +1,56 @@
-"""The twenty DMAIC computation tools — procedure steps 5.3 and 5.4.
-
-Canonical: **§69** (S-F37–S-F56, the twenty interfaces), **§60.6 — S-F24** (the
-group entry and the EARS behaviours binding on all twenty), **§31** (arg
-schemas). Architecture §30 (per-phase binding), §7 (the typing law), §43.1 (the
-seven-step coaching pattern).
+"""The twenty DMAIC computation tools.
 
     Define 1 · Measure 8 · Analyse 5 · Improve 1 · Control 5  =  20
 
 That line is the file's structure, not a comment on it:
-`COMPUTATION_TOOLS_BY_PHASE` (step 5.4) is the partition, and the flat
+`COMPUTATION_TOOLS_BY_PHASE` is the partition, and the flat
 `COMPUTATION_TOOLS` is derived from it. Each phase executor binds the universal
-seven (§29.2) plus its own subset — 8 / 15 / 12 / 8 / 12, no phase over §30's
-ceiling of 16.
+tools plus its own subset.
 
 WHAT EVERY ONE OF THEM IS
 -------------------------
-**A pure function** — deterministic, no LLM call, no I/O (B1). §14 calls these
-the one place synchronous code is unambiguously correct, and that is why they
-are the only `def` in this codebase that is not `async`.
+**A pure function** — deterministic, no LLM call, no I/O. This is the one
+place synchronous code is unambiguously correct, and that is why they are the
+only `def` in this codebase that is not `async`.
 
-**A separately named `@tool` with its own `args_schema=`** (B4, §31).
+**A separately named `@tool` with its own `args_schema=`.**
 **Parameterised grouping is BANNED**: there is no `calculate_cpk(mode="post")`,
 which is why `post_improvement_cpk` is its own entry despite sharing the
-formula. The two share a private helper, `_cpk_values`. That is explicitly
-permitted — *"The two MAY share a private helper; they are two `@tool`s"* — and
-the difference is the contract, not the arithmetic: `post_improvement_cpk` also
-takes `baseline_cpk` and returns `improvement_delta`, which is the number
-Control's `post_improvement_metrics` is graded against.
+formula. The two share a private helper, `_cpk_values` — two `@tool`s may
+share a private helper — and the difference is the contract, not the
+arithmetic: `post_improvement_cpk` also takes `baseline_cpk` and returns
+`improvement_delta`, which is the number Control's `post_improvement_metrics`
+is graded against.
 
 EVERY RESULT VALUE IS A STRING
 ------------------------------
-§7's typing law, restated by §69.1: a numeric like `cpk: 0.62` is stored as
+The typing law: a numeric like `cpk: 0.62` is stored as
 `"result": {"cpk": "0.62", …}`. Each tool returns the **`result` sub-dict**;
-the executor wraps it in §7's full `{"tool", "inputs", "result", "turn",
-"phase"}` shape and writes it to `artifacts["computation_results"]` (B6) — the
+the executor wraps it in the full `{"tool", "inputs", "result", "turn",
+"phase"}` shape and writes it to `artifacts["computation_results"]` — the
 turn and phase are not knowable here.
 
 A TOOL THAT CANNOT PARSE ITS INPUT ASKS; IT DOES NOT RAISE OR GUESS
 -------------------------------------------------------------------
-**B3.** Every captured field is a `str` (§7), so `"12.3% invoice error rate,
-measured over Q2 2026"` is what actually arrives where a spec says `mean`. The
-scalar args are therefore `str` in `tool_args.py` and are parsed here by
-`_num()`, which returns a plain-language reformatting request rather than
-raising — a `ValidationError` would surface as a tool-call failure the Belt
-never sees phrased in their own terms.
+Every captured field is a `str`, so `"12.3% invoice error rate, measured over
+Q2 2026"` is what actually arrives where a spec says `mean`. The scalar args
+are therefore `str` in `tool_args.py` and are parsed here by `_num()`, which
+returns a plain-language reformatting request rather than raising — a
+`ValidationError` would surface as a tool-call failure the Belt never sees
+phrased in their own terms.
 
-**Preconditions are business and methodology preconditions** (§69.1) — what must
+**Preconditions are business and methodology preconditions** — what must
 be true of the project before the tool should be called. They are NOT argument
-validation. `calculate_cpk`'s stability precondition is enforced by the grader
-(§35, §41), not here; what IS enforced here is the arithmetic's own
+validation. `calculate_cpk`'s stability precondition is enforced by the
+grader, not here; what IS enforced here is the arithmetic's own
 requirements — at least two steps for RTY, expected cell counts ≥ 5 for
 chi-square — and those return requests too.
 
 THE FORMULAS ARE STANDARDS, NOT LIBRARY PATTERNS
 ------------------------------------------------
-§69.1 is explicit that the trusted-source rule differs here: AIAG MSA-4 for
-GR&R, Shewhart's constant tables, the standard hypothesis tests, and the 1.5σ
-long-term-shift convention. **They do not drift the way a package API does**,
+The trusted-source rule differs here: AIAG MSA-4 for GR&R, Shewhart's
+constant tables, the standard hypothesis tests, and the 1.5σ long-term-shift
+convention. **They do not drift the way a package API does**,
 so the check is "matches the standard method as taught in the ingested BB
 eBook", not a version lookup. Applying `/verify-current-version` to a Shewhart
 constant table would be a category error.
@@ -120,7 +114,7 @@ SHEWHART: dict[int, dict[str, float]] = {
 IMR_E2 = 2.660
 IMR_D4 = 3.267
 
-#: The long-term shift convention (§69.1). Stated in every sigma result so the
+#: The long-term shift convention. Stated in every sigma result so the
 #: number is comparable — a "sigma level" without it is ambiguous by 1.5.
 SIGMA_SHIFT = 1.5
 
@@ -129,7 +123,7 @@ _NUMBER = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
 
 class _NeedsReformatting(Exception):
     """Internal: an input could not be parsed. Converted to a `result` by the
-    tool, never propagated — B3 forbids raising at the Belt."""
+    tool, never propagated — a tool never raises at the Belt."""
 
     def __init__(self, request: str) -> None:
         super().__init__(request)
@@ -140,7 +134,7 @@ def _num(value: str | float | None, label: str,
          required: bool = True) -> float | None:
     """Pull a number out of whatever the Belt wrote, or ask for a rewrite.
 
-    **B2's parse-at-the-point-of-use, and B3's ask-rather-than-raise.** Captured
+    **Parse at the point of use, and ask rather than raise.** Captured
     fields are prose: `"12.3% invoice error rate, measured over Q2 2026"` is a
     perfectly good `baseline_estimate` and contains exactly one number. Commas
     are stripped so `"120,000"` reads; a bare `%` does not change the value,
@@ -173,7 +167,7 @@ def _num(value: str | float | None, label: str,
 
 
 def _fmt(x: float, places: int = 4) -> str:
-    """Render a number as a string (§7's typing law) without float noise."""
+    """Render a number as a string (the typing law) without float noise."""
     if isinstance(x, float) and (math.isnan(x) or math.isinf(x)):
         return "undefined"
     rounded = round(float(x), places)
@@ -198,7 +192,7 @@ def _currency(text: str) -> str:
 
 
 def _asks(request: str) -> Result:
-    """The B3 return shape: a reformatting request, not an exception.
+    """The ask-rather-than-raise return shape: a reformatting request, not an exception.
 
     One key, `reformatting_request`, so a caller can tell a request from a
     computed result by looking for it rather than by parsing prose.
@@ -207,7 +201,7 @@ def _asks(request: str) -> Result:
 
 
 def _significant(p_value: float, alpha: float = 0.05) -> str:
-    """§69's `significant` key — `"yes"` / `"no"` at α = 0.05."""
+    """The `significant` key — `"yes"` / `"no"` at α = 0.05."""
     return "yes" if p_value < alpha else "no"
 
 
@@ -286,7 +280,7 @@ def calculate_expected_savings(
 
 def _dpmo_value(defects: float, units: float, opportunities: float) -> float:
     """Defects per million opportunities. Shared by two tools by arithmetic,
-    not by contract — they remain two `@tool`s (B4)."""
+    not by contract — they remain two `@tool`s."""
     return (defects / (units * opportunities)) * 1_000_000.0
 
 
@@ -341,7 +335,7 @@ def calculate_sigma_level(
 def _cpk_values(mean: float, std_dev: float,
                 usl: float | None, lsl: float | None) -> dict[str, Any]:
     """Cpk, Cp and the binding side. Shared by `calculate_cpk` and
-    `post_improvement_cpk` — §69.6 permits the shared helper explicitly."""
+    `post_improvement_cpk` — a shared helper, two `@tool`s."""
     cpu = (usl - mean) / (3 * std_dev) if usl is not None else None
     cpl = (mean - lsl) / (3 * std_dev) if lsl is not None else None
 
@@ -1301,44 +1295,38 @@ def post_improvement_cpk(
 # The inventory, and the per-phase binding
 # ══════════════════════════════════════════════════════════════════════════
 
-#: §29.2 — the universal seven, passed to **every** phase executor: the three
-#: `rag_lookup_*` tools (step 5.2, `knowledge/tools.py`) plus
-#: `propose_template`, `propose_diagram`, `check_gate_status` and
-#: `request_human_approval`, which land with the executor at stage 6. The count
-#: lives here because §30's ceiling is a statement about the *bound* total, and
-#: the partition below is the half of that total this file owns. **When stage 6
-#: assembles `UNIVERSAL_TOOLS`, that list must assert its own length against
-#: this constant** — otherwise the per-phase totals below stop meaning what
-#: they say.
+#: The universal tools, passed to **every** phase executor: the three
+#: `rag_lookup_*` tools (`knowledge/tools.py`), `propose_template`,
+#: `propose_diagram`, `check_gate_status`, `request_human_approval`,
+#: `load_evidence_series` and `read_upload` (ADR-0106). The count lives here
+#: because the ceiling is a statement about the *bound* total, and the
+#: partition below is the half of that total this file owns. **`UNIVERSAL_TOOLS`
+#: must assert its own length against this constant** — otherwise the
+#: per-phase totals stop meaning what they say.
 #:
-#: **EIGHT since 2026-09-09** — `load_evidence_series` joined the set
-#: (DECISIONS Part AR1), built at step 6.12. It is universal rather than a
-#: computation tool because the twenty below are pure functions with no I/O
-#: and it reads a blob; the universal set is already where the I/O-performing
-#: tools live. **Measure now sits at 16, the ceiling below EXACTLY** — a ninth
-#: universal tool breaks §30 for Measure on the day it is added.
-#: **NINE since 2026-10-21** — `read_upload` (ADR-0106); Measure registers 17, allowed because the
-#: ceiling below counts one model call, not a phase's registration (ADR-0106's note).
+#: `load_evidence_series` and `read_upload` are universal rather than
+#: computation tools because the twenty below are pure functions with no I/O
+#: and they read a blob; the universal set is where the I/O-performing tools
+#: live. Measure registers more than the ceiling, which is allowed because the
+#: ceiling counts one model call, not a phase's registration (ADR-0106).
 UNIVERSAL_TOOL_COUNT = 9
 
-#: §30 — the most tools ONE model call may offer, counted per turn type (ADR-0069;
-#: founder ruling 2026-10-21, ADR-0106's note). Tool-selection quality degrades
-#: past roughly 10–15 tools offered at once; a phase may register more.
+#: The most tools ONE model call may offer, counted per turn type (ADR-0069,
+#: ADR-0106). Tool-selection quality degrades past roughly 10–15 tools offered
+#: at once; a phase may register more.
 PHASE_TOOL_CEILING = 16
 
-#: §30's binding table, restated as the partition itself (§60.6's inventory
-#: order within each phase). The executor composes a phase's tools as
-#: `UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]` (§18) — so the totals
-#: are 8 / 15 / 12 / 8 / 12 and the maximum is Measure's 15, one under the
-#: ceiling.
+#: The per-phase binding, as the partition itself (inventory order within each
+#: phase). The executor composes a phase's tools as
+#: `UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]`.
 #:
 #: **The keys are `PHASE_ORDER`'s five names** (`phases/mappers_common.py`),
 #: spelled literally rather than imported: `knowledge/` does not depend on
 #: `phases/`, and a test asserts the two agree.
 #:
-#: **Measure binds no chart-limit tool, and that is a specified absence**
-#: (§69.7), not an omission — `stability_assessment` is coached as a visual
-#: read, and the chart-limit tools belong to Control.
+#: **Measure binds no chart-limit tool, and that is a specified absence**,
+#: not an omission — `stability_assessment` is coached as a visual read, and
+#: the chart-limit tools belong to Control.
 COMPUTATION_TOOLS_BY_PHASE: dict[str, list[BaseTool]] = {
     "define": [
         calculate_expected_savings,
@@ -1372,7 +1360,7 @@ COMPUTATION_TOOLS_BY_PHASE: dict[str, list[BaseTool]] = {
     ],
 }
 
-#: All twenty, in §60.6's inventory order — **derived from the partition rather
+#: All twenty, in inventory order — **derived from the partition rather
 #: than restated beside it**, so the flat list and the binding cannot drift
 #: into disagreeing about which tool belongs to which phase.
 #: 1 + 8 + 5 + 1 + 5 = 20.

@@ -1,4 +1,4 @@
-"""A basic access check — ADR-0091 "Basic access check by registered e-mail" (ACCEPTED 2026-10-17, rulings a–c).
+"""A basic access check — ADR-0091 "Basic access check by registered e-mail" (rulings a–c).
 
 Stated plainly: a basic check, not security (decision 7). E-mail as identity is accepted for the pilot by name;
 one-time invites and single sign-on stay required before customers (ruling a).
@@ -9,9 +9,9 @@ one-time invites and single sign-on stay required before customers (ruling a).
   id and the person's e-mail and signed by the server (HMAC-SHA256, stdlib). A person on two cases signs in to
   each; the lead on a second device signs in with their own e-mail (ruling c).
 - **When it applies (ruling b).** A case asks for sign-in once every confirmed member has an e-mail — the lead has
-  completed them. Until then it opens as today, and the typed name is the person.
+  completed them. Until then it opens without sign-in, and the typed name is the person.
 - **Every sign-in and every refusal** is recorded in the decision trail with who and when (decision 5).
-Module-level functions only (rule §2).
+Module-level functions only (CLAUDE.md).
 """
 from __future__ import annotations
 
@@ -172,8 +172,8 @@ def _trail(case_id: str, status: str, email: str, where: str, why: str = "") -> 
 
 
 def person(http: Optional[Request], case: Any, where: str) -> Optional[Any]:
-    """Decision 3: the person a request is from. None when the case does not ask for sign-in yet (it opens as
-    today). A request without a valid session for the case is refused (401) in W17's words and changes nothing."""
+    """Decision 3: the person a request is from. None when the case does not ask for sign-in yet (it opens
+    without sign-in). A request without a valid session for the case is refused (401) in W17's words and changes nothing."""
     value = http.cookies.get(cookie_name(case.case_id)) if http is not None else None
     other = session_case(value) if value else None
     if other is not None and other != case.case_id:

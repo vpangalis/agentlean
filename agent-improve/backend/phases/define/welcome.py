@@ -1,10 +1,10 @@
-"""DEF-200 — the Define welcome, assembled by the server in code (W3; G-201, founder findings 11 and 15).
+"""DEF-200 — the Define welcome, assembled by the server in code (W3; G-201).
 
 No model call. Built from two sources only: the phase state (which elements are confirmed, with their values, and
 which are open — the progress view's own `moves.element_rows`) and the skill's own `[OPENING]` block (the five
 phases' one-line purposes and how Define is worked — the founder's text, never retyped here). Served on
-`GET /cases/{id}` for a fresh case and for every return; the page lays it out in blocks (`ui/index.html`
-`welcomeHtml`), replacing the browser's opener, its recap and the retired `/context` route.
+`GET /cases/{id}` while the case is in Define, for a fresh case and for every return; the page lays it out in blocks
+(`ui/index.html` `welcomeHtml`).
 """
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ _INTERNAL = re.compile(r"\s*\((?:section \d+|requirement [A-Z]\d+\w*)\)")
 
 @lru_cache(maxsize=1)
 def overview() -> dict[str, Any]:
-    """DEF-214 (W1; founder ruling 2026-10-22 afternoon, item 2): the Define overview, from the skill only — the
+    """DEF-214 (W1): the Define overview, from the skill only — the
     thirteen elements (numbered and named as in the sidebar, each with the first sentence of what it is), how Define
     is worked (the [OPENING] block) and how it ends (section F), without the skill's internal references."""
     from backend.middleware.skills import teaching_blocks
@@ -80,7 +80,7 @@ def overview() -> dict[str, Any]:
     return {"elements": elements, "how": opening()[1], "ends": ends}
 
 
-#: G-258 (audit D6): the screen's tool briefings for Define's 5W2H and SIPOC, keyed by the page's tool name.
+#: G-258: the screen's tool briefings for Define's 5W2H and SIPOC, keyed by the page's tool name.
 BRIEFED: dict[str, str] = {"5W2H problem statement": "problem_statement", "SIPOC diagram": "process_map_sipoc"}
 #: A SIPOC column's label where it is not its key with the underscore dropped.
 _SIPOC_LABELS = {"process_steps": "Process steps", "process_metrics": "Measures"}
@@ -92,7 +92,7 @@ def _first_sentence(text: str) -> str:
 
 
 def briefings() -> dict[str, dict[str, Any]]:
-    """G-258 (audit D6; founder ruling 2026-10-24, A3): the 5W2H and SIPOC briefings the page shows, built from the
+    """G-258: the 5W2H and SIPOC briefings the page shows, built from the
     skill only — what the element is and why it matters, how each part is formulated, the skill's own ask and its
     worked example — so the screen teaches exactly what is graded. Shaped as the page's briefing card reads it."""
     import json

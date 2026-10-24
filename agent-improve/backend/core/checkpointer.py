@@ -2,8 +2,7 @@
 Azure Blob checkpointer for Agent Improve.
 
 Implements LangGraph's BaseCheckpointSaver interface backed by
-Azure Blob Storage. Per CLAUDE.md §1.7 and §8.1, in-flight
-graph state lives in:
+Azure Blob Storage. In-flight graph state lives in:
 
     checkpoints/{thread_id}/latest.json
     checkpoints/{thread_id}/history/{checkpoint_id}.json
@@ -16,28 +15,26 @@ a namespace segment:
 
 where thread_id = case_id for Agent Improve and checkpoint_ns is
 the value LangGraph assigns each subgraph (empty for the parent).
-The namespace segment was ADDED at procedure step 4.2 and is not
-optional -- see _prefix() for the defect it repairs.
+The namespace segment is not optional -- see _prefix() for why.
 
 Each put() call writes one history blob AND overwrites latest.json.
 Both writes are part of the same logical operation; the latest.json
 overwrite uses an ETag conditional If-Match to detect concurrent
 turns (raises ConcurrentTurnError on conflict).
 
-Per CLAUDE.md §2 this is the designated file for the
+Per CLAUDE.md this is the designated file for the
 AzureBlobCheckpointSaver class. The factory function
 get_checkpointer() is module-level (no class wrapping the
 singleton).
 
-Compatibility note (deviation from the original spec, applied with
-approval against the installed langgraph-checkpoint 4.1.0):
+Compatibility with the installed langgraph-checkpoint 4.1.0:
   - JsonPlusSerializer.dumps_typed() returns msgpack BINARY, not
     utf-8 text. The envelope therefore base64-encodes the serde
     bytes for safe JSON storage and base64-decodes them on restore.
   - put_writes()/aput_writes() take the 4.1.0 `task_path` argument.
-  - The factory reads the existing settings names
+  - The factory reads the settings names
     AZURE_BLOB_CONNECTION_STRING and AZURE_BLOB_CONTAINER_IMPROVE
-    (matching storage/blob.py), not invented names.
+    (matching storage/blob.py).
 """
 
 from __future__ import annotations
@@ -86,8 +83,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
     """
     LangGraph checkpointer backed by Azure Blob.
 
-    Layout per CLAUDE.md §1.7, plus the namespace segment §16
-    requires and §1.7 predates:
+    Layout, with the namespace segment a subgraph's own state needs:
         checkpoints/{thread_id}/latest.json                    (parent)
         checkpoints/{thread_id}/history/{checkpoint_id}.json
         checkpoints/{thread_id}/ns/{ns}/latest.json            (subgraph)
@@ -101,9 +97,8 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
       2. latest.json (overwrite, conditional via If-Match ETag)
 
     The two writes constitute one logical save operation,
-    consistent with the "one write per checkpoint" rule in §1.7
-    (interpreted as: one logical save event, not one physical
-    blob write).
+    consistent with the "one write per checkpoint" rule
+    (one logical save event, not one physical blob write).
     """
 
     serde = JsonPlusSerializer()
@@ -120,7 +115,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         # ADR-0101 decision 2: the async methods use azure.storage.blob.aio. An aio client owns an aiohttp
         # session bound to the loop that made it, so one is built per running loop from this factory and closed
         # by `aclose` at shutdown. Without a factory or a client (the tests' in-memory container) the async
-        # methods use the sync path, as before.
+        # methods use the sync path.
         self._async_factory = async_container_factory
         self._aio: Optional[Tuple[asyncio.AbstractEventLoop, AsyncContainerClient, asyncio.Lock]] = None
         # Per-thread (case) lock to serialize put() on this process.
@@ -146,7 +141,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         LangGraph assigns this automatically when a subgraph runs inside a
         parent node — `"define_phase:{task_id}"` for the Define subgraph — and
         it is the ONLY thing distinguishing the parent's checkpoint from its
-        children's on a shared `thread_id` (§16).
+        children's on a shared `thread_id`.
         """
         return (config.get("configurable") or {}).get("checkpoint_ns") or ""
 
@@ -155,28 +150,21 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         """The blob prefix for one (`thread_id`, `checkpoint_ns`) pair.
 
         ═══════════════════════════════════════════════════════════════════
-        THE PARENT'S PATHS ARE UNCHANGED; SUBGRAPHS GAIN A NAMESPACE SEGMENT
+        THE PARENT KEYS ON `thread_id`; A SUBGRAPH ADDS A NAMESPACE SEGMENT
         ═══════════════════════════════════════════════════════════════════
-        **`checkpoint_ns` was absent from the layout, and that was a defect —
-        found at procedure step 4.2, the step that first invoked the graph.**
-        §1.7's layout was written before phase subgraphs existed in the code,
-        so every path keyed on `thread_id` alone. §16 puts the checkpointer on
-        the parent and routes the subgraph's writes through it *distinguished
-        by an auto-managed `checkpoint_ns`* — and this class discarded that
-        value, so parent and subgraph wrote to one `latest.json` and read each
-        other's state back.
+        The checkpointer sits on the parent and routes the subgraph's writes
+        through it *distinguished by an auto-managed `checkpoint_ns`*. A path
+        keyed on `thread_id` alone would have parent and subgraph write to one
+        `latest.json` and read each other's state back.
 
-        **The symptom is not an error.** The subgraph loaded the parent's
-        `messages` on top of its own and the conversation doubled every turn,
-        with every individual turn still looking correct. It was invisible
-        before 4.2 for the reason §53.1 Appendix E records: zero checkpoints
-        had ever been written.
+        **The symptom is not an error.** The subgraph would load the parent's
+        `messages` on top of its own and the conversation would double every
+        turn, with every individual turn still looking correct.
 
-        `""` — the parent — keeps `checkpoints/{thread_id}/…` **exactly**, so
-        step 4.2's `azure-query` verification reads the path it names and no
-        existing blob moves. The namespace is percent-encoded because it
-        carries `:` and `|`, which are legal in a blob name but make the path
-        unreadable and unsafe to split on.
+        `""` — the parent — keeps `checkpoints/{thread_id}/…` **exactly**. The
+        namespace is percent-encoded because it carries `:` and `|`, which are
+        legal in a blob name but make the path unreadable and unsafe to split
+        on.
         """
         if not checkpoint_ns:
             return layout.CHECKPOINT_THREAD.format(thread_id=thread_id)
@@ -456,13 +444,10 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
     ) -> None:
         """PENDING WRITES — what an `interrupt()` and its resume value ARE.
 
-        **This was a no-op until the Define report's acceptance (R6,
-        2026-09-26) put the first `interrupt()` in the graph.** LangGraph
-        persists an interrupt as an `__interrupt__` pending write, and the
-        value `Command(resume=...)` delivers as a `__resume__` one; a saver
-        that drops them leaves a pause that cannot survive between two
-        requests. With no interrupt in the graph the no-op was harmless — the
-        checkpoint (`put`) carried everything a finished step produced.
+        LangGraph persists an `interrupt()` as an `__interrupt__` pending
+        write, and the value `Command(resume=...)` delivers as a `__resume__`
+        one; a saver that drops them leaves a pause — the Define report's (R6)
+        — that cannot survive between two requests.
 
         Semantics are the reference saver's (`InMemorySaver.put_writes`,
         langgraph-checkpoint 4.1.0): a write is keyed (task, index); the
@@ -521,7 +506,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
     # The same blob semantics as the sync methods above, on azure.storage.blob.aio, so a write never stops the
     # event loop: the history blob written once (ResourceExistsError ignored), `latest.json` by ETag with one
     # retry, pending writes keyed as the reference saver keys them. Without an async client (the tests'
-    # in-memory container) each delegates to its sync twin, as before.
+    # in-memory container) each delegates to its sync twin.
 
     def _aio_parts(self) -> Optional[Tuple[AsyncContainerClient, asyncio.Lock]]:
         """The async container and the write lock for the running loop — built once per loop."""
@@ -714,9 +699,7 @@ _singleton: Optional[AzureBlobCheckpointSaver] = None
 def get_checkpointer() -> AzureBlobCheckpointSaver:
     """
     Singleton accessor — single shared instance per process, lazily
-    initialised. (It used to say it mirrored `ImproveBlobClient`; step 3.5
-    removed that class, and `storage/blob.py` now caches a client in module
-    state instead.)
+    initialised.
     """
     global _singleton
     if _singleton is not None:

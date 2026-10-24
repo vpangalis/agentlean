@@ -88,12 +88,11 @@ async def startup():
     from backend.core import content_safety
     content_safety.check_startup()
     init_tracing()
-    # Step 6.54 (G-93) — every client a Define turn uses is built HERE, before
-    # the app accepts a request, rather than inside the first Belt's turn. On
-    # a first turn the lazy builds cost ~20 s (trace 01a0d357…) and pushed an
-    # open question past its budget. Built in a worker thread: the builds are
-    # synchronous and load certificate bundles. A failure is logged and the
-    # app still starts — a turn then builds lazily, as it did before 6.54.
+    # G-93 — every client a Define turn uses is built HERE, before the app
+    # accepts a request, rather than inside the first Belt's turn, where the
+    # lazy builds push the turn past its budget. Built in a worker thread: the
+    # builds are synchronous and load certificate bundles. A failure is logged
+    # and the app still starts — a turn then builds its clients lazily.
     started = time.monotonic()
     try:
         await asyncio.to_thread(warm_turn_llms)
@@ -113,16 +112,14 @@ async def startup():
 async def shutdown():
     # `storage/blob.py` caches one `azure.storage.blob.aio` client for the
     # process; its aiohttp session needs a deterministic close or it is merely
-    # garbage-collected, which logs an unclosed-session warning (step 3.5).
-    # This is NOT the graceful drain of step 8.5 — that one waits for in-flight
-    # coaching turns via `RunControl.request_drain()` and stays gated. Closing
-    # an HTTP session is a separate, ungated concern.
+    # garbage-collected, which logs an unclosed-session warning. This closes
+    # HTTP sessions only; it does not drain in-flight coaching turns.
     await blob.aclose()
     # ADR-0101: the checkpointer's async Blob client, closed the same way.
     from backend.core.checkpointer import _singleton as _saver
     if _saver is not None:
         await _saver.aclose()
-    # 6.54 — the per-index search clients built at startup, closed the same way.
+    # The per-index search clients built at startup, closed the same way.
     retriever.close_clients()
     logger.info("Agent Improve shutting down")
 

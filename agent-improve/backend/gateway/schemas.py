@@ -63,7 +63,7 @@ class AskRequest(BaseModel):
     user: str                    # name of team member sending this turn
     message: str                 # what they typed
     phase: str                   # current phase — UI sends this for routing
-    # Step 6.61 (R4) — the Belt's Confirm or Change button under a read-back.
+    # R4 — the Belt's Confirm or Change button under a read-back.
     # A click sets the field's status in code; no model reads it.
     action: Optional[Literal["confirm", "change", "park", "try_again", "revise"]] = None
     # W9 (DEF-079) — with action "revise": the element picked in the progress view.
@@ -130,15 +130,14 @@ class AskResponse(BaseModel):
     visualisation: Optional[dict] = None         # inline visual payload (e.g. 5W2H mindmap)
     section_completed: Optional[str] = None      # which Gate section just completed this turn
     escalated: bool = False
-    # Step 10.0 — §50.1's render contract, beside `answer` (which stays the
-    # `message` block). Defaulted: a missing block is a finding, never a failed
-    # turn (§4.8, v1.64).
+    # The reply's render contract, beside `answer` (which stays the `message`
+    # block). Defaulted: a missing block is a finding, never a failed turn.
     explanation: str = ""
-    example: str = ""                            # an illustration, never the Belt's data (B6)
+    example: str = ""                            # an illustration, never the Belt's data
     prompt: str = ""                             # the one ask of this turn
-    progress: str = ""                           # "Define · Step n of 13" (6.57; 13 since R4)
+    progress: str = ""                           # "Define · n of 13 confirmed" (define_progress)
     grader_warning: Optional[str] = None         # the grader's Belt-visible warning (G-76)
-    # Step 6.61 (R4) — the move this reply made and its field, so the screen
+    # R4 — the move this reply made and its field, so the screen
     # shows Confirm / Change under a read-back and nothing else decides that.
     move: Optional[str] = None
     move_field: Optional[str] = None
@@ -341,7 +340,7 @@ class GateReviewField(BaseModel):
 
     field: str
     label: str
-    tier: int                    # 1 blocks the gate · 2 warns only (§35)
+    tier: int                    # 1 blocks the gate · 2 warns only
     value: object | None = None
     present: bool = False
     structured: bool = False     # dict/list — rendered, not free-typed

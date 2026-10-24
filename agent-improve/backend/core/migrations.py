@@ -1,4 +1,4 @@
-"""State schema versions and their migrations — ADR-0065 (ACCEPTED, founder 2026-09-29), T88.
+"""State schema versions and their migrations — ADR-0065, T88.
 
 A DMAIC case runs for weeks. Its checkpoints and Store records were written by the release that
 was live then, and LangGraph persists state without migrating an application's schema. So:
@@ -57,7 +57,7 @@ def _define_metrics(artifacts: Mapping[str, Any],
 
 
 def _metric_entries(entries: Any, artifacts: Mapping[str, Any]) -> Any:
-    """`phase_metrics`' primary entry mirrors the scalars (§63.9): the same MetricValues."""
+    """`phase_metrics`' primary entry mirrors the scalars (`core/metrics.py`): the same MetricValues."""
     if not isinstance(entries, list) or not entries or not isinstance(entries[0], dict):
         return entries
     first = dict(entries[0])
@@ -216,7 +216,7 @@ def _define_v10(define: Any) -> Any:
 
 
 def migrate_v9_to_v10(values: Mapping[str, Any]) -> dict[str, Any]:
-    """ADR-0088 "Element values parsed and checked in code" decision 8 — the one migration of stage 1:
+    """ADR-0088 "Element values parsed and checked in code" decision 8:
     CTQ rows with the same need and requirement become one row, customers joined (DEF-184, G-184) —
     wherever state carries Define values: `artifacts`, `final`, `draft`, `captured_by_phase`, and a
     flat Define document. Nothing the Belt wrote is deleted."""
@@ -244,7 +244,7 @@ def migrate_v11_to_v12(values: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def migrate_v12_to_v13(values: Mapping[str, Any]) -> dict[str, Any]:
-    """ADR-0093 "Element templates and the Gate view" (option (b), founder 2026-10-19): the judgment returns a
+    """ADR-0093 "Element templates and the Gate view": the judgment returns a
     quoted span per criterion; the verified spans ride on a pending read-back and are kept on a confirmed
     element's status (`field_status[field]["spans"]`), with the file its values came from (`"upload"`), so the
     Gate shows the card's rows. A no-op: an entry without spans reads as having none — its free-text rows show
@@ -254,10 +254,9 @@ def migrate_v12_to_v13(values: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def migrate_v13_to_v14(values: Mapping[str, Any]) -> dict[str, Any]:
-    """Two additions of 2026-10-21, one version. (1) DEF-224 / DEF-098: an element's `field_status` entry may keep
+    """Two additions, one version. (1) DEF-224 / DEF-098: an element's `field_status` entry may keep
     the planner's verdict (`judged`), the gate rubric's per criterion (`gate`) and a value offered from another
-    answer (`offered`) — landed in 529eed0 without this bump, which T88's practice asks for (noted 2026-10-21).
-    (2) ADR-0105 (DEF-103): a person record carries a one-time code's HMAC, issue time and failed attempts. A no-op:
+    answer (`offered`). (2) ADR-0105 (DEF-103): a person record carries a one-time code's HMAC, issue time and failed attempts. A no-op:
     an entry or a person without them reads as having none."""
     return dict(values)
 

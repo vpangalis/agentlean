@@ -1,8 +1,8 @@
-"""Structured errors for external service failures — CLAUDE.md §12.3.
+"""Structured errors for external service failures.
 
 One schema for every external service failure, so the circuit breaker can
 read `severity` to decide retry-vs-stop and the fallback chain can read
-`retry_recommendation` to choose its backoff strategy (§4.8).
+`retry_recommendation` to choose its backoff strategy.
 """
 from __future__ import annotations
 
@@ -25,13 +25,11 @@ class AgentImproveError(BaseModel):
     )
 
     def to_step_log_entry(self, **extra: Any) -> dict[str, Any]:
-        """Render as a `step_log` dict — §10.3 shape, named keys, never a
-        tuple.
+        """Render as a `step_log` dict — named keys, never a tuple.
 
-        `step_log` does not exist on `ImproveGraphState` yet; it arrives with
-        `PhaseState` in refactor step 4.1. Until then callers log this dict
-        through `logging`. Once `PhaseState` lands, a node holding this error
-        appends the same dict to `step_log` with no reshaping.
+        A node holding this error appends the dict to `PhaseState.step_log`
+        (its `key` passed in `extra`: the reducer refuses a keyless entry), or
+        logs it through `logging`.
         """
         entry = {
             "service": self.affected_identifier,
@@ -50,9 +48,8 @@ class KnowledgeSearchError(Exception):
     """Raised when an Azure AI Search retrieval fails.
 
     Exists so callers can distinguish "retrieval broke" from "retrieval ran
-    and matched nothing". Collapsing those two into an empty list is the bug
-    this type prevents: a broken index filter looked exactly like a corpus
-    with no relevant content, and stayed invisible for months.
+    and matched nothing". Collapsing those two into an empty list makes a
+    broken index filter look exactly like a corpus with no relevant content.
     """
 
     def __init__(self, error: AgentImproveError) -> None:

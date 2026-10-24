@@ -153,15 +153,13 @@ class UploadRecord(BaseModel):
     uploaded_at: str
     classification: str               # e.g. maintenance_log, operational_data
 
-    #: Row count from the deterministic parse. **Declared since before the
-    #: refactor and written by nothing until 6.11** (Part AP1) — the parse is
-    #: what finally gives it a writer.
+    #: Row count from the deterministic parse.
     rows: Optional[int] = None
 
-    #: The document's function in the project, from §23.2.1's ratified
-    #: twelve-row vocabulary. **With `case_id` this is the LOGICAL IDENTITY**
-    #: (ruling AP2.2): supersession resolves on `(case_id, role)`, and files
-    #: are versions of the ask, never identified by filename.
+    #: The document's function in the project, from the ratified role
+    #: vocabulary. **With `case_id` this is the LOGICAL IDENTITY**:
+    #: supersession resolves on `(case_id, role)`, and files are versions of
+    #: the ask, never identified by filename.
     #: From the ask when the upload was solicited; from the Belt's declared
     #: purpose when it was not.
     role: str = "other evidence"
@@ -176,7 +174,7 @@ class UploadRecord(BaseModel):
     #: same `(case_id, role)` supersedes.
     content_digest: str = ""
 
-    #: evidence | artefact (ruling 3). **The destination, not the format.**
+    #: evidence | artefact. **The destination, not the format.**
     #: Evidence describes the world and goes to `improve_evidence_index`; an
     #: artefact is what the team designed and belongs to the gate document as
     #: captured content. One bucket would let a proposed future be retrieved
@@ -185,12 +183,12 @@ class UploadRecord(BaseModel):
 
     #: The `improve_evidence_index` document id, when this upload was indexed.
     #: **`None` for every artefact, and for evidence whose indexing failed** —
-    #: which is why it is Optional rather than defaulted to "". §6 names it as
-    #: what makes the evidence trail traversable.
+    #: which is why it is Optional rather than defaulted to "". It is what
+    #: makes the evidence trail traversable.
     evidence_index_id: Optional[str] = None
 
-    #: The interpretation's summary, lifted to the top level because §6's entry
-    #: shape names `summary` and a gate document reads that shape.
+    #: The interpretation's summary, lifted to the top level because the
+    #: uploads entry shape names `summary` and a gate document reads that shape.
     summary: str = ""
 
     interpretation: Optional[UploadInterpretation] = None
@@ -201,29 +199,28 @@ class UploadRecord(BaseModel):
 
     #: Set when the deterministic parse could not read the file. **An upload
     #: that reaches the case record with this set was reported, not silently
-    #: accepted** (ruling 5) — the route refuses before persisting, so this is
+    #: accepted** — the route refuses before persisting, so this is
     #: the belt-and-braces record for any path that later chooses to keep one.
     refusal_reason: Optional[str] = None
 
     #: Set when a `load_evidence_series` call or a citation references this
     #: document. **`None` at a gate on an upload bound to an open ask means
     #: the Belt supplied evidence and the coaching proceeded without it** —
-    #: a condition undetectable without the field (S-C02, S-C09).
+    #: a condition undetectable without the field.
     consumed_at: Optional[str] = None
 
-    # Filled at 6.12 by the ask-binding; declared at 6.11. See the docstring.
+    # The ask this upload answered, and its version under that ask. See the class docstring.
     ask_id: Optional[str] = None
     version: Optional[int] = None
 
     def to_phase_state_entry(self, phase: str) -> dict[str, Any]:
-        """This record in §6's `PhaseState.uploads` entry shape (S-C02).
+        """This record in the `PhaseState.uploads` entry shape.
 
         **The single reconciliation point between the two shapes.** Gate
         assembly reads `PhaseState.uploads`; the case blob holds
-        `UploadRecord`; before 6.11 nothing connected them and
-        `PhaseState.uploads` had no writer at all, so every gate document
-        asserted §6's "this phase reached its conclusions from typed
-        statements alone" — including for phases where the Belt uploaded.
+        `UploadRecord`. Without this, a gate document would assert "this
+        phase reached its conclusions from typed statements alone" — even
+        for phases where the Belt uploaded.
         """
         return {
             "evidence_index_id": self.evidence_index_id,
@@ -240,8 +237,8 @@ class UploadRecord(BaseModel):
             # ADR-0074 — the upload turn writes the file part of its reply from this.
             "element_check": (self.interpretation.element_check.model_dump()
                               if self.interpretation and self.interpretation.element_check else None),
-            # Reserved for 6.12 — carried so the shape is stable across the
-            # two steps rather than growing under the gate document.
+            # Carried so the shape is stable rather than growing under the
+            # gate document.
             "ask_id": self.ask_id,
             "version": self.version,
         }
@@ -268,32 +265,24 @@ class PhaseRecord(BaseModel):
     analyst_output: Optional[AnalystOutputRecord] = None
     citations: list[CitationRecord] = []
     uploads: list[UploadRecord] = []
-    #: Where each coached field stands — step 6.61 (R5): `status` (not taught
+    #: Where each coached field stands — R5: `status` (not taught
     #: / asked / answered / confirmed), the Belt's words so far, and the
     #: read-back awaiting a yes. Written by the same statement as `structured`
     #: (`routes.apply_capture`), from the same turn's product.
     field_status: dict[str, dict[str, Any]] = {}
 
     #: The field change log — one entry per change to `structured`, keyed
-    #: `{phase}:{turn}:{field}` (§11). Step 6.33; entry shape and the merge
-    #: rule are `core/substate.FIELD_LOG_ENTRY_KEYS` / `merge_field_log`.
+    #: `{phase}:{turn}:{field}`. The entry shape and the merge rule are
+    #: `core/substate.FIELD_LOG_ENTRY_KEYS` / `merge_field_log`.
     #:
     #: **HERE, and not in the Store's `case` record, which is where `asks`
-    #: went for the same-shaped question.** §6's ruling on `asks` turns on WHO
-    #: must read the thing BETWEEN turns: an ask is answered by an upload
-    #: arriving moments later on a route that cannot see the checkpoint, and
-    #: there is no sanctioned case-blob write between those two moments. A
-    #: field change has no such reader. It is written by the same statement,
-    #: at the same moment, from the same turn's product as `structured` above
-    #: — and a history persisted on a different schedule from the value it is
-    #: a history OF can disagree with it, which would read exactly like a
-    #: change that never happened.
-    #:
-    #: **It therefore inherits §10's open violation rather than adding one.**
-    #: The case blob is written per turn today — `gateway/routes.py` says so
-    #: in its own words and names step 10.2 as the removal. When that write
-    #: moves, this field moves with `structured`; that is the point of them
-    #: sharing a line.
+    #: live.** The difference is WHO must read the thing BETWEEN turns: an ask
+    #: is answered by an upload arriving moments later on a route that cannot
+    #: see the checkpoint, and there is no sanctioned case-blob write between
+    #: those two moments. A field change has no such reader. It is written
+    #: with `structured`, on the same schedule — a history persisted on a
+    #: different schedule from the value it is a history OF can disagree with
+    #: it, which would read exactly like a change that never happened.
     field_log: list[dict[str, Any]] = []
 
 
@@ -352,7 +341,7 @@ class CaseDocument(BaseModel):
         people: Optional[list["PersonRecord"]] = None,
     ) -> "CaseDocument":
         """Factory for creating a new case. ADR-0090: `people` (the lead first) when the form gives them;
-        else the lead from `leader` and the members from `team` ({name, role}), as before."""
+        else the lead from `leader` and the members from `team` ({name, role})."""
         from datetime import datetime, timezone
 
         from backend.core.state import STATE_SCHEMA_VERSION

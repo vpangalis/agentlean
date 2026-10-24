@@ -1,25 +1,20 @@
 """`PhaseState` — the Level 2 per-phase subgraph state.
 
-Canonical definition: reference **§58.2 — S-C02**. Architecture rationale: §6.
-Procedure step 3.1. S-C02 carries a *rebuild test*: this file's `PhaseState`
-must be reconstructable from that entry alone, so the field list, the order
-and the reducers below are transcribed from it rather than designed here.
+`PhaseState` must be reconstructable from the ratified state definition alone,
+so the field list, the order and the reducers below are transcribed from it
+rather than designed here.
 
 Private to one phase subgraph and checkpointed through the parent's saver
-under an auto-managed `checkpoint_ns` (§16). It holds the phase's working
+under an auto-managed `checkpoint_ns`. It holds the phase's working
 data — the plan in flight, what has been captured, the audit trail, the retry
 budget — and it is where every value that must survive context compression
-lives (§19.3).
+lives.
 
-**Explicit `TypedDict`, never `MessagesState` inheritance** (§6). The
+**Explicit `TypedDict`, never `MessagesState` inheritance.** The
 dominant content here is structured fields, not conversation;
 `MessagesState` is appropriate only where the content genuinely is
 conversational exchange, which in this architecture is the deferred debate
 subgraph and nothing else.
-
-**Nothing is wired into a graph in this step** (procedure 3.1) — this module
-declares the schema and no more. The v1 `ImproveGraphState` in `state.py`
-remains the live schema until step 11.1.
 """
 from __future__ import annotations
 
@@ -202,16 +197,15 @@ class CoachingPlan(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _read_pre_r5_status(cls, data: Any) -> Any:
-        """A plan checkpointed before ruling R5 carries "untaught" — read it as
-        "not taught", or every old checkpoint fails to load (found by row 3's
-        check reading IMPR-2026-7F1)."""
+        """A plan checkpointed before R5 carries "untaught" — read it as
+        "not taught", or every old checkpoint fails to load."""
         if isinstance(data, dict) and data.get("status") == "untaught":
             return {**data, "status": "not taught"}
         return data
 
     @model_validator(mode="after")
     def _single_hop_carries_no_hops(self) -> CoachingPlan:
-        """**B2** — `single_hop` leaves `retrieval_hops` empty.
+        """`single_hop` leaves `retrieval_hops` empty.
 
         Normalises rather than raises. This runs on model output, and a plan
         rejected for a stray hop list would fail the turn over something the
@@ -223,7 +217,7 @@ class CoachingPlan(BaseModel):
         return self
 
 
-#: G-139 (ADR-0075, founder 2026-10-01) — this turn's normalizations of `fields_captured`, one
+#: G-139 (ADR-0075) — this turn's normalizations of `fields_captured`, one
 #: shape name each ("empty_object", "single_entry"). The executor sets a fresh list per turn and
 #: copies it into the turn's step_log entry; the validator only appends (a ContextVar holding a
 #: list, so a parse in a copied context still reaches the turn's list).
@@ -231,15 +225,15 @@ FIELDS_CAPTURED_NORMALIZED: contextvars.ContextVar[list[str] | None] = contextva
     "fields_captured_normalized", default=None)
 
 
-#: The five keys `contradiction_flag` carries when it is set (S-C05, §37).
-#: `ContradictionDetectionMiddleware` (S-C10, step 6.5) reads them to build its
+#: The five keys `contradiction_flag` carries when it is set.
+#: `ContradictionDetectionMiddleware` reads them to build its
 #: interrupt payload, so a flag missing one is a flag it cannot present.
 CONTRADICTION_FLAG_KEYS: tuple[str, ...] = (
     "prior_field", "approved_value", "approved_phase", "proposed_value",
     "belt_input",
 )
 
-#: G-252 (founder ruling 2026-10-23, item 2f): what each key of a contradiction flag holds, in plain words.
+#: G-252: what each key of a contradiction flag holds, in plain words.
 _FLAG_MEANING: dict[str, str] = {
     "prior_field": "The field whose approved value is contradicted.",
     "approved_value": "The value approved in the earlier phase.",
@@ -274,7 +268,7 @@ class Citation(BaseModel):
     role: str = Field(default="", description="The uploaded file's role, as the list of files names it.")
 
 
-# Built from the keys, so CONTRADICTION_FLAG_KEYS stays the one definition (G-252, item 2f).
+# Built from the keys, so CONTRADICTION_FLAG_KEYS stays the one definition (G-252).
 ContradictionFlag = create_model(  # type: ignore[call-overload]
     "ContradictionFlag",
     __doc__="A material contradiction of a value approved in an earlier phase.",
@@ -304,10 +298,10 @@ class CoachingResponse(BaseModel):
     @field_validator("fields_captured", mode="before")
     @classmethod
     def _one_list(cls, value: Any) -> Any:
-        """G-139 (ADR-0075): gpt-4o, through ToolStrategy, returns this list field in two other
-        shapes — an empty object `{}` (a challenge, live 083638 turn 10 and 104934 turn 8) and ONE
-        entry object (a read-back, 104934 turn 33). Refused, either ended an answer turn in a reply
-        written in code. Read as `[]` and as a one-item list; anything else is left to fail."""
+        """G-139 (ADR-0075): gpt-4o, through ToolStrategy, can return this list field in two other
+        shapes — an empty object `{}` (on a challenge) and ONE entry object (on a read-back). Refused,
+        either would end an answer turn in a reply written in code, so they are read as `[]` and as a
+        one-item list; anything else is left to fail."""
         shape = ("empty_object" if isinstance(value, dict) and not value
                  else "single_entry" if isinstance(value, dict) and "field_name" in value else None)
         if shape is None:
@@ -328,7 +322,7 @@ def capturable_fields(phase: str) -> tuple[str, ...]:
 
 
 def coaching_response_model(phase: str) -> type[CoachingResponse]:
-    """G-252 (founder ruling 2026-10-23, item 2e): the phase's CoachingResponse — `field_name` limited to the phase's
+    """G-252: the phase's CoachingResponse — `field_name` limited to the phase's
     own field list. A subclass named CoachingResponse, so the tool the coach calls keeps its name."""
     if phase not in _RESPONSE_MODELS:
         names = capturable_fields(phase)
@@ -342,25 +336,25 @@ def coaching_response_model(phase: str) -> type[CoachingResponse]:
     return _RESPONSE_MODELS[phase]
 
 
-#: The four §50.1 fields whose absence is a FINDING rather than a failure.
-#: §56 amendment v1.64. `message` is NOT among them — a turn with no coaching
+#: The four presentational blocks whose absence is a FINDING rather than a
+#: failure. `message` is NOT among them — a turn with no coaching
 #: text has nothing to say to the Belt and is a real failure, not a gap.
 PRESENTATIONAL_FIELDS = ("explanation", "example", "prompt", "progress")
 
 
 def presentational_gaps(response: CoachingResponse) -> list[str]:
-    """Which of §50.1's four blocks came back empty this turn.
+    """Which of the four presentational blocks came back empty this turn.
 
-    **Empty is a finding, and this is what makes it one.** Before v1.64 the
-    four were required, so an omission failed the turn's structured output —
-    against §4.8's *never a hard failure to the Belt*. Making them optional
-    without this would have traded a loud failure for a silent one, which is
-    the worse of the two: the UI would draw four blocks, one of them blank,
-    and nothing anywhere would have noticed.
+    **Empty is a finding, and this is what makes it one.** The four are
+    optional so that an omission never fails the turn's structured output —
+    the Belt never sees a hard failure. Optional without this check would
+    trade a loud failure for a silent one, which is the worse of the two: the
+    UI would draw four blocks, one of them blank, and nothing anywhere would
+    notice.
 
     Whitespace counts as empty. A `progress` of `" "` renders as a layout
-    break exactly as `""` does, and §58.5 B6 already says an absence must be
-    stated plainly rather than folded away.
+    break exactly as `""` does, and an absence must be stated plainly rather
+    than folded away.
     """
     return [f for f in PRESENTATIONAL_FIELDS
             if not str(getattr(response, f, "") or "").strip()]
@@ -368,30 +362,27 @@ def presentational_gaps(response: CoachingResponse) -> list[str]:
 
 # ── the capture path — what an empty value means, and who may say so ──────
 #
-# **The log counted KEYS and the filter dropped on VALUES, and both were
-# right about different things.** `nodes_common.executor` logged
-# *"captured 1 field(s) -> artifacts"* while `gateway/routes.py` discarded
-# every entry whose value was `None`, `[]` or `{}` — so *"captured a field"*
-# and *"nothing reached the gate document"* were both true of the same turn
-# (step 6.33, G-78). A capture is now split ONCE, here, and the two ends of
-# the path read the same answer.
+# A capture is split ONCE, here, and both ends of the path read the same
+# answer (G-78): the executor's capture log and the gateway's write to the
+# gate document must agree on which fields carry a value, or "captured a
+# field" and "nothing reached the gate document" are both true of one turn.
 
 
 def is_empty_capture(value: Any) -> bool:
     """Whether a captured value carries nothing the Belt could point at.
 
     `None`, an empty list, an empty dict, and a string that is blank or
-    **whitespace**. Whitespace counts on two existing arguments rather than a
-    new one: `presentational_gaps` above already treats `" "` as absent
-    because it renders as a layout break, and `nodes_common._advance_field_index`
-    already reads `str(artifacts.get(field) or "").strip()` when it looks for
-    the next uncaptured field. A value the field walk does not count as
-    captured must not be one the write counts either.
+    **whitespace**. Whitespace counts because `presentational_gaps` above
+    treats `" "` as absent (it renders as a layout break), and
+    `nodes_common._advance_field_index` reads `str(artifacts.get(field) or "").strip()`
+    when it looks for the next uncaptured field. A value the field walk does
+    not count as captured must not be one the write counts either.
 
     **`0` and `False` are values, not absences.** The membership tests are
     typed rather than written `value == []`, which is what keeps `0` out of
-    the empty bucket — §7's law makes every captured field a string, so this
-    is defence against a model returning a bare numeric, not a supported shape.
+    the empty bucket — the field typing law makes every captured field a
+    string, so this is defence against a model returning a bare numeric, not a
+    supported shape.
     """
     if value is None:
         return True
@@ -407,7 +398,7 @@ def split_captures(values: Any) -> tuple[dict[str, Any], list[str]]:
 
     Returns `(kept, empty)` — `empty` being the FIELD NAMES whose capture
     arrived with nothing in it. **The names, not a count**, because the point
-    is that the turn can now say WHICH field the Belt appeared to give and the
+    is that the turn can say WHICH field the Belt appeared to give and the
     record does not hold: a count reconciles the two logs and still leaves a
     reader guessing.
 
@@ -428,7 +419,7 @@ def split_captures(values: Any) -> tuple[dict[str, Any], list[str]]:
     return kept, sorted(empty)
 
 
-# ── the field change log — §56 amendment, ratified 2026-09-21 ─────────────
+# ── the field change log ──────────────────────────────────────────────────
 
 
 #: The keys one `field_log` entry carries. Named here because the WRITER
@@ -443,14 +434,14 @@ FIELD_LOG_ENTRY_KEYS: tuple[str, ...] = (
 
 
 def field_log_key(phase: str, turn: int, field: str) -> str:
-    """The deterministic identity of one field change — §11.
+    """The deterministic identity of one field change.
 
-    ``f"{phase}:{turn}:{field}"`` — §11's key shape with the FIELD in the slot
-    `step_log` gives the node, and the whole of the idempotence guarantee:
-    *"a turn that is retried, resumed from a checkpoint, or replayed after a
-    client disconnect re-executes the same logical step … a deterministic key
-    makes the write idempotent, so the replay overwrites its own earlier entry
-    instead of duplicating it."*
+    ``f"{phase}:{turn}:{field}"`` — the step key's shape with the FIELD in the
+    slot `step_log` gives the node, and the whole of the idempotence guarantee:
+    a turn that is retried, resumed from a checkpoint, or replayed after a
+    client disconnect re-executes the same logical step, and a deterministic
+    key makes the write idempotent, so the replay overwrites its own earlier
+    entry instead of duplicating it.
 
     **It is not `nodes_common.step_key`, and that is the import direction
     rather than an oversight.** `nodes_common` imports this module; importing
@@ -477,26 +468,24 @@ def merge_field_log(
     left: list[dict[str, Any]] | None,
     right: list[dict[str, Any]] | None,
 ) -> list[dict[str, Any]]:
-    """The `field_log` reducer — **append-only BY DECLARATION**, keyed per §11.
+    """The `field_log` reducer — **append-only BY DECLARATION**, keyed per entry.
 
     **This is why `field_log` carries a reducer and `artifacts` does not.**
-    `artifacts` merges in its writer (S-C02), which is safe because the
+    `artifacts` merges in its writer, which is safe because the
     executor is its only writer and merges every time. A change log has to
     survive a writer that forgets: a node returning `{"field_log": [one new
     entry]}` into a channel with no reducer REPLACES the history with that one
     entry, and the replacement is silent. Declaring the reducer moves
     "append, never replace" from something every writer must remember into
-    something the channel does — which is the same move `messages` and
-    `step_log` already make with `operator.add`.
+    something the channel does — the same move `messages` makes with
+    `operator.add`.
 
-    **It is not `operator.add`, and the difference is §11's idempotence.**
+    **It is not `operator.add`, and the difference is idempotence.**
     `operator.add` cannot honour a deterministic key: a resumed or replayed
     turn appends its entries a second time, and the log inflates on every
     retry until it stops being evidence of what happened. This upserts on
     `key` — `{phase}:{turn}:{field}` — so **a re-run of the same turn replaces
-    its own entry** and a run of the NEXT turn adds one. §11 requires that of
-    `step_log` too and `operator.add` does not deliver it there; it is
-    delivered here.
+    its own entry** and a run of the NEXT turn adds one.
 
     **Order is first-appearance order**, which is chronological: assigning to
     an existing `dict` key keeps the key's original position, so a replaced
@@ -543,7 +532,7 @@ def value_history(field_log: list[dict[str, Any]] | None,
     """R6 (docs/requirements/business.md) — per field, the FIRST confirmed value
     with its date and the CURRENT value with its date, read from `field_log`.
 
-    `field_log` already holds this; nothing new is stored. Since 6.61 an entry
+    `field_log` already holds this; nothing new is stored. An entry
     is written only when the Belt CONFIRMS a value (the executor builds the log
     from what the plan stores), each with its ISO `timestamp` and the value it
     replaced, and the log crosses turns through the case record. So the first
@@ -569,31 +558,22 @@ def value_history(field_log: list[dict[str, Any]] | None,
 
 
 class PhaseState(TypedDict):
-    """Twenty-three author-populated fields — two identity, three plumbing,
-    eighteen content — plus one engine-managed value: twenty-four declared.
-    (`field_status` joined at step 6.61, §56 amendment v1.77.)
+    """Twenty-four author-populated fields — two identity, three plumbing,
+    nineteen content — plus one engine-managed value: twenty-five declared.
 
-    **Any new field requires a §56 amendment**, whatever category it is
-    placed in. `test_state.py` asserts the count and the names.
-
-    **This caption was stale by two fields before `field_log` was added, and
-    the field list beneath it was right the whole time.** It read *"Twenty …
-    fifteen content … twenty-one declared"* while the class carried sixteen
-    content fields: `asks` landed at step 6.12 and the caption was never
-    updated with it, exactly as `.claude/rules/state.md`'s own caption was
-    left behind by `rejection_feedback` at 2.2.23 and says so. Corrected here
-    rather than separately — the count was being edited anyway, and a figure
-    sync gets said out loud rather than slipped in.
+    **Any new field requires an amendment to the ratified state definition**,
+    whatever category it is placed in. `test_state.py` asserts the count and
+    the names.
     """
 
     # ── identity, copied down by the input mapper (2) ────────────────
     #
-    # THE COPY-DOWN INVARIANT (S-C02). Both are copied down from the parent
+    # THE COPY-DOWN INVARIANT. Both are copied down from the parent
     # `SupervisorState` by the input mapper at phase entry, from no other
     # source — not config, not a build-time constant. They are READ-ONLY
     # inside the subgraph: no node may return either key in its state-update
-    # dict (B9). `SupervisorState.current_phase` stays authoritative and
-    # keeps its single writer, the output mapper (§5).
+    # dict. `SupervisorState.current_phase` stays authoritative and
+    # keeps its single writer, the output mapper.
     #
     # This is a boundary-time copy, not a second writer: parent and child are
     # two fields on two schemas, and the child's is derived from the parent's
@@ -606,37 +586,34 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str
 
-    # ── content fields (15) ──────────────────────────────────────────
+    # ── content fields (19) ──────────────────────────────────────────
     #
-    # `coaching_plan` is ONE typed plan, not a queue — overwritten every time
-    # the planner fires (B2). **It is now the `CoachingPlan` model above**:
-    # step 6.1 landed the real planner, so the `dict[str, Any]` §6 sanctioned
-    # as the interim annotation ("typed is preferred") is retired here. Read it
-    # by attribute — `coaching_plan.retrieval_hops`, never `["retrieval_hops"]`
-    # (B7). `None` until the phase's first planner turn produces one.
+    # `coaching_plan` is ONE typed plan, the `CoachingPlan` model above, not a
+    # queue — overwritten every time the planner fires. Read it by attribute —
+    # `coaching_plan.retrieval_hops`, never `["retrieval_hops"]`. `None` until
+    # the phase's first planner turn produces one.
     coaching_plan:      Optional[CoachingPlan]
     field_index:        int
 
-    # `draft`, `belt_edits` and `final` are dicts and NEVER str (B6). A
+    # `draft`, `belt_edits` and `final` are dicts and NEVER str. A
     # string-typed handoff forces the next node to parse prose out of the
     # last one's output — the anti-pattern this architecture exists to remove.
     draft:              dict[str, Any]
 
     # Everything captured so far, keyed by field name. Every value is a `str`
-    # (§7's field typing law), except the three cross-phase reference dicts
-    # (S-C32) and the three structured dicts (S-C33). Also holds
-    # `computation_results` — §7 forbids a top-level field for those.
+    # (the field typing law), except the three cross-phase reference dicts
+    # and the three structured dicts. Also holds `computation_results` — the
+    # typing law forbids a top-level field for those.
     artifacts:          dict[str, Any]
 
     # The audit trail: HOW each thing was captured, as against WHAT, which is
     # `artifacts`. The two must stay separate. Dicts only — tuples are
-    # banned (§10.3).
+    # banned.
     # ADR-0107 — an upsert on the entry's key: a replayed step leaves one entry.
     step_log:           Annotated[list[dict[str, Any]], merge_step_log]
 
-    # WHEN each captured value changed, and what it was before — §56
-    # amendment, ratified 2026-09-21, built at step 6.33. One entry per
-    # change, keyed `{phase}:{turn}:{field}` per §11, including the first
+    # WHEN each captured value changed, and what it was before. One entry per
+    # change, keyed `{phase}:{turn}:{field}`, including the first
     # capture of a field, which carries no `prior_value`.
     #
     # **A THIRD thing, and it is neither of the other two.** `artifacts` is
@@ -648,14 +625,13 @@ class PhaseState(TypedDict):
     # must be able to stand behind has to be able to show the value's
     # history, not only its last state.
     #
-    # **The one channel here whose reducer is not `operator.add`**, because
-    # §11's deterministic key has to mean something: `merge_field_log` upserts
+    # **Its reducer is not `operator.add`**, because
+    # the deterministic key has to mean something: `merge_field_log` upserts
     # on the key, so a replayed turn overwrites its own entry instead of
     # logging the same change twice.
     field_log:          Annotated[list[dict[str, Any]], merge_field_log]
 
-    # WHERE EACH FIELD STANDS — step 6.61, founder ruling R5 2026-09-25, §56
-    # amendment v1.77. Per coached position: `status` — one of the four,
+    # WHERE EACH FIELD STANDS (R5). Per coached position: `status` — one of the four,
     # "not taught" -> "asked" -> "answered" -> "confirmed" — plus the Belt's
     # words so far (`answer`, `messages`) and, while a read-back awaits the
     # Belt, `pending` (the value in the Belt's words, and what a yes stores).
@@ -667,17 +643,16 @@ class PhaseState(TypedDict):
 
     # The Belt's corrections at gate step 5. NOT the same thing as
     # `validator_feedback` and must never be merged with it: two actors, two
-    # moments (§33). Conflating them has the coach read the Belt's own
+    # moments. Conflating them has the coach read the Belt's own
     # corrections as validation failures.
     belt_edits:         dict[str, Any]
     turn_count:         int
     final:              dict[str, Any]
 
-    # The shared retry counter for the three-layer validation stack (§34; 2a retired, ADR-0083).
-    # PER PHASE and IN THE CHECKPOINT — never in route scope. v1 held the
-    # equivalent counter in route scope, so every request rebuilt it at 0,
-    # the cap never fired, and the loop reported attempt 1 indefinitely.
-    # This placement is the fix for that specific defect (§6).
+    # The shared retry counter for the validation stack (ADR-0083).
+    # PER PHASE and IN THE CHECKPOINT — never in route scope: a counter in
+    # route scope is rebuilt at 0 on every request, so the cap never fires
+    # and the loop reports attempt 1 indefinitely.
     gate_attempts:      int
 
     # G-192 (ADR-0076): what the last FAILED gate submission submitted — `submission_fingerprint`
@@ -703,30 +678,28 @@ class PhaseState(TypedDict):
 
     # An EMPTY list is meaningful, not merely empty: because
     # `improve_evidence_index` is the only channel through which external
-    # data enters (§29.1), an empty `uploads` means the phase reached its
+    # data enters, an empty `uploads` means the phase reached its
     # conclusions from the Belt's typed statements alone, and a reviewer
     # should be able to see that.
     uploads:            list[dict]
 
-    # The coach's recorded requests for data — §56 amendment, ratified
-    # 2026-09-09 (DECISIONS Part AR2), built at step 6.12. Entry shape:
-    # `ask_id`, `role` (§23.2.1's vocabulary), `expected_shape`, `phase`,
+    # The coach's recorded requests for data. Entry shape:
+    # `ask_id`, `role` (the upload-role vocabulary), `expected_shape`, `phase`,
     # `asked_at`, `status`.
     #
     # **A SYSTEM record, not a captured value**, which is why it is here and
     # not in `artifacts`: `artifacts` holds what the BELT produced, gate
     # assembly walks it, and a structured `asks` list would need a fifth
-    # exception to §7's string law. The case blob was rejected too — §10 says
-    # it is written "never mid-conversation" and an ask is born in a coaching
-    # turn (Part AR2).
+    # exception to the string law. Not the case blob either: the blob is
+    # never written mid-conversation, and an ask is born in a coaching turn.
     #
-    # **An ask is the logical identity of a document; files are its versions**
-    # (ruling AP2.2). The binding is recorded when the coach asks, never
+    # **An ask is the logical identity of a document; files are its versions.**
+    # The binding is recorded when the coach asks, never
     # reconstructed from a filename afterwards.
     asks:               list[dict]
 
-    # Both carry the planned multi-hop chain (§26) and are `[]` / `None` on
-    # every single-hop turn in every phase (B5). They are state rather than
+    # Both carry the planned multi-hop chain and are `[]` / `None` on
+    # every single-hop turn in every phase. They are state rather than
     # node locals because LangSmith traces node inputs and outputs, not
     # interpreter locals: held in a local dict they would be invisible in the
     # trace AND lost on checkpoint restore.
@@ -741,38 +714,34 @@ class PhaseState(TypedDict):
     # execution counter — `recursion_limit` minus graph-node transitions,
     # engine-owned, meaningless outside a run — while `step_log` is this
     # project's coaching audit trail, hand-written by every node and read by
-    # the UI and LangSmith (§10.3). Nothing derives one from the other, and a
+    # the UI and LangSmith. Nothing derives one from the other, and a
     # DMAIC "step" is not a graph step. Said here because the collision is in
-    # the schema, where the two are three fields apart.
+    # the schema.
     #
     # A second unit collision worth naming: `remaining_steps` counts STEPS,
-    # and §3.7's cap counts HOPS. The coach's whole tool loop runs inside one
+    # and the hop cap counts HOPS. The coach's whole tool loop runs inside one
     # node, so this counter moves by 1 per executor turn however many hops
-    # that turn made — measured. It is the graceful off-ramp (§26, S-F09 B1),
-    # never the hop cap; `phases/nodes_common.py` holds both guards and says
-    # which is which.
+    # that turn made. It is the graceful off-ramp, never the hop cap;
+    # `phases/nodes_common.py` holds both guards and says which is which.
     #
     # DECLARING IT IS WHAT ACTIVATES IT. `RemainingSteps` resolves to
     # `Annotated[int, RemainingStepsManager]`, and the manager returns
-    # `scratchpad.stop - scratchpad.step`. Undeclared, §26's guard
-    # `state.get("remaining_steps", 10) <= 2` returned 10 FOREVER and the
-    # five-hop cap (§3.7) could never fire — a cap that cannot fire is not a
-    # loose cap, it is a check recorded as evidence while proving nothing.
+    # `scratchpad.stop - scratchpad.step`. Undeclared, the guard
+    # `state.get("remaining_steps", 10) <= 2` reads 10 FOREVER and can never
+    # fire — a check that cannot fire proves nothing.
     #
-    # S-C02 B1: this is the one declared field the input mapper SHALL NOT
-    # populate. LangGraph's execution loop supplies it.
-    # `NotRequired` is S-C02's own words — "engine-managed, `NotRequired`
-    # in intent". Declaring it literally makes the type express the rule:
-    # mypy stops demanding the key from a mapper that is FORBIDDEN to
-    # supply it, and LangGraph still registers the managed value.
-    # Verified against the pinned LangGraph: with `NotRequired`, the
-    # builder still reports {'remaining_steps': RemainingStepsManager}
-    # while `__required_keys__` drops it.
+    # This is the one declared field the input mapper SHALL NOT populate;
+    # LangGraph's execution loop supplies it. `NotRequired` makes the type
+    # express the rule: mypy stops demanding the key from a mapper that is
+    # FORBIDDEN to supply it, and LangGraph still registers the managed value
+    # (with `NotRequired`, the builder still reports
+    # {'remaining_steps': RemainingStepsManager} while `__required_keys__`
+    # drops it).
     remaining_steps:    NotRequired[RemainingSteps]
 
 
-# The field census, kept next to the schema so the count in §6 and the count
-# in the code cannot drift apart silently. Asserted in `test_state.py`.
+# The field census, kept next to the schema so the documented count and the
+# count in the code cannot drift apart silently. Asserted in `test_state.py`.
 PHASE_STATE_IDENTITY_FIELDS = ("case_id", "current_phase")
 PHASE_STATE_PLUMBING_FIELDS = ("messages", "history", "phase_context")
 PHASE_STATE_CONTENT_FIELDS = (
@@ -783,7 +752,7 @@ PHASE_STATE_CONTENT_FIELDS = (
     "asks", "hop_results", "synthesis_output",
 )
 
-# Declared so LangGraph populates it; the input mapper must NOT (S-C02 B1).
+# Declared so LangGraph populates it; the input mapper must NOT.
 PHASE_STATE_ENGINE_MANAGED_FIELDS = ("remaining_steps",)
 
 # What an input mapper writes: everything except the engine-managed value.
@@ -793,9 +762,9 @@ PHASE_STATE_AUTHOR_POPULATED_FIELDS = (
     + PHASE_STATE_CONTENT_FIELDS
 )
 
-# Read-only inside the subgraph — see the copy-down invariant above. §55.1
-# rule 5's check is a grep of every node's return dict for these two keys;
-# any hit is a violation.
+# Read-only inside the subgraph — see the copy-down invariant above. The
+# check is a grep of every node's return dict for these two keys; any hit is
+# a violation.
 PHASE_STATE_READ_ONLY_FIELDS = PHASE_STATE_IDENTITY_FIELDS
 
 

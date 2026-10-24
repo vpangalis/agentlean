@@ -1,37 +1,28 @@
-"""Conversation <-> `messages` marshalling — procedure step 4.2.
+"""Conversation <-> `messages` marshalling.
 
 The case document stores conversation as v1 turn dicts —
 ``{turn, role, user, text, timestamp, citations}`` — and `SupervisorState` and
-`PhaseState` carry it as ``list[BaseMessage]`` (§5, §6). Step 4.2 is the first
-step where both shapes are live at once, because it is the step that routes
-`/ask` through the graph: the route reads and writes the case document, the
-graph reads and writes `messages`.
+`PhaseState` carry it as ``list[BaseMessage]``. The route reads and writes the
+case document, the graph reads and writes `messages`.
 
 WHY A MODULE OF ITS OWN
 -----------------------
 Two callers need the same conversion and neither may own it:
 
   * `gateway/routes.py` seeds `SupervisorState.messages` from the case document
-    and writes the coach's reply back into it — envelope marshalling, which §49
-    names as the route's own job;
-  * `phases/define/nodes.py` converts in both directions across the WATCH 7
-    seam, because `orchestrate_define` reads v1 turn dicts.
+    and writes the coach's reply back into it — envelope marshalling, the
+    route's own job;
+  * the phase nodes (`phases/nodes_common.py`) convert across the v1 seam,
+    because the v1 path reads turn dicts.
 
 Putting it in either would make the other import it: routes importing from a
-phase's `nodes.py` is what §1.1 exists to stop, and `phases/` importing from
-`gateway/` inverts the layering. `core/` is below both and imports neither.
-
-**Not in Appendix B's `New` file list**, which enumerates
-``phases/{phase}/{graph,nodes,mappers}.py`` and no shared module. Flagged
-rather than assumed — the same call `phases/mappers_common.py` records, and for
-the same reason: the alternative is two copies of one conversion that must
-agree byte for byte.
+phase's nodes breaks the layering, and `phases/` importing from `gateway/`
+inverts it. `core/` is below both and imports neither. The alternative is two
+copies of one conversion that must agree byte for byte.
 
 **It is transitional in one direction and permanent in the other.** The v1 turn
-dict dies with `orchestrate.py` at step 11.1; the case document keeps storing
-conversation, so the route side survives. What goes away then is
-``V1_PRESENTATION_KEYS`` — those three payloads become
-``CoachingResponse`` fields at 6.2 (§10.7, WATCH 9).
+dict goes with the v1 path; the case document keeps storing conversation, so
+the route side survives.
 """
 from __future__ import annotations
 
@@ -40,9 +31,8 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 #: The presentational payloads the v1 orchestrator emits alongside its answer.
-#: They have no `PhaseState` field and may not be given one without a §56
-#: amendment, so they ride on the message's `additional_kwargs` — the channel
-#: `CoachingResponse` formalises at 6.2.
+#: They have no `PhaseState` field and may not be given one without an
+#: amendment, so they ride on the message's `additional_kwargs`.
 V1_PRESENTATION_KEYS: tuple[str, ...] = (
     "sipoc_diagram", "visualisation", "section_completed",
 )
@@ -52,26 +42,26 @@ V1_PRESENTATION_KEYS: tuple[str, ...] = (
 #: turn dict never grows fields the UI does not know about.
 _TRANSPORT_KEYS: tuple[str, ...] = (
     "phase", "v1_draft", "gate_verdict", "turn_count", "gate_submission",
-    # Step 6.33 — this turn's field change entries. Rides out with the rest
+    # This turn's field change entries. Rides out with the rest
     # of the turn's product for the same reason they do (`SupervisorState` is
-    # seven fields and may not grow an eighth, §5), and is STRIPPED before the
+    # seven fields and may not grow an eighth), and is STRIPPED before the
     # case blob's `conversation_history` like the rest: the log's home is
     # `PhaseRecord.field_log`, beside the values it is a log of, not a copy
     # inside every turn of the transcript.
     "field_log",
-    # Step 6.61 (R5) — the turn's after-change field statuses; their home is
+    # R5 — the turn's after-change field statuses; their home is
     # `PhaseRecord.field_status`, written by the same statement as the values.
     "field_status",
 )
 
 
-#: Step 10.0 — §50.1's blocks. On the MESSAGE they ride as one dict,
+#: The four presentational blocks. On the MESSAGE they ride as one dict,
 #: `coaching_blocks`; on the TURN (the case blob's `conversation_history`) as
 #: flat keys the UI renders — so a turn the Belt saw is rebuilt from history
 #: with its blocks, not only from the last send (G-79).
 COACHING_BLOCK_KEYS: tuple[str, ...] = ("explanation", "example", "prompt", "progress")
 
-#: Step 6.61 — the move record (`phases/moves.py`) and last turn's quality
+#: The move record (`phases/moves.py`) and last turn's quality
 #: feedback ride on the coach's reply, and are kept on the turn so a
 #: conversation rebuilt from the case blob carries them too: the next turn's
 #: move is derived from them.
@@ -124,7 +114,7 @@ def turn_to_message(turn: dict[str, Any]) -> BaseMessage:
     """One v1 conversation turn dict -> one `BaseMessage`.
 
     The inverse of `message_to_turn`. `SupervisorState` carries orchestration
-    only (§5), so `messages` is the channel that reaches the route — which is
+    only, so `messages` is the channel that reaches the route — which is
     why everything a turn holds beyond its text travels in
     ``additional_kwargs`` rather than in a state field of its own.
     """
@@ -157,7 +147,7 @@ def transport(msg: BaseMessage) -> dict[str, Any]:
 
     The parent phase node attaches the captured fields, the gate verdict and
     the turn count here because `SupervisorState` has seven fields and may not
-    grow an eighth (§5). Returns `{}` for a message that carries none, so a
+    grow an eighth. Returns `{}` for a message that carries none, so a
     caller reads "nothing was produced" rather than a `KeyError`.
     """
     extra = dict(getattr(msg, "additional_kwargs", None) or {})

@@ -1,6 +1,6 @@
-"""The coaching move, decided in code — step 6.61.
+"""The coaching move, decided in code.
 
-Founder ruling 2026-09-25, ARCHITECTURE.md v1.75 (§17, §20, §43), CLAUDE.md §21:
+The rule this module carries out:
 *"The coaching move is decided in code, never by the model. For every field in
 every phase and every agent, code determines this turn's move from the field's
 status: not yet taught -> teach (explain, show, ask); answered, judged
@@ -12,29 +12,28 @@ Belt confirms it, in the Belt's words."*
 
 WHAT THIS MODULE OWNS
     positions()        the coached walk, per phase: Define's thirteen positions
-                       (metric_definitions inside position 5); the other four
-                       phases walk their gate list in `review_rows` order
-    field_statuses()   untaught / answered / confirmed for every position
+                       (the CTQs, the 5W2H and metric_definitions captured
+                       inside positions 3, 4 and 5); the other four phases walk
+                       their gate list in `review_rows` order
+    field_statuses()   not taught / asked / answered / confirmed / parked for
+                       every position
     decide()           THE MOVE, from the status — plus the one model
                        judgment, asked for only when the Belt has answered
     is_confirmation()  whether the Belt's reply confirms a read-back — a rule,
                        not a model: a reply that is anything more than a plain
                        yes is treated as a correction and judged again
 
-WHERE THE STATUS COMES FROM — the tree, never a stored status
-    confirmed   every field of the position is in `artifacts`, which since
-                6.61 receives a value only on the Belt's confirmation
-    answered    the previous coach reply asked for this field (its move record
-                names it) and the Belt has replied — or a read-back of it is
-                awaiting confirmation (the record carries it as PENDING)
-    untaught    neither
+WHERE THE STATUS COMES FROM — stored, never derived from a reply
+    The statuses are stored in `PhaseState.field_status` (the input mapper
+    seeds it from the case record each turn). Only code changes one, at turn
+    end: `decide` returns the statuses after this turn, and the executor stores
+    them. A position with every field in `artifacts` and no status recorded
+    counts as confirmed — `artifacts` receives a value only on the Belt's
+    confirmation.
 
     **The move record rides on the coach's reply** (`additional_kwargs`,
-    `MOVE_RECORD_KEY`), the channel the §50.1 blocks already use. `PhaseState`
-    is rebuilt by the input mapper every turn, so nothing in it survives a turn
-    on its own; the reply does — in the parent checkpoint, and in the case
-    blob's conversation (`core/conversation.py` round-trips the key). No state
-    field is added.
+    `MOVE_RECORD_KEY`), owned by `core/conversation.py`, which round-trips it
+    through the case blob's conversation.
 """
 from __future__ import annotations
 
@@ -60,7 +59,7 @@ MOVES: tuple[str, ...] = (TEACH, CHALLENGE, READ_BACK, STORE_AND_ADVANCE, RESPON
 #: Failed attempts on one element before the offer (ADR-0072 point 2).
 PARK_AFTER = 3
 
-#: The four statuses of founder ruling R5 (2026-09-25), in order. STORED in
+#: The four statuses of ruling R5, in order. STORED in
 #: `PhaseState.field_status`, never derived from a reply; only code changes
 #: one, at turn end. "Awaiting confirmation" is ANSWERED with a read-back
 #: pending, not a fifth status.
@@ -116,8 +115,8 @@ REJECT_REASON = ("The team rejected the Define report and named this element to 
                  "change — their reason: {reason}. Show the Belt their current "
                  "words and ask what should change.")
 
-#: Where the move record rides on the coach's reply, and where last turn's
-#: quality feedback rides (step 6.61, §19.1's fifth section) — owned by
+#: The move record and last turn's quality feedback ride on the coach's reply
+#: under `MOVE_RECORD_KEY` and `QUALITY_FEEDBACK_KEY` — owned by
 #: `core/conversation.py`, which round-trips both through the case blob.
 
 #: Plain-string fields whose read-back value is COMPOSED by the coach from the
@@ -132,11 +131,11 @@ COMPOSED_FIELDS: frozenset[str] = frozenset({"problem_statement"})
 def positions(phase: str) -> list[tuple[str, tuple[str, ...]]]:
     """`(field, fields captured at that position)`, in coached order.
 
-    Define has its ordered walk (§39.1.2) and one field captured inside a
-    position (`metric_definitions` at position 5, §39.1.9). The other four
-    phases expose tier SETS, not a walk, so they walk their gate list in
-    `review_rows` order — Tier 1, then Tier 2 — the order the planner's ledger
-    has always used.
+    Define has its ordered walk and three fields captured inside a position
+    (`schema._CAPTURED_INSIDE`: the CTQs at position 3, the 5W2H at 4,
+    `metric_definitions` at 5). The other four phases expose tier SETS, not a
+    walk, so they walk their gate list in `review_rows` order — Tier 1, then
+    Tier 2 — the planner's ledger's order.
     """
     if phase == "define":
         return [(f, (f, *_CAPTURED_INSIDE.get(f, ()))) for f in DEFINE_FIELD_ORDER]
@@ -211,7 +210,7 @@ def last_feedback(messages: list[BaseMessage]) -> Optional[dict[str, Any]]:
 
 
 def belt_message(messages: list[BaseMessage]) -> str:
-    """The Belt's latest message, as text (content blocks, §4.5)."""
+    """The Belt's latest message, as text (its content blocks joined)."""
     for message in reversed(messages or []):
         if isinstance(message, HumanMessage):
             return message.text.strip()
@@ -272,7 +271,7 @@ def partial_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> Op
 def uses_upload(text: str, pending: Optional[dict[str, Any]]) -> bool:
     """ADR-0085 (G-169): on a read-back of an uploaded file, "use the file" is a Confirm — a message whose
     every part either asks to use the file (or names it) or is a courtesy, and that changes nothing. Any
-    other content ("use the file, sponsor is Jane") is an answer, judged as one (founder, 2026-10-14)."""
+    other content ("use the file, sponsor is Jane") is an answer, judged as one."""
     filename = str((pending or {}).get("upload") or "").lower()
     if not filename:
         return False
@@ -315,7 +314,7 @@ GOAL_FIELDS: tuple[str, ...] = ("target_value", "target_date")
 
 
 def from_goal(phase: str, nxt: Optional[tuple[str, Any]], artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
-    """ADR-0086 (A8, founder 2026-10-13): the read-back the next position starts with when the confirmed
+    """ADR-0086 (A8): the read-back the next position starts with when the confirmed
     goal states it — for the target value, the value (and the date, when the goal gives one and none is
     stored), for the target date, the date; parsed in code (`parse.goal_targets`). None when the goal
     does not state it: the position is taught as usual."""
@@ -378,8 +377,8 @@ def is_confirmation(text: str) -> bool:
 def status_of(phase: str, field: str, artifacts: dict[str, Any],
               field_status: dict[str, dict[str, Any]]) -> str:
     """A position's STORED status. A position whose values are already in
-    `artifacts` with no status recorded (a case from before 6.61) counts as
-    confirmed — nothing reaches `artifacts` any other way."""
+    `artifacts` with no status recorded (an older case) counts as confirmed —
+    nothing reaches `artifacts` any other way."""
     entry = field_status.get(field) or {}
     if entry.get("status") in STATUSES:
         return str(entry["status"])
@@ -389,7 +388,7 @@ def status_of(phase: str, field: str, artifacts: dict[str, Any],
 
 def field_statuses(phase: str, artifacts: dict[str, Any],
                    field_status: dict[str, dict[str, Any]]) -> dict[str, str]:
-    """Every position's stored status — brief item 1, ruling R5."""
+    """Every position's stored status (ruling R5)."""
     return {f: status_of(phase, f, artifacts, field_status) for f, _ in positions(phase)}
 
 
@@ -509,7 +508,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
                  field_status: dict[str, dict[str, Any]], belt: str,
                  judge: Judge, action: Optional[str] = None,
                  element: Optional[str] = None, upload: Optional[dict[str, Any]] = None) -> dict[str, Any]:
-    """THE MOVE, from the STORED status (brief item 2, rulings R4 and R5), and
+    """THE MOVE, from the STORED status (rulings R4 and R5), and
     the statuses AFTER this turn — which the executor stores at turn end.
 
     `judge(field, answer_so_far, latest, reading_back)` is the planner's one
@@ -535,7 +534,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
         status = status_of(phase, element, artifacts, after)
         entry = dict(after.get(element) or {})
         if status == CONFIRMED:
-            from backend.phases.define.templates import plain   # G-260 (audit H2): one way to flatten a value
+            from backend.phases.define.templates import plain   # G-260: one way to flatten a value
             words = plain(artifacts.get(element))
             after[element] = {"status": ASKED, "answer": words, "messages": 1, "picked": True}
             return done(element, fields, status, CHALLENGE, answer=words, messages=1,
@@ -712,7 +711,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
 
 def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
                   artifacts: Optional[dict[str, Any]] = None) -> dict[str, Any]:
-    """What a confirmation of this read-back will store — brief item 4.
+    """What a confirmation of this read-back will store.
 
     **The Belt's own words**, for a plain-string field answered in one message.
     **The version the coach read back** — which the Belt is then confirming —

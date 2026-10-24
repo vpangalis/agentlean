@@ -1,49 +1,42 @@
-"""`DMAICSkillsMiddleware` — position 2 — procedure step 6.3.
+"""`DMAICSkillsMiddleware` — position 2 — the phase script in the coach's input, and `load_skill` for the others.
 
-Canonical: **§61.3 — S-C12**. Architecture **§19.2**, full treatment **§32**.
+WHAT REACHES THE COACH
+    * **The current phase's script** — on every model call, as section 2 of
+      the system message (`script_section`): the opening (first turn only)
+      and the CURRENT field's block; the closing block once every field is
+      confirmed.
+    * **Another phase's full instructions** — when the coach calls
+      `load_skill(name)`, as a tool result.
+    * **The five descriptions (level 1)** — composed once per turn
+      (`before_agent`) and not placed in the prompt: `load_skill`'s own
+      description names the five phases.
 
-THREE LEVELS, AND WHAT EACH COSTS
-    | Level | When | What loads |
-    |---|---|---|
-    | 1 | Startup | descriptions only — **under 2K for all five combined** (B1) |
-    | 2 | On demand | that phase's full instructions, via `load_skill(name)` (B2) |
-    | 3 | On demand | reference files, when explicitly needed |
+    A whole script runs to tens of thousands of characters, which is why the
+    coach gets the current field's block and not the whole script on every
+    call. `test_middleware.py` holds the five descriptions under
+    `LEVEL_1_TOKEN_BUDGET`, so a SKILL.md whose description grows past it
+    fails there.
 
-    Measured on the five files as they stand: the descriptions total **~1,029
-    tokens**, inside B1's budget; the files themselves run 20K–52K characters,
-    which is why level 2 is on demand and not eager. `test_skills.py` asserts
-    the budget, so a SKILL.md whose description grows past it fails there
-    rather than quietly costing every startup.
-
-STORAGE IS `FilesystemBackend` (B4)
-    Git-versioned alongside the code, *"so a skill change is reviewable in the
-    same PR as the code that depends on it"* (§32). `ContextHubBackend` is
-    deferred to the multi-deployment stage. The backend here is a small local
-    reader rather than an imported class: LangChain ships no skills backend to
-    reuse, so §0.24's rule is satisfied by there being no primitive to
-    reinvent — checked, and recorded rather than assumed.
+STORAGE: THE SKILL FILES IN GIT
+    The skills are read from `agent-improve/skills/`, git-versioned beside the
+    code, so a skill change is reviewed in the same PR as the code that
+    depends on it. The reader is a small local one rather than an imported
+    class: LangChain ships no skills backend to reuse.
 
 `load_skill` IS REGISTERED BY THIS MIDDLEWARE, NOT BOUND BY THE EXECUTOR
     `AgentMiddleware.tools` is the framework's own registration point —
     *"Additional tools registered by the middleware"* — so `load_skill` reaches
-    the model without appearing in `create_agent(tools=...)`.
+    the model without appearing in `create_agent(tools=...)`. So it is outside
+    the ratified per-phase tool totals, and no SKILL.md `allowed-tools` list
+    names it.
 
-    **That is why it is outside §30's per-phase totals**, and the five SKILL.md
-    `allowed-tools` lists agree: §32 requires them to match §30's subset
-    exactly, and not one of them names `load_skill`.
+> **G-33 is open:** whether `load_skill` counts as a universal tool is
+> undecided. It is middleware-registered, not bound, but the model still sees
+> one tool more than the ratified totals count. `test_middleware.py` asserts
+> the ratified, the live and the registered counts.
 
-> **SPEC-GAP (G-33) is OPEN, and this file does not close it.** *"Whether
-> `load_skill` is bound as an eighth universal tool is undetermined"*, and the
-> register states the consequence precisely: **"if bound, Measure goes to 16
-> against a cap of 16."** It is not bound as one here — it is middleware-
-> registered — but the model still sees one more tool than §30 counts, so the
-> BOUND totals are one higher than the ratified ones. Both are asserted in
-> `test_skills.py`, and WATCH 25 carries the arithmetic. The collision is not
-> live yet: Measure binds 13 today and reaches 16 only once the two owed
-> universal tools land at 7.1 and 7.5.
-
-> **SPEC-GAP (G-24):** constructor arguments are unstated. The single `phase`
-> argument below is what B2 needs and no more.
+> **G-24 (the constructor's arguments):** `phase` is required;
+> `on_delivery`, `focus_field` and `opening` shape section 2's delivery.
 """
 from __future__ import annotations
 
@@ -65,15 +58,15 @@ from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
 
-#: `agent-improve/skills/` — git-versioned beside the code (B4). Resolved from
+#: `agent-improve/skills/` — git-versioned beside the code. Resolved from
 #: this file rather than from the process CWD, which differs between the app,
 #: pytest and a scratch script.
 SKILLS_ROOT = Path(__file__).resolve().parents[2] / "skills"
 
-#: §32's five, by phase. The directory name is the skill name.
+#: The five skills, by phase. The directory name is the skill name.
 SKILL_DIRS: dict[str, str] = {p: f"dmaic-{p}-phase" for p in PHASE_ORDER}
 
-#: B1's budget for all five descriptions combined, at startup.
+#: The token budget for all five descriptions combined (asserted in `test_middleware.py`).
 LEVEL_1_TOKEN_BUDGET = 2000
 
 _FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.S)
@@ -103,8 +96,8 @@ def frontmatter(phase: str) -> dict[str, str]:
     """The SKILL.md YAML header, as flat `key: value` pairs.
 
     Deliberately not a YAML parse: only the flat scalar keys are read
-    (`name`, `description`, `allowed-tools`), and adding a YAML dependency to
-    read three strings would be the reverse of §0.24's rule.
+    (`name`, `description`, `allowed-tools`), and three strings do not justify
+    a YAML dependency.
     """
     match = _FRONTMATTER.match(_read(phase))
     if not match:
@@ -129,12 +122,12 @@ def instructions(phase: str) -> str:
 
 
 def allowed_tools(phase: str) -> list[str]:
-    """That skill's `allowed-tools`, which §32 B3 requires to match §30."""
+    """That skill's `allowed-tools`, which must match the phase's ratified tool subset (`test_middleware.py`)."""
     raw = frontmatter(phase).get("allowed-tools", "")
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
-# ── step 6.46 — the script on every call, and the §22 guard ──────────────
+# ── the script on every call, and the worked-example guard ───────────────
 
 _VERSION = re.compile(r'^\s+version:\s*"?([^"\n]+?)"?\s*$', re.M)
 
@@ -160,7 +153,7 @@ _SHOW_TABLE = re.compile(
     r'^>\s*\*\*Show[^*]*table[^*]*:\*\*[ \t]*\n(?:>[ \t]*\n)?((?:>[ \t]*\|.*\n?)+)',
     re.M | re.I)
 
-#: §22's guard — THE MATCHING RULE, stated once. Both texts are normalised
+#: The worked-example guard — THE MATCHING RULE, stated once. Both texts are normalised
 #: (lower case; letters, digits, % and currency signs kept; everything else one
 #: space). A captured value is an example if the example is contained in it, it
 #: is contained in the example, or their WORD-sequence similarity ratio
@@ -196,7 +189,7 @@ def worked_examples(phase: str) -> tuple[str, ...]:
                      if "---" not in row
                      for c in row.lstrip("> ").strip("|").split("|"))
             for m in _SHOW_TABLE.finditer(body)]
-    # DEF-211 (founder note under ADR-0070, 2026-10-22): a worked example kept as a structured file beside the script
+    # DEF-211 (ADR-0070): a worked example kept as a structured file beside the script
     # (`*_example.json`, drawn by code, never shown to the model as text) is a worked example all the same.
     import json
     for path in sorted((SKILLS_ROOT / SKILL_DIRS.get(phase, "")).glob("*_example.json")):
@@ -210,7 +203,7 @@ def worked_examples(phase: str) -> tuple[str, ...]:
 
 def matches_sample(value: Any, sample: str, belt: Any = None) -> bool:
     """C3 (DEF-083): does `value` reproduce `sample` — a sample the coach showed, built from the
-    case — by the same test `example_match` applies to the script's worked examples (§22)?
+    case — by the same test `example_match` applies to the script's worked examples?
 
     G-159: a sample every word of which is already in `belt` — the Belt's own confirmed values —
     quotes the Belt, so an answer matching it is the Belt's, not a copy."""
@@ -225,16 +218,16 @@ def matches_sample(value: Any, sample: str, belt: Any = None) -> bool:
 
 
 def example_match(value: Any, phase: str) -> str | None:
-    """The worked example `value` reproduces, or None (§22)."""
+    """The worked example `value` reproduces, or None."""
     v = _norm(_flatten(value))
     if len(v) < EXAMPLE_MIN_CHARS:
         return None
     words = v.split()
     for ex in worked_examples(phase):
         # Similarity over WORDS, with `autojunk` off: on strings over 200
-        # characters difflib's junk heuristic discards the commonest characters
-        # and scored a lightly edited example 0.62; over words it is 0.94, a
-        # Belt's own answer 0.04, and 0E5's real answers at most 0.62.
+        # characters difflib's junk heuristic discards the commonest characters,
+        # so a lightly edited example scores low; over words it scores high and
+        # a Belt's own answer scores near zero.
         if ex in v or v in ex or SequenceMatcher(
                 None, words, ex.split(), autojunk=False).ratio() >= EXAMPLE_MATCH_RATIO:
             return ex
@@ -255,9 +248,9 @@ from backend.phases.define.schema import _CAPTURED_INSIDE as _DEFINE_INSIDE  # n
 _CAPTURED_INSIDE = {inner: position for position, inners in _DEFINE_INSIDE.items()
                     for inner in inners}
 
-#: The two moves a turn can make on a field (§43, "Explain → Show → Ask →
-#: Confirm, on every field"): teach and ask for it, or read the Belt's value
-#: back and check it.
+#: The two moves a turn can make on a field ("Explain → Show → Ask → Confirm,
+#: on every field"): teach and ask for it, or read the Belt's value back and
+#: check it.
 CONFIRM, EXPLAIN_SHOW_ASK = "confirm", "explain_show_ask"
 
 
@@ -270,7 +263,7 @@ def _field_blocks(phase: str) -> dict[str, tuple[int, str]]:
 
 def script_step(phase: str, captured: list[str],
                 focus_field: str | None) -> dict[str, Any] | None:
-    """The script step a reply performs — G-96, founder ruling Option A.
+    """The script step a reply performs — G-96.
 
     **Derived from the reply, never asked of a model.** A turn that captured a
     value is at that field's ④ **Confirm**: the script has the coach read the
@@ -278,8 +271,8 @@ def script_step(phase: str, captured: list[str],
     asking for the planner's focus field (① Explain, ② Show, ③ Ask).
 
     `position` and `block` are the field's own, from the numbered script;
-    `None` and empty for a field the script does not number — the pattern is
-    still §43's, so the step is still returned.
+    `None` and empty for a field the script does not number — the Explain →
+    Show → Ask → Confirm pattern still applies, so the step is still returned.
     """
     if phase not in SKILL_DIRS:
         return None
@@ -335,9 +328,8 @@ def _script_blocks(phase: str) -> tuple[dict[str, str], str, str]:
 
 
 def script_section(phase: str, field: Optional[str], opening: bool) -> str:
-    """Section 2 of the coach's input — step 6.61 (founder, item 4): the
-    opening on the phase's first turn only, plus the CURRENT field's script
-    block and nothing else. With no current field (every one confirmed), the
+    """Section 2 of the coach's input: the opening on the phase's first turn
+    only, plus the CURRENT field's script block and nothing else. With no current field (every one confirmed), the
     closing block. A phase whose script carries no block for the field gets
     its whole script rather than nothing."""
     blocks, open_block, closing = _script_blocks(phase)
@@ -387,17 +379,17 @@ def acceptance_criteria(phase: str, field: str) -> list[tuple[str, str]]:
 
 def field_needs(phase: str, field: str) -> str:
     """What the phase script says an element needs — what it is, its question
-    and its ACCEPTANCE CRITERIA (R3, 2026-09-26). The planner's one judgment
-    reads this, so "sufficient" is judged against the element's criteria and
-    never against a model's own notion. No Show section reaches it: neither a
-    worked example nor a demo table (until R3 the SIPOC and 5W2H tables did)."""
+    and its ACCEPTANCE CRITERIA (R3). The planner's one judgment reads this,
+    so "sufficient" is judged against the element's criteria and never
+    against a model's own notion. No Show section reaches it: neither a
+    worked example nor a demo table."""
     if phase not in SKILL_DIRS:
         return ""
     _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
     sections = _sections(block)
     if "Acceptance criteria" not in sections:
         # A script not yet written to R2/R3 (the other four phases): the
-        # block without its worked example, as before (step 6.61).
+        # block without its worked example.
         return "\n".join(line for line in block.splitlines()
                          if not line.lstrip("> ").startswith("**Show"))
     return "\n".join(line for label in _JUDGE_SECTIONS for line in sections.get(label, []))
@@ -420,7 +412,7 @@ def element_text(phase: str, field: str, label: str) -> str:
 
 
 def show_table(phase: str, field: str) -> list[list[str]]:
-    """G-258 (audit D4-D6): the body rows of the element's Show table, each a list of its cells — what the coach's
+    """G-258: the body rows of the element's Show table, each a list of its cells — what the coach's
     scaffold and the screen's briefing are built from, never re-typed. [] when the Show holds no table."""
     if phase not in SKILL_DIRS:
         return []
@@ -484,11 +476,11 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         self.phase = phase
         self.loaded: list[str] = []
         self._catalogue: str = ""
-        #: 6.46 — each delivery of the script is handed to the node, which owns
+        #: Each delivery of the script is handed to the node, which owns
         #: `step_log`; the middleware writes no state itself.
         self.on_delivery = on_delivery
-        #: 6.61 (item 4) — section 2 carries the CURRENT field's script block
-        #: and, on the phase's first turn only, the opening.
+        #: Section 2 carries the CURRENT field's script block and, on the
+        #: phase's first turn only, the opening.
         self.focus_field = focus_field
         self.opening = opening
         #: **The framework's own registration point.** Not
@@ -496,7 +488,7 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         self.tools: list[BaseTool] = [self._make_load_skill()]
 
     def _make_load_skill(self) -> BaseTool:
-        """The registered `load_skill(name)` tool — §19.2's level-2 trigger."""
+        """The registered `load_skill(name)` tool — another phase's full instructions, on demand."""
         middleware = self
 
         @tool
@@ -512,8 +504,8 @@ class DMAICSkillsMiddleware(AgentMiddleware):
             """
             key = name.strip().lower().replace("dmaic-", "").replace("-phase", "")
             if key == middleware.phase:
-                # DEF-023 (G-106): the coach's own phase is section 2 of the system message on every call (6.46,
-                # 6.61) — answered with a pointer, never fetched again into the conversation.
+                # DEF-023 (G-106): the coach's own phase is section 2 of the system message on every call —
+                # answered with a pointer, never fetched again into the conversation.
                 logger.info("load_skill: %s is this turn's own phase — not fetched (DEF-023)", key)
                 return (f"The {key} script for the element you are coaching is already in your instructions "
                         "(section 2, the phase script). It is not loaded again — answer from it.")
@@ -531,11 +523,12 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         return load_skill
 
     def before_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """**Level 1.** Compose the catalogue — descriptions only (B1).
+        """**Level 1.** Compose the catalogue — descriptions only.
 
         Once per turn, for the same reason position 1 is: the five descriptions
-        do not change within a turn, and `before_model` would re-send them on
-        every tool round-trip.
+        do not change within a turn. The catalogue is not placed in the prompt
+        (`load_skill`'s own description names the five phases); section 2 is
+        delivered only once it has been composed.
         """
         self._catalogue = (
             "AVAILABLE COACHING SKILLS — descriptions only.\n"
@@ -563,46 +556,34 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         return await handler(self._append_catalogue(request))
 
     def _append_catalogue(self, request: Any) -> Any:
-        """Level 1 into the prompt, BELOW position 1's project state.
+        """Section 2 — the current phase's script — into the system message.
 
-        **A catalogue that is composed and never delivered is not Level 1.**
-        The first draft of this middleware logged that descriptions were
-        "offered" and put them nowhere, which left the coach holding a
-        `load_skill` tool with no idea what was loadable — the failure mode
-        this project keeps naming, a mechanism that reports success while doing
-        nothing. Found by 6.3's trace-check.
+        Placed before section 3 (state), which position 1 composed, so it
+        follows section 1 (the rules); appended when there is no section 3 (a
+        stack without position 1). Unchanged until `before_agent` has composed
+        the catalogue. The catalogue itself is not delivered: `load_skill`'s
+        own description tells the coach what is loadable.
 
-        Appended rather than prepended: position 1 is first by rule (S-C11 B4),
-        and skills are instructions about method, not established project fact.
-
-        **Content BLOCKS, never string concatenation** — §21 / CLAUDE.md §4.5,
-        the rule step 2.6 applied across twenty sites. `.content` is
+        **Content BLOCKS, never string concatenation.** `.content` is
         `str | list[dict]`, so an f-string over a multi-part message writes
-        ``"[{'type': 'text', ...}]"`` into the prompt with no error. Appending
-        to `.content_blocks` is a list operation and cannot do that.
-
-        **Position 1 runs first, so by the time this fires the system message
-        is already multi-part** — which makes this the site where string
-        concatenation would actually have bitten, not a hypothetical one.
+        ``"[{'type': 'text', ...}]"`` into the prompt with no error. Building
+        the list from `.content_blocks` is a list operation and cannot do that.
+        Position 1 runs first, so by the time this fires the system message is
+        already multi-part — this is a site where string concatenation would
+        bite.
         """
         if not self._catalogue:
             return request
         existing = request.system_message
         blocks = list(existing.content_blocks) if existing is not None else []
-        # 6.46 (option A, founder ruling 2026-09-24) — THE CURRENT PHASE'S FULL
-        # SCRIPT, ON EVERY MODEL CALL. §19.2's level 2 waited for the coach to
-        # call `load_skill`, and it called it ZERO times in 30 traced turns. A
-        # system-message block is never a tool result, so nothing enters the
-        # conversation and the history does not grow by 7.6k tokens a turn.
-        # The catalogue stays LAST.
-        # 6.61 — SECTION 2 OF THE COACH'S INPUT (§19.1 v1.75): after section 1
-        # (the rules), before section 3 (state), which position 1 composed;
-        # appended when there is no section 3 (a stack without position 1).
-        # Item 4: the opening (first turn only) and the CURRENT field's block
-        # — high signal, not the whole 31k-character script every call.
+        # THE CURRENT PHASE'S SCRIPT, ON EVERY MODEL CALL — not left to the
+        # coach calling `load_skill`. A system-message block is never a tool
+        # result, so nothing enters the conversation and the history does not
+        # grow with the script each turn. The opening (first turn only) and the
+        # CURRENT field's block: high signal, not the whole script every call.
         script = script_section(self.phase, self.focus_field, self.opening)
         section = [{"type": "text", "text": SECTION_SCRIPT},
-                   {"type": "text", "text": f"<phase_script>\n{script}\n</phase_script>"}]   # G-252 (item 2c)
+                   {"type": "text", "text": f"<phase_script>\n{script}\n</phase_script>"}]   # G-252
         at = next((i for i, b in enumerate(blocks)
                    if str(b.get("text") or "").startswith(SECTION_STATE)), len(blocks))
         ordered = [*blocks[:at], *section, *blocks[at:]]

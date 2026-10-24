@@ -1,6 +1,4 @@
-"""Content-type and kind classification for uploads — procedure step 6.11.
-
-Architecture §29.1, §23.2. Rulings: `docs/_archive/DECISIONS.md` Part AP2.
+"""Content-type and kind classification for uploads.
 
 TWO CLASSIFICATIONS, AND THEY ANSWER DIFFERENT QUESTIONS
     `classify_content_type` answers *"how do we read this file"* and selects a
@@ -28,7 +26,7 @@ _SPREADSHEET_MIMES = {
 }
 
 #: **EVIDENCE describes the world; an ARTEFACT is what the team designed.**
-#: Ruling 3: one bucket would let a proposed future be retrieved later as a
+#: One bucket would let a proposed future be retrieved later as a
 #: fact about the present, which is a correctness failure in a system whose
 #: premise is that an approved gate document is worth trusting. The purposes
 #: below are the labels `auto_detect_purpose` and the UI already produce.
@@ -51,10 +49,9 @@ ARTEFACT = "artefact"
 def classify_content_type(filename: str, mime_type: str) -> str:
     """Return a content_type label for the upload record.
 
-    **`spreadsheet` was added at step 6.11.** Before it, csv and xlsx fell
-    through to `other`, which had no parser and no place in `is_supported` —
-    so the single most common thing a Belt uploads was stored, never parsed
-    and never indexed (Part AP1).
+    **csv and xlsx are `spreadsheet`, never `other`.** `other` has no parser
+    and no place in `is_supported`, so the single most common thing a Belt
+    uploads would be stored, never parsed and never indexed.
     """
     mime = (mime_type or "").lower()
     fname = (filename or "").lower()
@@ -82,14 +79,14 @@ def classify_kind(purpose: str, declared_kind: str = "") -> tuple[str, bool]:
     that is the answer; the mapping below is only for the case where nobody
     said. The boolean is returned rather than discarded because *how* the
     system decided is the part a reviewer needs: a derived kind is a guess
-    from a purpose label, and ruling 3's failure mode — a proposed future
-    retrieved as a present fact — is silent when it happens.
+    from a purpose label, and the failure mode — a proposed future retrieved
+    as a present fact — is silent when it happens.
 
     **The default is EVIDENCE, and the choice is deliberate.** An unrecognised
     purpose is far more often a data file nobody labelled than a design
     document, and defaulting to artefact would drop real evidence out of
-    §29.1's only external channel without saying so. The derived case is
-    logged, and 6.12's ask-binding replaces the guess with the coach's own
+    the only external evidence channel without saying so. The derived case is
+    logged, and the ask-binding replaces the guess with the coach's own
     request.
     """
     if declared_kind:
@@ -121,9 +118,7 @@ def is_image(content_type: str) -> bool:
 def is_supported(content_type: str) -> bool:
     """True only where a real extractor exists for `content_type`.
 
-    **This used to lie about pdf and document** — both returned True with no
-    extractor behind either (Part AP1). It is now the exact set of labels that
-    `parse_upload` can handle, plus `image`, whose extractor is the vision
-    call rather than a deterministic parser.
+    The exact set of labels that `parse_upload` can handle, plus `image`,
+    whose extractor is the vision call rather than a deterministic parser.
     """
     return content_type in {"image", "spreadsheet", "pdf", "document", "text"}

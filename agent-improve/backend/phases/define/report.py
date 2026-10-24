@@ -1,4 +1,4 @@
-"""The DEFINE REPORT — requirement R5 (`docs/requirements/business.md`, 2026-09-26).
+"""The DEFINE REPORT — requirement R5 (`docs/requirements/business.md`).
 
 *"The gate is a readable DEFINE REPORT, not a field checklist: 1 project and
 team, 2 business case and benefits, 3 problem, objective, scope with a 5W2H
@@ -6,8 +6,8 @@ diagram, 4 VOC and CTQs, 5 metrics (one primary, baseline to target,
 secondaries), 6 high-level process with a SIPOC diagram (as-is), 7 issues and
 barriers."*
 
-**Assembled from CONFIRMED values only.** Since 6.61 a value reaches `artifacts`
-only when the Belt confirms it (the executor stores the plan's `store`, never
+**Assembled from CONFIRMED values only.** A value reaches `artifacts` only
+when the Belt confirms it (the executor stores the plan's `store`, never
 what the coach returned), so this reads `artifacts` and nothing a turn merely
 proposed. It never reads `CoachingResponse`'s presentational blocks — they are
 how one turn was worded, gone by the next. Deterministic, no model call.
@@ -16,7 +16,7 @@ The diagrams are DATA here (rows and columns); the gate screen draws them. R6's
 history rides along: every element whose confirmed value changed carries its
 first and current value, each dated (`substate.value_history`).
 
-Module-level functions only (CLAUDE.md §2).
+Module-level functions only, per CLAUDE.md.
 """
 from __future__ import annotations
 
@@ -133,7 +133,7 @@ def _summaries(a: dict[str, Any], body: dict[int, dict[str, Any]]) -> dict[int, 
         t = str(text).strip()
         return t if t.endswith((".", "!", "?")) else f"{t}."
     b = s2.get("benefits") or {}
-    # G-226 (finding 72): each value after its own label, as the Belt wrote it — never spliced
+    # G-226: each value after its own label, as the Belt wrote it — never spliced
     # mid-sentence (a capital inside, a double stop); the expected saving apart from the cost of the gap.
     from backend.phases.calculations import expected_saving_text
     saving = expected_saving_text(s2.get("savings"))
@@ -196,8 +196,8 @@ def _process_section(sipoc: Any) -> dict[str, Any]:
 
 
 def champion_of(team: Any) -> dict[str, Any] | None:
-    """R6 amendment (DEF-100): the Champion — the team member whose role says Champion or Sponsor
-    (§39.1.4); None when the team names none. The report and the escalation (G-192) read it here."""
+    """R6 (DEF-100): the Champion — the team member whose role says Champion or Sponsor; None
+    when the team names none. The report and the escalation (G-192) read it here."""
     return next(({"name": m.get("name"), "role": m.get("role")} for m in (team if isinstance(team, list) else [])
                  if isinstance(m, dict) and any(w in str(m.get("role") or "").lower()
                                                 for w in ("champion", "sponsor"))), None)

@@ -1,34 +1,24 @@
-"""Structured outputs for the coaching grader — procedure step 6.5.
+"""Structured outputs for the coaching grader and the gate document's grader.
 
-Canonical: **§62.3 — S-C22** (`CoachingGraderVerdict`); §62.4's `CoherenceResult` is retired with the
-coherence judge (ADR-0083). Architecture
-§19.7, §19.8, §21, §34, §36.
+`CoachingGraderVerdict` is the coaching grader's output; `CriterionVerdict` and
+`GraderVerdict` are Layer 2d's (R7). There is no coherence judge (ADR-0083).
 
-NEITHER OF THESE CLOSES ITS SPEC-GAP
-------------------------------------
-**G-09 and G-12 are open and founder-owned.** Both schemas are *named* in §21's
-mapping table and *defined nowhere*, and each gap asks a specific design
-question this file does not answer:
+G-12 IS OPEN, AND THIS FILE DOES NOT CLOSE IT
+---------------------------------------------
+**G-12 is open and founder-owned:** whether the coaching verdict reuses
+`CriterionVerdict` or needs its own per-criterion type is undecided, and the
+answer determines whether `tier` is meaningful for coaching criteria at all.
 
-  * **G-09** — *"whether it returns one verdict or three, and what drives the
-    retry decision of S-C13 B2, is unstated"*
-  * **G-12** — *"whether it reuses `CriterionVerdict` … or needs its own
-    per-criterion type, is undecided, and the answer determines whether `tier`
-    is meaningful for coaching criteria at all"*
+What is below is the minimum the ratified behaviours require, and no more:
+implement the behaviour, name the gap, leave it open.
 
-What is below is the minimum the **ratified EARS behaviours** require, built
-from what §19.7 and §36 already state, and no more. Same posture as G-29/G-30
-at 6.2 and G-24 at 6.3: implement the behaviour, name the gap, leave it open.
-
-**`tier` is deliberately absent from the coaching verdict.** §35's two tiers are
+**`tier` is deliberately absent from the coaching verdict.** The two tiers are
 a property of *gate fields* — Tier 1 blocks the gate, Tier 2 warns — and
-`COACHING_QUALITY_RUBRIC`'s criteria are not fields and have no tiers in §36.
+`COACHING_QUALITY_RUBRIC`'s criteria are not fields and have no tiers.
 Adding one would answer G-12 by invention, in the direction the gap explicitly
 flags as undecided.
 
-`CriterionVerdict` and `GraderVerdict` — Layer 2d's — landed with Define's
-rubric (R7, 2026-09-26). `ConstraintVerdict` and `ConstraintCheckResult`
-(Layer 2c) are still to come.
+Layer 2c's `ConstraintVerdict` and `ConstraintCheckResult` are not built.
 """
 from __future__ import annotations
 

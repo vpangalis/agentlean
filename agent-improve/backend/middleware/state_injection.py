@@ -1,7 +1,4 @@
-"""`BeforeModelStateInjection` — position 1 — procedure step 6.3.
-
-Canonical: **§61.2 — S-C11**. Architecture **§19.1**, §19 (the stack order),
-§37 (why the injected prior values are load-bearing).
+"""`BeforeModelStateInjection` — middleware position 1.
 
 WHAT IT DOES
     Prepends this phase's project state to the **top** of the prompt: what is
@@ -9,52 +6,41 @@ WHAT IT DOES
     phase's requirements, and what is still missing.
 
 THE HOOK IS `before_agent`, AND THE NAME SAYS OTHERWISE
-    B1: fire on `before_agent`, **never `before_model`**, which fires before
+    It fires on `before_agent`, **never `before_model`**, which fires before
     every model call inside a turn and re-injects the same facts repeatedly.
 
     **The class name is `BeforeModelStateInjection` and its hook is
-    `before_agent`.** §61.2 records this as a naming finding — the name says
-    the exact thing the architecture corrects in four places — and says
-    explicitly that *"renaming is not in this pass's scope"*. So the name is
-    kept and the contradiction is written down here rather than silently fixed.
+    `before_agent`.** The name is kept; the mismatch is written down here
+    rather than silently fixed.
 
 WHY THE WORK IS SPLIT ACROSS TWO HOOKS, AND WHY THAT IS STILL "once per turn"
-    Verified against the installed `langchain.agents.middleware`:
-    `before_agent(state, runtime)` returns a **state update** — it cannot reach
-    the prompt. The prompt is reached through `wrap_model_call(request,
-    handler)`, where `ModelRequest` carries `system_message` and `.override()`.
+    In `langchain.agents.middleware`, `before_agent(state, runtime)` returns a
+    **state update** — it cannot reach the prompt. The prompt is reached
+    through `wrap_model_call(request, handler)`, where `ModelRequest` carries
+    `system_message` and `.override()`.
 
     So: **`before_agent` COMPOSES the block, once per turn** — every read of
     `artifacts`, every Store lookup, every missing-field computation happens
     there and nowhere else. `wrap_model_call` then does a pure
-    read-and-prepend of the already-composed string. B1's cost argument is
-    satisfied exactly: the expensive half runs once per turn, and the cheap
-    half cannot recompute because it has nothing to recompute from.
+    read-and-prepend of the already-composed string: the expensive half runs
+    once per turn, and the cheap half cannot recompute because it has nothing
+    to recompute from.
 
     (The field is `system_message`, not `system_prompt` — `create_agent` takes
     `system_prompt=`, `ModelRequest` carries `system_message`. Two names for
-    adjacent things, checked rather than assumed. §16.3.)
+    adjacent things.)
 
 MISSING FIELDS ARE THE GATE'S OWN COMPUTATION
-    B3: derive them at injection time, never from a stored list. **And never
+    They are derived at injection time, never from a stored list. **And never
     from a second implementation** — `gate_registry.missing_gate_fields` is
-    what `validate_{phase}` itself calls (moved there at this step), so the
-    prompt and the gate cannot disagree. §5 removed `open_items` from
-    `SupervisorState` for the same reason: a stored readiness list is a second
-    source of truth that drifts.
+    what `validate_{phase}` itself calls, so the prompt and the gate cannot
+    disagree. A stored readiness list would be a second source of truth that
+    drifts.
 
-    §19.1 names `check_gate_status()` as the reporter. **That tool does not
-    exist** — S-F21 assigns it to step 7.1, where `DMAICGateValidator` lands
-    (WATCH 25). Deriving directly from the shared function now is not a
-    stand-in for it: it is the same computation the tool will report, so 7.1
-    swaps the caller and not the answer.
-
-> **SPEC-GAP (G-24) is OPEN and this file does not close it.** §61.2:
-> *"constructor arguments, the exact composition of the injected block, and its
-> token budget are unstated — to be designed with founder."* What is below is
-> the minimum the ratified behaviours require, composed from values that
-> already exist. **The block's composition and its token budget remain a
-> founder decision**; nothing here should be read as settling them.
+> **G-24:** the constructor arguments, the exact composition of the injected
+> block and its token budget are not ratified. What is below is the minimum
+> the behaviours require, composed from values that already exist; nothing
+> here should be read as settling them.
 """
 from __future__ import annotations
 
@@ -89,7 +75,7 @@ from backend.phases.mappers_common import PHASE_ORDER
 logger = logging.getLogger(__name__)
 
 
-#: G-252 (founder ruling 2026-10-23, item 2b): a part of an element that would otherwise share the element's name.
+#: G-252: a part of an element that would otherwise share the element's name.
 _PART_NAMES: dict[tuple[str, str], str] = {
     ("define", "critical_to_quality"): "CTQs",
     ("define", "problem_5w2h"): "Problem statement (5W2H)",
@@ -104,13 +90,13 @@ _ENTRY_NOUNS: dict[str, tuple[str, str]] = {
 
 
 def display_name(phase: str, field: str) -> str:
-    """G-252 (item 2b): the name the Belt sees for a field, never its code name."""
+    """G-252: the name the Belt sees for a field, never its code name."""
     from backend.core import guard_messages
     return _PART_NAMES.get((phase, field)) or guard_messages.element_name(phase, field)
 
 
 def value_text(value: Any, indent: str = "") -> str:
-    """G-252 (item 2a, 2c): a value complete, in plain lines — never cut, never Python's dict or list text."""
+    """G-252: a value complete, in plain lines — never cut, never Python's dict or list text."""
     if isinstance(value, dict):
         lines = []
         for k, v in value.items():
@@ -127,7 +113,7 @@ def value_text(value: Any, indent: str = "") -> str:
 
 
 def value_summary(field: str, value: Any) -> str:
-    """G-252 (item 2a): another element's value in one line, written in code."""
+    """G-252: another element's value in one line, written in code."""
     if isinstance(value, list):
         one, many = _ENTRY_NOUNS.get(field, ("entry", "entries"))
         return f"{len(value)} {one if len(value) == 1 else many}"
@@ -141,7 +127,7 @@ def value_summary(field: str, value: Any) -> str:
 
 
 def value_tag(phase: str, field: str, value: Any, whole: bool, status: str = "confirmed") -> str:
-    """G-252 (item 2c): one value in its tag, under its display name — complete, or one line."""
+    """G-252: one value in its tag, under its display name — complete, or one line."""
     name = display_name(phase, field)
     if not whole:
         return f'<value name="{name}" status="{status}">{value_summary(field, value)}</value>'
@@ -149,13 +135,13 @@ def value_tag(phase: str, field: str, value: Any, whole: bool, status: str = "co
 
 
 def tagged(section: str, tag: str) -> str:
-    """G-252 (item 2c): a section's body in its tag, the heading line kept first."""
+    """G-252: a section's body in its tag, the heading line kept first."""
     heading, _, body = section.partition("\n")
     return f"{heading}\n<{tag}>\n{body.strip()}\n</{tag}>"
 
 
 def reads_whole(phase: str, focus: Optional[str]) -> set[str]:
-    """G-252 (item 2a): the fields sent complete this turn — the current element's own, and those it reads. Outside
+    """G-252: the fields sent complete this turn — the current element's own, and those it reads. Outside
     Define (no reads map) every value is sent complete."""
     if phase != "define":
         return set()
@@ -168,10 +154,10 @@ class BeforeModelStateInjection(AgentMiddleware):
     """Position 1. Project facts at the top of the prompt, once per turn.
 
     Constructed per turn with the phase's own state, because the executor
-    builds the agent per turn (step 6.2). **G-24 leaves the constructor
-    unstated**; these three arguments are what the ratified behaviours need and
-    no more — the phase, the state they are read from, and the config that
-    carries the case framing.
+    builds the agent per turn. **G-24 leaves the constructor unstated**; the
+    arguments are what the behaviours need and no more — the phase, the state
+    they are read from, the config that carries the case framing, the prior
+    phases' gate documents and this turn's upload.
     """
 
     name = "BeforeModelStateInjection"
@@ -194,8 +180,8 @@ class BeforeModelStateInjection(AgentMiddleware):
         self._state = state
         self._config = config or {}
         #: Prior phases' gate documents, read from the Store by the caller.
-        #: **B5** — without these the coach has nothing to compare against and
-        #: the semantic contradiction check (§37) silently detects nothing.
+        #: Without these the coach has nothing to compare against and the
+        #: semantic contradiction check silently detects nothing.
         self._prior = prior_documents or {}
         #: DEF-108 (W5) — the file this upload turn reads, routed by the executor; None otherwise.
         self._upload = upload
@@ -203,10 +189,10 @@ class BeforeModelStateInjection(AgentMiddleware):
         self._move: str = ""
         self._feedback: str = ""
 
-    # ── the hook that does the work (B1) ─────────────────────────────────
+    # ── the hook that does the work ──────────────────────────────────────
 
     def before_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """Compose sections 3, 4 and 5. Once per turn — never `before_model` (B1)."""
+        """Compose sections 3, 4 and 5. Once per turn — never `before_model`."""
         self._block = self._compose()
         self._move = tagged(self._compose_move(), "this_turns_move")
         self._feedback = tagged(self._compose_feedback(), "quality_feedback")
@@ -219,11 +205,11 @@ class BeforeModelStateInjection(AgentMiddleware):
         return None
 
     async def abefore_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """Async twin — §1.4 makes the agent loop async, so this is the one
-        that actually fires. It does no I/O; composition is pure."""
+        """Async twin — the agent loop is async, so this is the one that
+        actually fires. It does no I/O; composition is pure."""
         return self.before_agent(state, runtime)
 
-    # ── where the block reaches the prompt (B2) ──────────────────────────
+    # ── where the block reaches the prompt ───────────────────────────────
 
     def wrap_model_call(self, request: ModelRequest, handler: Callable) -> Any:
         return handler(self._prepend(request))
@@ -237,36 +223,33 @@ class BeforeModelStateInjection(AgentMiddleware):
     def _prepend(self, request: ModelRequest) -> ModelRequest:
         """Project facts ABOVE the coach's instructions and the conversation.
 
-        **B2** — models weight earlier content more heavily, and facts arriving
-        after the Belt's message let the response drift toward the Belt's
-        framing rather than the project's established state. *"Injecting in
-        `messages[]` append order is a violation — there is no 'just add it to
-        the history' option."* This never touches `request.messages`.
+        Models weight earlier content more heavily, and facts arriving after
+        the Belt's message let the response drift toward the Belt's framing
+        rather than the project's established state. Injecting in `messages[]`
+        append order is not allowed, so this never touches `request.messages`.
 
         A pure read of what `before_agent` composed: no recomputation here, or
         the once-per-turn guarantee would be decorative.
 
-        **Content BLOCKS, never string concatenation onto `.content`** (§21,
-        CLAUDE.md §4.5). `SystemMessage.content` is `str | list[dict]`, so an
-        f-string over a multi-part message renders the literal
-        ``"[{'type': 'text', ...}]"`` into the prompt — structure destroyed,
-        no error raised. This is the same rule step 2.6 applied across twenty
-        `response.content` sites, and it binds on messages this code WRITES,
-        not only on ones it reads.
+        **Content BLOCKS, never string concatenation onto `.content`.**
+        `SystemMessage.content` is `str | list[dict]`, so an f-string over a
+        multi-part message renders the literal ``"[{'type': 'text', ...}]"``
+        into the prompt — structure destroyed, no error raised. The rule binds
+        on messages this code WRITES, not only on ones it reads.
 
         `.content_blocks` normalises both shapes to typed blocks, and
-        `content_blocks=` is accepted at construction (verified against the
-        installed langchain-core 1.6.0), so prepending is a list operation.
+        `content_blocks=` is accepted at construction, so prepending is a list
+        operation.
         """
         if not self._block:
             return request
         existing = request.system_message
         blocks = list(existing.content_blocks) if existing is not None else []
-        # 6.61 — THE SIX SECTIONS (§19.1 v1.75), in the ruled order. The rules
-        # are the agent's own system prompt, labelled here as section 1 by a
-        # heading block of their own (their blocks are never concatenated —
-        # §21). Section 2, the phase script, is placed after section 1 by
-        # position 2 (`DMAICSkillsMiddleware`), which runs inside this wrap.
+        # THE SIX SECTIONS, in the ruled order. The rules are the agent's own
+        # system prompt, labelled here as section 1 by a heading block of their
+        # own (their blocks are never concatenated). Section 2, the phase
+        # script, is placed after section 1 by position 2
+        # (`DMAICSkillsMiddleware`), which runs inside this wrap.
         return request.override(
             system_message=SystemMessage(content_blocks=[
                 {"type": "text", "text": SECTION_RULES}, {"type": "text", "text": "<coaching_rules>"}, *blocks,
@@ -281,8 +264,7 @@ class BeforeModelStateInjection(AgentMiddleware):
     # ── composition (G-24: shape is not ratified) ────────────────────────
 
     def _compose(self) -> str:
-        # 6.61 (item 2) — THE STATE AFTER THIS TURN'S CHANGE, so sections 3
-        # and 4 agree: on a confirming turn the value is shown stored, the step
+        # THE STATE AFTER THIS TURN'S CHANGE, so sections 3 and 4 agree: on a confirming turn the value is shown stored, the step
         # advanced and the next field current — which is what section 4 tells
         # the coach to say.
         plan = self._state.get("coaching_plan")
@@ -295,7 +277,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         whole = reads_whole(self.phase, focus)
 
         def sent_whole(field: str) -> bool:
-            # G-252 (item 2a): outside Define every value is complete; in Define, the element's own and its reads.
+            # G-252: outside Define every value is complete; in Define, the element's own and its reads.
             return self.phase != "define" or field in whole
 
         parts = [SECTION_STATE, "<project_state>",
@@ -303,9 +285,9 @@ class BeforeModelStateInjection(AgentMiddleware):
                  "(established facts; these outrank anything said in "
                  "conversation that contradicts them)"]
 
-        # 6.57 — the Belt's step, COMPUTED and delivered every turn, as v1.71
-        # delivers the script. The coach used to count it and counted the
-        # gate list below ("13 of 13"). First, so it is the number read first.
+        # The Belt's step, COMPUTED and delivered every turn, so the coach never
+        # counts it — and never from the gate list below. First, so it is the
+        # number read first.
         if self.phase == "define":
             step = define_progress(artifacts)
             parts += ["<where_the_belt_is>",
@@ -326,7 +308,7 @@ class BeforeModelStateInjection(AgentMiddleware):
                       if meta.get(key)]
             parts.append("</this_project>")
 
-        # ── phase_context — §9's SECOND named consumer (step 6.8) ────
+        # ── phase_context ────────────────────────────────────────────
         # The phase's own composed framing: for Define the case record, and for the other four the prior phase's
         # APPROVED gate values — the only route by which a Measure coach learns what Define committed to.
         context = str(self._state.get("phase_context") or "").strip()
@@ -334,7 +316,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         if context:
             parts.append(context)
         else:
-            # Silence is what hid this for six steps. Say it in the block the
+            # An empty framing must not be silent: say it in the block the
             # trace shows, not only in the log.
             logger.warning(
                 "%s.state_injection: phase_context is EMPTY — the coach is "
@@ -367,7 +349,7 @@ class BeforeModelStateInjection(AgentMiddleware):
             or ["(nothing stored yet)"]
         parts.append("</confirmed_values>")
 
-        # 6.61 (R5) — every position's stored status, after this turn's change,
+        # R5 — every position's stored status, after this turn's change,
         # the current field, and the value awaiting confirmation.
         statuses = dict(getattr(plan, "statuses", None) or {})
         if statuses:
@@ -392,7 +374,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         # R4 — the calculation FEEDS the benefits analysis: while that element is
         # current, its cost of the gap is a fact the coach proposes as `cost_of_gap`.
         # G-226: the expected saving is the other figure, never the cost of the gap.
-        # Proposed, never stored — the Belt confirms it (§21).
+        # Proposed, never stored — the Belt confirms it.
         if self.phase == "define" and focus == "benefits_analysis":
             from backend.phases.calculations import how_it_was_calculated
             savings = [r for r in (artifacts.get("computation_results") or [])
@@ -409,8 +391,8 @@ class BeforeModelStateInjection(AgentMiddleware):
 
         parts += self._upload_manifest()
 
-        # 6.57 — labelled as the GATE's list, so its "n of 16" is not read as
-        # the Belt's step: Define gates on 16 fields and walks 13 steps.
+        # Labelled as the GATE's list, so its "n of N" is not read as the
+        # Belt's step: a phase gates on more fields than it walks steps.
         parts.append("<gate_list>")
         parts.append(f"Still missing for the {self.phase} gate: {len(missing)} of {len(spec.tier_1)} gate fields "
                      f"(not the step count).")
@@ -424,7 +406,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         return "\n".join(parts)
 
     def _compose_move(self) -> str:
-        """Section 4 — THIS TURN'S MOVE, from the plan code built (6.61).
+        """Section 4 — THIS TURN'S MOVE, from the plan code built.
 
         Authoritative, and says so (`MOVE_PREAMBLE`). The instruction per move
         is `prompts.MOVE_INSTRUCTIONS`; which one applies, and what it names,
@@ -440,8 +422,8 @@ class BeforeModelStateInjection(AgentMiddleware):
         words = str(pending.get("belt_words") or plan.answer or "").strip() or "(none yet)"
         structured = False
         if plan.move == moves.READ_BACK:
-            # G-137 — the structured fields first: two runs read back position 5's baseline and
-            # left out `metric_definitions`, named second, so the first Confirm stored nothing.
+            # G-137 — the structured fields first, so a read-back of a position never leaves out
+            # `metric_definitions` and its Confirm can store the position.
             # The baseline and the target count as words: the coach gives the Belt's words and
             # code reads the MetricValue from them (ADR-0071).
             from backend.phases.define.parse import METRIC_FIELDS as _WORDS
@@ -463,8 +445,8 @@ class BeforeModelStateInjection(AgentMiddleware):
             fields = []
         shape = (" — in the shape the phase script's 'Capture as' gives for it"
                  if plan.move == moves.READ_BACK and structured else "")
-        # DEF-029 — every field of the position named, with its declared type: 6.66's run read
-        # back position 5's baseline alone, so the Belt's Confirm could never store the position.
+        # DEF-029 — every field of the position named, with its declared type, so a read-back
+        # carries the whole position and the Belt's Confirm can store it.
         from backend.phases.define.parse import METRIC_FIELDS
         from backend.phases.define.schema import METRIC_DEFINITION_KEYS
         registry = ("{" + ", ".join(METRIC_DEFINITION_KEYS) + "}")
@@ -494,7 +476,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         if plan.move == moves.READ_BACK:
             body = f"{body}\n\n{CAPTURE_RULES}"
         lines = [SECTION_MOVE, MOVE_PREAMBLE, "",
-                 # Fix 2 — the status AFTER this turn, as section 3 shows it:
+                 # The status AFTER this turn, as section 3 shows it:
                  # on a store-and-advance the field is the NEXT one, and the
                  # before-status is the confirmed field's, not its.
                  f"Field: {field or '(every field is confirmed)'} — status after this turn: "
@@ -509,13 +491,13 @@ class BeforeModelStateInjection(AgentMiddleware):
             from backend.core.prompts import CALCULATION_TEACH
             body = f"{body}\n\n{CALCULATION_TEACH}"
         if plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE, moves.CHALLENGE) and field:
-            # C3 (DEF-083, amended 2026-10-13): every request shows a sample — the script's worked example,
+            # C3 (DEF-083): every request shows a sample — the script's worked example,
             # inserted by code (G-170); never built from the case's values.
             from backend.core.prompts import SAMPLE_FROM_SCRIPT
             body = f"{body}\n\n{SAMPLE_FROM_SCRIPT}"
         if self._upload:
             # DEF-108 (W5) — ahead of the move, and named as the one exception to its "nothing
-            # else": after it, a read-back obeyed the preamble and left the file out (live, 083638).
+            # else": placed after it, a read-back would obey the preamble and leave the file out.
             u = self._upload
             lines += ["", UPLOAD_TURN.format(
                 filename=u.get("filename") or "(unnamed file)",
@@ -525,10 +507,10 @@ class BeforeModelStateInjection(AgentMiddleware):
         return "\n".join([*lines, "", body])
 
     def _compose_feedback(self) -> str:
-        """Section 5 — last turn's quality feedback, for the coach (6.61).
+        """Section 5 — last turn's quality feedback, for the coach.
 
-        The grader's verdict on the PREVIOUS reply, read off that reply (the
-        coherence judge is retired, ADR-0083). **Never presented as a message from the Belt** — it is a
+        The grader's verdict on the PREVIOUS reply, read off that reply (there
+        is no coherence judge, ADR-0083). **Never presented as a message from the Belt** — it is a
         system section, and it says whose it is.
         """
         fb = moves.last_feedback(list(self._state.get("messages") or []))
@@ -538,7 +520,7 @@ class BeforeModelStateInjection(AgentMiddleware):
                          "there is no previous reply)")
             return "\n".join(lines)
         g = fb.get("grader")
-        # 6.61 (item 3) — only what applies to THIS turn's move: section 5
+        # Only what applies to THIS turn's move: section 5
         # never contradicts section 4. A criterion the move does not answer
         # (a read-back is not a challenge) is left out, and says so.
         plan = self._state.get("coaching_plan")
@@ -565,22 +547,19 @@ class BeforeModelStateInjection(AgentMiddleware):
     def _upload_manifest(self) -> list[str]:
         """The uploads INVENTORY — one line per entry, never the content.
 
-        **§6 names two readers of `uploads`: "gate document assembly; evidence
-        context". Gate assembly was wired; THIS ONE NEVER WAS** — verified
-        against the tree at step 6.12 and recorded as a defect found rather
-        than a gap filled (`DECISIONS.md` Part AS). Third instance of the
-        WATCH-19 shape: a field declared, written, and read by nothing.
+        `uploads` has two readers: gate document assembly, and this evidence
+        context.
 
         **This is the guarantee that an upload reaches the coach at all.**
-        §24 makes retrieval a tool call the model decides to make — *"there is
-        no unconditional retrieval pipeline"* — so **no uploaded document is
+        Retrieval is a tool call the model decides to make — there is no
+        unconditional retrieval pipeline — so **no uploaded document is
         guaranteed to be read via `rag_lookup_evidence`**. A coach that never
         calls the tool never sees the file. The manifest is deterministic and
         costs one line per upload: the coach cannot fail to know a file exists,
         though it may still choose not to open it.
 
         **Inventory, not content.** The values stay in the blob and are loaded
-        by `load_evidence_series` (S-F57), which is what keeps this block from
+        by `load_evidence_series`, which is what keeps this block from
         growing with the data.
         """
         uploads = list(self._state.get("uploads") or [])

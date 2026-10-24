@@ -1,9 +1,8 @@
-"""Analyse's boundary mappers — procedure step 3.3.
+"""Analyse's boundary mappers.
 
-Canonical: **S-F12** (the Measure, Analyse, Improve and Control mapper pairs).
-Same contract as S-F10 / S-F11 with one difference: `phase_context` is composed
-from the **prior phase's gate document** in the Store rather than from the case
-record. Architecture §9.
+Same contract as Define's mappers with one difference: `phase_context` is
+composed from the **prior phase's gate document** in the Store rather than from
+the case record.
 
 Execution site, the copy-down invariant and the single-writer rule are
 identical to Define's — see `phases/define/mappers.py`.
@@ -34,14 +33,13 @@ PHASE = "analyse"
 PRIOR_PHASE = "measure"
 
 # ─────────────────────────────────────────────────────────────────────────
-# G-27 — RATIFIED 2026-08-31. This list is the ruling, not a proposal.
+# G-27 — this list is the ruling, not a proposal. The contract is compose
+# from the Store, named fields only; the ruling fixes which fields of the
+# prior gate document travel, in what form, and that `acknowledged_gaps`
+# travels too:
 #
-# S-F12 stated the CONTRACT (compose from the Store, named fields only) and
-# left the COMPOSITION open: which fields of the prior gate document, in what
-# form, and whether `acknowledged_gaps` travels. All three are now ruled:
-#
-#   FIELDS  the prior phase's Tier-1 (gate-required) fields per CLAUDE.md
-#           §9.7, PLUS `phase_metrics` PLUS `acknowledged_gaps`.
+#   FIELDS  the prior phase's Tier-1 (gate-required) fields, PLUS
+#           `phase_metrics` PLUS `acknowledged_gaps`.
 #   FORM    `field: value` lines, one per field.
 #   TIER 2  EXCLUDED.
 #
@@ -55,9 +53,9 @@ PRIOR_PHASE = "measure"
 # skipped, and the next planner needs to tell "the Belt decided to proceed
 # without this" apart from "nobody asked". Excluding it would make a
 # deliberate decision indistinguishable from an oversight — which is the
-# distinction §9.7 created the two tiers to preserve in the first place.
+# distinction the two tiers exist to preserve.
 #
-# WHY NAMED FIELDS AND NOT PROSE. §9 B4: a value is read out of the structured
+# WHY NAMED FIELDS AND NOT PROSE. A value is read out of the structured
 # document by key. String-interpolating a previous phase's output into the
 # next phase's prompt is BANNED — that is the parse-prose-downstream
 # anti-pattern this architecture exists to remove.
@@ -79,25 +77,24 @@ def analyse_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseStat
     """`SupervisorState` → `PhaseState` for Analyse.
 
     Reads measure's approved gate document from the Store and frames this
-    phase from named fields of it (S-F12 B1, B4, G-27 ruling). Depends on `BaseStore`
-    alone.
+    phase from named fields of it (G-27). Depends on `BaseStore` alone.
 
     **A missing prior gate document raises** rather than defaulting: it means
-    the measure gate never applied, which is an ordering fault, and S-C06's
-    failure modes are explicit that callers must not paper over it.
+    the measure gate never applied, which is an ordering fault, and callers
+    must not paper over it.
     """
     gate_document = read_gate_document(store, parent["case_id"], PRIOR_PHASE)
     phase_context = compose_phase_context(PHASE, gate_document, PHASE_CONTEXT_FIELDS)
-    # Step 6.11: the case record is read for the uploads inventory ONLY.
-    # `phase_context` still comes from the prior gate document above and is
-    # unchanged — §6 keeps `uploads` out of the framing prose deliberately,
-    # because the gate document reads the list and the coach reads the prose.
+    # The case record supplies the per-phase inventories below, not the
+    # framing: `phase_context` comes from the prior gate document above, and
+    # `uploads` stays out of the framing prose because the gate document reads
+    # the list and the coach reads the prose.
     case = read_case_record(store, parent["case_id"])
     return new_phase_state(
         parent, PHASE, phase_context,
         uploads_for_phase(case, PHASE), asks_for_phase(case, PHASE),
-        # Step 6.33 — the accumulator is SEEDED from the case record, not
-        # blanked. `case` is already in hand, so this costs no second read.
+        # The accumulator is SEEDED from the case record, not blanked.
+        # `case` is already in hand, so this costs no second read.
         captured_for_phase(case, PHASE), field_log_for_phase(case, PHASE),
         field_status_for_phase(case, PHASE),
     )
@@ -111,7 +108,7 @@ def analyse_output_mapper(
     """`PhaseState` → a `SupervisorState` update, at gate approval.
 
     Writes the gate document to the Store and returns only the three
-    orchestration values, written together (S-F12 B3, §5 B2).
+    orchestration values, written together.
     """
     write_gate_document(store, parent, PHASE, child)
     return advance(parent, PHASE)

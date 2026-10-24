@@ -6,10 +6,10 @@ case_id, phase) from the FastAPI middleware down to any code
 running within that request — including async nodes, LLM
 callbacks, and tools.
 
-Per CLAUDE.md §9.3 and ARCHITECTURE.md §10.3 every request
-gets a request_id propagated to all child operations.
+Every request gets a request_id propagated to all child
+operations.
 
-Module-level functions only (no classes) per CLAUDE.md §2.
+Module-level functions only (no classes), per CLAUDE.md.
 contextvars.ContextVar is a stdlib primitive, not a class
 we define — its use is permitted.
 """
