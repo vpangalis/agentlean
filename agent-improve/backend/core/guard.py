@@ -147,11 +147,14 @@ def current_field(state: SupervisorState, store: Optional[BaseStore]) -> Optiona
         try:
             from backend.phases.mappers_common import captured_for_phase, read_case_record
             artifacts = captured_for_phase(read_case_record(store, str(state.get("case_id"))), phase)
-        except Exception:  # noqa: BLE001 — the reply still goes out without the element
+        except Exception as exc:  # noqa: BLE001 — the reply still goes out without the element
+            logger.warning("input_guard: the case record could not be read for the element (%s); the reply goes "
+                           "out without it", exc)
             artifacts = {}
     try:
         found = moves.focus(phase, artifacts)
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — the reply still goes out without the element
+        logger.warning("input_guard: the element could not be found for phase %s (%s)", phase, exc)
         return None
     return found[0] if found else None
 
@@ -161,7 +164,7 @@ def _attempt() -> int:
     1 outside a graph run."""
     try:
         info = getattr(get_runtime(), "execution_info", None)
-    except Exception:  # noqa: BLE001 — called outside a graph run (a test calling the node)
+    except RuntimeError:                     # called outside a graph run (a test calling the node)
         return 1
     return int(getattr(info, "node_attempt", 1) or 1)
 

@@ -497,5 +497,6 @@ def hidden_text(filename: str, file_bytes: bytes, content_type: str) -> str:
             with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                 out += [str(v) for v in (pdf.metadata or {}).values() if isinstance(v, (str, bytes))]
     except Exception as exc:  # noqa: BLE001
-        logger.info("hidden_text: %s could not be read fully: %s", filename, exc)
+        logger.warning("hidden_text: %s could not be read fully, so its hidden text is screened only in part: %s",
+                       filename, exc)
     return "\n".join(t for t in out if t and t.strip())

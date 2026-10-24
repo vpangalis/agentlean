@@ -283,9 +283,13 @@ def phase_node(phase: str, approval: bool = False) -> Callable[..., Any]:
                 # G-240: the uploads written are the case record's own, complete upload records.
                 held = [u.model_dump() for u in (before.phases[phase].uploads or [])] if before is not None else []
                 await _write_case_record(store, case_id, phase, result, held)
-            except Exception:
-                _undo_gate_write(store, case_id, phase, dict(result["final"]))
-                await _undo_case_write(case_id, phase, before)
+            except Exception as exc:
+                undone = _undo_gate_write(store, case_id, phase, dict(result["final"]))
+                undone = await _undo_case_write(case_id, phase, before) and undone
+                if not undone:
+                    exc.add_note(f"W5: case {case_id}'s {phase} approval failed and was NOT fully undone; the case "
+                                 "may show it approved until the lead approves again (ADR-0087: that approval "
+                                 "completes it)")
                 raise
             update.update(advanced)
             logger.info("%s: approved — the Store record and the case record written, current_phase -> %s",
@@ -293,10 +297,12 @@ def phase_node(phase: str, approval: bool = False) -> Callable[..., Any]:
         elif result.get("final"):
             try:
                 advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
-            except Exception:
+            except Exception as exc:
                 # T29 (DEF-122): the approved record must not outlive a failed approval — undone here,
                 # only if the Store holds exactly what this run wrote; the node's error_handler answers.
-                _undo_gate_write(store, str(state["case_id"]), phase, dict(result["final"]))
+                if not _undo_gate_write(store, str(state["case_id"]), phase, dict(result["final"])):
+                    exc.add_note(f"W5: case {state['case_id']}'s approved {phase} record was NOT removed from the "
+                                 "Store")
                 raise
             update.update(advanced)
             logger.info("%s: approved — record in the Store, current_phase -> %s",
@@ -468,11 +474,12 @@ async def _write_case_record(store: Any, case_id: str, phase: str, result: dict[
     return approved
 
 
-async def _undo_case_write(case_id: str, phase: str, before: Any) -> None:
+async def _undo_case_write(case_id: str, phase: str, before: Any) -> bool:
     """ADR-0087 decision 3: the case record back to what it held before this run — only when it now holds this run's
-    approval (the phase passed here and had not before), whichever step after the write failed."""
+    approval (the phase passed here and had not before), whichever step after the write failed. False when it could
+    not be put back (W5): logged CRITICAL, and the caller notes it on the error it re-raises."""
     if before is None or before.phases[phase].gate_passed:
-        return
+        return True
     from backend.storage import blob as _blob
     try:
         now = await _blob.load_case(case_id)
@@ -480,27 +487,37 @@ async def _undo_case_write(case_id: str, phase: str, before: Any) -> None:
             await _blob.save_case(before)
             logger.warning("%s: ADR-0087 — the approval failed after its case write; the case record was restored",
                            phase)
+        return True
     except Exception as exc:  # noqa: BLE001 — the original failure is what the Belt must hear about
-        logger.error("%s: ADR-0087 — the case record could not be restored after a failed approval: %s", phase, exc)
+        logger.critical("%s: ADR-0087 — case %s's record could not be restored after a failed approval (%s); it may "
+                        "show the phase approved until the lead approves again", phase, case_id, exc)
+        return False
 
 
-def _undo_gate_write(store: Any, case_id: str, phase: str, written: dict[str, Any]) -> None:
+def _undo_gate_write(store: Any, case_id: str, phase: str, written: dict[str, Any]) -> bool:
     """T29: remove the approved record this run put, and only that — a record the Store held from an
-    earlier approval (a different value) is left alone."""
+    earlier approval (a different value) is left alone. False when it could not be removed (W5): logged CRITICAL."""
     from backend.phases.mappers_common import read_gate_document
     from backend.storage import layout
     try:
         if store is not None and read_gate_document(store, case_id, phase) == written:
             store.delete((layout.STORE_ROOT, case_id, layout.KIND_ARTIFACTS), phase)
             logger.warning("%s: T29 — the approval failed after its Store write; the record was removed", phase)
+        return True
     except Exception as exc:  # noqa: BLE001 — the original failure is what the Belt must hear about
-        logger.error("%s: T29 — the approved record could not be removed after a failed approval: %s", phase, exc)
+        logger.critical("%s: T29 — case %s's approved record could not be removed after a failed approval: %s",
+                        phase, case_id, exc)
+        return False
 
 
 def on_degraded(node: str, cause: Any) -> None:
-    """T29: called with every failure the handler below answers — nothing happens in production. The test
-    suite replaces it (`backend/tests/conftest.py::_degraded_reply_raises`)
-    so that a degraded reply no test expected fails that test instead of passing as a well-formed reply."""
+    """T29: called with every failure the handler below answers. In production it logs the failure's traceback —
+    the handler's own line carries only its type and message (W9). The test suite replaces it
+    (`backend/tests/conftest.py::_degraded_reply_raises`) so that a degraded reply no test expected fails that test
+    instead of passing as a well-formed reply."""
+    if isinstance(cause, BaseException):
+        logger.error("%s: the failure behind the degraded reply", node,
+                     exc_info=(type(cause), cause, cause.__traceback__))
 
 
 def degraded_handler(node: str) -> Callable[..., Any]:

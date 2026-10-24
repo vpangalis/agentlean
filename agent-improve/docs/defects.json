@@ -3363,6 +3363,62 @@
    ],
    "escape_class": "join",
    "symptom": "THREE RULES WRITTEN MORE THAN ONCE (audit H4, H5, H6; founder ruling 2026-10-24, Part B2). D2 IS: the empty-value rule in six places (core/substate.is_empty_capture, gate_registry._is_empty and _is_empty in the analyse, control, improve and measure validators); the methodology phase filter in two (retriever._phase_filter, the one every search sends, and tools._phase_filter, the one a failed search logs), each with its own CROSS_PHASE_RELEVANCE; the clock inlined 27 times in 11 modules. D2 IS-NOT: a behaviour difference today — the six empty checks answer alike on None, '', '  ', '0', 0, [], {}, [''] and {'a': ''}, and the two filters build the same string. D4 OCCURRENCE: each module wrote the rule it needed where it needed it. D4 ESCAPE: nothing checks that a rule has one owner, so a fix to one copy (the audit's example: the filter) would leave the other behind unseen. D5 FIX: is_empty_capture is the one empty rule; retriever.phase_filter the one filter, which tools imports; core/clock.utc_now the one clock. D7 PREVENT: backend/tests/test_one_owner.py pins one owner for each (at the commit before, all three fail)."
+  },
+  {
+   "id": "G-267",
+   "requirement": [
+    "T23"
+   ],
+   "feature": [
+    "DEF-170"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "error_routine",
+   "symptom": "W5 — A FAILED APPROVAL'S UNDO THAT ITSELF FAILED WAS AN ERROR LINE, AND THE ROUTE LOGGED 'NOTHING CHANGED'. Audit W5 (core/graph.py _undo_gate_write, _undo_case_write; founder ruling 2026-10-24, B5). D2 IS: when the approval failed and storage then failed the undo too, the case could keep its approval half-written while decide_gate logged 'the approval did not go through; nothing changed'. D2 IS-NOT: the Belt's answer — ADR-0087's 'approve again' completes a half-written approval. D4 OCCURRENCE: the undo helpers swallowed their own failure and returned nothing. D4 ESCAPE: no test made the undo fail. D5 FIX: each helper returns whether it undid; a failure is logged CRITICAL naming the case, noted on the error re-raised, and the route's log line carries the note. D7 PREVENT: backend/tests/test_swallowed_failures.py::test_w5_an_undo_that_fails_says_so."
+  },
+  {
+   "id": "G-268",
+   "requirement": [
+    "W6"
+   ],
+   "feature": [
+    "DEF-218"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "error_routine",
+   "symptom": "W6 — A CASE WHOSE DATES COULD NOT BE READ WAS SHOWN GREEN ON THE CASE LIST. Audit W6 (storage/blob.py _gate_passed_entry; founder ruling 2026-10-24, B5). D2 IS: any error computing the RAG status set it to green, with no log. D2 IS-NOT: the lease (blob.case_lease), whose failure is logged as a FINDING by design (ADR-0018: the ETag check still detects a collision). D4 OCCURRENCE: a broad except chose the reassuring value. D4 ESCAPE: no test fed an unreadable date. D5 FIX: only TypeError and ValueError are caught; the status stays as it was and the case is logged. D7 PREVENT: backend/tests/test_swallowed_failures.py::test_w6_a_date_that_cannot_be_read_leaves_the_rag_status_as_it_was."
+  },
+  {
+   "id": "G-269",
+   "requirement": [
+    "T71"
+   ],
+   "feature": [
+    "DEF-149"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "error_routine",
+   "symptom": "W7 — THE INPUT GUARD LOST ITS ELEMENT CONTEXT WITHOUT A WORD, AND A PARTIAL HIDDEN-TEXT SCAN WAS AN INFO LINE. Audit W7 (core/guard.py current_field, _attempt; upload/parsers.py hidden_text — T72, DEF-150; founder ruling 2026-10-24, B5). D2 IS: a Store read or focus failure returned no element with no log; _attempt caught every exception; a file whose hidden parts could not be read was logged at INFO. D2 IS-NOT: the verdict's audit write (guard.record), which logs at ERROR. D4 OCCURRENCE: broad excepts written for the outside-a-run case. D4 ESCAPE: no test made the read fail. D5 FIX: both context failures log a WARNING; _attempt catches RuntimeError only (what get_runtime raises outside a run); the partial scan logs a WARNING saying the hidden text is screened only in part. D7 PREVENT: backend/tests/test_swallowed_failures.py::test_w7_the_guard_says_when_it_loses_the_element."
+  },
+  {
+   "id": "G-270",
+   "requirement": [
+    "T29"
+   ],
+   "feature": [
+    "DEF-122"
+   ],
+   "lane": [
+    "B"
+   ],
+   "escape_class": "error_routine",
+   "symptom": "W9 — A DEGRADED REPLY IN PRODUCTION KEPT ONLY ITS FAILURE'S TYPE AND MESSAGE. Audit W9 (core/graph.py on_degraded, degraded_handler; founder ruling 2026-10-24, B5). D2 IS: on_degraded had no body in production — the seam only the test suite filled — and the handler's line carried no traceback. D2 IS-NOT: tests, where the suite's replacement re-raises the failure. D4 OCCURRENCE: the seam was written for tests. D4 ESCAPE: nothing read the production body. D5 FIX: on_degraded logs the failure with its traceback. D7 PREVENT: backend/tests/test_swallowed_failures.py::test_w9_a_degraded_reply_logs_the_traceback_behind_it."
   }
  ],
  "escape_controls": {

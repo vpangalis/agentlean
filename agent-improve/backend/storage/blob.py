@@ -555,8 +555,10 @@ def _gate_passed_entry(registry: CaseRegistry, case: CaseDocument, phase: str, s
                     else "amber" if pct_left < 0.4
                     else "green"
                 )
-            except Exception:
-                entry.rag_status = "green"
+            except (TypeError, ValueError) as exc:
+                # W6: a date that cannot be read leaves the status as it was — never a green no date earned.
+                logger.warning("registry: case %s's RAG status not recomputed — target %r, created %r (%s)",
+                               case.case_id, case.target_date, case.created_at, exc)
             break
 
 

@@ -1809,7 +1809,8 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         # ADR-0087 decision 3: the approval node undid both writes and re-raised, and its retries are spent —
         # nothing was committed and the report still awaits the decision; the lead approves again.
         from backend.core import graph as _graph
-        logger.error("decide_gate() error: %s — the approval did not go through; nothing changed", e)
+        notes = "; ".join(getattr(e, "__notes__", []))  # W5: an undo that failed says so here
+        logger.error("decide_gate() error: %s — the approval did not go through; %s", e, notes or "nothing changed")
         raise HTTPException(503, _graph.APPROVAL_FAILED)
 
     if request.decision == "approve" and (getattr(_last_ai(result), "additional_kwargs", None) or {}).get("degraded"):

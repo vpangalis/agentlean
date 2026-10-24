@@ -2755,7 +2755,8 @@
      "G-178",
      "G-239",
      "G-240",
-     "G-242"
+     "G-242",
+     "G-267"
     ]
    },
    "requirement": "T23",
@@ -4999,7 +5000,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-270"
+    ]
    },
    "requirement": "T29",
    "belt_impact": "degraded",
@@ -5843,7 +5846,8 @@
     "capability_rows": [],
     "gaps": [
      "G-154",
-     "G-262"
+     "G-262",
+     "G-269"
     ]
    },
    "requirement": "T71",
@@ -7899,7 +7903,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-219"
+     "G-219",
+     "G-268"
     ]
    },
    "requirement": "W6",
