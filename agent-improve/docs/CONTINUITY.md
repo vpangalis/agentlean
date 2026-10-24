@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Headline** | 202 of 203 Define features pass (core 194 of 194) — A 83/83 · B 40/40 · C 59/59 · integrator 20/21 · M1: 76 proven · 0 awaiting fresh run · 0 open |
+| **Headline** | 203 of 203 Define features pass (core 194 of 194) — A 83/83 · B 40/40 · C 59/59 · integrator 21/21 · M1: 76 proven · 0 awaiting fresh run · 0 open |
 | **Next — lane A** | every feature passes |
 | **Next — lane B** | every feature passes |
 | **Next — lane C** | every feature passes |
-| **Next — lane integrator** | DEF-064 — Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run. |
+| **Next — lane integrator** | DEF-241 — The fact-ownership check runs at the commit gate over the staged governed documents, whatever wrote them (G-59) |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |

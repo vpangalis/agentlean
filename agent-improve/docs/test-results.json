@@ -1,9 +1,9 @@
 {
  "source_hash": "6a3f16dab03e951c",
- "commit": "1aed8c2",
- "commit_matches_source": false,
+ "commit": "0027e82",
+ "commit_matches_source": true,
  "full_run_hash": "6a3f16dab03e951c",
- "recorded_at": "2026-10-24T16:33:08+00:00",
+ "recorded_at": "2026-10-24T16:39:14+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -738,7 +738,7 @@
   "backend/tests/test_define_rubric.py::test_the_models_judgment_fails_a_criterion_with_its_reason": "passed",
   "backend/tests/test_define_runthrough.py::test_define_is_done_within_forty_turns_none_over_45_seconds": "passed",
   "backend/tests/test_define_runthrough.py::test_define_run_through": "passed",
-  "backend/tests/test_define_runthrough.py::test_every_define_row_is_green_on_the_run_through_case": "skipped",
+  "backend/tests/test_define_runthrough.py::test_every_define_row_is_green_on_the_run_through_case": "passed",
   "backend/tests/test_define_runthrough.py::test_run_a_change_click_reopens_the_field_with_the_belts_words": "passed",
   "backend/tests/test_define_runthrough.py::test_run_a_complete_case_assembles_a_gate_document": "passed",
   "backend/tests/test_define_runthrough.py::test_run_a_complete_define_passes_the_gate_rubric": "passed",
