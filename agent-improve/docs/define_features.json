@@ -139,7 +139,9 @@
     "capability_rows": [
      "33"
     ],
-    "gaps": []
+    "gaps": [
+     "G-271"
+    ]
    },
    "requirement": "R1",
    "belt_impact": "data_loss",

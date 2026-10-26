@@ -1,0 +1,190 @@
+{
+ "kind": "evals",
+ "started": "20261024T204837",
+ "status": "final",
+ "ids": [
+  "E19"
+ ],
+ "k": 10,
+ "product_hash": "bb0a8b8d273f6acc",
+ "complete": true,
+ "tasks": 1,
+ "trials": 10,
+ "pass_k": 0,
+ "results": {
+  "E19": false
+ },
+ "trials_passed": {
+  "E19": 7
+ },
+ "human_sample": [
+  "E19"
+ ],
+ "runs": {
+  "E19": [
+   {
+    "case_id": "IMPR-2026-ZM8TQK",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for sharing your benefits analysis. To meet the acceptance criteria for this section, we need to know how the cost of the gap (EUR 62,000 per year) was calculated. Specifically, what data or assumptions were used to arrive at that figure? For example, was it based on the number of late payments, the interest rate applied, or another factor? Please provide these details so we can ensure the analysis is complete and defensible."
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-R4WS7K",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for providing the benefits analysis. However, the explanation of how the cost of the gap (EUR 62,000) was calculated is missing. The acceptance criterion requires you to specify the method or data used to arrive at this figure. For example, was it derived from rework costs, late payment penalties, or some other measurable factor?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-EBJDM8",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for providing the benefits analysis. Let’s confirm your input to ensure everything is accurate:\n\n- **Cost of the gap**: About EUR 62,000 a year.\n- **Impact type**: Sustainable.\n- **Realisation schedule**: From April 2027.\n- **Finance contact**: Maria Lopez in finance.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-8T6WKM",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Here's what I captured for the benefits analysis based on your input:\n\n- **Cost of the gap**: About EUR 62,000 a year.\n- **Impact type**: Sustainable.\n- **Realisation schedule**: From April 2027.\n- **Finance contact**: Maria Lopez in finance will validate it.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-NWFWYL",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Let me read back your benefits analysis to make sure I've captured it correctly:\n\n- **Cost of the gap today:** About EUR 62,000 a year.\n- **Impact type:** Sustainable.\n- **Realisation schedule:** From April 2027.\n- **Finance contact:** Maria Lopez in finance will validate it.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-SMFGN9",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for providing the details.\n\n- **Cost of the gap:** About EUR 62,000 a year.\n- **Impact type:** Sustainable.\n- **Realisation schedule:** From April 2027.\n- **Finance contact:** Maria Lopez.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-M6HZ62",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in **Define** — the most important phase, because a clear problem is half the solution. For each of the thirteen parts I'll explain what it is and why it matters, show you a finished example, then ask for yours. When all thirteen are agreed, you and your team review the Define report and approve it.\n\nLet me confirm the benefits analysis based on your input:\n\n- The cost of the gap today is about EUR 62,000 a year.\n- The expected saving is about EUR 50,000 a year, starting from April 2027.\n- The impact is sustainable.\n- Maria Lopez in finance will validate the figure.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-CKDZ74",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for providing the details. Here's what I captured for the benefits analysis:\n\n- **Cost of the gap:** about EUR 62,000 a year.\n- **Impact type:** sustainable.\n- **Realisation schedule:** savings expected to start from April 2027.\n- **Finance contact:** Maria Lopez in finance will validate it.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-LEXMY4",
+    "passed": true,
+    "failed": [],
+    "moves": [
+     "read_back"
+    ],
+    "rubric": [
+     "pass"
+    ],
+    "answers": [
+     "Thank you for providing the details. Let me read this back to confirm it is correct:\n\n- **Cost of the gap:** About EUR 62,000 a year.\n- **Impact type:** Sustainable.\n- **Realisation schedule:** Savings expected to start from April 2027.\n- **Finance contact:** Maria Lopez.\n\nIs this right?"
+    ]
+   },
+   {
+    "case_id": "IMPR-2026-LLGK3M",
+    "passed": false,
+    "failed": [
+     "move 'challenge', expected 'read_back'",
+     "card lacks '62,000'",
+     "card lacks '50,000'"
+    ],
+    "moves": [
+     "challenge"
+    ],
+    "rubric": [
+     "failed"
+    ],
+    "answers": [
+     "Thank you for providing the benefits analysis. However, your answer is missing one key piece of information: how the cost of the gap was calculated. This is an important part of the benefits analysis because it shows the basis for the €62,000 figure and ensures it is defensible to stakeholders. Could you specify the method or data you used to determine that the gap costs €62,000 a year? For example, was it based on late-payment interest, lost discounts, or another factor?"
+    ]
+   }
+  ]
+ },
+ "model_calls": 30,
+ "cost": {
+  "usd": 0.1856,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.1815,
+   "gpt-4o-mini-2024-07-18": 0.0041
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ }
+}

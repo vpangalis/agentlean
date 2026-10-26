@@ -1,0 +1,85 @@
+{
+ "kind": "live_slice",
+ "element": "benefits_analysis",
+ "case_id": "IMPR-2026-A8F6BT",
+ "from_record": "define_runthrough_20261024T155827.json",
+ "recorded_product_hash": "45439d502ee0343d",
+ "product_hash": "bb0a8b8d273f6acc",
+ "seeded": [
+  "baseline_estimate",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 22,
+   "belt": "Roughly, each late invoice costs us about £9 in interest and lost discount, and we pay around 42,000 supplier invoices a year.",
+   "action": null,
+   "http": 200,
+   "move": "challenge",
+   "move_field": "benefits_analysis",
+   "recorded_move": "challenge"
+  },
+  {
+   "n": 23,
+   "belt": "Cost of the gap: about £68,000 a year in interest and lost discounts, from the savings calculation. It is sustainable — every year, not one-off. It would start in Q2 2027 at about £17,000 a quarter. O",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "benefits_analysis",
+   "recorded_move": "read_back"
+  },
+  {
+   "n": 24,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "secondary_metrics",
+   "recorded_move": "store_and_advance"
+  }
+ ],
+ "checks": {
+  "the element's recorded turns were found": true,
+  "a turn stored the element and moved on": true,
+  "the element is in the case record": true
+ },
+ "passed": true,
+ "model_calls": 8,
+ "cost": {
+  "usd": 0.0555,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0543,
+   "gpt-4o-mini-2024-07-18": 0.0012
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 37.19,
+  "calls": 95,
+  "case": {
+   "seconds": 0.64,
+   "calls": 6
+  },
+  "store": {
+   "seconds": 0.57,
+   "calls": 9
+  },
+  "checkpoint": {
+   "seconds": 35.98,
+   "calls": 80
+  }
+ },
+ "started": "20261026T090958"
+}

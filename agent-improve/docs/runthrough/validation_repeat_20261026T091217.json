@@ -1,0 +1,89 @@
+{
+ "kind": "validation_repeat",
+ "requirement": "R3",
+ "runs_per_case": 5,
+ "product_hash": "bb0a8b8d273f6acc",
+ "at": "2026-10-26T09:12:17+00:00",
+ "runs": [
+  {
+   "case": "proposes-a-solution",
+   "run": 1,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 2,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer proposes a solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 3,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 4,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 5,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 1,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The answer provides all required elements: what is wrong, where and since when, the baseline, the cost, and avoids proposing causes or fixes."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 2,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's latest message provides all required elements for the business case, including the issue, location and timeframe, baseline, cost, and avoids proposing causes or solutions."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 3,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's latest message provides all required elements for the business case field, including what is wrong, where and since when, the baseline, and the cost, without proposing causes or solutions."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 4,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's latest message provides all required elements for the business case field, including the issue, location and timeframe, baseline, cost, and avoids proposing causes or solutions."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 5,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's latest message provides all required elements for the business case, including what is wrong, where and since when, the baseline, and the cost, without suggesting causes or fixes."
+  }
+ ]
+}
