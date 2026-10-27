@@ -35,7 +35,7 @@ A feature passes only when its end-to-end test passes.*
 | **Still open** | G-139 — its cause is NOT captured: it occurred on 1 run of 3 on the pre-G-140 code (174434) and on neither run since; the diagnosis is live on every run. G-141 (DEF-002) waits on it |
 | **Found and fixed** | f511b68: 416d9df's merge regex took the name of rule 8's and crashed the guard on any `Feature:` trailer (failed closed; nothing landed under it) |
 
-## ⇒ CURRENT POSITION — 2026-10-20
+## ⇒ CURRENT POSITION — 2026-10-27
 
 *Hand-written, and the ONLY place the position is written: pointers, not copies. Update it at the end of
 every session. Every other hand-written section of this file is dated history.*
@@ -43,11 +43,11 @@ every session. Every other hand-written section of this file is dated history.*
 | | |
 |---|---|
 | **Where Define stands** | The generated block's **Headline** above — never copied here |
-| **Finish line** (R-A, 2026-10-20) | Define is done when the founder's second live test passes without a blocking defect. Stages 3 and 4 are in scope; stage 5–6 items (W20 location, ADR-0096 "Hard and soft benefits", R10 "Process document → SIPOC") wait until Analyse starts unless named pilot must-haves; new non-blocking findings go to the backlog |
-| **Defect loop** (R-B, 2026-10-20) | Changes 1–3 adopted: a hidden degraded reply fails its test; `escape_class` on every `docs/defects.json` entry; the board counts regression and capability apart. Change 4 is the next prompt |
-| **Open blocker** | None. G-236 "Uploaded team list loses its training column" closed (7f3c419; live scenario (e) passes in run 085604) |
-| **This prompt** (2026-10-20) | Items 0–6 landed; item 7's run-through landed (043895a), its ADR-0087 merge NOT done — the branch is the flag-off spike and DEF-170's test is not written (founder to rule); follow-ups a–c landed (6e609e3, 0ccfbe0) — `git log --since=2026-10-20` |
-| **Owed next** | 1. Replay of the founder's 15 Oct transcript as a session-start check (R-B change 4) · 2. D7s owed under R-B: path_test, join, assumption, claim, xfail_mask (board's Defect loop card) · 3. Item-28 ADR on question turns and calculations — before stage 3 · 4. Stages 3 and 4 · 5. Founder live test 2 · 6. The one ARCHITECTURE.md update after Define · Backlog (R-A): rows 18 and 35 skip on the run-through case; first Measure turn 31.7 s over its 30 s watch line |
+| **The brief** | Founder Define test 2026-10-27 (`docs/founder-inputs/FOUNDER_TEST_FINDINGS_2026-10-27.md`): step 0 and waves 0-3, then the checks; **define-v1.1 is NOT tagged until waves 0 and 1 pass** |
+| **Done** | Step 0 — the register, G-274 to G-343, features DEF-254 to DEF-288, rulings R-A to R-H and W20 (5cec7a5). Wave 0 — R-F, ADR-0113 (f04fa52), and G-343, wave 0's own regression found by the live slice (8666008); the live slice of element 12 with the founder's two SIPOC texts passes (record `live_slice_process_map_sipoc_20261027T180052.json`) |
+| **Waiting on** | The founder's review of wave 0 (`agent-improve/Claude outputs/WAVE0_REPORT_2026-10-27.md`) before wave 1 starts. ADR-0089 "Case location" is to be shown to the founder before it is accepted (DEF-288 waits on it) |
+| **Next** | Wave 1: DEF-259 to DEF-265 — each has its failing test with the founder's own inputs already in `backend/tests/test_define_e2e.py`. Then waves 2 (R-C card ADR-0114: a teaching turn makes no coach model call; R-A, R-B, R-D, R-E, R-G, R-H) and 3, then one eval run and one live run-through on the founder's field-service inputs |
+| **Owed** | The run-through record is stale since f04fa52 (34 features "proven on earlier code" until the next run-through) · a same-size save measurement (the slice's case is small) · the 15 Oct transcript replay (R-B change 4) · the one ARCHITECTURE.md update after Define |
 
 ## ⇒ WHERE THE PLAN LIVES
 
