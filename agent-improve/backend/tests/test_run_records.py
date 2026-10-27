@@ -208,3 +208,32 @@ def test_the_founders_sheet_is_read_and_right_for_the_wrong_reason_is_counted_ap
     out = judge_replay.report(turns, [], labels, {}, 1.0)
     assert out["right_outcome_wrong_reason"] == ["r#1"]
     assert out["rejections_labelled_wrong"]["wrong"] == ["r#2"]
+
+
+def test_c9_the_labels_sheet_has_a_row_per_graded_turn_and_criterion(tmp_path) -> None:
+    """C9 (founder ruling 2026-10-27): GRADER_LABELS.csv — from a run-through and an eval, one row per graded turn and
+    criterion with the Belt's message, the reply shown, the move, the planner's judgment the grader was given, the
+    verdict, its quote and reason, and empty founder columns; a fail with no quote reads "not counted"."""
+    import csv
+
+    from scripts import grader_labels
+    grade = {"status": "failed", "move": "challenge", "verdicts": {"G1": "pass", "G4": "fail", "G3": "pass"},
+             "failed": [{"criterion": "G4", "reason": "explain what fits", "evidence": "Tell me more."}],
+             "not_counted": [{"criterion": "G3", "reason": "invented"}], "decision": "insufficient — no step named"}
+    run = [{"kind": "turn", "n": 4, "field": "problem_statement", "belt": "Invoices are late.",
+            "reply": {"answer": "Tell me more.", "prompt": "Where does it show?"}, "grader": grade}]
+    evals = {"runs": {"E21": [{"grades": [{"belt": "Leeds is the barrier.", "grade": {**grade, "move": "read_back"},
+                                           "reply": {"answer": "Your barrier."}}]}]}}
+    (tmp_path / "rt.json").write_text(json.dumps(run), encoding="utf-8")
+    (tmp_path / "ev.json").write_text(json.dumps(evals), encoding="utf-8")
+    out = tmp_path / "labels.csv"
+    grader_labels.main(["--record", str(tmp_path / "rt.json"), "--evals", str(tmp_path / "ev.json"),
+                        "--out", str(out)])
+    rows = list(csv.DictReader(out.open(encoding="utf-8-sig")))
+    assert [r["criterion"] for r in rows] == ["G1", "G4", "G3"] * 2
+    g4 = rows[1]
+    assert g4["grader_verdict"] == "fail" and g4["grader_quote"] == "Tell me more." and g4["move"] == "challenge"
+    assert g4["planner_decision"] == "insufficient — no step named" and g4["founder_label"] == ""
+    assert "[QUESTION] Where does it show?" in g4["reply"] and g4["source"] == "rt turn 4"
+    assert rows[2]["grader_verdict"].startswith("not counted") and rows[3]["source"] == "ev E21 trial 1 turn 1"
+    assert rows[3]["element"] == "issues_and_barriers"

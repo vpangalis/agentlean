@@ -21,7 +21,9 @@ def test_the_grader_findings_section_reads_each_turns_step_log(monkeypatch) -> N
     assert entry == {"status": "failed", "move": "read_back", "verdicts": None,
                      "failed": [{"criterion": "G3", "reason": "adds a step the Belt did not give",
                                  "evidence": "Then it is approved twice."}],
-                     "not_counted": [{"criterion": "G1", "reason": "unquoted"}]}
+                     "not_counted": [{"criterion": "G1", "reason": "unquoted"}],
+                     # C9 (founder ruling 2026-10-27): the decision the grader was given; F's draft, when rewritten
+                     "decision": "", "rewritten": False, "rewrite_skipped": ""}
     assert R.grader_entry("case-1", "Confirm") is None          # the checkpoint is another turn's
     turns = [{"kind": "turn", "n": 4, "field": "project_scope", "move": "read_back", "model_calls": ["coach", "grader"],
               "grader": entry},

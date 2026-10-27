@@ -682,7 +682,10 @@ def grader_entry(case_id: str, belt: str) -> dict[str, Any] | None:
                         "evidence": f.get("evidence") or ""}
                        for f in g.get("failed") or [] if isinstance(f, dict)],
             "not_counted": [{"criterion": f.get("criterion"), "reason": f.get("feedback") or ""}
-                            for f in g.get("not_counted") or [] if isinstance(f, dict)]}
+                            for f in g.get("not_counted") or [] if isinstance(f, dict)],
+            # C9 (founder ruling 2026-10-27): the planner's judgment the grader was given; F's draft, when rewritten.
+            "decision": g.get("decision") or "", "rewritten": bool(g.get("rewritten")),
+            "rewrite_skipped": g.get("rewrite_skipped") or ""}
 
 
 def grader_findings(entries: list[dict[str, Any]]) -> dict[str, Any]:

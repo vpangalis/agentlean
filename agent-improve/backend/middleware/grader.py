@@ -529,6 +529,8 @@ class DMAICGraderMiddleware(AgentMiddleware):
             # A fail the grader gave without quoting the reply — not counted.
             "not_counted": list(self._uncounted),
             "move": self.move,
+            # A1 / C9 (founder ruling 2026-10-27): the planner's judgment the grader was given, for the labels.
+            "decision": self.decision,
             # F: a rewritten turn's first draft, and why a rewrite was skipped.
             **extra,
         })

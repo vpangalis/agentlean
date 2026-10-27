@@ -1,9 +1,9 @@
 {
- "source_hash": "ac5b73df404824e8",
- "commit": "7adfcc3",
+ "source_hash": "959227b2a7a1c9e4",
+ "commit": "73a5011",
  "commit_matches_source": false,
- "full_run_hash": "ac5b73df404824e8",
- "recorded_at": "2026-10-27T13:49:38+00:00",
+ "full_run_hash": "959227b2a7a1c9e4",
+ "recorded_at": "2026-10-27T14:06:38+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1612,6 +1612,7 @@
   "backend/tests/test_run_cost.py::test_the_ceiling_is_r12s_and_the_cost_is_priced_per_model": "passed",
   "backend/tests/test_run_cost.py::test_the_price_file_is_dated_sourced_and_prices_every_model_the_runs_used": "passed",
   "backend/tests/test_run_records.py::test_a_failed_run_is_kept_marked_and_never_read_as_the_latest": "passed",
+  "backend/tests/test_run_records.py::test_c9_the_labels_sheet_has_a_row_per_graded_turn_and_criterion": "passed",
   "backend/tests/test_run_records.py::test_every_run_reports_its_turn_times_per_turn_type": "passed",
   "backend/tests/test_run_records.py::test_g153_a_call_cut_off_at_its_token_limit_is_counted_per_run": "passed",
   "backend/tests/test_run_records.py::test_g153_a_run_with_more_than_one_cut_off_fails": "passed",
@@ -1905,8 +1906,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "eae0119e105a6f4e",
-  "recorded_at": "2026-10-27T12:02:29+00:00",
+  "source_hash": "ac5b73df404824e8",
+  "recorded_at": "2026-10-27T13:49:38+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2534,6 +2535,7 @@
    "backend/tests/test_define_e2e.py::test_adr0087_an_approval_with_an_upload_writes_the_case_records_uploads": "passed",
    "backend/tests/test_define_e2e.py::test_adr0087_approved_is_answered_only_when_both_records_exist_and_the_phase_advanced": "passed",
    "backend/tests/test_define_e2e.py::test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them": "passed",
+   "backend/tests/test_define_e2e.py::test_adr_0112_a_mismatch_is_told_in_the_reply_and_a_kept_answer_is_recorded_dated": "passed",
    "backend/tests/test_define_e2e.py::test_an_analyse_turn_plans_its_retrieval": "skipped",
    "backend/tests/test_define_e2e.py::test_an_approval_resumes_the_paused_gate": "skipped",
    "backend/tests/test_define_e2e.py::test_an_approval_writes_the_record_once": "skipped",
@@ -3399,6 +3401,7 @@
    "backend/tests/test_middleware.py::test_a_short_flag_is_reported_not_completed": "passed",
    "backend/tests/test_middleware.py::test_a_tool_retry_does_not_consume_a_graph_step": "passed",
    "backend/tests/test_middleware.py::test_adr_0111_d2_the_static_prefix_is_byte_identical_between_two_turns": "passed",
+   "backend/tests/test_middleware.py::test_adr_0112_the_mismatch_line_names_what_the_answer_conflicts_with_and_offers_the_choice": "passed",
    "backend/tests/test_middleware.py::test_allowed_tools_match_the_phases_ratified_subset[analyse]": "passed",
    "backend/tests/test_middleware.py::test_allowed_tools_match_the_phases_ratified_subset[control]": "passed",
    "backend/tests/test_middleware.py::test_allowed_tools_match_the_phases_ratified_subset[define]": "passed",
@@ -3411,7 +3414,9 @@
    "backend/tests/test_middleware.py::test_contradiction_flag_exists_on_coaching_response": "passed",
    "backend/tests/test_middleware.py::test_contradiction_middleware_reads_a_flag_and_detects_nothing": "passed",
    "backend/tests/test_middleware.py::test_every_skill_md_carries_both_mandatory_instructions": "passed",
+   "backend/tests/test_middleware.py::test_f_one_rewrite_inside_the_grader_in_enforce_mode_only": "passed",
    "backend/tests/test_middleware.py::test_facts_go_above_the_coach_instructions_never_into_messages": "passed",
+   "backend/tests/test_middleware.py::test_founder_ruling_2026_10_27_a_g2_and_g4_order_are_code_checks_and_unknown_is_never_a_fail": "passed",
    "backend/tests/test_middleware.py::test_grader_internals_never_reach_state": "passed",
    "backend/tests/test_middleware.py::test_injection_uses_content_blocks_not_string_concatenation": "passed",
    "backend/tests/test_middleware.py::test_interrupt_from_after_agent_is_RESUMABLE_end_to_end": "passed",

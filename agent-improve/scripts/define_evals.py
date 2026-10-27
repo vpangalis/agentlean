@@ -140,7 +140,7 @@ def run_task(client: Any, task: dict[str, Any], record: list[dict[str, Any]]) ->
     # G-251: on the app's own event loop (the TestClient's portal). A fresh asyncio.run left the storage client's
     # session on a dead loop each trial ("SSL shutdown timed out") and the run of 2026-10-23 hung at exit.
     client.portal.call(seed)
-    replies, rubric = [], []
+    replies, rubric, grades = [], [], []
     for m in task["messages"]:
         body = {"case_id": case_id, "phase": "define", "user": "eval", "message": m["text"],
                 **({"action": m["action"]} if m.get("action") else {})}
@@ -149,10 +149,15 @@ def run_task(client: Any, task: dict[str, Any], record: list[dict[str, Any]]) ->
         g = grader_entry(case_id, m["text"])
         if g:
             rubric.append(g.get("status"))
+            # C9 (founder ruling 2026-10-27): each graded turn whole, for GRADER_LABELS.csv — the Belt's message,
+            # the reply's blocks, the move and the grader's entry (verdicts, quotes, the planner's decision given).
+            last = replies[-1] if isinstance(replies[-1], dict) else {}
+            grades.append({"belt": m["text"], "grade": g, "move": last.get("move"),
+                           "reply": {k: last.get(k) for k in ("answer", "explanation", "example", "prompt")}})
     structured = ((client.get(f"/cases/{case_id}").json().get("phases") or {}).get("define") or {}).get("structured")
     outcome = {"replies": replies, "stored": task["element"] in (structured or {}), "rubric": rubric}
     return {"case_id": case_id, **grade(task, outcome),
-            "moves": [r.get("move") for r in replies], "rubric": rubric,
+            "moves": [r.get("move") for r in replies], "rubric": rubric, "grades": grades,
             # ADR-0061 decision 2: the human sample reads what the Belt was shown.
             "answers": [str(r.get("answer") or r.get("http") or "") for r in replies]}
 
