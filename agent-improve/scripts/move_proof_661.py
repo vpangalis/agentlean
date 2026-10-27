@@ -208,11 +208,15 @@ def _usage(model: Any, result: Any) -> dict[str, Any]:
     except (AttributeError, IndexError, TypeError):
         pass
     usage = dict(getattr(msg, "usage_metadata", None) or {})
+    token_usage = dict(((getattr(result, "llm_output", None) or {}).get("token_usage")) or {})
     if not usage:
-        tu = dict(((getattr(result, "llm_output", None) or {}).get("token_usage")) or {})
-        usage = {"input_tokens": tu.get("prompt_tokens", 0), "output_tokens": tu.get("completion_tokens", 0)}
+        usage = {"input_tokens": token_usage.get("prompt_tokens", 0),
+                 "output_tokens": token_usage.get("completion_tokens", 0)}
     meta = dict(getattr(msg, "response_metadata", None) or {})
     return {"input_tokens": int(usage.get("input_tokens") or 0),
+            # Founder rulings 2026-10-27, item 10 and ADR-0111 D7 (a): the input tokens the provider served from its
+            # prompt cache, per call — part of input_tokens, never added to it.
+            "cached_input_tokens": _cached_input(usage, token_usage),
             "output_tokens": int(usage.get("output_tokens") or 0),
             # G-153 (founder 2026-10-11): "length" is a call cut off at its token limit.
             "finish_reason": meta.get("finish_reason"),
@@ -220,13 +224,35 @@ def _usage(model: Any, result: Any) -> dict[str, Any]:
                          or getattr(model, "model_name", None) or type(model).__name__)}
 
 
+def _cached_input(usage: dict[str, Any], token_usage: dict[str, Any]) -> int:
+    """ADR-0111 D7 (a): a call's input tokens served from the provider's prompt cache. langchain-openai 1.1.11
+    (`_create_usage_metadata`) puts the provider's `prompt_tokens_details.cached_tokens` in the message's
+    `usage_metadata["input_token_details"]["cache_read"]` — prefixed `priority_` or `flex_` on those service
+    tiers, so every `*cache_read` key is summed. Without one, the provider's own `token_usage` is read; 0 when
+    neither reports it."""
+    details = dict(usage.get("input_token_details") or {})
+    read = [int(v or 0) for k, v in details.items() if k == "cache_read" or k.endswith("_cache_read")]
+    if read:
+        return sum(read)
+    return int((token_usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0)
+
+
+#: One bucket of `token_totals` — cached_input_tokens is the part of input_tokens the prompt cache served.
+_TOKEN_KEYS = ("input_tokens", "cached_input_tokens", "output_tokens")
+
+
 def token_totals(calls: list[dict[str, Any]]) -> dict[str, Any]:
-    """The run's tokens per role, per model and in total (item 4)."""
+    """The run's tokens per role, per model and in total (item 4), with the input tokens served from the
+    provider's prompt cache beside the input tokens (ADR-0111 D7 (a)). A call recorded before the cache was
+    counted adds 0 to it."""
+    def empty() -> dict[str, int]:
+        return {"calls": 0, **{k: 0 for k in _TOKEN_KEYS}}
+
     def add(bucket: dict, key: str, c: dict) -> None:
-        b = bucket.setdefault(key, {"calls": 0, "input_tokens": 0, "output_tokens": 0})
+        b = bucket.setdefault(key, empty())
         b["calls"] += 1
-        b["input_tokens"] += int(c.get("input_tokens") or 0)
-        b["output_tokens"] += int(c.get("output_tokens") or 0)
+        for k in _TOKEN_KEYS:
+            b[k] += int(c.get(k) or 0)
     by_role: dict[str, dict] = {}
     by_model: dict[str, dict] = {}
     total: dict[str, dict] = {}
@@ -234,8 +260,7 @@ def token_totals(calls: list[dict[str, Any]]) -> dict[str, Any]:
         add(by_role, c.get("kind", "other"), c)
         add(by_model, c.get("model", "?"), c)
         add(total, "total", c)
-    return {"by_role": by_role, "by_model": by_model,
-            "total": total.get("total", {"calls": 0, "input_tokens": 0, "output_tokens": 0})}
+    return {"by_role": by_role, "by_model": by_model, "total": total.get("total", empty())}
 
 
 def _write(path: Path, record: dict) -> None:

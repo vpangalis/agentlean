@@ -463,6 +463,8 @@ owned by `ROLE_DEPLOYMENTS` and `ROLE_TEMPERATURES`. Structured output: agent ca
 `response_format`; plain calls use builder-style structured output; gate records use Pydantic
 construction.
 
+What each role reads, part by part in order, with each part's owner: ADR-0111's table (D1).
+
 ### 3.5 Retrieval
 
 - Tools `rag_lookup_methodology`, `rag_lookup_evidence`, `rag_lookup_case_history`

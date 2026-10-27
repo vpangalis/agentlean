@@ -43,6 +43,75 @@ def test_g153_a_run_with_more_than_one_cut_off_fails() -> None:
     assert define_runthrough.exit_code(ok, []) == 0
 
 
+def test_the_coach_input_ratchet_refuses_above_its_ceiling_and_accepts_at_or_below() -> None:
+    """Founder rulings 2026-10-27, item 10 and ADR-0111 D7 (b), offline — the one comparison the record's test
+    (test_define_runthrough.py) and the run share: run 4's 6,810 + 5% is a ceiling of 7,150, rounded down; at or
+    below it passes, above it is refused naming both numbers. The tracked record is the ruled one, never raised."""
+    r = {"coach_input_tokens_per_call": 6810, "allowance": 0.05, "measured_on": "run 4"}
+    assert define_runthrough.coach_ratchet_ceiling(r) == 7150
+    for ok in (7150, 7150.0, 6821.6, 6810, 1):
+        assert define_runthrough.coach_ratchet_refusal(ok, r) is None, ok
+    refused = define_runthrough.coach_ratchet_refusal(7150.1, r)
+    assert refused and "7,150.1 tokens per call" in refused and "ceiling of 7,150 " in refused and "6,810" in refused
+    assert define_runthrough.coach_ratchet_refusal(9000, r)
+    assert define_runthrough.coach_input_per_call(
+        {"by_role": {"coach": {"calls": 35, "input_tokens": 238757}}}) == 238757 / 35
+    assert define_runthrough.coach_input_per_call({"by_role": {"grader": {"calls": 3, "input_tokens": 9}}}) is None
+    tracked = define_runthrough.load_coach_ratchet()
+    assert tracked["coach_input_tokens_per_call"] <= 6810 and tracked["allowance"] == 0.05, tracked
+    assert tracked["_rule"] and tracked["measured_on"], tracked
+
+
+def test_the_latest_run_keeps_the_coach_input_per_call_within_its_ratchet() -> None:
+    """Founder rulings 2026-10-27, item 10 and ADR-0111 D7 (b), on the latest counted live run-through record: the
+    coach's input tokens per call (summary.tokens.by_role["coach"]) is at most the ratchet's ceiling. Here, not in
+    test_define_runthrough.py, whose module is a feature measurement (xfail) and could not refuse."""
+    files = sorted((define_runthrough.Path(define_runthrough.__file__).resolve().parents[1] / "docs" / "runthrough")
+                   .glob("define_runthrough_*.json"))
+    assert files, "no run-through record in docs/runthrough/"
+    summary: dict = next((line for line in json.loads(files[-1].read_text(encoding="utf-8"))
+                          if line.get("kind") == "summary"), {})
+    tokens = summary.get("tokens") or {}
+    per_call = define_runthrough.coach_input_per_call(tokens)
+    assert per_call is not None, f"{files[-1].name} records no coach call"
+    coach = tokens["by_role"]["coach"]
+    refusal = define_runthrough.coach_ratchet_refusal(per_call, define_runthrough.load_coach_ratchet())
+    assert refusal is None, (f"{files[-1].name}: {refusal}; of its {coach.get('input_tokens', 0):,} coach input "
+                             f"tokens, {coach.get('cached_input_tokens', 0):,} were served from the prompt cache")
+
+
+def test_the_run_lowers_the_coach_ratchet_when_it_falls_and_never_raises_it(tmp_path) -> None:
+    """ADR-0111 D7 (b): after its tree record is written, a complete run below the recorded figure lowers it to its
+    own, rounded down; a run above it, or one that stopped early, leaves it as it is; above the ceiling the run
+    says the ratchet test will refuse — the exit code does not change for it."""
+    path = tmp_path / "coach-input-ratchet.json"
+    base = {"_rule": "the ruling", "coach_input_tokens_per_call": 6810, "allowance": 0.05, "measured_on": "run 4"}
+    path.write_text(json.dumps(base), encoding="utf-8")
+
+    def summary(input_tokens: int, stopped: str = "done") -> dict:
+        return {"stopped": stopped, "tokens": {"by_role": {"coach": {"calls": 10, "input_tokens": input_tokens}}}}
+
+    def after(s: dict, name: str = "define_runthrough_X") -> str | None:
+        return define_runthrough.coach_ratchet_after_run(s, name, path)
+
+    def held() -> bool:
+        return json.loads(path.read_text(encoding="utf-8")) == base
+    line = after(summary(68_216))                                   # 6,821.6: above the record, within the ceiling
+    assert line and "within the ceiling of 7,150" in line and held(), line
+    line = after(summary(71_510))                                   # 7,151.0: above the ceiling
+    assert line and "will refuse" in line and "7,151.0" in line and "7,150" in line and held(), line
+    line = after(summary(60_000, stopped="cap: 150 model calls"))   # below, but the run stopped early
+    assert line and "not lowered" in line and held(), line
+    assert after({"tokens": {}}) is None and held()
+    line = after(summary(67_995), "define_runthrough_20261028T090000")   # 6,799.5: below, complete
+    assert line and "lowered from 6,810 to 6,799" in line, line
+    assert json.loads(path.read_text(encoding="utf-8")) == {
+        **base, "coach_input_tokens_per_call": 6799, "measured_on": "define_runthrough_20261028T090000"}
+    src = define_runthrough.Path(define_runthrough.__file__).read_text(encoding="utf-8")
+    assert src.index("tree.write_text(") < src.index("coach_ratchet_after_run(summary, tree.stem)"), \
+        "the run does not check the ratchet after writing its tree record"
+
+
 def test_every_run_reports_its_turn_times_per_turn_type() -> None:
     """Founder ruling 2026-10-12 (turn time): the run's summary carries, per turn type, the count,
     median, 90th percentile and max, and names the types whose 90th percentile reaches the 30 s watch

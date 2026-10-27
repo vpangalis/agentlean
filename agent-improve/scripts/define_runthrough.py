@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import math
 import os
 import sys
 import time
@@ -470,6 +471,10 @@ def main() -> int:
     print(grader_findings_text(summary["grader_findings"]))
     _time_it(started, len(CALLS))
     print(f"record: {tree}")
+    # ADR-0111 D7 (b): the coach's input per call against its ratchet — lowered when the run fell, a warning
+    # when it rose past the ceiling (the record's test refuses; the exit code does not change for it).
+    if line := coach_ratchet_after_run(summary, tree.stem):
+        print(line)
     return exit_code(summary, SENDS)
 
 
@@ -775,6 +780,63 @@ def turn_times(entries: list[dict[str, Any]]) -> dict[str, Any]:
                      "p90": s[min(len(s) - 1, max(0, -(-9 * len(s) // 10) - 1))], "max": s[-1]}
     return {"by_type": out, "p90_watch_s": P90_WATCH_S,
             "p90_over_watch": [n for n, v in out.items() if v["p90"] >= P90_WATCH_S]}
+
+
+#: Founder rulings 2026-10-27, item 10 and ADR-0111 D7 (b): the coach's input tokens per call may fall, never rise
+#: above the recorded figure + its allowance. The record sits beside the other ratchets, at the repository's root.
+COACH_RATCHET = Path(__file__).resolve().parents[2] / ".claude" / "config" / "coach-input-ratchet.json"
+
+
+def load_coach_ratchet(path: Path = COACH_RATCHET) -> dict[str, Any]:
+    return dict(json.loads(path.read_text(encoding="utf-8")))
+
+
+def coach_input_per_call(tokens: dict[str, Any]) -> float | None:
+    """The coach's input tokens per call in a run's `summary.tokens` (`by_role["coach"]`: input_tokens / calls);
+    None when the run made no coach call."""
+    coach = (tokens.get("by_role") or {}).get("coach") or {}
+    calls = int(coach.get("calls") or 0)
+    return int(coach.get("input_tokens") or 0) / calls if calls else None
+
+
+def coach_ratchet_ceiling(ratchet: dict[str, Any]) -> int:
+    """floor(recorded × (1 + allowance)), in exact arithmetic: 6,810 + 5% = 7,150."""
+    from fractions import Fraction
+    return math.floor(int(ratchet["coach_input_tokens_per_call"]) * (1 + Fraction(str(ratchet["allowance"]))))
+
+
+def coach_ratchet_refusal(per_call: float, ratchet: dict[str, Any]) -> str | None:
+    """THE comparison, shared by the record's test and the run: None when `per_call` is at or below the ceiling;
+    otherwise the refusal, naming both numbers."""
+    ceiling = coach_ratchet_ceiling(ratchet)
+    if per_call <= ceiling:
+        return None
+    return (f"the coach's input is {per_call:,.1f} tokens per call, above the ratchet's ceiling of {ceiling:,} "
+            f"({int(ratchet['coach_input_tokens_per_call']):,} measured on {ratchet.get('measured_on')} "
+            f"+ {float(ratchet['allowance']) * 100:g}%) — it may fall, never rise (ADR-0111 D7)")
+
+
+def coach_ratchet_after_run(summary: dict[str, Any], measured_on: str, path: Path = COACH_RATCHET) -> str | None:
+    """After a run's tree record is written: the one line the run prints about the coach-input ratchet. A
+    COMPLETE run below the recorded figure lowers the record to its figure, rounded down — never raised, and never
+    from a run that stopped early (its turns are the short-history ones). Above the ceiling, the line says the
+    record's test will refuse. None when the run made no coach call."""
+    per_call = coach_input_per_call(summary.get("tokens") or {})
+    if per_call is None:
+        return None
+    ratchet = load_coach_ratchet(path)
+    recorded = int(ratchet["coach_input_tokens_per_call"])
+    if refusal := coach_ratchet_refusal(per_call, ratchet):
+        return f"COACH INPUT RATCHET: {refusal} — the record's ratchet test will refuse this run"
+    if per_call < recorded and summary.get("stopped") == "done":
+        lowered = math.floor(per_call)
+        ratchet.update({"coach_input_tokens_per_call": lowered, "measured_on": measured_on})
+        path.write_text(json.dumps(ratchet, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        return (f"COACH INPUT RATCHET: lowered from {recorded:,} to {lowered:,} tokens per call ({measured_on}; "
+                f"ceiling now {coach_ratchet_ceiling(ratchet):,}) — commit {path.name} with the record")
+    return (f"COACH INPUT RATCHET: {per_call:,.1f} tokens per call, within the ceiling of "
+            f"{coach_ratchet_ceiling(ratchet):,} (record {recorded:,}"
+            f"{'' if per_call >= recorded else '; not lowered, the run did not complete'})")
 
 
 #: G-153 (founder ruling 2026-10-12): a cut-off coach reply is answered in code, permanently; a run

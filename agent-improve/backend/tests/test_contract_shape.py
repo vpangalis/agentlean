@@ -158,3 +158,16 @@ def test_the_eight_ratified_fields_are_still_eight() -> None:
     assert CoachingResponse.model_fields["fields_captured"].annotation == list[CapturedValue]
     assert CapturedValue.model_fields["value"].annotation is Any
     assert issubclass(coaching_response_model("define"), CoachingResponse)
+
+
+def test_adr_0111_d4_the_reply_schema_says_its_purpose_in_about_150_tokens() -> None:
+    """ADR-0111 D4 (founder ruling 2026-10-27): the `CoachingResponse` docstring — the structured reply's description,
+    sent on every coach call — is its purpose, about 150 tokens; the fields' meanings stay on their Field
+    descriptions. Counted with o200k_base, the deployed gpt-4o's encoding, on the phase model the executor binds."""
+    import tiktoken
+
+    enc = tiktoken.get_encoding("o200k_base")
+    for model in (CoachingResponse, coaching_response_model("define")):
+        assert len(enc.encode(model.__doc__ or "")) <= 150, (model.__name__, model.__doc__)
+    assert all(f.description for f in CoachingResponse.model_fields.values()), \
+        "a field's meaning is not on its Field description"

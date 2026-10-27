@@ -1,9 +1,9 @@
 {
- "source_hash": "c8040c88394b5f18",
- "commit": "ee8f96b",
+ "source_hash": "2f2f169a3e147449",
+ "commit": "53ec118",
  "commit_matches_source": false,
- "full_run_hash": "c8040c88394b5f18",
- "recorded_at": "2026-10-27T09:41:34+00:00",
+ "full_run_hash": "2f2f169a3e147449",
+ "recorded_at": "2026-10-27T10:02:11+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -382,6 +382,7 @@
   "backend/tests/test_computation.py::test_xbar_r_known_answer": "passed",
   "backend/tests/test_computation.py::test_xbar_r_refuses_unequal_subgroups": "passed",
   "backend/tests/test_computation.py::test_xbar_r_sends_single_measurements_to_imr": "passed",
+  "backend/tests/test_contract_shape.py::test_adr_0111_d4_the_reply_schema_says_its_purpose_in_about_150_tokens": "passed",
   "backend/tests/test_contract_shape.py::test_each_structured_field_carries_its_keys[benefits_analysis-keys3]": "passed",
   "backend/tests/test_contract_shape.py::test_each_structured_field_carries_its_keys[control_plan-keys8]": "passed",
   "backend/tests/test_contract_shape.py::test_each_structured_field_carries_its_keys[critical_to_quality-keys1]": "passed",
@@ -1617,10 +1618,14 @@
   "backend/tests/test_run_records.py::test_every_run_reports_its_turn_times_per_turn_type": "passed",
   "backend/tests/test_run_records.py::test_g153_a_call_cut_off_at_its_token_limit_is_counted_per_run": "passed",
   "backend/tests/test_run_records.py::test_g153_a_run_with_more_than_one_cut_off_fails": "passed",
+  "backend/tests/test_run_records.py::test_the_coach_input_ratchet_refuses_above_its_ceiling_and_accepts_at_or_below": "passed",
   "backend/tests/test_run_records.py::test_the_founders_sheet_is_read_and_right_for_the_wrong_reason_is_counted_apart": "passed",
   "backend/tests/test_run_records.py::test_the_judge_evaluation_scores_false_rejects_and_false_accepts_against_the_labels": "passed",
+  "backend/tests/test_run_records.py::test_the_latest_run_keeps_the_coach_input_per_call_within_its_ratchet": "passed",
+  "backend/tests/test_run_records.py::test_the_run_lowers_the_coach_ratchet_when_it_falls_and_never_raises_it": "passed",
   "backend/tests/test_runthrough_report.py::test_the_grader_findings_section_reads_each_turns_step_log": "passed",
   "backend/tests/test_runthrough_tokens.py::test_each_call_records_its_tokens_and_the_run_totals_them": "passed",
+  "backend/tests/test_runthrough_tokens.py::test_the_cached_input_is_read_where_langchain_openai_puts_the_providers_cached_tokens": "passed",
   "backend/tests/test_session_start.py::test_the_session_start_hook_prints_every_section": "passed",
   "backend/tests/test_size_budget.py::test_an_unbudgeted_file_is_never_measured": "passed",
   "backend/tests/test_size_budget.py::test_every_governing_document_has_a_bound": "passed",
@@ -1903,8 +1908,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "f49a71e13a5fb3a3",
-  "recorded_at": "2026-10-27T09:25:45+00:00",
+  "source_hash": "c8040c88394b5f18",
+  "recorded_at": "2026-10-27T09:41:34+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

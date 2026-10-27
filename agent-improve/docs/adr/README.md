@@ -153,4 +153,5 @@ Generated from each file's status line; never typed.
 | [0108](0108-kept-verdicts-have-their-own-channel.md) | The kept verdicts have their own PhaseState channel, not a copy in every reply's phase record | SUPERSEDED by 0109 | refines 0066 |
 | [0109](0109-kept-verdicts-ride-on-the-reply-that-changed-them.md) | The kept verdicts ride only on the reply whose turn changed them | ACCEPTED | refines 0066 |
 | [0110](0110-the-coach-reply-schema-types-its-captured-values.md) | The coach's reply schema types its captured values, citations and contradiction flag | ACCEPTED | refines 0073 |
+| [0111](0111-what-the-model-reads.md) | What the model reads | ACCEPTED | — |
 <!-- END ADR INDEX -->
