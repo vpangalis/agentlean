@@ -7,15 +7,15 @@
 
 | | |
 |---|---|
-| **Headline** | 199 of 203 Define features pass (core 190 of 194) — A 83/83 · B 38/40 · C 59/59 · integrator 19/21 · M1: 74 proven · 0 awaiting fresh run · 2 open |
-| **Next — lane A** | every feature passes |
-| **Next — lane B** | DEF-159 — G-129: a complete Define passes the gate rubric — an answer the element's own acceptance criteria accepted is not failed at the gate for its |
-| **Next — lane C** | every feature passes |
-| **Next — lane integrator** | DEF-003 — Every node of a Define turn leaves a checkpoint, so a crash loses at most one node's work. |
-| **Run-through record** | current |
+| **Headline** | 163 of 203 Define features pass, 31 more proven on earlier code (core 160 of 194) — A 55/83 · B 37/40 · C 58/59 · integrator 13/21 · M1: 51 proven · 22 awaiting fresh run · 4 open |
+| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
+| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Next — lane C** | DEF-056 — The Belt can upload evidence to a Define case; the file lands, is indexed once (the same bytes again are not a second document), and carries |
+| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
-| **Block regenerated** | 2026-10-26 |
+| **Block regenerated** | 2026-10-27 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.

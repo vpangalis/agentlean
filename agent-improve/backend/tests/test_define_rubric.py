@@ -348,14 +348,20 @@ def test_g241_each_criterion_is_judged_on_the_values_it_reads() -> None:
     asyncio.run(rubric.grade_define(dict(COMPLETE), judge=judge))
     doc = seen[0]
     sections = {s.split("]", 1)[0].lstrip("["): s for s in doc.split("\n\n") if s.startswith("[DEF-R")}
+    from backend.middleware.state_injection import display_name
+
+    def named(field: str) -> str:
+        return f'<value name="{display_name("define", field)}"'
     r13 = sections["DEF-R13 — the values it reads"]
     for field in ("issues_and_barriers", "business_case", "project_scope", "process_map_sipoc"):
-        assert f"{field}:" in r13, field
+        assert named(field) in r13, field
     for field in ("team", "voc_summary", "goal_statement", "secondary_metrics"):
-        assert f"{field}:" not in r13, field
+        assert named(field) not in r13, field
     r03 = sections["DEF-R03 — the values it reads"]
-    assert "voc_summary:" in r03 and "critical_to_quality:" in r03 and "business_case:" not in r03, r03
+    assert named("voc_summary") in r03 and named("critical_to_quality") in r03 and named("business_case") not in r03, r03
     assert "on its own section" in GATE_GRADER_PROMPT
+    # G-263 (founder ruling 2026-10-27): tagged text under display names, never JSON, never a code name.
+    assert '{"' not in doc and "process_map_sipoc" not in doc and "issues_and_barriers" not in doc, doc[:600]
 
 
 def test_g244_the_element_check_and_the_gate_share_one_check() -> None:

@@ -57,9 +57,8 @@ Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
 
 def _text(value: Any) -> str:
-    """A value as the gate judge reads it: structure as JSON, text as it is. G-263: the judge's DEF-R13 verdict
-    tips on trivial changes to its document, so it reads the document every approved run-through used, until the
-    founder rules on the judge."""
+    """A value as the code checks read it (its figures and words): structure as JSON, text as it is. The gate judge
+    never reads this form — it reads each value tagged under its display name (_document_by_criterion, G-263)."""
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)
     return str(value or "").strip()
@@ -215,9 +214,13 @@ def _reads(field: str, cid: str) -> list[str]:
 
 def _document_by_criterion(criteria: list[tuple[str, str, str]], a: dict[str, Any]) -> str:
     """G-241: one section per criterion, holding only the values it reads — a wording change in an element a
-    criterion does not read cannot tip it. G-256: the benefits criterion reads the calculation shown with the cost."""
+    criterion does not read cannot tip it. G-256: the benefits criterion reads the calculation shown with the cost.
+    G-263 (founder ruling 2026-10-27): each value as the coach reads it — tagged, under its display name, in plain
+    lines (state_injection.value_tag) — never JSON."""
+    from backend.middleware.state_injection import value_tag
     return "\n\n".join(f"[{cid} — the values it reads]\n" + "\n".join(
-        [f"{f}: {_text(a.get(f))}" for f in _reads(field, cid) if _text(a.get(f))] + _calculation(field, a))
+        [value_tag("define", f, a.get(f), whole=True) for f in _reads(field, cid) if _text(a.get(f))]
+        + _calculation(field, a))
         for cid, field, _ in criteria)
 
 
