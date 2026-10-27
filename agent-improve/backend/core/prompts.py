@@ -853,5 +853,10 @@ MISMATCH_APPROVED = "the {name} approved in {phase}"
 MISMATCH_RULE = "the method"
 MISMATCH_HOW_READ_BACK = " — Change corrects it; Confirm keeps it, noted with today's date"
 MISMATCH_HOW = " — tell me which"
+#: F (founder ruling 2026-10-27, the grader's addition; ADR-0112): in enforce mode, a reply the quality check failed is
+#: written once more, before the Belt sees it — the failed criteria and their quotes, as plain sentences, added to the
+#: coach's system message for that one call. Never a message from the Belt.
+REWRITE_NOTE = ("## YOUR REPLY, ONCE MORE — the quality check found this in the reply you just wrote. Write the reply "
+                "for this turn's move again, without it:\n{failures}")
 #: ADR-0112: what the answer's version history says when the Belt keeps an answer with a mismatch.
 MISMATCH_KEPT = "kept despite a mismatch with {what}: “{value}”"

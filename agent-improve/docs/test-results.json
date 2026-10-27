@@ -1,9 +1,9 @@
 {
- "source_hash": "eae0119e105a6f4e",
- "commit": "7b8e3e3",
+ "source_hash": "ac5b73df404824e8",
+ "commit": "7adfcc3",
  "commit_matches_source": false,
- "full_run_hash": "eae0119e105a6f4e",
- "recorded_at": "2026-10-27T12:02:29+00:00",
+ "full_run_hash": "ac5b73df404824e8",
+ "recorded_at": "2026-10-27T13:49:38+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -432,6 +432,7 @@
   "backend/tests/test_define_e2e.py::test_adr0087_an_approval_with_an_upload_writes_the_case_records_uploads": "passed",
   "backend/tests/test_define_e2e.py::test_adr0087_approved_is_answered_only_when_both_records_exist_and_the_phase_advanced": "passed",
   "backend/tests/test_define_e2e.py::test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them": "passed",
+  "backend/tests/test_define_e2e.py::test_adr_0112_a_mismatch_is_told_in_the_reply_and_a_kept_answer_is_recorded_dated": "passed",
   "backend/tests/test_define_e2e.py::test_an_analyse_turn_plans_its_retrieval": "skipped",
   "backend/tests/test_define_e2e.py::test_an_approved_case_is_written_to_the_case_index": "skipped",
   "backend/tests/test_define_e2e.py::test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case": "passed",
@@ -1231,6 +1232,7 @@
   "backend/tests/test_middleware.py::test_a_short_flag_is_reported_not_completed": "passed",
   "backend/tests/test_middleware.py::test_a_tool_retry_does_not_consume_a_graph_step": "passed",
   "backend/tests/test_middleware.py::test_adr_0111_d2_the_static_prefix_is_byte_identical_between_two_turns": "passed",
+  "backend/tests/test_middleware.py::test_adr_0112_the_mismatch_line_names_what_the_answer_conflicts_with_and_offers_the_choice": "passed",
   "backend/tests/test_middleware.py::test_allowed_tools_match_the_phases_ratified_subset[analyse]": "passed",
   "backend/tests/test_middleware.py::test_allowed_tools_match_the_phases_ratified_subset[control]": "passed",
   "backend/tests/test_middleware.py::test_allowed_tools_match_the_phases_ratified_subset[define]": "passed",
@@ -1243,7 +1245,9 @@
   "backend/tests/test_middleware.py::test_contradiction_flag_exists_on_coaching_response": "passed",
   "backend/tests/test_middleware.py::test_contradiction_middleware_reads_a_flag_and_detects_nothing": "passed",
   "backend/tests/test_middleware.py::test_every_skill_md_carries_both_mandatory_instructions": "passed",
+  "backend/tests/test_middleware.py::test_f_one_rewrite_inside_the_grader_in_enforce_mode_only": "passed",
   "backend/tests/test_middleware.py::test_facts_go_above_the_coach_instructions_never_into_messages": "passed",
+  "backend/tests/test_middleware.py::test_founder_ruling_2026_10_27_a_g2_and_g4_order_are_code_checks_and_unknown_is_never_a_fail": "passed",
   "backend/tests/test_middleware.py::test_grader_internals_never_reach_state": "passed",
   "backend/tests/test_middleware.py::test_injection_uses_content_blocks_not_string_concatenation": "passed",
   "backend/tests/test_middleware.py::test_interrupt_from_after_agent_is_RESUMABLE_end_to_end": "passed",
@@ -1901,8 +1905,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "c6b6b28f897980b9",
-  "recorded_at": "2026-10-27T11:42:01+00:00",
+  "source_hash": "eae0119e105a6f4e",
+  "recorded_at": "2026-10-27T12:02:29+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2593,6 +2597,7 @@
    "backend/tests/test_define_e2e.py::test_g250_a_message_pointing_at_a_file_with_none_attached_asks_for_it_or_typing": "passed",
    "backend/tests/test_define_e2e.py::test_g251_an_eval_case_is_seeded_on_the_apps_own_loop": "passed",
    "backend/tests/test_define_e2e.py::test_g251_an_eval_run_records_each_trial_and_seeds_on_the_apps_own_loop": "passed",
+   "backend/tests/test_define_e2e.py::test_g272_a_need_the_belt_stated_in_brackets_is_not_a_placeholder": "passed",
    "backend/tests/test_define_e2e.py::test_g3_never_fails_the_methods_own_material": "skipped",
    "backend/tests/test_define_e2e.py::test_gate_view_section_a_follows_the_mockup": "passed",
    "backend/tests/test_define_e2e.py::test_gate_view_section_b_follows_the_mockup": "passed",

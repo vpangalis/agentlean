@@ -1193,6 +1193,8 @@ def _build_executor(
                 given=_grader_given(phase, state, plan.focus_field if plan else None),
                 # A1 (founder ruling 2026-10-27): this turn's planner judgment, given; G2's missing items.
                 decision=_grader_decision(phase, plan)[0], missing=_grader_decision(phase, plan)[1],
+                # F4: a rewrite (enforce mode) never runs past the executor node's own wall.
+                deadline=time.monotonic() + EXECUTOR_RUN_TIMEOUT,
             ),
             ContradictionDetectionMiddleware(),
         ],
@@ -3834,6 +3836,8 @@ async def executor(
             # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one grader pass).
             call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,
                          "coach_limit": coach_limit, "after": min(len(grader_log), 1),
+                         # F (founder ruling 2026-10-27, F6): a rewritten turn's coach and grader calls, outside the four
+                         "rewrite": 2 if any(e.get("rewritten") for e in grader_log) else 0,
                          "turn": calls_before + coach_calls + min(len(grader_log), 1),
                          "limited": limited},
             tool_model_calls=dict(sorted(tool_model_calls.items())),   # T69: inside tools, by tool

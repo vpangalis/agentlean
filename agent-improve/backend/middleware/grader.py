@@ -44,10 +44,13 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from difflib import SequenceMatcher
 from typing import Any, Callable, Optional
 
+import openai
 from langchain.agents.middleware import AgentMiddleware
+from langchain_core.messages import SystemMessage
 
 from backend.core.llm import REQUEST_TIMEOUTS, get_llm
 from backend.core.prompts import COACHING_QUALITY_RUBRIC, cut_at
@@ -106,6 +109,11 @@ _CRITERION_ID = re.compile(r"\bG[1-6]\b")
 #: ADR-0111 D3: the two parts the grader caps — said in the text where cut. The method, the case and the element's
 #: sources are what the coach read, whole (D5).
 BELT_CAP, COACH_CAP = 2000, 4000
+#: F: a rewrite call that fails keeps the draft — a timeout, the API refusing (a content filter), a reply that does not
+#: parse (ValueError: pydantic's ValidationError) or a model that has no second reply (RuntimeError).
+REWRITE_FAILURES: tuple[type[BaseException], ...] = (*REQUEST_TIMEOUTS, openai.APIError, ValueError, RuntimeError)
+#: F4: what a rewrite leaves for the rest of the turn, beyond its own measured coach and grader calls.
+REWRITE_MARGIN_S = 2.0
 #: G-254 (founder ruling 2026-10-27, item 3): what a reply carries as GIVEN — a line code wrote, the phase script's
 #: worked example — reaches the grader in this tag and is not graded: a fail quoting it is not counted.
 GIVEN = '<given source="code or the phase script" graded="no">{text}</given>'
@@ -278,6 +286,7 @@ class DMAICGraderMiddleware(AgentMiddleware):
         given: tuple[str, ...] = (),
         decision: str = "",
         missing: tuple[str, ...] = (),
+        deadline: Optional[float] = None,
     ) -> None:
         super().__init__()
         self.phase = phase
@@ -287,6 +296,8 @@ class DMAICGraderMiddleware(AgentMiddleware):
         #: missing, in words; and the missing items G2's code check looks for in a challenge.
         self.decision = decision
         self.missing = missing
+        #: F4: the turn's end, on `time.monotonic()` — the executor node's own wall; None, no limit.
+        self.deadline = deadline
         #: The case's confirmed values (G2's "already given", G3's grounding).
         self.context = context
         #: The element's block of the phase script, as the coach was given it.
@@ -307,42 +318,108 @@ class DMAICGraderMiddleware(AgentMiddleware):
         self._shown = ""
         #: A fail with no sentence quoted from the reply: recorded, not counted.
         self._uncounted: list[dict[str, Any]] = []
+        #: F: the first draft, its verdict and whether it was rewritten (once at most); the reply graded in the wrap.
+        self._rewrite: Optional[dict[str, Any]] = None
+        self._pregraded: Optional[tuple[str, CoachingGraderVerdict]] = None
 
-    async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """Grade every reply with text (ADR-0081)."""
+    async def _grade_reply(self, state: Any) -> tuple[str, CoachingGraderVerdict]:
+        """One grading of the reply in `state` — the model's criteria, then the code checks — and the reply's text.
+        Raises a request timeout as the grader call does."""
         coach_text = self._coach_text(state)
-        if not coach_text:
-            return None
-        belt_text = self._belt_text(state)
         self._uncounted = []
-
-        # ONE GRADING PER DISTINCT REPLY: inside this hook the reply cannot
-        # change, so re-sending the SAME text to a temperature-0.1 judge only
-        # spends the executor's time. Iterating means something only once a
-        # FAIL asks the coach to rewrite (gated on G-83's latency ruling);
-        # `max_iterations` is held for that and one call is made.
-        self._iterations = 1
-        try:
-            # G-254: the reply as the grader reads it, its given parts tagged; quotes are checked against the plain one.
-            self._shown = self._coach_text(state, self._is_given) + self._mismatch_told(state)
-            verdict = await self._grade(belt_text, coach_text)
-        except REQUEST_TIMEOUTS:
-            # G-157 / DEF-093 (ADR-0080): the grade ran out of time — recorded, and the reply goes out
-            # without a grade (no warning: nothing failed).
-            logger.warning("%s.grader: the grade ran out of time — the reply is kept, not graded", self.phase)
-            if self.on_evaluation is not None:
-                self.on_evaluation({"layer": "coaching_grader", "iteration": 1, "status": "not checked (time)",
-                                    "criteria_failed": [], "feedback": [], "failed": [], "move": self.move})
-            return None
+        # G-254: the reply as the grader reads it, its given parts tagged; quotes are checked against the plain one.
+        self._shown = self._coach_text(state, self._is_given) + self._mismatch_told(state)
+        verdict = await self._grade(self._belt_text(state), coach_text)
         # The code checks: a web address in the reply fails, quoted; G2 and G4's order (A2, founder ruling
         # 2026-10-27) are read off the structured reply, never asked of the model.
         response = (state or {}).get("structured_response") if isinstance(state, dict) \
             else getattr(state, "structured_response", None)
         checks = [url_check(coach_text), decision_check(self.move, self.missing, response, coach_text),
                   order_check(self.move, response)]
-        verdict = verdict.model_copy(update={"criteria": [*verdict.criteria, *(c for c in checks if c is not None)]})
+        return coach_text, verdict.model_copy(
+            update={"criteria": [*verdict.criteria, *(c for c in checks if c is not None)]})
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        """F (founder ruling 2026-10-27, the grader's addition; ADR-0112): in `enforce` mode only, the coach's reply is
+        graded here, before the Belt sees it, and on a counted fail written ONCE more — the handler called a second
+        time with the failed criteria and their quotes as plain sentences in the system message (`REWRITE_NOTE`). The
+        installed LangChain (1.3.16, `langchain/agents/middleware/types.py`, `AgentMiddleware.wrap_model_call`):
+        "Middleware can call the handler multiple times for retry logic". `ModelCallLimitMiddleware` counts in
+        `after_model`, once per model step, so the rewrite's two calls are outside T69's four — the separate allowance
+        the founder ruled (F6), recorded in `step_log`'s `call_budget`. Skipped when the turn's time left would not
+        cover a rewrite (F4), measured from this turn's own coach and grader calls. `log_only`: unchanged."""
+        started = time.monotonic()
+        response = await handler(request)
+        draft = getattr(response, "structured_response", None)
+        if GRADER_MODE != "enforce" or self._rewrite is not None or draft is None:
+            return response
+        state = {"structured_response": draft, "messages": list(getattr(request, "messages", None) or [])}
+        coach_s = time.monotonic() - started
+        try:
+            text, verdict = await self._grade_reply(state)
+        except REQUEST_TIMEOUTS:
+            return response                             # the after-agent grade records "not checked (time)"
+        grader_s = time.monotonic() - started - coach_s
+        self._rewrite = {"draft": text, "verdict": verdict, "uncounted": list(self._uncounted), "rewritten": False}
+        self._pregraded = (text, verdict)
+        if verdict.passed:
+            return response
+        left = self.deadline - time.monotonic() if self.deadline is not None else float("inf")
+        if left < coach_s + grader_s + REWRITE_MARGIN_S:
+            self._rewrite["skipped"] = f"{left:.1f} s left; a rewrite needs about {coach_s + grader_s:.1f} s"
+            return response
+        from backend.core.prompts import REWRITE_NOTE
+        failures = "\n".join(f"- {c.criterion}: “{c.evidence}” — {c.feedback}".rstrip(" —") if c.evidence
+                             else f"- {c.criterion}: {c.feedback}" for c in verdict.failed)
+        existing = request.system_message
+        blocks = list(existing.content_blocks) if existing is not None else []
+        rewrite_started = time.monotonic()
+        try:
+            again = await handler(request.override(system_message=SystemMessage(content_blocks=[
+                *blocks, {"type": "text", "text": REWRITE_NOTE.format(failures=failures)}])))
+        except REWRITE_FAILURES:
+            self._rewrite["skipped"] = "the rewrite call failed; the draft is kept"
+            return response
+        final = getattr(again, "structured_response", None)
+        if final is None:
+            self._rewrite["skipped"] = "the rewrite returned no reply; the draft is kept"
+            return response
+        try:
+            text2, verdict2 = await self._grade_reply({**state, "structured_response": final})
+        except REQUEST_TIMEOUTS:
+            return again                                # graded again after the agent, as any reply
+        self._rewrite.update(rewritten=True, seconds=round(time.monotonic() - rewrite_started, 1))
+        self._pregraded = (text2, verdict2)
+        return again
+
+    async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
+        """Grade every reply with text (ADR-0081) — once; a reply the wrap already graded (F, enforce mode) is not
+        graded again, and a rewritten turn records its first draft and that draft's verdict before the final one."""
+        coach_text = self._coach_text(state)
+        if not coach_text:
+            return None
+        self._iterations = 1
+        pre = self._pregraded
+        if pre is not None and pre[0] == coach_text:
+            verdict = pre[1]
+            if self._rewrite is not None and self._rewrite.get("rewritten"):
+                final_uncounted, self._uncounted = list(self._uncounted), list(self._rewrite["uncounted"])
+                self._emit(self._rewrite["verdict"], draft=self._rewrite["draft"], rewritten=True)
+                self._iterations, self._uncounted = 2, final_uncounted
+        else:
+            try:
+                coach_text, verdict = await self._grade_reply(state)
+            except REQUEST_TIMEOUTS:
+                # G-157 / DEF-093 (ADR-0080): the grade ran out of time — recorded, and the reply goes out
+                # without a grade (no warning: nothing failed).
+                logger.warning("%s.grader: the grade ran out of time — the reply is kept, not graded", self.phase)
+                if self.on_evaluation is not None:
+                    self.on_evaluation({"layer": "coaching_grader", "iteration": 1, "status": "not checked (time)",
+                                        "criteria_failed": [], "feedback": [], "failed": [], "move": self.move})
+                return None
         self._evaluations = [verdict]
-        self._emit(verdict)
+        self._emit(verdict, **({"rewrite_skipped": self._rewrite["skipped"]}
+                               if self._rewrite is not None and self._rewrite.get("skipped") else {}))
         if verdict.passed:
             return None
 
@@ -428,7 +505,7 @@ class DMAICGraderMiddleware(AgentMiddleware):
             kept.append(c)
         return verdict.model_copy(update={"criteria": kept})
 
-    def _emit(self, verdict: CoachingGraderVerdict) -> None:
+    def _emit(self, verdict: CoachingGraderVerdict, **extra: Any) -> None:
         """One `step_log` entry per iteration, via `on_evaluation`.
 
         **Dicts only**: named keys are what make the audit trail queryable,
@@ -452,6 +529,8 @@ class DMAICGraderMiddleware(AgentMiddleware):
             # A fail the grader gave without quoting the reply — not counted.
             "not_counted": list(self._uncounted),
             "move": self.move,
+            # F: a rewritten turn's first draft, and why a rewrite was skipped.
+            **extra,
         })
 
     # ── reading the turn ─────────────────────────────────────────────────

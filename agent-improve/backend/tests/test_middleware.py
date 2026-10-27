@@ -1579,3 +1579,86 @@ def test_adr_0112_the_mismatch_line_names_what_the_answer_conflicts_with_and_off
     assert mismatch_line("define", rule, read_back=False).startswith("This does not fit the method: “the saving")
     assert mismatch_line("define", None, read_back=True) == "" and mismatch_kept("define", None) == ""
     assert mismatch_kept("define", flag) == "kept despite a mismatch with the Scope you confirmed: “PO invoices at three sites”"
+
+
+def test_f_one_rewrite_inside_the_grader_in_enforce_mode_only(monkeypatch) -> None:
+    """Founder ruling 2026-10-27, the grader's addition (F1–F5): in `enforce` mode a reply the grader fails is written
+    once more inside DMAICGraderMiddleware's wrap — the handler called a second time, the failed criteria and their
+    quotes in the system message as plain sentences — and graded again; only the final reply goes out, the draft and
+    its verdict are recorded; never a second rewrite; no rewrite when the turn's time would not cover it (the draft
+    goes out with the warning); a rewrite that still fails goes out with the warning. In `log_only` nothing changes."""
+    import asyncio
+    import time
+    from types import SimpleNamespace
+
+    from langchain_core.messages import HumanMessage
+
+    from backend.middleware import grader as G
+    from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
+
+    draft = CoachingResponse(message="Ready to define the team? It matters.", explanation="Who does the work.",
+                             prompt="Who leads it?")
+    better = CoachingResponse(message="The team is who does the work.", explanation="Who does the work.",
+                              prompt="Who leads it?")
+    belt = [HumanMessage(content="Next, please.")]
+
+    class _Request:
+        def __init__(self, system: SystemMessage) -> None:
+            self.system_message, self.messages = system, belt
+
+        def override(self, **kw: Any) -> "_Request":
+            return _Request(kw["system_message"])
+
+    sent: list[Any] = []
+    replies: list[Any] = [draft, better]
+
+    async def handler(request: Any) -> Any:
+        sent.append(request)
+        return SimpleNamespace(structured_response=replies[min(len(sent), len(replies)) - 1])
+
+    class _Model:
+        def with_structured_output(self, schema, **_):
+            return self
+
+        async def ainvoke(self, prompt):
+            return CoachingGraderVerdict(criteria=[CriterionResult(criterion="G1", status="pass")])
+    monkeypatch.setattr(G, "get_llm", lambda role, **kw: _Model())
+
+    def wrap(mw: Any) -> Any:
+        return asyncio.run(mw.awrap_model_call(_Request(SystemMessage(content="rules")), handler))
+
+    # log_only: one call, the reply as it came
+    assert wrap(G.DMAICGraderMiddleware("define", move="teach")).structured_response is draft and len(sent) == 1
+
+    # enforce: the draft asks before it explains (G4's order) -> written once more, graded again
+    monkeypatch.setattr(G, "GRADER_MODE", "enforce")
+    sent.clear()
+    logged: list[dict[str, Any]] = []
+    mw = G.DMAICGraderMiddleware("define", move="teach", on_evaluation=logged.append, deadline=time.monotonic() + 40)
+    assert wrap(mw).structured_response is better and len(sent) == 2
+    note = str(_texts(sent[1].system_message)[-1])
+    assert note.startswith("## YOUR REPLY, ONCE MORE") and "“Ready to define the team?”" in note, note
+    assert asyncio.run(mw.aafter_agent({"structured_response": better, "messages": belt}, None)) is None
+    assert [e["iteration"] for e in logged] == [1, 2] and logged[0]["rewritten"] is True, logged
+    assert "Ready to define the team?" in logged[0]["draft"] and logged[0]["status"] == "failed"
+    assert logged[1]["status"] == "pass"
+    sent.clear()
+    wrap(mw)
+    assert len(sent) == 1, "a second rewrite"
+
+    # a rewrite that still fails goes out with the warning
+    sent.clear()
+    replies[:] = [draft, draft]
+    mw = G.DMAICGraderMiddleware("define", move="teach", deadline=time.monotonic() + 40)
+    assert wrap(mw).structured_response is draft and len(sent) == 2
+    assert asyncio.run(mw.aafter_agent({"structured_response": draft, "messages": belt}, None)) == \
+        {"grader_warning": G.GRADER_WARNING}
+
+    # F4: no time left -> no rewrite; the draft goes out with the warning, the skip recorded
+    sent.clear()
+    logged.clear()
+    mw = G.DMAICGraderMiddleware("define", move="teach", on_evaluation=logged.append, deadline=time.monotonic())
+    assert wrap(mw).structured_response is draft and len(sent) == 1
+    assert asyncio.run(mw.aafter_agent({"structured_response": draft, "messages": belt}, None)) == \
+        {"grader_warning": G.GRADER_WARNING}
+    assert "s left" in logged[-1]["rewrite_skipped"], logged[-1]
