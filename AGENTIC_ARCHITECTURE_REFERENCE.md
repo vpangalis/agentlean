@@ -1,8 +1,10 @@
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.7.2 · 2026-08-25
+Version 1.8 · 2026-10-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.8 (2026-10-27)** — **§56 AMENDMENT: the §21 role table.** Founder ruling 2026-10-27, item 7, on audit A8 (every temperature owned by `ROLE_TEMPERATURES`): `gate_judge` (`operational-model`, the gate rubric's judgments, Layer 2d, temperature **0.0** — the same document gets the same verdict, G-241) and `query_variants` (`operational-model`, a lookup's query variants, §25, temperature **0.2**) are roles; `grader` is the coaching grader alone (**0.1**); `vision` **0.0** is ratified; `coherence` is removed with its retired judge (ADR-0083). Twelve roles. Built in `agent-improve` commit 998bc48 (B5a).
 
 **v1.7.2 (2026-08-25)** — **§23.1 re-synced to the live index; a corpus and classification rebuild, NOT a schema change, and deliberately not routed through §56** (whose index trigger is a *schema* change, §23.5). The seven fields, 3072 dimensions, HNSW profile and the `general` sentinel are all untouched. **`improve_knowledge_index_v3` is live**, bound by `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`; the superseded index is retained intact as the rollback target. The corpus is now the BB eBook alone — **1,184 documents, 259 carrying `'general'`**, replacing the previously stated 218 of 1,369. `problem_solving_8D` was removed as cross-framework contamination (8D is Resolve's methodology and was ranking *first* on a DMAIC Analyse query) and `LSS_tools_suite` as redundant embedding noise. **`phase_relevance` is now assigned by one LLM call per chunk** rather than keyword counting, which classified on vocabulary rather than subject; the two agree on 52% of chunks. §23.1's figures are load-bearing in its own silent-narrowing argument, which is why the sync is not optional. Decision record: `agent-improve/docs/DECISIONS.md` §V1.
 
@@ -1801,9 +1803,10 @@ style preference** — gpt-4o-mini is roughly 15× cheaper.
 | `synthesis` | `operational-premium` | Multi-hop synthesis (§26) |
 | `reasoning` | `operational-model` (gpt-4o-mini) | Default reasoning, intermediate hops |
 | `extraction` | `operational-model` | Field extraction |
-| `coherence` | `operational-model` | Layer 2a (§19.7) |
+| `query_variants` | `operational-model` | A lookup's query variants (§25) |
 | `constraint` | `operational-model` | Layer 2c (§34) |
-| `grader` | `operational-model` | Rubric grading (§36) |
+| `grader` | `operational-model` | The coaching grader (§36) |
+| `gate_judge` | `operational-model` | The gate rubric's judgments, Layer 2d (§36) |
 | `summarizer` | `operational-model` | Context compression (§19.3) |
 | `intent` | `operational-model` | Short classification |
 | `vision` | `operational-premium` | Multimodal upload analysis |
@@ -1816,11 +1819,13 @@ style preference** — gpt-4o-mini is roughly 15× cheaper.
 |---|---|---|
 | Coach responses | 0.5–0.7 | Natural variation improves the Belt's experience |
 | Synthesis (§26) | 0.1–0.2 | Reproducible evidence assembly |
-| Grader | **0.1** | Same gate document must get the same verdict across runs |
-| Coherence (2a) | 0.1 | Consistent verdicts |
+| Coaching grader | **0.1** | The same reply must get the same verdict across runs |
+| Gate judge (2d) | **0.0** | The same gate document must get the same verdict (G-241) |
 | Constraint (2c) | 0.1 | Consistent verdicts |
 | Planner | 0.1 | Deterministic decomposition |
 | Extraction, field validators | 0.0–0.2 | Same rationale |
+| Vision (the image read) | 0.0 | A reading, not a writing |
+| Query variants | 0.2 | Some variety between a question's variants |
 
 **The grader's temperature is a hard requirement, not a tuning knob.** A grader
 returning different verdicts across runs makes the regression thresholds in §52

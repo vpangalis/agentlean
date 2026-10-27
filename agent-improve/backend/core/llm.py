@@ -83,8 +83,8 @@ ROLE_DEPLOYMENTS: dict[str, str] = {
 #
 # Every temperature a call uses is here — no call site passes its own (audit A8; founder ruling 2026-10-24, B5:
 # the gate judge 0, the coaching grader 0.1). Where the ratified figure is a band, the entry takes the
-# reproducible end of it. `vision` and `query_variants` carry the figure their one call site passed before
-# (0.0 and 0.2), awaiting the founder's ratification. The remaining three — reasoning, summarizer, intent —
+# reproducible end of it; `vision` 0.0 and `query_variants` 0.2 are ratified (founder ruling 2026-10-27, item 7;
+# AGENTIC_ARCHITECTURE_REFERENCE.md v1.8, §21). The remaining three — reasoning, summarizer, intent —
 # have no figure, so they fall through to DEFAULT_TEMPERATURE rather than carry a number invented here that
 # would read as ratified. Pinning one is an amendment, not an edit.
 DEFAULT_TEMPERATURE = 0.2
@@ -97,8 +97,8 @@ ROLE_TEMPERATURES: dict[str, float] = {
     "constraint": 0.1,  # consistent verdicts
     "planner":    0.1,  # deterministic decomposition
     "extraction": 0.0,  # band 0.0-0.2 — field extraction and validators
-    "vision":     0.0,  # the image read — its call site's figure, awaiting ratification
-    "query_variants": 0.2,  # some variety between a question's variants — its call site's figure, awaiting ratification
+    "vision":     0.0,  # the image read — a reading, not a writing
+    "query_variants": 0.2,  # some variety between a question's variants
 }
 
 # The grader's 0.1 is a hard requirement, not a tuning knob: a grader
