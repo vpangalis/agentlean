@@ -38,11 +38,11 @@ AZURE = ("The model service declined to process this message. Nothing was stored
 #: T34 level 4 (ADR-0082): both models failed, or the call was too large for any model. Degraded mode
 #: names the phase and the captured count and says progress is saved.
 LEVEL_4 = ("This message could not be coached just now — the coaching model is not answering. You are in "
-           "{phase}: {captured} of {total} fields are captured, and your progress is saved. Please send "
-           "your message again in a moment.")
-#: Prompt Shields configured but unreachable (ADR-0057, fail closed).
+           "{phase}: {captured} of {total} fields are captured, and your progress is saved.")
+#: Prompt Shields configured but unreachable (ADR-0057, fail closed). R-F (founder ruling 2026-10-27): the Belt is
+#: never asked to send a message again — the text stays in the box.
 UNAVAILABLE = ("The safety check that screens every message is unavailable right now, so this message was "
-               "not read and nothing was saved. Please send it again in a minute — your text is still in the box.")
+               "not read and nothing was saved. Your text is still in the box.")
 UPLOAD_UNAVAILABLE = ("The safety check for uploads is unavailable right now, so this file was not read and "
                       "nothing was saved. Please upload it again in a minute.")
 

@@ -540,20 +540,26 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         parts = self._aio_parts()
         if parts is None:
             return self.put(config, checkpoint, metadata, new_versions)
-        container, lock = parts
+        container, _lock = parts
         thread_id = self._thread_id(config)
         checkpoint_ns = self._checkpoint_ns(config)
         parent_id = config.get("configurable", {}).get("checkpoint_id")
         envelope = self._envelope(checkpoint, cast(CheckpointMetadata, migrations.stamp_metadata(metadata)),
                                   parent_id)
         body = json.dumps(envelope).encode("utf-8")
-        async with lock:
+
+        async def history() -> None:
             try:
                 await container.get_blob_client(
                     self._history_path(thread_id, checkpoint["id"], checkpoint_ns)).upload_blob(body, overwrite=False)
             except ResourceExistsError:
                 logger.debug("Checkpoint %s already exists for %s, skipping history write", checkpoint["id"], thread_id)
-            await self._aupdate_latest(container, thread_id, body, retry=True, checkpoint_ns=checkpoint_ns)
+        # Wave 0 (founder test 2026-10-27, #59 — 4.5-5.5 s of saves after the answer, ~500 KB per checkpoint): the
+        # history blob and `latest.json` carry the same body to two blobs, so they upload TOGETHER, and outside the
+        # write lock — the history blob is unique to its checkpoint, LangGraph chains one thread's puts in order,
+        # and `latest.json` keeps its ETag check. The lock stays on `aput_writes`' read-modify-write.
+        await asyncio.gather(history(), self._aupdate_latest(container, thread_id, body, retry=True,
+                                                             checkpoint_ns=checkpoint_ns))
         return {"configurable": {"thread_id": thread_id, "checkpoint_ns": checkpoint_ns,
                                  "checkpoint_id": checkpoint["id"]}}
 

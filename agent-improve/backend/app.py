@@ -72,6 +72,17 @@ app.add_middleware(RequestIdMiddleware)
 
 app.include_router(router)
 
+#: DEF-243 (G-228): the tab's icon — the browser asks for /favicon.ico on every page load, and a 404 each time is
+#: noise in the log. Registered before the static mount at "/", which would answer it otherwise.
+_FAVICON = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" '
+            'fill="#0F6E6E"/><path d="M4 11l3-6 2 4 1.5-2L12 11z" fill="#fff"/></svg>')
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    return Response(content=_FAVICON, media_type="image/svg+xml")
+
+
 
 @app.exception_handler(StateSchemaVersionError)
 async def _state_schema_version(_request: Request, exc: StateSchemaVersionError) -> Response:

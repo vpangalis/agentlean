@@ -12,10 +12,12 @@ from pydantic.v1 import BaseSettings, Field
 #: pattern-12 bans its old name, so a missing variable never coaches from it.
 KNOWLEDGE_INDEX_DEFAULT = "improve_knowledge_index_v3"
 
-#: DEF-093 / G-157 (ADR-0080): R13's limit for one coaching turn, in seconds, and
-#: the time kept for closing the turn after the graph returns. The route's deadline and the re-ask's time
-#: guard (ADR-0079) read the same two numbers, so neither plans past the other.
+#: R-F (founder ruling 2026-10-27, amending ADR-0080): 45 s is a PROGRESS THRESHOLD, not a cancellation — the
+#: page tells the Belt the coach is still working (ui/index.html's TURN_PROGRESS_MS reads the same 45). The turn
+#: goes on to the hard limit; a turn whose answer is produced is never cancelled — it always finishes its save.
+#: The closing reserve is the time kept, inside the hard limit, for answering after the graph returns.
 TURN_LIMIT_S = 45.0
+TURN_HARD_LIMIT_S = 120.0
 TURN_CLOSE_RESERVE_S = 3.0
 
 

@@ -144,6 +144,9 @@ class AskResponse(BaseModel):
     # ADR-0067 (R20, T93): the threat when the guard or a limit refused the turn — the screen then
     # keeps the typed text in the box. None on an ordinary turn.
     blocked: Optional[str] = None
+    # R-F (founder ruling 2026-10-27): the turn failed after its automatic retry ("degraded") or reached the hard
+    # limit with no answer ("time") — the screen puts the Belt's message back in the box with Send again.
+    failed: Optional[Literal["degraded", "time"]] = None
     # ADR-0093 "Element templates and the Gate view": the read-back's criteria card (Confirm opens only when
     # `confirm`), the strip after a Confirm, and the element the reply works on ("Element n of 13 · name").
     readback_card: Optional[dict] = None

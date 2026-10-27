@@ -350,14 +350,19 @@ def criteria(field: str) -> list[tuple[str, str]]:
 def verbatim_spans(spans: Any, field: str, *answers: Any) -> dict[str, str]:
     """ADR-0093 decision 5, the safeguard: the judgment's spans that are verbatim substrings of every one of
     `answers` (the Belt's answer, and the text a Confirm stores when it is text), keyed by a criterion id of
-    this element. Any other span is dropped — its row shows the whole answer once, marked "in your answer"."""
+    this element. Any other span is dropped — its row shows the whole answer once, marked "in your answer".
+    A span of two or more quotes joined by " … " (evidence in two places of the answer — wave 0, founder test
+    2026-10-27 #19: "In Field Service Austria … from March to September 2026") is kept when EVERY quote is a
+    verbatim substring."""
     ids = {cid for cid, _ in criteria(field)}
     texts = [str(a) for a in answers if isinstance(a, str) and a.strip()]
     out: dict[str, str] = {}
     for cid, span in (spans.items() if isinstance(spans, dict) else []):
         s = str(span or "").strip().strip("\"'“”‘’").strip()
-        if str(cid) in ids and s and texts and all(s in t for t in texts):
-            out[str(cid)] = s
+        pieces = [p.strip().strip("\"'“”‘’").strip() for p in re.split(r"\s*(?:…|\.\.\.)\s*", s)]
+        pieces = [p for p in pieces if p]
+        if str(cid) in ids and pieces and texts and all(p in t for p in pieces for t in texts):
+            out[str(cid)] = " … ".join(pieces)
     return out
 
 

@@ -578,7 +578,7 @@ STORE_NOTE_NOT_STORED = ("Nothing was stored for {element} yet: the read-back di
                          "{missing}. Please check the version below.")
 #: G-140 — a read-back written in code that carries nothing a
 #: Confirm could store is not offered as a read-back: this sentence, and no Confirm.
-FALLBACK_RESEND = "I couldn't process that answer — please send it again."
+FALLBACK_RESEND = "I couldn't process that answer this time — nothing was stored."
 
 #: The planner model's ONE judgment.
 #: Called by `phases/nodes_common._judge` only when the Belt has answered.
@@ -679,10 +679,11 @@ SAMPLE_FROM_SCRIPT = ("SAMPLE: in `example`, show the phase script's worked exam
 #: read back for a Confirm (which could not store it); the Belt is told why and asked for their own.
 SAMPLE_COPIED = ("Not stored: your answer for {element} matches the sample I showed, which only shows the form "
                  "of a good answer. Please give your own answer, for your own process.")
-#: DEF-093 / G-157 (ADR-0080) — the reply when a coaching turn reaches its deadline: the turn was stopped and
-#: changed nothing (no store, no read-back), as G-140's resend.
-TURN_DEADLINE_REPLY = ("That took longer than it should, so I stopped it before it finished. Nothing new was "
-                       "stored and nothing of yours is lost — please send your message again.")
+#: R-F (founder ruling 2026-10-27, amending ADR-0080) — the words of a turn that reached the hard limit with no
+#: answer: it changed nothing. The page shows them on the failed turn's card, the message back in the box beside
+#: its Send again button; the Belt is never asked to retype.
+TURN_DEADLINE_REPLY = ("The coach could not finish this answer in time. Nothing new was stored and nothing of "
+                       "yours is lost.")
 #: The PII line (T87, ADR-0062): personal details masked in an upload are hidden from the coach — the Belt
 #: is told, in code, at upload (this) and when the coach's lookups read them (`PII_HIDDEN_TURN`).
 PII_HIDDEN_UPLOAD = ("Hidden from the coach before it read this file: {what}. Your file itself is unchanged; "
@@ -699,8 +700,7 @@ RELOAD_UNFINISHED_LOST = ("Your latest work since the last confirmed answer coul
 UPLOAD_NOT_INDEXED = ("{filename} is kept on the case, but I could not prepare it for searching just now, so I "
                       "cannot look things up in it. Please upload it again later.")
 #: G-261: what the Belt reads when a turn, a review or a submission fails — never the exception's text.
-TURN_FAILED = ("Something went wrong on our side while answering. Everything you confirmed is kept; please send "
-               "your message again.")
+TURN_FAILED = "Something went wrong on our side while answering. Everything you confirmed is kept."
 REPORT_NOT_ASSEMBLED = ("The Define report could not be put together just now. Everything you confirmed is kept; "
                         "please try again, or tell your project lead.")
 SUBMIT_FAILED = "Something went wrong on our side while submitting. Nothing was submitted; please try again."

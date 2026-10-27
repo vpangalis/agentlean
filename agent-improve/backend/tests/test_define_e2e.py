@@ -324,6 +324,7 @@ _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
     "function renderPhaseNav": ("function gateSubmitState", "function renderGateSubmit"),
     "function renderLiveViz": ("function latestReply",),
     "async function openWorkspace": ("function serviceStatusHtml", "async function checkService"),
+    "async function sendMessage": ("function typingText",),        # R-F (founder ruling 2026-10-27)
 }
 
 
@@ -341,7 +342,8 @@ def _run_page(functions: tuple[str, ...], script: str) -> dict:
     if node is None:
         pytest.fail("node is not installed — the screen cannot be run; the UI tests need Node.js (audit X5)", pytrace=False)
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
-    funcs = []
+    # R-F (founder ruling 2026-10-27): the progress threshold's constants, cut from the page like the functions.
+    funcs = re.findall(r"^const (?:TURN_PROGRESS_MS|TYPING_DEFAULT|TYPING_LONG)=.*$", src, re.M)
     wanted: list[str] = []
     for name in functions:
         for n in (*_PAGE_NEEDS.get(name, ()), name):
@@ -1427,9 +1429,9 @@ def test_the_define_report_has_the_visual_of_every_section(env) -> None:
 def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner) -> None:
     """G-157 / DEF-093 (founder ruling 2026-10-12, option B; ADR-0080), through the routes and graph:
     every model role's client has a request timeout; a judge whose call runs out keeps the coach's
-    finished reply and records "not checked (time)"; and a coaching turn that reaches its deadline is
-    cancelled in the route — the Belt is told to send the message again, nothing is stored, the
-    checkpoint is consistent and the next turn resumes cleanly."""
+    finished reply and records "not checked (time)"; and a coaching turn that reaches its HARD limit with no
+    answer (R-F, founder ruling 2026-10-27) is cancelled in the route — the reply is flagged `failed` for the
+    page's Send again, nothing is stored, the checkpoint is consistent and the next turn resumes cleanly."""
     import time as _time
 
     import openai
@@ -1461,11 +1463,12 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     graded = [s for s in steps if s.get("layer") == "coaching_grader"]
     assert graded[-1]["status"] == "not checked (time)"
 
-    # 3. The turn deadline: a coach that would run past it. The route cancels the run.
+    # 3. The hard limit (R-F, founder ruling 2026-10-27, amending ADR-0080): a coach that would run past it with
+    # no answer produced. The route cancels the run, and the page is told it failed (`failed`: "time").
     env.holder["saver"]._container.blobs.clear()
     env.restart()
     _at_element(env, "secondary_metrics")
-    monkeypatch.setattr(routes, "TURN_LIMIT_S", 2.0)
+    monkeypatch.setattr(routes, "TURN_HARD_LIMIT_S", 2.0)
     monkeypatch.setattr(routes, "TURN_CLOSE_RESERVE_S", 0.0)
     slow = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "id": "slow",
                                               "args": {**REPLY, "message": "TOO LATE"}}])
@@ -1492,7 +1495,7 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     r = _askd(env, message="Next, please.")
     assert _time.time() - t0 < 2.6, f"the request took {_time.time() - t0:.1f} s against a 2 s limit"
     monkeypatch.setattr(routes.blob, "load_case", load)
-    assert r["answer"] == routes.TURN_DEADLINE_REPLY and r["move"] is None, r
+    assert r["answer"] == routes.TURN_DEADLINE_REPLY and r["move"] is None and r["failed"] == "time", r
     after = env.client.get(f"/cases/{CASE_ID}").json()
     # The checkpoint is what an abandoned turn leaves (§47): the Belt's message, no reply, nothing stored
     # or changed — no pending read-back a Confirm could meet, the element's status as before.
@@ -1501,7 +1504,7 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     assert after["phases"]["define"]["field_status"]["secondary_metrics"] ==         before["phases"]["define"]["field_status"]["secondary_metrics"]
     assert after["phases"]["define"].get("structured") == before["phases"]["define"].get("structured")
     _time.sleep(4.5)                      # the cancelled call's thread finishes; nothing may land after it
-    monkeypatch.setattr(routes, "TURN_LIMIT_S", 45.0)
+    monkeypatch.setattr(routes, "TURN_HARD_LIMIT_S", 120.0)
     monkeypatch.setattr(_FakeCoach, "_agenerate", agenerate)
     monkeypatch.setattr(nodes_common, "get_llm", real)
     _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
@@ -1514,7 +1517,6 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     # NodeTimeoutError is caught by its own name (it is not a TimeoutError — langgraph/errors.py).
     import inspect
     assert "isinstance(error.error, NodeTimeoutError)" in inspect.getsource(nodes_common.executor_timeout_handler)
-
 
 
 def test_a_step_time_with_one_end_of_its_range_reads_in_words() -> None:
@@ -2821,7 +2823,9 @@ def test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p(
 
     said, premium, mini, _ = turn(down, down)
     assert level_4.search(said), said
-    assert (len(premium), len(mini)) == (nodes_common.RETRY_MAX + 1,) * 2
+    # R-F (founder ruling 2026-10-27): both models down is a failed turn — the route runs it once more from where
+    # it started, so each model is tried through its retries in both runs.
+    assert (len(premium), len(mini)) == (2 * (nodes_common.RETRY_MAX + 1),) * 2
 
 
 def test_t35_two_three_state_circuit_breakers_3_failures_in_30_s_open_60_s_rese() -> None:
@@ -2843,7 +2847,8 @@ def test_t37_a_deployment_rollout_ends_no_coaching_session_in_flight_turns_chec(
 def test_t38_retries_are_exhausted_before_a_node_s_error_handler_runs(env, monkeypatch) -> None:
     """DEF-127 — T38 (ADR-0043): a node with a retry policy and an error handler — the input guard — has its retries
     exhausted before the handler runs: a transient failure on the first attempts is retried and the turn is coached
-    (no degraded reply); a failure on every attempt reaches the handler only after all of them (degraded reply)."""
+    (no degraded reply); a failure on every attempt reaches the handler only after all of them (degraded reply) — in
+    each of the turn's two runs (R-F's automatic retry)."""
     from backend.core import graph as graph_mod
     from backend.core import guard
     from backend.core.errors import ShieldTransientError
@@ -2862,7 +2867,10 @@ def test_t38_retries_are_exhausted_before_a_node_s_error_handler_runs(env, monke
     assert body["answer"] != graph_mod.DEGRADED_REPLY and calls["n"] == guard.ATTEMPTS, (calls, body["answer"])
     calls.update(n=0, fail=10 ** 6)                                # fails on every attempt
     body = _askd(env, message="Our baseline is 23%")
-    assert body["answer"] == graph_mod.DEGRADED_REPLY and calls["n"] == guard.ATTEMPTS, (calls, body["answer"])
+    # R-F (founder ruling 2026-10-27): the failed turn is retried once by the route, and each run exhausts the
+    # node's own attempts before its handler answers — so twice ATTEMPTS calls, then the degraded reply, flagged.
+    assert body["answer"] == graph_mod.DEGRADED_REPLY and calls["n"] == 2 * guard.ATTEMPTS, (calls, body["answer"])
+    assert body["failed"] == "degraded", body
     graph_mod.get_graph.cache_clear()
 
 
@@ -5049,9 +5057,13 @@ const toasts=[]; function toast(m){toasts.push(m)}
 function renderChips(){} function renderPhaseNav(){} function renderDiagram(){} function renderSteps(){}
 function renderLiveViz(){} function showSectionToast(){} function renderGate(){}
 """
-    js = (harness + "\n" + "\n".join(fn(n) for n in ("escapeHtml", "mdHtml", "renderTurn", "failureWords", "failedTurnHtml",
-                                                      "retryTurn", "appendMsgToDOM", "draftKey", "clearDraft",
-                                                      "sendMessage"))
+    # R-F (founder ruling 2026-10-27): the progress threshold's constants, cut from the page like the functions.
+    consts = re.findall(r"^const (?:TURN_PROGRESS_MS|TYPING_DEFAULT|TYPING_LONG)=.*$", src, re.M)
+    assert len(consts) == 3, consts
+    js = (harness + "\n" + "\n".join(consts) + "\n"
+          + "\n".join(fn(n) for n in ("escapeHtml", "mdHtml", "renderTurn", "failureWords", "failedTurnHtml",
+                                      "retryTurn", "appendMsgToDOM", "draftKey", "clearDraft", "typingText",
+                                      "buildNavDefineElements", "sendMessage"))
           + "\n(async()=>{\n" + script + "\n})().catch(e=>{console.error(e);process.exit(1)});")
     out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
@@ -5113,7 +5125,7 @@ process.stdout.write(JSON.stringify(out));
     assert f"Reference: {got['ref']}" in got["card"], got["card"]
     assert "took too long" in got["card"], got["card"]
     assert "Nothing from this message was stored" in got["card"] and "Everything you confirmed before is saved" in got["card"]
-    assert "retryTurn(" in got["card"] and "Try again" in got["card"]
+    assert "retryTurn(" in got["card"] and "Send again" in got["card"]        # R-F (founder ruling 2026-10-27)
     assert got["resent"] == "Our baseline is 23%", got["resent"]
     assert got["left"] == 0 and "Is this right?" in got["after"], "the retried turn did not replace the card"
     assert f"Reference: {got['ref']}" not in got["after"], "the card stayed after a successful retry"
@@ -5567,7 +5579,7 @@ out.second=sent[1].body;
 process.stdout.write(JSON.stringify(out));
 """)
     assert got["ref"] and got["ref"] == got["header"], "the reference shown is not the id the server logs"
-    assert f"Reference: {got['ref']}" in got["card"] and "Try again" in got["card"], got["card"]
+    assert f"Reference: {got['ref']}" in got["card"] and "Send again" in got["card"], got["card"]   # R-F
     assert "Everything you confirmed before is saved" in got["card"], got["card"]
     assert got["second"] == got["first"], "Try again did not resend the same request"
     again = env.client.post("/ask", json={**got["second"], "case_id": CASE_ID})
@@ -9779,7 +9791,8 @@ def test_an_analyse_turn_plans_its_retrieval() -> None:
 # (19, 28, 38, 51, 52, 60) with the founder's own inputs, then the stubs of waves 2 and 3.
 
 
-def test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes() -> None:
+@pytest.mark.degraded_expected
+def test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes(env, monkeypatch, stub_planner) -> None:
     """R-F (founder ruling 2026-10-27, amending ADR-0080; founder test 2026-10-27 #59), through the routes and
     graph, then the page: (1) the 45 s progress threshold cancels nothing; (2) a turn whose answer is produced
     completes its save even when the save runs past the hard limit — the founder's 15:33 turn, cut at 42 s after
@@ -9788,7 +9801,91 @@ def test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes() -> None:
     cancelled message twice); (4) a failed retry is flagged `failed`, and no failure text asks the Belt to send
     or retype; (5) the page: at 45 s it says the coach is still working, and a flagged failure puts the message
     back in the box with Send again."""
-    _not_written('DEF-254')
+    import asyncio
+    import json
+
+    from backend.core import request_context
+    from backend.core.checkpointer import AzureBlobCheckpointSaver
+    from backend.core.graph import DEGRADED_REPLY
+    from backend.core.prompts import TURN_FAILED
+    from backend.gateway import routes
+    from backend.phases import nodes_common
+
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
+    # (1) 45 s is a progress threshold only: with it at 0.2 s, a turn of about a second still answers.
+    monkeypatch.setattr(routes, "TURN_LIMIT_S", 0.2)
+    first = _askd(env, message="Next, please.")
+    assert "What will you watch?" in first["answer"] and first["failed"] is None, first
+
+    # (2) The answer is produced at once; every save after it is slowed past a 3 s hard limit. Not cancelled.
+    monkeypatch.setattr(routes, "TURN_HARD_LIMIT_S", 3.0)
+    monkeypatch.setattr(routes, "TURN_CLOSE_RESERVE_S", 0.0)
+    real_aput = AzureBlobCheckpointSaver.aput
+
+    async def slow_after_the_answer(self, *a, **k):
+        record = request_context.current_turn()
+        if record and record.get("answered"):
+            await asyncio.sleep(1.0)
+        return await real_aput(self, *a, **k)
+    monkeypatch.setattr(AzureBlobCheckpointSaver, "aput", slow_after_the_answer)
+    _coach_saying(monkeypatch, "Callbacks per month and overtime hours. Is this right?",
+                  captured=[{"field_name": "secondary_metrics", "value": "Callbacks per month; overtime hours",
+                             "source": "belt"}])
+    saved = _askd(env, message="Callbacks per month; overtime hours")
+    assert saved["failed"] is None and saved["move"] == "read_back", saved
+    texts = [h.get("text") for h in env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]]
+    assert texts[-1] == saved["answer"], "the answered turn's save was cut: " + str(texts[-2:])
+    monkeypatch.setattr(AzureBlobCheckpointSaver, "aput", real_aput)
+    monkeypatch.setattr(routes, "TURN_HARD_LIMIT_S", 120.0)
+
+    # (3) The coach fails once (T29's degraded reply), then answers: retried from where the turn started.
+    _coach_saying(monkeypatch, "Callbacks per month and overtime hours. Is this right?",
+                  captured=[{"field_name": "secondary_metrics", "value": "Callbacks per month; overtime hours",
+                             "source": "belt"}])
+    saying, failures = nodes_common.get_llm, {"left": 1}
+
+    def broken_once(role, **kw):
+        if role == "coach" and failures["left"] > 0:
+            failures["left"] -= 1
+            raise RuntimeError("the coach deployment answered 500")
+        return saying(role, **kw)
+    monkeypatch.setattr(nodes_common, "get_llm", broken_once)
+    again = _askd(env, message="Customer callbacks per month; technician overtime hours")
+    assert again["failed"] is None and again["move"] == "read_back" and failures["left"] == 0, again
+    history = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
+    said = [h for h in history if h.get("text") == "Customer callbacks per month; technician overtime hours"]
+    assert len(said) == 1, f"the Belt's message is held {len(said)} times"
+    assert not any(DEGRADED_REPLY[:30] in str(h.get("text")) for h in history), "the failed attempt's reply stayed"
+
+    # (4) The coach fails on both runs: the degraded reply, flagged — and no failure text asks to send or retype.
+    def broken(role, **kw):
+        if role == "coach":
+            raise RuntimeError("the coach deployment answered 500")
+        return saying(role, **kw)
+    monkeypatch.setattr(nodes_common, "get_llm", broken)
+    lost = _askd(env, message="Callbacks per month")
+    assert lost["answer"] == DEGRADED_REPLY and lost["failed"] == "degraded", lost
+    for words in (DEGRADED_REPLY, routes.TURN_DEADLINE_REPLY, TURN_FAILED):
+        assert "send" not in words.lower() and "again" not in words.lower(), words
+
+    # (5) The page: at the progress threshold it says the coach is still working; the flagged failure is a card,
+    # the message back in the box, Send again.
+    got = _ui_run(f"""
+const out={{}}; const seen=[]; const said=typingText; typingText=t=>{{seen.push(t);said(t);}};
+globalThis.setTimeout=(f,ms)=>{{if(ms===TURN_PROGRESS_MS)f();return 0;}};
+el('chat-input').value='Callbacks per month';
+replies=[{{answer:{json.dumps(DEGRADED_REPLY)},failed:'degraded'}}];
+await sendMessage();
+out.seen=seen; out.box=el('chat-input').value; out.msgs=el('msgs').html;
+out.failed=S.localChat.filter(t=>t.role==='failed').length; out.progress=TURN_PROGRESS_MS;
+process.stdout.write(JSON.stringify(out));
+""")
+    from backend.core import config
+    assert got["progress"] == int(config.TURN_LIMIT_S * 1000), "the page's threshold is not the server's 45 s"
+    assert "Still working on your answer — long answers take a little longer" in got["seen"], got["seen"]
+    assert got["box"] == "Callbacks per month", "the message did not go back in the box"
+    assert got["failed"] == 1 and "Send again" in got["msgs"] and DEGRADED_REPLY[:40] in got["msgs"], got["msgs"]
 
 
 def test_63_each_turn_logs_its_steps_and_a_read_back_is_no_finding(env, monkeypatch, stub_planner, caplog) -> None:

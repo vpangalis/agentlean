@@ -59,6 +59,7 @@ from backend.core import content_safety, guard, guard_messages, pii
 from backend.middleware import fallback as model_fallback
 from backend.middleware import turn_tools
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S
+from backend.core.request_context import mark_answered, turn_step   # R-F, #63
 from backend.core.conversation import CARD_KEY, COMPLETION_KEY, ELEMENT_KEY, STRIP_KEY  # ADR-0093
 from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
@@ -468,8 +469,14 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
     if in_code is not None:
         return in_code
     judge = get_llm("planner").with_structured_output(SufficiencyJudgment)
-    verdict = await judge.ainvoke(_judgment_prompt(
-        phase, state, field, previous, latest, reading_back == "yes"))
+    judged_at, answered = time.monotonic(), False
+    try:
+        verdict = await judge.ainvoke(_judgment_prompt(
+            phase, state, field, previous, latest, reading_back == "yes"))
+        answered = True
+    finally:
+        # #63: each judgment call timed for the turn's log — a timed-out attempt too (the node retries it).
+        turn_step("planner judgment" if answered else "planner judgment (failed)", time.monotonic() - judged_at)
     if verdict is None:
         # G-235: a model that answers without the structured verdict returns None here; validating it raised,
         # and the whole turn became the degraded reply. Decided in code instead: not an answer — the coach
@@ -2925,6 +2932,11 @@ def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], r
         # Degraded, not broken — and visible. On a teaching move the gap is
         # then filled from the script (`_with_teaching_blocks`).
         gaps = presentational_gaps(reply)
+        # Wave 0 (founder test 2026-10-27, #59): a reply whose move asks for no new information — a read-back —
+        # has no explanation, example or prompt to write, and `progress` is written in code; those blocks empty
+        # are its normal shape, not a finding. Only a move that teaches or asks is held to them.
+        if plan is None or plan.move not in SAMPLE_MOVES:
+            gaps = [g for g in gaps if g not in ("explanation", "example", "prompt", "progress")]
         if gaps:
             logger.warning(
                 "%s.executor: FINDING — §50.1 presentational field(s) came "
@@ -3568,6 +3580,7 @@ async def executor(
     # every other move is the model's to write.
     written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
                                                     or _goal_target_reply(phase, plan) or _offer_reply(phase, plan))
+    agent_started = time.monotonic()             # #63: the coach's run, the grader inside it, timed for the log
     try:
         # No time limit here (T70): the node's limit is the engine's `TimeoutPolicy`, and its
         # handler composes the answer when it fires.
@@ -3612,6 +3625,8 @@ async def executor(
             logger.warning("%s.executor: %s — kept from the fallback, answered in code (ADR-0082)", phase, marked)
             _, result = _refused_turn(phase, state, plan, prior, filtered)
             fell_back = True
+    if written is None:
+        turn_step("coach and grader", time.monotonic() - agent_started)
 
     result, produced, limited, unfinished, limit_diagnosis, fell_back = _contained_limit(
         phase, plan, result, history, coach_limit, fell_back)
@@ -3748,6 +3763,14 @@ async def executor(
     # The grader's warning reaches the Belt only in `enforce` mode.
     _attach_blocks(new_messages, reply,
                    GRADER_WARNING if failed and grader_mode.GRADER_MODE == "enforce" else None)
+    if (level_4 and level_4 != "token_limit" and not filtered) or resend:
+        # R-F (founder ruling 2026-10-27): both models failed (T34 level 4) or the read-back could not be used
+        # (G-140) — a failed turn, marked as T29's handler marks one, so the route retries it once and the page
+        # shows Send again with the message back in the box; its words never ask the Belt to send it again. A
+        # token limit is not retried: the same call would fail the same way (§4.8).
+        last = next((m for m in reversed(new_messages) if isinstance(m, AIMessage)), None)
+        if last is not None:
+            last.additional_kwargs["degraded"] = {"node": "executor", "error": level_4 or "resend"}
 
     # ── the move record and the quality feedback ride on the reply ────
     # The next turn's planner reads the record (status, answer, PENDING); the
@@ -3785,6 +3808,7 @@ async def executor(
         len(new_messages), hops_spent[0], hop_budget,
         remaining or "no", bool(reply and reply.contradiction_flag),
     )
+    mark_answered(time.time())     # R-F: the answer exists — the route never cancels this turn's save from here
     return {
         "messages": new_messages,
         # T26 / G-85 (DEF-237): what each hop returned, state rather than a node local.

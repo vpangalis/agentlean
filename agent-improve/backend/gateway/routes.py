@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from backend.core import conversation, pii
 from backend.core.clock import utc_now
 from backend.core.prompts import PII_HIDDEN_UPLOAD, TURN_DEADLINE_REPLY
-from backend.core.request_context import set_case_id, set_phase
+from backend.core.request_context import current_turn, set_case_id, set_phase, start_turn, turn_step
 from backend.core.errors import CaseBusyError, StateSchemaVersionError
 from backend.core.graph import RECURSION_LIMIT
 from backend.gateway.schemas import (
@@ -303,14 +303,15 @@ async def _until_disconnect(http: Request) -> None:
 
 # `state` is the graph input: a state dict for a turn, or `Command(resume=...)`
 # when `decide_gate` resumes the Define pause — hence `Any`, not `dict`.
-#: DEF-093 / G-157 (ADR-0080): the coaching turn's limit, counted from `turn_started` (stamped by
-#: `_graph_config`), less the closing reserve — both owned by `core/config.py`. LangGraph has no whole-run
-#: deadline (only a per-node `TimeoutPolicy` and a per-superstep `step_timeout`), so the route bounds the run.
-from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S  # noqa: E402
+#: R-F (founder ruling 2026-10-27, amending ADR-0080): the coaching turn's HARD limit, counted from
+#: `turn_started` (stamped by `_graph_config`), less the closing reserve — owned by `core/config.py`. 45 s
+#: (`TURN_LIMIT_S`) is the page's progress threshold and cancels nothing. LangGraph has no whole-run deadline
+#: (only a per-node `TimeoutPolicy` and a per-superstep `step_timeout`), so the route bounds the run.
+from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_HARD_LIMIT_S, TURN_LIMIT_S  # noqa: E402,F401
 
 
 class TurnDeadline(Exception):
-    """The coaching turn reached its deadline; the run was cancelled (DEF-093)."""
+    """The coaching turn reached its hard limit with no answer produced; the run was cancelled (R-F)."""
 
 
 async def _run_turn(graph, state: Any, config: dict, http: Request, deadline: bool = False):
@@ -351,9 +352,58 @@ async def _run_turn(graph, state: Any, config: dict, http: Request, deadline: bo
         raise HTTPException(409, CASE_BUSY)
 
 
+#: R-F: the least of the hard limit that must be left for the automatic retry to start.
+RETRY_MIN_LEFT_S = 30.0
+
+
+def _degraded(result: Any) -> bool:
+    """T29: the run ended in the degraded reply its error handler wrote (a node failed)."""
+    reply = _last_ai(result or {})
+    return bool(reply is not None and (reply.additional_kwargs or {}).get("degraded"))
+
+
+async def _run_coaching_turn(graph, state: Any, config: dict, http: Request, base: Optional[str]):
+    """R-F (founder ruling 2026-10-27): one coaching turn, retried ONCE, automatically, when it fails — T29's
+    degraded reply, or an error out of the run. The retry runs the same input again from `base`, the checkpoint
+    the turn started from: LangGraph forks the thread there, so the failed attempt leaves nothing in the
+    conversation (no second copy of the Belt's message, no degraded reply) and the saver's `latest.json` names
+    the fork. Not retried: the hard limit (`TurnDeadline`), a disconnect, a refusal the route answers by name,
+    a case's first turn (no checkpoint to start from), and a retry that would start with under
+    `RETRY_MIN_LEFT_S` of the hard limit left. The retry is bounded by the same hard limit, from the turn's
+    arrival. Returns the last attempt's result; raises what it raised."""
+    from backend.core.graph import PhaseNotWired
+    # The first attempt's outcome, a result or the error it raised, as a value: what is not retried is raised.
+    gathered: tuple[Any, ...] = await asyncio.gather(_run_turn(graph, state, config, http, deadline=True),
+                                                     return_exceptions=True)
+    outcome: Any = gathered[0]
+    if isinstance(outcome, (TurnDeadline, ClientGone, HTTPException, PhaseNotWired, StateSchemaVersionError)) or (
+            isinstance(outcome, BaseException) and not isinstance(outcome, Exception)):
+        raise outcome
+    failure: Optional[BaseException] = outcome if isinstance(outcome, BaseException) else None
+    result = None if failure is not None else outcome
+    if failure is None and not _degraded(result):
+        return result
+    why = f"{type(failure).__name__}: {failure}" if failure is not None else "the degraded reply"
+    started = float(((config or {}).get("configurable") or {}).get("turn_started") or time.time())
+    left = started + TURN_HARD_LIMIT_S - TURN_CLOSE_RESERVE_S - time.time()
+    if base is None or left < RETRY_MIN_LEFT_S:
+        logger.warning("ask(): the turn failed (%s); no retry (%s)", why,
+                       "a first turn" if base is None else f"{left:.0f} s of the hard limit left")
+        if failure is not None:
+            raise failure
+        return result
+    logger.warning("ask(): the turn failed (%s) — retried once, from the checkpoint it started from (R-F)", why)
+    record = current_turn()
+    if record is not None:
+        record["answered"] = None
+        record["steps"].append(("retry", 0.0))
+    again = {**config, "configurable": {**(config.get("configurable") or {}), "checkpoint_id": base}}
+    return await _run_turn(graph, state, again, http, deadline=True)
+
+
 #: T11 (DEF-115) — said to a second person whose turn arrives while the case's lease is held.
-CASE_BUSY = ("Someone else on the team is working on this case right now. Wait a moment and send "
-             "your message again — nothing of yours was lost.")
+CASE_BUSY = ("Someone else on the team is working on this case right now. Wait a moment, then press Send "
+             "again — nothing of yours was lost.")
 
 
 def _bind(case_id: Any, phase: Any) -> None:
@@ -369,19 +419,31 @@ GRAPH_DURABILITY: Literal["sync", "async", "exit"] = "async"
 
 
 async def _run_turn_held(graph, state: Any, config: dict, http: Request, deadline: bool = False):
-    """`_run_turn`'s body, inside the case's lease. With `deadline` (a coaching turn, DEF-093), the run is
-    cancelled — exactly as a disconnect cancels it — when the turn's `TURN_LIMIT_S`, less the closing reserve,
-    are spent: `TurnDeadline`."""
+    """`_run_turn`'s body, inside the case's lease. With `deadline` (a coaching turn), R-F (founder ruling
+    2026-10-27, amending ADR-0080): the run is bounded by `TURN_HARD_LIMIT_S`, less the closing reserve. At the
+    limit, a run whose answer is not produced yet is cancelled — exactly as a disconnect cancels it —
+    `TurnDeadline`. **A run whose answer is produced is never cancelled**, by the limit or by a disconnect: the
+    executor marks the turn's record (`request_context.mark_answered`) and the run is waited for until its save
+    is done."""
+    record = current_turn() if deadline else None
+    if record is not None:
+        turn_step("before the graph", time.time() - record["arrived"])
     task = asyncio.create_task(graph.ainvoke(state, config=config, durability=GRAPH_DURABILITY))
     watch = asyncio.create_task(_until_disconnect(http))
     left = None
     if deadline:
         started = float(((config or {}).get("configurable") or {}).get("turn_started") or time.time())
-        left = max(0.0, started + TURN_LIMIT_S - TURN_CLOSE_RESERVE_S - time.time())
+        left = max(0.0, started + TURN_HARD_LIMIT_S - TURN_CLOSE_RESERVE_S - time.time())
     try:
         done, _ = await asyncio.wait(
             {task, watch}, timeout=left, return_when=asyncio.FIRST_COMPLETED
         )
+        if task not in done and record is not None and record.get("answered") is not None:
+            # R-F: the answer exists — the turn finishes its remaining steps and its save, whatever the clock or
+            # the connection says.
+            logger.info("ask(): the answer is produced — the turn completes its save (R-F)")
+            await task
+            done = {task}
         if task not in done:
             task.cancel()
             # Awaited so the cancellation is delivered and the task is truly
@@ -395,6 +457,8 @@ async def _run_turn_held(graph, state: Any, config: dict, http: Request, deadlin
             if watch not in done:
                 raise TurnDeadline()
             raise ClientGone()
+        if record is not None:
+            record["graph_done"] = time.time()
         return task.result()
     finally:
         watch.cancel()
@@ -445,7 +509,7 @@ def _mirror_asks(case_id: str, phase: str, result: Any) -> None:
 
 
 async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None,
-                                lost: Optional[list[str]] = None) -> CaseDocument:
+                                lost: Optional[list[str]] = None, keep: Optional[list] = None) -> CaseDocument:
     """The case as the Belt sees it — ADR-0066. The blob holds what is decided (framing,
     uploads, approved records); the checkpoint holds the unfinished work. This returns a COPY
     of the blob's case with, read through the compiled graph, the conversation and every open
@@ -457,7 +521,10 @@ async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None,
     use it to read a case as it stood before its approval (DEF-064).
 
     G-261: when the checkpoint cannot be read the blob copy is shown, and `lost` (when given) receives the
-    case id, so the route tells the Belt that the work since the last confirmed answer was not kept."""
+    case id, so the route tells the Belt that the work since the last confirmed answer was not kept.
+
+    `keep` (when given) receives the snapshot read, so a turn reads the checkpoint once (wave 0, 2026-10-27:
+    `ask` read it here and again in `_graph_input`)."""
     from backend.core.graph import get_graph
     from backend.phases import record as phase_record
     out = case.model_copy(deep=True)
@@ -471,6 +538,8 @@ async def _with_unfinished_work(case: CaseDocument, at: Optional[str] = None,
         if lost is not None:
             lost.append(case.case_id)
         return out
+    if keep is not None:
+        keep.append(snapshot)
     messages = list((snapshot.values or {}).get("messages") or [])
     if not messages:
         return out
@@ -609,7 +678,7 @@ def _graph_config(case: CaseDocument, phase: str, user: str, entry: str,
 
 
 async def _graph_input(graph, config: dict, case: CaseDocument,
-                       new_messages: list) -> dict:
+                       new_messages: list, snapshot: Any = None) -> dict:
     """What to hand `ainvoke`: the whole state on turn one, the delta after.
 
     **`SupervisorState.messages` reduces with `operator.add`**, so a state
@@ -632,8 +701,11 @@ async def _graph_input(graph, config: dict, case: CaseDocument,
     separate writers (`write_phase_gate` advances `case.current_phase` on a gate
     pass; the checkpoint's copy is written inside the graph), the failure is
     silent, and the check is two lines.
+
+    `snapshot` — the thread's state when the caller already read it this request (`ask`); read here otherwise.
     """
-    snapshot = await graph.aget_state(config)
+    if snapshot is None:
+        snapshot = await graph.aget_state(config)
     if snapshot.values:
         checkpointed = snapshot.values.get("current_phase")
         if checkpointed != case.current_phase:
@@ -691,6 +763,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     person over the turn rate (T93) is refused before the graph runs.
     """
     arrived = time.time()                   # G-166: the turn's clock starts when the request arrives
+    record = start_turn(arrived)            # R-F / #63: the turn's steps, timed, and when it was answered
     _bind(request.case_id, request.phase)   # T43 (DEF-129): every log line of the request names them
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
@@ -704,7 +777,12 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     # The case's framing into the Store, from the blob only: the Store's case copy never carries
     # unfinished work (ADR-0066).
     _ensure_case_record(case)
-    case = await _with_unfinished_work(case)
+    read: list = []                                  # the checkpoint, read once for the whole turn
+    case = await _with_unfinished_work(case, keep=read)
+    snapshot = read[0] if read else None
+    # R-F: the checkpoint the turn starts from — its automatic retry runs from here (None on a first turn).
+    base = (((snapshot.config or {}).get("configurable") or {}).get("checkpoint_id")
+            if snapshot is not None and snapshot.values else None)
 
     from backend.core.graph import PhaseNotWired, get_graph
     if _over_turn_rate(request.user):
@@ -737,25 +815,27 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
 
     try:
         state = await _graph_input(
-            graph, config, case, [conversation.turn_to_message(user_turn)]
+            graph, config, case, [conversation.turn_to_message(user_turn)], snapshot=snapshot
         )
-        # ABANDON on disconnect, and the coaching turn's deadline. See `_run_turn`.
-        result = await _run_turn(graph, state, config, http, deadline=True)
+        # ABANDON on disconnect before an answer, the hard limit, and one automatic retry (R-F). See
+        # `_run_turn` and `_run_coaching_turn`.
+        result = await _run_coaching_turn(graph, state, config, http, base)
         _mirror_asks(request.case_id, phase, result)
     except TurnDeadline:
-        # DEF-093 / G-157 (ADR-0080): the run was cancelled at the deadline; nothing after the last
-        # completed step was checkpointed, so the turn changed nothing a Confirm or a store depends on.
-        # The Belt is told, in code, to send the message again; step_log records the deadline.
-        logger.warning("ask() reached the %.0f s turn deadline for %s — the run was cancelled",
-                       TURN_LIMIT_S, request.case_id)
+        # R-F (amending ADR-0080): the hard limit came with no answer produced; the run was cancelled and
+        # nothing after the last completed step was checkpointed. The page puts the Belt's message back in the
+        # box with Send again (`failed`); step_log records the limit.
+        logger.warning("ask() reached the %.0f s hard limit for %s with no answer — the run was cancelled",
+                       TURN_HARD_LIMIT_S, request.case_id)
+        _log_turn_timing(record)
         try:
             from backend.core.store import get_store as _store   # read at call time
             _store().put(("projects", request.case_id, "step_log"), f"deadline:{phase}:{now}",
-                         {"layer": "turn_deadline", "limit_s": TURN_LIMIT_S, "phase": phase, "at": now})
+                         {"layer": "turn_deadline", "limit_s": TURN_HARD_LIMIT_S, "phase": phase, "at": now})
         except Exception as exc:  # noqa: BLE001 — the audit write must not change the reply
             logger.error("ask(): the turn deadline could not be recorded: %s", exc)
         return AskResponse(answer=TURN_DEADLINE_REPLY, phase=request.phase,
-                           gate_status=GateStatus(phase=request.phase, passed=False, attempts=0))
+                           gate_status=GateStatus(phase=request.phase, passed=False, attempts=0), failed="time")
     except ClientGone:
         logger.info(
             "ask() ABANDONED for %s — client disconnected mid-turn; "
@@ -780,6 +860,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     verdict = dict(payload.get("gate_verdict") or {})
     extra = dict(getattr(reply, "additional_kwargs", None) or {}) if reply else {}
     await _reconcile_team(request.case_id, phase, extra.get("phase_record"), request.user)
+    _log_turn_timing(record)
 
     # ── envelope marshalling from here down ───────────────────────────
     # ADR-0066 / T13: no case-blob write. The turn — the Belt's message, the reply and the
@@ -831,7 +912,36 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         confirmed_strip=extra.get(conversation.STRIP_KEY),
         reply_element=extra.get(conversation.ELEMENT_KEY),
         completion_card=extra.get(conversation.COMPLETION_KEY),
+        # R-F: a turn that failed after its automatic retry (T29's degraded reply) — the page puts the Belt's
+        # message back in the box with Send again.
+        failed="degraded" if extra.get("degraded") else None,
     )
+
+
+#: #63 (founder test 2026-10-27): the steps of one coaching turn, in the order they run, as the log names them.
+_TIMING_ORDER = ("before the graph", "input guard", "planner judgment", "planner judgment (failed)", "coach",
+                 "grader")
+
+
+def _log_turn_timing(record: Optional[dict]) -> None:
+    """#63: one INFO line per step of this turn — before the graph, the input guard, each planner judgment, the
+    coach, the grader, then what ran after the answer (the remaining steps and the save) and the total. The coach's
+    time is its agent run less the grader inside it. Read from the turn's record (`request_context`)."""
+    if not record:
+        return
+    steps = list(record.get("steps") or [])
+    agent = sum(s for n, s in steps if n == "coach and grader")
+    grader = sum(s for n, s in steps if n == "grader")
+    lines = [(n, s) for n, s in steps if n != "coach and grader"]
+    if agent:
+        lines.append(("coach", round(max(0.0, agent - grader), 2)))
+    lines.sort(key=lambda x: _TIMING_ORDER.index(x[0]) if x[0] in _TIMING_ORDER else len(_TIMING_ORDER))
+    answered, done, now = record.get("answered"), record.get("graph_done"), time.time()
+    if answered and done:
+        lines.append(("after the answer (steps, save)", round(done - answered, 2)))
+    lines.append(("total", round(now - float(record.get("arrived") or now), 2)))
+    for name, seconds in lines:
+        logger.info("turn timing · %-30s %6.2f s", name, seconds)
 
 
 async def _reconcile_team(case_id: str, phase: str, record: Any, by: str) -> None:

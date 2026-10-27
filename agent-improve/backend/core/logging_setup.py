@@ -56,3 +56,9 @@ def configure_logging(level: str = "INFO") -> None:
     handler.setFormatter(logging.Formatter(_FORMAT))
     handler.addFilter(_ContextFilter())
     root.addHandler(handler)
+
+    # #63 / DEF-243 (G-228): the Azure SDK logs every storage request and response at INFO — hundreds of lines a
+    # turn that push the start of a failing turn off the screen. WARNING and up only; the turn's own timing is
+    # one INFO line per step (`routes._log_turn_timing`).
+    for noisy in ("azure", "azure.core.pipeline.policies.http_logging_policy"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)

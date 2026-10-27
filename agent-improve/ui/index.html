@@ -1532,6 +1532,8 @@ function buildNavDefineElements(){
     +(e.status==='parked'?`<span class="parked-marker" style="color:#A04800">Parked</span>`
       +`<button class="el-act" onclick="reviseElement('${e.field}')">Resume</button>`:'')
     +(e.status==='confirmed'?`<button class="el-act" onclick="reviseElement('${e.field}')">Change</button>`:'')
+    // #62 (founder test 2026-10-27): an open element can be picked (W4) — the next message is answered on it.
+    +(e.status==='open'?`<button class="el-act" onclick="reviseElement('${e.field}')">Work on this</button>`:'')
     +'</div>').join('')+'</div>';
 }
 
@@ -6364,7 +6366,7 @@ function failedTurnHtml(turn){
     <div class="bbl bbl-ai" style="border:1px solid #E8B4A0;background:#FFF8F5">
       <p><b>That turn did not go through.</b> ${escapeHtml(turn.what||'')}</p>
       <p style="font-size:12px;color:#5C5A55">${saved}</p>
-      <div class="rb-actions"><button class="btn btn-primary" onclick="retryTurn('${escapeHtml(turn.ref||'')}')">Try again</button></div>
+      <div class="rb-actions"><button class="btn btn-primary" onclick="retryTurn('${escapeHtml(turn.ref||'')}')">Send again</button></div>
       <div style="font-size:10px;color:#9A9689;margin-top:6px">Reference: ${escapeHtml(turn.ref||'none')}</div></div></div>`;
 }
 async function retryTurn(ref){
@@ -6512,13 +6514,21 @@ async function loadSessionGreeting() {
   return;
 }
 
+// R-F (founder ruling 2026-10-27, amending ADR-0080): 45 s is a progress threshold — the same 45 as
+// backend/core/config.py TURN_LIMIT_S; the turn goes on to the server's hard limit and is never discarded.
+const TURN_PROGRESS_MS=45000;
+const TYPING_DEFAULT='The coach is working on your answer…';
+const TYPING_LONG='Still working on your answer — long answers take a little longer';
+function typingText(t){const el=document.getElementById('typing');if(el)el.innerHTML='<span class="spinner"></span> '+escapeHtml(t);}
+
 async function sendMessage(action, element){
   const input=document.getElementById('chat-input');
   // Step 6.61 (R4) — a Confirm / Change click sends the action; the Belt's
   // side of the chat shows the button they pressed.
   const picked=(action==='revise'&&S.case&&(S.case.define_elements||[]).find(e=>e.field===element))||null;
   const text=action?({confirm:'Confirm',change:'Change',park:'Park and move on',try_again:'Try again',
-    revise:(picked&&picked.status==='parked'?'Resume: ':'Change: ')+(picked?picked.name:element)}[action]||action):input.value.trim();
+    revise:(picked&&picked.status==='parked'?'Resume: ':picked&&picked.status==='open'?'Work on: ':'Change: ')
+      +(picked?picked.name:element)}[action]||action):input.value.trim();
   if(!text||!S.case)return;
   if(!action){input.value='';clearDraft();}
   document.querySelectorAll('.rb-actions').forEach(el=>el.remove());
@@ -6527,9 +6537,12 @@ async function sendMessage(action, element){
   S.localChat.push(userTurn);
   appendMsgToDOM(renderTurn(userTurn));
   document.getElementById('typing').classList.add('show');
+  // R-F (founder ruling 2026-10-27): at 45 s the turn is NOT stopped — the Belt is told the coach is still working.
+  const slow=setTimeout(()=>typingText(TYPING_LONG),TURN_PROGRESS_MS);
   // DEF-081 — the turn's reference id, sent so the server logs it under the same one.
   const ref='T-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6);
   const fail=(what)=>{
+    clearTimeout(slow);typingText(TYPING_DEFAULT);
     document.getElementById('typing').classList.remove('show');
     if(!action)input.value=text;                                   // nothing typed is lost
     const t={role:'failed',ref,what,sent:text,action:action||null,element:element||null,timestamp:new Date().toISOString()};
@@ -6539,6 +6552,10 @@ async function sendMessage(action, element){
   try{
     const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json','x-request-id':ref},
       body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null,element:element||null})});
+    // R-F: a turn that failed after the server's automatic retry, or reached the hard limit with no answer, is
+    // a failed turn — its card, the message back in the box, Send again; never a reply asking to retype.
+    if(resp.failed){fail(resp.answer||'');return;}
+    clearTimeout(slow);typingText(TYPING_DEFAULT);
     document.getElementById('typing').classList.remove('show');
     // ADR-0067 (R20, T93): a blocked or limited turn keeps the typed text in the box.
     if(resp.blocked&&!action)input.value=text;

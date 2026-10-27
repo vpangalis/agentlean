@@ -444,9 +444,10 @@ def route_to_phase(state: SupervisorState, config: Optional[RunnableConfig] = No
     return f"{current}_phase"
 
 
-#: T29 (DEF-122) — the reply written in code when a node with an external write fails.
+#: T29 (DEF-122) — the reply written in code when a node with an external write fails (a phase node after its
+#: automatic retry, R-F). The page shows it on the failed turn's card with Send again; never "send it again".
 DEGRADED_REPLY = ("Something went wrong on our side and this step did not go through — nothing was "
-                  "changed. Please send it again in a moment.")
+                  "changed.")
 
 #: ADR-0087 — what the route answers when the approval failed: the
 #: storage library's own retries (ExponentialRetry, 3 by default) are spent and the node undid both writes.

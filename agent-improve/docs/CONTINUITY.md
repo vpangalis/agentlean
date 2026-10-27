@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Headline** | 198 of 238 Define features pass, 4 more proven on earlier code (core 192 of 229) — A 78/96 · B 40/40 · C 59/77 · integrator 21/25 (record older than the source) · M1: 74 proven · 3 awaiting fresh run · 17 open |
-| **Next — lane A** | DEF-256 — The planner quotes the SHORTEST words per criterion (two places joined by ' … ', each verbatim), so its one judgment call stays well inside  |
-| **Next — lane B** | every feature passes |
-| **Next — lane C** | DEF-258 — An open element can be picked in the sidebar ('Work on this'); the next message is answered on it |
-| **Next — lane integrator** | DEF-276 — The page calls the origin it was loaded from; the startup log names the real port |
+| **Headline** | 167 of 238 Define features pass, 34 more proven on earlier code (core 164 of 229) — A 55/96 · B 37/40 · C 59/77 · integrator 16/25 · M1: 53 proven · 23 awaiting fresh run · 18 open |
+| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
+| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Next — lane C** | DEF-262 — Gate E's Baseline row reads the number, the source and the period — never the whole answer |
+| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |

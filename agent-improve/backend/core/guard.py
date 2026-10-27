@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from typing import Any, Optional
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -42,6 +43,7 @@ from backend.core import content_safety, guard_messages
 from backend.core.clock import utc_now
 from backend.core.errors import ShieldTransientError
 from backend.core.llm import block_text
+from backend.core.request_context import turn_step
 from backend.core.state import SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -189,7 +191,9 @@ async def input_guard(state: SupervisorState, config: Optional[RunnableConfig] =
     text = block_text(msgs[-1])        # G-262: the text the coach reads, through its content blocks
     base: dict[str, Any] = {"person": configurable.get("current_user") or (msgs[-1].additional_kwargs or {}).get("user"),
             "at": utc_now().isoformat(timespec="seconds")}
+    screened = time.monotonic()
     verdict = await screen(text)
+    turn_step("input guard", time.monotonic() - screened)        # #63: the turn's timing log
     if verdict["shield"] == "unreachable":
         attempt = _attempt()
         if verdict.pop("transient") and attempt < ATTEMPTS:

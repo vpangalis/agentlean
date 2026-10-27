@@ -53,6 +53,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import SystemMessage
 
 from backend.core.llm import REQUEST_TIMEOUTS, get_llm
+from backend.core.request_context import turn_step
 from backend.core.prompts import COACHING_QUALITY_RUBRIC, cut_at
 from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
 
@@ -407,9 +408,12 @@ class DMAICGraderMiddleware(AgentMiddleware):
                 self._emit(self._rewrite["verdict"], draft=self._rewrite["draft"], rewritten=True)
                 self._iterations, self._uncounted = 2, final_uncounted
         else:
+            graded_at = time.monotonic()
             try:
                 coach_text, verdict = await self._grade_reply(state)
+                turn_step("grader", time.monotonic() - graded_at)             # #63: the turn's timing log
             except REQUEST_TIMEOUTS:
+                turn_step("grader", time.monotonic() - graded_at)
                 # G-157 / DEF-093 (ADR-0080): the grade ran out of time — recorded, and the reply goes out
                 # without a grade (no warning: nothing failed).
                 logger.warning("%s.grader: the grade ran out of time — the reply is kept, not graded", self.phase)

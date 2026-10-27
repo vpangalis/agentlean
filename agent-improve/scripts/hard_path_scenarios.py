@@ -104,21 +104,23 @@ def scenario_b_crash(client: Any) -> dict[str, Any]:
 
 
 def scenario_c_deadline(client: Any) -> dict[str, Any]:
-    """(c) The turn deadline is hit; the Belt resends; the resend succeeds."""
+    """(c) The turn's hard limit is hit with no answer (R-F, founder ruling 2026-10-27); the page offers Send again;
+    the resend succeeds."""
     from backend.gateway import routes
     c0 = len(CALLS)
     case_id = _case(client, "SCENARIO (c) — a turn stopped at its deadline")
-    limit, reserve = routes.TURN_LIMIT_S, routes.TURN_CLOSE_RESERVE_S
-    routes.TURN_LIMIT_S, routes.TURN_CLOSE_RESERVE_S = 6.0, 1.0      # a 5 s window: a teaching turn runs ~20 s
+    limit, reserve = routes.TURN_HARD_LIMIT_S, routes.TURN_CLOSE_RESERVE_S
+    routes.TURN_HARD_LIMIT_S, routes.TURN_CLOSE_RESERVE_S = 6.0, 1.0  # a 5 s window: a teaching turn runs ~20 s
     try:
         h1, b1, s1 = _ask(client, case_id, OPENING)
     finally:
-        routes.TURN_LIMIT_S, routes.TURN_CLOSE_RESERVE_S = limit, reserve
+        routes.TURN_HARD_LIMIT_S, routes.TURN_CLOSE_RESERVE_S = limit, reserve
     time.sleep(2.0)
     h2, b2, s2 = _ask(client, case_id, OPENING)
     st = _case_state(client, case_id)
     replies = [t for t in st["history"] if t.get("role") == "ai"]
-    checks = {"the turn was stopped at its deadline": h1 == 200 and b1.get("answer") == routes.TURN_DEADLINE_REPLY,
+    checks = {"the turn was stopped at its hard limit": h1 == 200 and b1.get("answer") == routes.TURN_DEADLINE_REPLY
+              and b1.get("failed") == "time",
               "within the limit as the client measures it": s1 <= 6.5,
               "no Confirm offered on the stopped turn": b1.get("move") is None,
               "the resend is coached (teach business_case)": h2 == 200 and b2.get("move") == "teach"
