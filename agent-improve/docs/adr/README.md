@@ -85,7 +85,7 @@ Generated from each file's status line; never typed.
 | [0039](0039-four-layer-validation.md) | A four-layer validation stack with one shared cap of three | PROPOSED | — |
 | [0040](0040-two-tiers-and-warning.md) | Two tiers of field, and a warning verdict | PROPOSED | — |
 | [0041](0041-two-graders.md) | Two graders: coherence and coaching quality | SUPERSEDED by 0081 | — |
-| [0042](0042-contradiction-and-reapproval.md) | A contradiction of an approved value triggers re-approval | PROPOSED | — |
+| [0042](0042-contradiction-and-reapproval.md) | A contradiction of an approved value triggers re-approval | PROPOSED | refined by 0112 |
 | [0043](0043-native-reliability-primitives.md) | Reliability uses LangGraph's primitives, not a hand-written saga | PROPOSED | — |
 | [0044](0044-fallback-chain-and-breakers.md) | A four-level fallback chain and three-state circuit breakers | PROPOSED | — |
 | [0045](0045-geo-redundancy-deferred.md) | Geographic redundancy is deferred | PROPOSED | — |
@@ -154,4 +154,5 @@ Generated from each file's status line; never typed.
 | [0109](0109-kept-verdicts-ride-on-the-reply-that-changed-them.md) | The kept verdicts ride only on the reply whose turn changed them | ACCEPTED | refines 0066 |
 | [0110](0110-the-coach-reply-schema-types-its-captured-values.md) | The coach's reply schema types its captured values, citations and contradiction flag | ACCEPTED | refines 0073 |
 | [0111](0111-what-the-model-reads.md) | What the model reads | ACCEPTED | — |
+| [0112](0112-mismatch-feedback-in-the-coachs-reply.md) | Mismatch feedback in the coach's reply | ACCEPTED | refines 0042 |
 <!-- END ADR INDEX -->

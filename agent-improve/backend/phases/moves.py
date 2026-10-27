@@ -660,10 +660,11 @@ async def decide(phase: str, artifacts: dict[str, Any],
             after[nxt[0]] = {"status": ANSWERED, "answer": derived["belt_words"], "messages": 1, "pending": derived}
         elif nxt is not None:
             after[nxt[0]] = {"status": ASKED}
-        # R16 (DEF-021, DEF-082): what the change log needs from the read-back just confirmed.
+        # R16 (DEF-021, DEF-082): what the change log needs from the read-back just confirmed — with ADR-0112's
+        # mismatch, when one was told: the Belt confirming it keeps the answer, noted on its element's entry.
         return done(nxt[0] if nxt else None, nxt[1] if nxt else (), status, STORE_AND_ADVANCE,
                     store=store, stored_field=field,
-                    confirmed={k: pending.get(k) for k in ("belt_words", "reasons", "sources")})
+                    confirmed={k: pending.get(k) for k in ("belt_words", "reasons", "sources", "field", "mismatch")})
 
     if pending and action == CHANGE_CLICK and (pending.get("from_goal") or pending.get("from_offer")):
         # ADR-0086 — a Change of the target read from the goal teaches the element as usual; DEF-098, the same

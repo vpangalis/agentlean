@@ -197,6 +197,39 @@ def element_sources(phase: str, plan: Any) -> str:
     return "\n".join(lines or ([f"The Belt's words: {words}"] if words else []))
 
 
+def _mismatch_what(phase: str, flag: dict[str, Any]) -> str:
+    """ADR-0112: what the answer conflicts with, in plain words — a confirmed value by its display name (and the
+    phase that approved it, when an earlier one did), or the method's rule."""
+    from backend.core.prompts import MISMATCH_APPROVED, MISMATCH_CONFIRMED, MISMATCH_RULE
+    field, where = str(flag.get("prior_field") or "").strip(), str(flag.get("approved_phase") or "").strip().lower()
+    if not field or where in ("method", "the method") or field.lower() in ("method", "the method"):
+        return MISMATCH_RULE
+    name = display_name(where if where in PHASE_ORDER else phase, field)
+    if where in PHASE_ORDER and where != phase:
+        return MISMATCH_APPROVED.format(name=name, phase=where.capitalize())
+    return MISMATCH_CONFIRMED.format(name=name)
+
+
+def mismatch_line(phase: str, flag: Optional[dict[str, Any]], read_back: bool) -> str:
+    """ADR-0112 (founder ruling 2026-10-27): a mismatch the coach flagged, told to the Belt in code — what the answer
+    conflicts with, named, and the choice to correct it or keep it (on a read-back: Change or Confirm). "" with no
+    flag."""
+    from backend.core.prompts import MISMATCH_HOW, MISMATCH_HOW_READ_BACK, MISMATCH_LINE
+    if not flag:
+        return ""
+    return MISMATCH_LINE.format(what=_mismatch_what(phase, flag), value=str(flag.get("approved_value") or "").strip(),
+                                how=MISMATCH_HOW_READ_BACK if read_back else MISMATCH_HOW)
+
+
+def mismatch_kept(phase: str, flag: Optional[dict[str, Any]]) -> str:
+    """ADR-0112: what the answer's version history says when the Belt keeps an answer with a mismatch. "" with no
+    flag."""
+    from backend.core.prompts import MISMATCH_KEPT
+    if not flag:
+        return ""
+    return MISMATCH_KEPT.format(what=_mismatch_what(phase, flag), value=str(flag.get("approved_value") or "").strip())
+
+
 class BeforeModelStateInjection(AgentMiddleware):
     """Position 1. Project facts at the top of the prompt, once per turn.
 

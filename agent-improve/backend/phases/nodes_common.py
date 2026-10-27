@@ -1191,6 +1191,8 @@ def _build_executor(
                 sources=_grader_sources(phase, plan),
                 # G-254 (founder ruling 2026-10-27, item 3): given, never graded as the coach's own claim.
                 given=_grader_given(phase, state, plan.focus_field if plan else None),
+                # A1 (founder ruling 2026-10-27): this turn's planner judgment, given; G2's missing items.
+                decision=_grader_decision(phase, plan)[0], missing=_grader_decision(phase, plan)[1],
             ),
             ContradictionDetectionMiddleware(),
         ],
@@ -1332,11 +1334,17 @@ def _field_log_entries(
         if name and reason:
             reasons[name] = reason
 
+    # ADR-0112: an answer the Belt keeps despite the mismatch it was told — noted on its element's entry, dated.
+    from backend.middleware.state_injection import mismatch_kept
+    kept = mismatch_kept(phase, (pending or {}).get("mismatch"))
+    kept_on = str((pending or {}).get("field") or "")
+
     entries: list[dict[str, Any]] = []
     for field, value in captured.items():
         seen = field in prior
         if seen and prior[field] == value:
             continue
+        given = reasons.get(field) if seen else None
         entries.append({
             "key":         field_log_key(phase, turn, field),
             "field":       field,
@@ -1345,7 +1353,7 @@ def _field_log_entries(
             "value":       value,
             "prior_value": prior[field] if seen else None,
             "timestamp":   at,
-            "reason":      reasons.get(field) if seen else None,
+            "reason":      "; ".join(r for r in (given, kept if field == kept_on else "") if r) or None,
             "by":          by,                                       # R16: the signed-in person
             "source":      _value_source(field, value, pending),
         })
@@ -1489,6 +1497,21 @@ def _grader_context(phase: str, state: PhaseState, field: Optional[str]) -> str:
     display names, each value in its tag)."""
     from backend.middleware.state_injection import confirmed_values, turn_artifacts
     return "\n".join(confirmed_values(phase, turn_artifacts(state), field))
+
+
+def _grader_decision(phase: str, plan: Optional[CoachingPlan]) -> tuple[str, tuple[str, ...]]:
+    """A1 (founder ruling 2026-10-27): this turn's planner judgment, given to the grader — its verdict and what it
+    found missing, in words — and, on a challenge, the missing item G2's code check looks for in the reply: the
+    criterion not met, as the element's criteria say it, else the judgment's own words for what is missing."""
+    judgment = getattr(plan, "judgment", None) if plan is not None else None
+    if plan is None or judgment is None:
+        return "", ()
+    from backend.middleware.skills import acceptance_criteria
+    named = dict(acceptance_criteria(phase, plan.focus_field)) if plan.focus_field else {}
+    item = named.get(str(judgment.failed_criterion or "").strip(), "")
+    decision = f"{judgment.verdict} — {judgment.reason}" + (f" (the criterion not met: {item})" if item else "")
+    missing = item or (judgment.reason if judgment.verdict == "insufficient" else "")
+    return decision, ((missing,) if missing and plan.move == moves.CHALLENGE else ())
 
 
 def _grader_given(phase: str, state: PhaseState, field: Optional[str]) -> tuple[str, ...]:
@@ -2831,6 +2854,40 @@ def _sourced_numbers(phase: str, state: PhaseState, plan: Optional[CoachingPlan]
     return result, produced, unsourced, rejected, left_out, numbers_rejected, fell_back
 
 
+def _flag_of(reply: CoachingResponse | None) -> Optional[dict[str, Any]]:
+    """The reply's `contradiction_flag` as a dict, or None."""
+    flag = getattr(reply, "contradiction_flag", None) if reply is not None else None
+    if isinstance(flag, BaseModel):
+        return flag.model_dump()
+    return dict(flag) if isinstance(flag, dict) and flag else None
+
+
+def _mismatch_kept_note(phase: str, plan: Optional[CoachingPlan]) -> Optional[dict[str, Any]]:
+    """ADR-0112: on a Confirm of a read-back that carried a mismatch, what was kept — the element, the note and the
+    flag — for `step_log`; None otherwise."""
+    from backend.middleware.state_injection import mismatch_kept
+    confirmed = dict((plan.confirmed if plan is not None else None) or {})
+    note = mismatch_kept(phase, confirmed.get("mismatch"))
+    return {"field": confirmed.get("field"), "note": note, "flag": confirmed["mismatch"]} if note else None
+
+
+def _with_mismatch(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse) -> CoachingResponse:
+    """ADR-0112 (founder ruling 2026-10-27): a mismatch the coach flagged is told to the Belt in the reply, written in
+    code — what the answer conflicts with, and the choice to correct it or keep it — before the reply's closing
+    question. No pause, no interrupt: the conversation moves on."""
+    from backend.middleware.state_injection import mismatch_line
+    line = mismatch_line(phase, _flag_of(reply), read_back=plan is not None and plan.move == moves.READ_BACK)
+    message = str(reply.message or "")
+    if not line or line in message:
+        return reply
+    paragraphs = message.rstrip().split("\n\n")
+    if len(paragraphs) > 1 and paragraphs[-1].rstrip().endswith("?"):
+        message = "\n\n".join([*paragraphs[:-1], line, paragraphs[-1]])
+    else:
+        message = f"{message.rstrip()}\n\n{line}"
+    return reply.model_copy(update={"message": message})
+
+
 def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], reply: CoachingResponse | None,
                   new_messages: list, turn_type: str, written: Optional[CoachingResponse], *,
                   fell_back: bool, filtered: bool, level_4: Optional[str]
@@ -2853,6 +2910,7 @@ def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], r
                 calculations.latest(dict(state.get("artifacts") or {}), phase, plan.focus_field))
             if line and line not in (reply.message or ""):
                 reply = reply.model_copy(update={"message": f"{(reply.message or '').rstrip()}\n\n{line}"})
+        reply = _with_mismatch(phase, plan, reply)                 # ADR-0112: told in the reply, never a pause
         new_messages = _with_coaching_text(new_messages, reply)
 
         # The four presentational blocks are OPTIONAL, and an empty one is a
@@ -3051,6 +3109,9 @@ def _read_back_pending(phase: str, state: PhaseState, plan: Optional[CoachingPla
                                for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
                    "sources": {str(e.get("field_name")): str(e.get("source") or "")
                                for e in captures if e.get("field_name")}}
+        if _flag_of(reply):
+            # ADR-0112: the mismatch told with this read-back rides on it; a Confirm keeps it, dated, in the log.
+            pending["mismatch"] = _flag_of(reply)
         if pending.get("upload"):
             # ADR-0085 (G-169) — a read-back of an uploaded file: what a Confirm stores came from the file (R16).
             pending["sources"] = {**pending["sources"], **{f: "upload" for f in store}}
@@ -3821,9 +3882,9 @@ async def executor(
             remaining_steps=remaining or None,
             # For the audit trail; `ContradictionDetectionMiddleware` reads the
             # reply's flag during the turn.
-            contradiction_flag=(reply.contradiction_flag.model_dump()
-                                if reply and isinstance(reply.contradiction_flag, BaseModel)
-                                else reply.contradiction_flag if reply else None),
+            contradiction_flag=_flag_of(reply),
+            # ADR-0112: the Belt confirmed an answer it was told does not fit — kept, dated by this entry.
+            mismatch_kept=(_mismatch_kept_note(phase, plan) if move == moves.STORE_AND_ADVANCE else None),
         ), *(
             # Each grading the grader's `on_evaluation` sink collected, written
             # to `step_log`, so a verdict outlives the turn (capability row 13).

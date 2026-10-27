@@ -15,3 +15,8 @@ Contradiction detection raises a flag; the approved gate is re-opened through a 
 ## Consequences
 
 Depends on error handlers that undo external writes (T-list T29).
+
+## Notes
+
+Note (founder, 2026-10-27): its deferral to Measure — DEF-040's pause node — is superseded by ADR-0112: a mismatch is
+told in the coach's reply, the Belt corrects or keeps it, and the conversation moves on; no pause, no new node.

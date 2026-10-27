@@ -5802,6 +5802,49 @@ def test_g174_a_value_with_a_placeholder_is_challenged_never_offered_for_confirm
     assert _askd(env, message=voc + " Status within 1 working day.")["move"] == moves.READ_BACK
 
 
+def test_adr_0112_a_mismatch_is_told_in_the_reply_and_a_kept_answer_is_recorded_dated(env, monkeypatch,
+                                                                                         stub_planner) -> None:
+    """ADR-0112 (founder ruling 2026-10-27, B4–B6), through the routes and graph: the coach flags that the barriers
+    name a site the confirmed scope leaves out; the reply, written in code, names the scope and its value and offers
+    to correct it or keep it (Change / Confirm); there is no pause — the read-back is offered as usual. The Belt
+    confirms: the answer is stored, and its version-history entry (dated) and the turn's step_log say it was kept
+    despite the mismatch."""
+    from langchain_core.messages import AIMessage
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    steps: list = []
+    monkeypatch.setattr(nodes_common, "_step", _recording(nodes_common._step, steps))
+    _at_element(env, "issues_and_barriers")
+    _coach_with(monkeypatch, "Next: the issues and barriers.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names a concrete barrier")
+    words = "The Leeds distribution centre keeps goods-received notes on paper until each Friday."
+    flag = {"prior_field": "project_scope", "approved_value": "PO invoices", "approved_phase": "define",
+            "proposed_value": "the Leeds distribution centre", "belt_input": words}
+    reply = {**REPLY, "message": "Your barrier: the Leeds distribution centre's paper notes.\n\nIs this right?",
+             "fields_captured": [{"field_name": "issues_and_barriers", "value": words, "source": "belt"}],
+             "contradiction_flag": flag}
+    real = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "call_m1"}])]))
+        if role == "coach" else real(role, **kw))
+    told = _askd(env, message=words)
+    assert told["move"] == moves.READ_BACK, told["answer"]
+    assert "This does not fit the Scope you confirmed: “PO invoices”" in told["answer"], told["answer"]
+    assert "Change corrects it; Confirm keeps it" in told["answer"], told["answer"]
+    _coach_with(monkeypatch, "Stored.")
+    _askd(env, message="Confirm", action="confirm")
+    assert _define(env)["structured"].get("issues_and_barriers") == words
+    entry = [e for e in _define(env).get("field_log") or [] if e.get("field") == "issues_and_barriers"][-1]
+    assert entry["reason"] == "kept despite a mismatch with the Scope you confirmed: “PO invoices”", entry
+    assert entry["timestamp"], entry
+    kept = [s["mismatch_kept"] for s in steps if s.get("mismatch_kept")]
+    assert kept and kept[-1]["field"] == "issues_and_barriers" and kept[-1]["flag"]["prior_field"] == "project_scope"
+
+
 def test_g272_a_need_the_belt_stated_in_brackets_is_not_a_placeholder(env, monkeypatch, stub_planner) -> None:
     """G-272 (the final run of 2026-10-27, define_runthrough_20261027T114411, stuck at the team): the Belt wrote
     "Dev and Amira need a half-day on data collection before Measure", the coach wrote it into a member's function

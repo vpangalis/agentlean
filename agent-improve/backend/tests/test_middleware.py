@@ -930,8 +930,9 @@ def test_contradiction_middleware_reads_a_flag_and_detects_nothing() -> None:
         ("threshold", "§37 — no tolerance threshold, and none may be added"),
     ):
         assert banned not in body, f"{banned}: {why}"
-    # Founder ruling 2026-10-13: it detects and never pauses here — the pause is DEF-040, a node.
-    assert "DEF-040" in body, "the middleware no longer points to where the pause lives"
+    # Founder ruling 2026-10-13: it detects and never pauses here; 2026-10-27 (ADR-0112): there is no pause at all —
+    # the Belt is told in the reply.
+    assert "ADR-0112" in body, "the middleware no longer points to where the Belt is told"
     # The docstring may explain what was removed; the CODE may not do it.
     assert "store.get" not in body.replace(
         inspect.getdoc(ContradictionDetectionMiddleware) or "", "")
@@ -1034,7 +1035,7 @@ def test_coherence_is_not_a_rubric_criterion() -> None:
     assert "coheren" not in COACHING_QUALITY_RUBRIC.lower()
     assert "gibberish" not in COACHING_QUALITY_RUBRIC.lower()
     assert [line[2:4] for line in COACHING_QUALITY_RUBRIC.splitlines() if line.startswith("- G")] == \
-        ["G1", "G2", "G3", "G4", "G5"], "the founder's five criteria (2026-10-14); a sixth needs a ruling"
+        ["G1", "G2", "G3", "G4", "G5", "G6"], "the founder's criteria (2026-10-14; G6 ruled 2026-10-27, ADR-0112)"
     assert "url" not in COACHING_QUALITY_RUBRIC.lower(), "external URLs are a code check, not a criterion"
 
 
@@ -1051,15 +1052,18 @@ def test_the_grader_rubric_g1_to_g5_as_ruled() -> None:
     from backend.phases.nodes_common import _element_purpose
     from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
 
-    # the explicit table, as ruled
-    assert G.MOVE_CRITERIA["read_back"] == ("G1", "G2", "G3")          # G4 on every move but a read-back
-    assert G.MOVE_CRITERIA["challenge"] == ("G1", "G2", "G3", "G4")
-    assert all("G2" not in G.MOVE_CRITERIA[m] for m in ("teach", "store_and_advance", "respond", "offer_park"))
+    # the explicit table, as ruled — founder ruling 2026-10-27 (A): the model judges G1, G3, G4's quality and G6;
+    # G2 and G4's order are checked in code
+    assert G.MOVE_CRITERIA["read_back"] == ("G1", "G3", "G6")          # G4 on every move but a read-back
+    assert G.MOVE_CRITERIA["challenge"] == ("G1", "G3", "G4", "G6")
+    assert all("G2" not in ids for ids in G.MOVE_CRITERIA.values()), "G2 is code's, never the model's"
+    assert G.CODE_CRITERIA["challenge"] == ("G2",) and G.CODE_CRITERIA["teach"] == (G.G4_ORDER,)
     assert all(c in ids for ids in G.MOVE_CRITERIA.values() for c in ("G1", "G3"))
     assert "G5" not in G.criteria_for("teach", "define") and "G5" in G.criteria_for("teach", "measure") \
         and "G5" in G.criteria_for("read_back", "analyse")
     assert not hasattr(G, "MOVE_EXCLUDES")
-    assert "G4 GUIDES" not in G.rubric_for_move("read_back") and "G2 HANDLES" in G.rubric_for_move("challenge")
+    assert "G4 GUIDES" not in G.rubric_for_move("read_back") and "G2 CARRIES" not in G.rubric_for_move("challenge")
+    assert "G6 NAMES A MISMATCH" in G.rubric_for_move("challenge")
     assert G.applies("G2", "challenge") and not G.applies("G2", "teach") and G.applies(G.NO_URLS, "teach")
     assert G.GRADER_MODE == "log_only"
 
@@ -1094,7 +1098,8 @@ def test_the_grader_rubric_g1_to_g5_as_ruled() -> None:
     finally:
         grader_module.get_llm = original                          # type: ignore[assignment]
     by = {c.criterion: c.status for c in graded.criteria}
-    assert by == {"G1": "pass", "G2": "fail", "G3": "pass"}, by   # G3 unquoted: not counted; G4 not asked
+    # G3 unquoted: not counted; G4 not asked; G2 is code's (founder ruling 2026-10-27, A) — the model's G2 is not kept
+    assert by == {"G1": "pass", "G3": "pass"}, by
     assert mw._uncounted == [{"criterion": "G3", "feedback": "invented", "evidence": "a sentence not in it"}]
     prompt = seen[0]
     assert "late payments cost £62,000" in prompt and "Acceptance criteria:" in prompt
@@ -1498,3 +1503,79 @@ def test_position_1_wrap_encloses_position_4_retry() -> None:
         f"{counts['model']} attempts — position 4 now encloses position 1, "
         f"so every retry rebuilds the request"
     )
+
+
+def test_founder_ruling_2026_10_27_a_g2_and_g4_order_are_code_checks_and_unknown_is_never_a_fail() -> None:
+    """Founder ruling 2026-10-27 (A): the grader no longer re-decides whether the Belt's answer is complete — it is
+    given this turn's planner judgment. G2 (the reply carries out that decision) and G4's order (a teaching turn
+    explains before it asks) are code checks; the model judges G1, G3, G4's quality and G6, and any criterion may be
+    "unknown" — recorded, never counted as a fail."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from backend.middleware import grader as G
+    from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
+
+    def st(result: Any) -> str:
+        assert result is not None
+        return str(result.status)
+
+    # G2 on a challenge: the missing item the planner named — pass when the reply names it, fail (saying what to
+    # name) when it does not, unknown when the planner named none; on a read-back: the answer read back
+    item = "names the process step(s) where the problem shows (R18)"
+    asked = "Which process steps does the problem show at?"
+    response = SimpleNamespace(message=asked, fields_captured=[])
+    assert st(G.decision_check("challenge", (item,), response, asked)) == "pass"
+    vague = G.decision_check("challenge", (item,), response, "Tell me more about the cost.")
+    assert vague is not None and vague.status == "fail" and "process step" in vague.feedback, vague
+    assert st(G.decision_check("challenge", (), response, asked)) == "unknown"
+    assert st(G.decision_check("read_back", (), SimpleNamespace(fields_captured=[{"field_name": "team"}]), "")) \
+        == "pass"
+    assert st(G.decision_check("read_back", (), SimpleNamespace(fields_captured=[]), "")) == "fail"
+    assert G.decision_check("teach", (item,), response, asked) is None
+    # G4's order on a teaching turn: a question in the message, shown before the explanation, fails, quoted
+    early = G.order_check("teach", SimpleNamespace(message="Ready to define the team? Let's start."))
+    assert early is not None and early.status == "fail" and early.evidence == "Ready to define the team?", early
+    assert st(G.order_check("teach", SimpleNamespace(message="The team is who does the work."))) == "pass"
+    assert st(G.order_check("teach", None)) == "unknown" and G.order_check("read_back", None) is None
+    # the model's "unknown" is kept, never a fail; the planner's judgment reaches the prompt, given
+    seen: list[str] = []
+
+    class _Model:
+        def with_structured_output(self, schema, **_):
+            return self
+
+        async def ainvoke(self, prompt):
+            seen.append(prompt)
+            return CoachingGraderVerdict(criteria=[CriterionResult(criterion="G1", status="unknown"),
+                                                   CriterionResult(criterion="G6", status="pass")])
+    mw = G.DMAICGraderMiddleware("define", move="read_back", decision="sufficient — names the training")
+    original = G.get_llm
+    G.get_llm = lambda role, **kw: _Model()          # type: ignore[assignment]
+    try:
+        verdict = asyncio.run(mw._grade("Training: Dev needs a half-day.", "Your team, read back. Is this right?"))
+    finally:
+        G.get_llm = original                          # type: ignore[assignment]
+    assert {c.criterion: c.status for c in verdict.criteria} == {"G1": "unknown", "G6": "pass"} and verdict.passed
+    assert "sufficient — names the training" in seen[0] and "G6 NAMES A MISMATCH" in seen[0]
+
+
+def test_adr_0112_the_mismatch_line_names_what_the_answer_conflicts_with_and_offers_the_choice() -> None:
+    """ADR-0112 (founder ruling 2026-10-27, B4): the line code writes when the coach flags a mismatch — a value this
+    phase confirmed, a value an earlier phase approved, or the method's rule — with the choice to correct or keep;
+    on a read-back the choice is the card's Change and Confirm. Kept, the version history says so."""
+    from backend.middleware.state_injection import mismatch_kept, mismatch_line
+
+    flag = {"prior_field": "project_scope", "approved_value": "PO invoices at three sites", "approved_phase": "define",
+            "proposed_value": "Leeds", "belt_input": "Leeds"}
+    assert mismatch_line("define", flag, read_back=True) == (
+        "This does not fit the Scope you confirmed: “PO invoices at three sites”. You can correct your answer, or "
+        "keep it as it is — Change corrects it; Confirm keeps it, noted with today's date.")
+    assert mismatch_line("define", flag, read_back=False).endswith("keep it as it is — tell me which.")
+    earlier = {**flag, "prior_field": "baseline_estimate", "approved_value": "23%"}
+    assert "the Primary metric and baseline approved in Define: “23%”" in mismatch_line("measure", earlier, False)
+    rule = {**flag, "prior_field": "the method", "approved_value": "the saving cannot exceed the cost of the gap",
+            "approved_phase": "method"}
+    assert mismatch_line("define", rule, read_back=False).startswith("This does not fit the method: “the saving")
+    assert mismatch_line("define", None, read_back=True) == "" and mismatch_kept("define", None) == ""
+    assert mismatch_kept("define", flag) == "kept despite a mismatch with the Scope you confirmed: “PO invoices at three sites”"

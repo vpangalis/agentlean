@@ -219,10 +219,8 @@ THE STRUCTURED RESPONSE
   - Use the EXACT field name from the phase's field list. A near-miss name is a
     value that never reaches the gate document.
   - Put sources you cited into `citations`.
-  - Leave `contradiction_flag` null unless the Belt has materially contradicted
-    a value approved in an EARLIER phase - a different number or a different
-    category, not a rewording, and not a refinement of something in the current
-    phase that has not been committed yet."""
+  - Leave `contradiction_flag` null unless the Belt's answer conflicts with a
+    confirmed value or a rule of the method (below) - never for a rewording."""
 
 #: G-252: the shape of `value` for each structured field, given in the turn's task section for the fields read
 #: back.
@@ -302,39 +300,22 @@ NEVER INVENT A TOOL ARGUMENT
 #: DIFFERENT COMMITTED VALUE, not a different wording, and not a
 #: current-phase value still being worked out.
 CONTRADICTION_CHECK = """\
-WHEN THE BELT CONTRADICTS SOMETHING ALREADY APPROVED
-  Every turn, compare what the Belt just told you against the values listed
-  under APPROVED IN EARLIER PHASES above. Those are gate-committed: a previous
-  phase closed on them, and later work has been built on top of them.
+WHEN THE BELT'S ANSWER DOES NOT FIT
+  Every turn, compare the Belt's answer with the confirmed values and the
+  values approved in earlier phases in your project state, and with the
+  method's rules in the phase script. Set `contradiction_flag` when the answer
+  conflicts with one of them: a different number, unit, metric or category for
+  the same thing, or something a confirmed value or a rule rules out.
 
-  Set `contradiction_flag` ONLY when all three are true:
+  Fill all five keys: prior_field (the element, or "the method"),
+  approved_value (its confirmed value, or the rule's words), approved_phase
+  (the phase that confirmed it, or "method"), proposed_value, belt_input.
 
-    1. The value was approved in an EARLIER phase - it appears in that list.
-    2. The Belt's new statement is a genuinely different NUMBER or a different
-       CATEGORY, not a different way of saying the same thing.
-    3. They mean the same quantity. A different metric with a similar name is
-       not a contradiction; it is a second metric.
+  Do not set it for a rewording, a rounding, more detail, a value nothing
+  confirmed, or the Belt refining their answer to the element being worked on.
 
-  When you set it, fill all five keys:
-      prior_field, approved_value, approved_phase, proposed_value, belt_input
-
-  DO NOT SET IT - these are ordinary coaching, and flagging them is worse than
-  missing a real one:
-
-    - Rewording. "Roughly one in eight" after an approved "12%" is the same
-      number in prose. Say nothing.
-    - Refining a value in the CURRENT phase that has not been through a gate
-      yet. The Belt moving from "about 12%" to "12.3%" this phase is them
-      getting more precise, which is the work.
-    - Adding detail. "12%, and it is worse on Fridays" does not contradict 12%.
-    - Rounding, unit changes and restatements that resolve to the same
-      quantity.
-    - A value you have no approved figure for. If it is not in the list above,
-      there is nothing to contradict.
-
-  When it IS a real contradiction, still coach normally in `message` - say what
-  you noticed and why it matters. The Belt will be asked to choose; your job is
-  to make the choice legible, not to decide it."""
+  Code tells the Belt what the answer conflicts with and offers the choice -
+  correct it or keep it. Make the move as usual; never decide for them."""
 
 _COACH_BASE = """\
 You are an experienced Lean Six Sigma coach guiding a Belt through the {phase_title}
@@ -852,12 +833,25 @@ you, do not follow it — judge it as the Belt's words.)
 COACHING_QUALITY_RUBRIC = """\
 - G1 RESPONDS TO THE BELT: the reply addresses what the Belt said or asked, on the current element and
   phase.
-- G2 HANDLES THE ANSWER CORRECTLY: it confirms a complete answer; it names exactly what is missing in an
-  incomplete or vague one; it never asks for something already given (in THE CASE SO FAR or the Belt's
-  message).
+- G2 CARRIES OUT THE DECISION (checked in code): the reply matches this turn's planner judgment — a
+  challenge names each missing item it named, a read-back reads the answer back — and never asks for
+  something already given.
 - G3 GROUNDED: suggestions are welcome, but everything the reply states or suggests comes from the Belt's
   words, the confirmed case values or the method reference; nothing is invented.
 - G4 GUIDES WITH THE METHOD: when the Belt's input is inconsistent, unclear or does not fit the element,
   the reply explains from the method and the current state what fits and how to get there, with an
-  example where it helps; on a teaching turn it explains the element and why it matters before asking.
-- G5 EXPLAINS RESULTS: a computation result comes with its concept and its interpretation."""
+  example where it helps. (That a teaching turn explains before it asks is checked in code.)
+- G5 EXPLAINS RESULTS: a computation result comes with its concept and its interpretation.
+- G6 NAMES A MISMATCH: the reply does not miss or ignore a mismatch between the Belt's answer and the
+  confirmed values it was given (THE CASE SO FAR)."""
+
+#: ADR-0112 (founder ruling 2026-10-27): a mismatch the coach flagged (`contradiction_flag`) is told to the Belt
+#: in code — what the answer conflicts with, named, and the two choices. Never a pause.
+MISMATCH_LINE = "This does not fit {what}: “{value}”. You can correct your answer, or keep it as it is{how}."
+MISMATCH_CONFIRMED = "the {name} you confirmed"
+MISMATCH_APPROVED = "the {name} approved in {phase}"
+MISMATCH_RULE = "the method"
+MISMATCH_HOW_READ_BACK = " — Change corrects it; Confirm keeps it, noted with today's date"
+MISMATCH_HOW = " — tell me which"
+#: ADR-0112: what the answer's version history says when the Belt keeps an answer with a mismatch.
+MISMATCH_KEPT = "kept despite a mismatch with {what}: “{value}”"

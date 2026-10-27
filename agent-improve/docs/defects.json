@@ -3447,6 +3447,20 @@
    ],
    "escape_class": "path_test",
    "symptom": "FIXED (2026-10-27) — A NEED THE BELT STATED, WRITTEN IN BRACKETS, WAS TAKEN FOR A PART LEFT UNFILLED. The final run of the 2026-10-27 rulings (define_runthrough_20261027T114411, kept as failed_…, not counted) stuck at the team after 6 turns: the Belt wrote 'Training: Dev and Amira need a half-day on data collection before Measure', the coach wrote it into the members' function as '(needs a half-day of training on data collection before Measure)', and G-174's placeholder check (nodes_common._PLACEHOLDER, its '(needs …)' form) challenged it three turns running. Runs 4 and 5 wrote the same need without brackets. D4 OCCURRENCE: the '(needs …)' form matched on its shape alone, never asking whose words it holds. D4 ESCAPE: G-174's test fed a coach's note ('(needs measurable requirement)'), never the Belt's own need in brackets. FIX: nodes_common.placeholders reads the Belt's words for the element (pending belt_words): a '(needs …)' at least two and three in four of whose words are the Belt's is theirs; square brackets, TBD/TBC and '??' stay placeholders. VERIFY: test_define_e2e.py::test_g272_… (through the routes and graph: read back for Confirm; the same note the Belt never said is still a gap) and G-174's test unchanged."
+  },
+  {
+   "id": "G-273",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-021"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "assumption",
+   "symptom": "FIXED (founder ruling 2026-10-27, ADR-0112) — A MISMATCH THE COACH DETECTS NEVER REACHED THE BELT. The coach set contradiction_flag every turn, but only for values approved in an EARLIER phase, and nothing reached the Belt: the flag was logged, and the pause was DEF-040, a node never built. The founder's purpose for the judges (2026-10-14): the Belt gets feedback when an entry does not fit the confirmed values or the BB reference book, then moves on. D4 OCCURRENCE: detection was scoped to earlier phases, and the Belt-facing half waited on a pause node. D4 ESCAPE: no eval task had an answer that conflicts with a confirmed value. FIX (ADR-0112): the flag covers this phase's confirmed values and the method's rules (prompts.CONTRADICTION_CHECK); the executor tells the Belt in the reply, in code, what the answer conflicts with and offers to correct or keep it (state_injection.mismatch_line); a Confirm keeps it, noted in field_log.reason and step_log (mismatch_kept); no pause. VERIFY: test_define_e2e.py::test_adr_0112_…, test_middleware.py's mismatch-line test; eval tasks E21–E24 (and Measure's M01, recorded)."
   }
  ],
  "escape_controls": {

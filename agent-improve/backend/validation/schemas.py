@@ -38,7 +38,7 @@ class CriterionResult(BaseModel):
     **No `tier` field** — see the module docstring and G-12.
     """
 
-    criterion: str = Field(description="The criterion's id: G1, G2, G3, G4 or G5.")
+    criterion: str = Field(description="The criterion's id: G1 to G6.")
     evidence: str = Field(
         default="",
         description=(
@@ -46,8 +46,9 @@ class CriterionResult(BaseModel):
             "Empty on a pass. A fail without it is not counted (founder ruling 2026-10-14)."
         ),
     )
-    status: Literal["pass", "fail"] = Field(
-        description="Whether the coach met this criterion on this turn.",
+    status: Literal["pass", "fail", "unknown"] = Field(
+        description="Whether the coach met this criterion on this turn; 'unknown' when what you were given does "
+                    "not let you decide (recorded, never counted as a fail).",
     )
     feedback: str = Field(
         default="",

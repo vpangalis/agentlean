@@ -347,7 +347,8 @@ def test_each_move_is_graded_only_on_what_it_does() -> None:
     assert [m for m in ("teach", "challenge", "read_back", "store_and_advance", "respond")
             if applies("G5", m, "measure")] == ["teach", "challenge", "read_back", "store_and_advance", "respond"]
     assert not any(applies("G5", m, "define") for m in ("teach", "challenge", "read_back"))
-    assert "G2 HANDLES" not in rubric_for_move("teach") and "G2 HANDLES" in rubric_for_move("challenge")
+    # founder ruling 2026-10-27 (A): G2 is checked in code — never in the model's rubric
+    assert "G2 CARRIES" not in rubric_for_move("teach") and "G2 CARRIES" not in rubric_for_move("challenge")
 
 
 def test_section_4_leaves_out_what_this_turns_move_does_not_do() -> None:

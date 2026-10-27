@@ -41,12 +41,13 @@ So a pause uses graph-level **`interrupt()`** + `Command(resume=...)`, never
 `HumanInTheLoopMiddleware`. **`HITLInterrupt` is deliberately NOT defined**: a
 class whose documented use does not interrupt would be a trap.
 
-IT DETECTS; IT DOES NOT PAUSE
------------------------------
-**Detection runs every turn and the flag reaches the response.** The pause is
-not here: an `interrupt()` inside the agent parks the whole case, and a
-resumed node reruns from its start. The pause is DEF-040 — a node that writes
-nothing — required before Measure goes live.
+IT DETECTS; IT NEVER PAUSES — ADR-0112
+--------------------------------------
+**Detection runs every turn and the flag reaches the response.** There is no
+pause (founder ruling 2026-10-27, ADR-0112; DEF-040's pause node is dropped):
+the executor tells the Belt in the reply, in code, what the answer conflicts
+with and offers the choice to correct or keep it (`state_injection.
+mismatch_line`); a kept answer is recorded, dated, and the conversation moves on.
 """
 from __future__ import annotations
 
@@ -61,7 +62,7 @@ logger = logging.getLogger(__name__)
 
 
 class ContradictionDetectionMiddleware(AgentMiddleware):
-    """Position 6, `after_agent`. Flag in, logged; the pause is DEF-040.
+    """Position 6, `after_agent`. Flag in, logged; the Belt is told in the reply (ADR-0112).
 
     **G-24 leaves the constructor unstated**; this one takes nothing, because
     reading a flag off the response needs nothing.
@@ -78,11 +79,10 @@ class ContradictionDetectionMiddleware(AgentMiddleware):
             flag.get("prior_field"), flag.get("approved_phase"),
             flag.get("approved_value"), flag.get("proposed_value"),
         )
-        # The pause is DEF-040: a node that writes nothing, before Measure goes live.
+        # ADR-0112: no pause — the executor tells the Belt in the reply and offers correct or keep.
         logger.warning(
-            "%s: contradiction DETECTED — the pause is DEF-040, not built; the "
-            "flag rides on the response for §37 (step 7.6). Field %r, "
-            "approved %r in %s, Belt now says %r",
+            "%s: mismatch DETECTED — told in the reply (ADR-0112). Field %r, "
+            "confirmed %r in %s, Belt now says %r",
             self.name, flag.get("prior_field"), flag.get("approved_value"),
             flag.get("approved_phase"), flag.get("proposed_value"),
         )

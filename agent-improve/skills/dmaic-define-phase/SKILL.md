@@ -391,17 +391,14 @@ benefits analysis's `cost_of_gap`, which the Belt confirms in their own words.
 
 ---
 
-### The contradiction check — every turn
+### The mismatch check — every turn
 
-**Compare the Belt's input against the values already committed in earlier
-phases**, and when it materially contradicts one, set
-`CoachingResponse.contradiction_flag` rather than coaching past it.
-
-**Define is the phase where this almost never fires, and that is correct.**
-There is no earlier phase, so on a first project there is nothing committed to
-contradict. **Do NOT flag the Belt refining their own Define values** — those
-have not been through a gate yet. Flag material numeric or categorical
-contradictions of COMMITTED values only.
+**Compare the Belt's answer with the values already confirmed** — in Define the
+elements before this one — **and with the method's rules**, and when it does not
+fit one, set `CoachingResponse.contradiction_flag` rather than coaching past it
+(ADR-0112). Code tells the Belt what the answer conflicts with and offers the
+choice: correct it, or keep it. **Do NOT flag the Belt refining their answer to
+the element being worked on**, a rewording or added detail.
 
 ---
 

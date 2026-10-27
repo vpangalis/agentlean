@@ -235,9 +235,9 @@ CONTRADICTION_FLAG_KEYS: tuple[str, ...] = (
 
 #: G-252: what each key of a contradiction flag holds, in plain words.
 _FLAG_MEANING: dict[str, str] = {
-    "prior_field": "The field whose approved value is contradicted.",
-    "approved_value": "The value approved in the earlier phase.",
-    "approved_phase": "The phase that approved it.",
+    "prior_field": "The element it conflicts with, or 'the method'.",
+    "approved_value": "Its confirmed value, or the rule.",
+    "approved_phase": "The phase that confirmed it, or 'method'.",
     "proposed_value": "The value the Belt now gives.",
     "belt_input": "The Belt's words that contradict it.",
 }
@@ -271,7 +271,7 @@ class Citation(BaseModel):
 # Built from the keys, so CONTRADICTION_FLAG_KEYS stays the one definition (G-252).
 ContradictionFlag = create_model(  # type: ignore[call-overload]
     "ContradictionFlag",
-    __doc__="A material contradiction of a value approved in an earlier phase.",
+    __doc__="A mismatch with a confirmed value or a rule of the method.",
     **{k: (str, Field(description=_FLAG_MEANING[k])) for k in CONTRADICTION_FLAG_KEYS},
 )
 
@@ -293,7 +293,7 @@ class CoachingResponse(BaseModel):
     citations: list[Citation] = Field(default_factory=list, description="The sources this reply relies on.")
     contradiction_flag: Optional[ContradictionFlag] = Field(  # type: ignore[valid-type]
         default=None,
-        description="Set only when the Belt materially contradicts a value approved in an earlier phase.")
+        description="Set only when the answer conflicts with a confirmed value or a rule of the method.")
 
     @field_validator("fields_captured", mode="before")
     @classmethod
