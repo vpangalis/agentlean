@@ -9924,10 +9924,18 @@ def test_63_each_turn_logs_its_steps_and_a_read_back_is_no_finding(env, monkeypa
 
 def test_a_span_in_two_places_is_kept_when_each_quote_is_the_belts() -> None:
     """DEF-256 — wave 0 (founder test 2026-10-27, #59; the founder's own business case): the planner quotes the SHORTEST words
-    per criterion — its 600-750-token spans timed its 10 s call out — and evidence in two places of the answer comes
-    as quotes joined by " … ", kept when each quote is verbatim. A passage stitched into words the Belt never wrote
-    is still dropped."""
+    per criterion — its 600-750-token spans timed its 10 s call out — and when the model joins two places of the answer
+    with " … " (it does so unasked), the span is kept when each quote is verbatim. A passage stitched into words the
+    Belt never wrote is still dropped. G-343: the wording asks for no join — an instruction to join with " … " made
+    the judgment run away (U+007F to 16,384 tokens) on the founder's complete SIPOC, every attempt, live — and the
+    planner's output has a ceiling."""
+    from backend.core import llm
+    from backend.core.substate import SufficiencyJudgment
     from backend.phases.define import templates
+
+    wording = SufficiencyJudgment.model_fields["criterion_spans"].description or ""
+    assert "SHORTEST" in wording and "character for character" in wording and "…" not in wording, wording
+    assert llm.get_llm("planner").max_tokens == llm.ROLE_MAX_TOKENS["planner"] == 1000
 
     answer = ("In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we "
               "promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs "

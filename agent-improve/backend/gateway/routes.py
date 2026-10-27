@@ -396,7 +396,8 @@ async def _run_coaching_turn(graph, state: Any, config: dict, http: Request, bas
     record = current_turn()
     if record is not None:
         record["answered"] = None
-        record["steps"].append(("retry", 0.0))
+        record["steps"].append(("retry", round(time.time() - record["arrived"], 2)))   # when it started
+        record["retry_started"] = time.time()
     again = {**config, "configurable": {**(config.get("configurable") or {}), "checkpoint_id": base}}
     return await _run_turn(graph, state, again, http, deadline=True)
 
@@ -427,7 +428,8 @@ async def _run_turn_held(graph, state: Any, config: dict, http: Request, deadlin
     is done."""
     record = current_turn() if deadline else None
     if record is not None:
-        turn_step("before the graph", time.time() - record["arrived"])
+        # A retry's own time before its graph, from when the retry started — not from the turn's arrival.
+        turn_step("before the graph", time.time() - float(record.get("retry_started") or record["arrived"]))
     task = asyncio.create_task(graph.ainvoke(state, config=config, durability=GRAPH_DURABILITY))
     watch = asyncio.create_task(_until_disconnect(http))
     left = None
@@ -918,24 +920,25 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     )
 
 
-#: #63 (founder test 2026-10-27): the steps of one coaching turn, in the order they run, as the log names them.
-_TIMING_ORDER = ("before the graph", "input guard", "planner judgment", "planner judgment (failed)", "coach",
-                 "grader")
-
-
 def _log_turn_timing(record: Optional[dict]) -> None:
-    """#63: one INFO line per step of this turn — before the graph, the input guard, each planner judgment, the
-    coach, the grader, then what ran after the answer (the remaining steps and the save) and the total. The coach's
-    time is its agent run less the grader inside it. Read from the turn's record (`request_context`)."""
+    """#63: one INFO line per step of this turn, in the order the steps ran — before the graph, the input guard, each
+    planner judgment, the coach, the grader (a retry's steps after its own "retry" line) — then what ran after the
+    answer (the remaining steps and the save) and the total. The coach's time is its agent run less the grader inside
+    it, placed before that grader. Read from the turn's record (`request_context`)."""
     if not record:
         return
-    steps = list(record.get("steps") or [])
-    agent = sum(s for n, s in steps if n == "coach and grader")
-    grader = sum(s for n, s in steps if n == "grader")
-    lines = [(n, s) for n, s in steps if n != "coach and grader"]
-    if agent:
-        lines.append(("coach", round(max(0.0, agent - grader), 2)))
-    lines.sort(key=lambda x: _TIMING_ORDER.index(x[0]) if x[0] in _TIMING_ORDER else len(_TIMING_ORDER))
+    lines: list[tuple[str, float]] = []
+    grader_at: Optional[int] = None
+    for name, seconds in record.get("steps") or []:
+        if name == "coach and grader":
+            graded = lines[grader_at][1] if grader_at is not None else 0.0
+            lines.insert(grader_at if grader_at is not None else len(lines),
+                         ("coach", round(max(0.0, seconds - graded), 2)))
+            grader_at = None
+            continue
+        if name == "grader":
+            grader_at = len(lines)
+        lines.append((name, seconds))
     answered, done, now = record.get("answered"), record.get("graph_done"), time.time()
     if answered and done:
         lines.append(("after the answer (steps, save)", round(done - answered, 2)))

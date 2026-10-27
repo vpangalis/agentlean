@@ -127,6 +127,12 @@ ROLE_TIMEOUTS: dict[str, float] = {
     "intent": 8.0,
 }
 
+#: Wave 0 (founder test 2026-10-27, G-343): a role's output ceiling when its call site passes none. The planner's
+#: judgment ran away on the founder's SIPOC — U+007F to the 16,384-token default, 87 s, every attempt — while a
+#: sound judgment writes 165-757 tokens; the ceiling ends a runaway at a bounded cost and the node's retry policy
+#: and the turn's retry (ADR-0113) take it from there.
+ROLE_MAX_TOKENS: dict[str, int] = {"planner": 1000}
+
 #: The two upload calls — the interpretation
 #: (`extraction`) and the image read (`vision`) — pass this as `get_llm(..., timeout=)`. A file's
 #: reading runs longer than a lookup's query variants, which keep the extraction role's 8 s.
@@ -270,6 +276,8 @@ def get_llm(
 
     if temperature is None:
         temperature = role_temperature(role)
+    if max_tokens is None:
+        max_tokens = ROLE_MAX_TOKENS.get(role)
 
     with _BUILD_LOCK:
         return _build_llm(deployment, temperature, max_tokens,

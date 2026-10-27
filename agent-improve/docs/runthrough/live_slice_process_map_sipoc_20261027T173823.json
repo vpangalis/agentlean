@@ -1,0 +1,173 @@
+{
+ "kind": "live_slice",
+ "element": "process_map_sipoc",
+ "case_id": "IMPR-2026-UPC665",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "slice_messages_founder_1027.json",
+ "recorded_product_hash": null,
+ "product_hash": "a25619b94715289d",
+ "seeded": [
+  "baseline_estimate",
+  "benefits_analysis",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "secondary_metrics",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "Suppliers: customers, field technicians, the spare-parts team. Inputs: the complaint by phone or e-mail, customer and device data, technician reports. Process: (1) log the complaint — about 15 minutes",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 31.8,
+   "failed": null,
+   "answer": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in *",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.58 s",
+    "input guard 1.19 s",
+    "planner judgment 6.84 s",
+    "coach 12.98 s",
+    "grader 7.64 s",
+    "after the answer (steps, save) 1.83 s",
+    "total 31.78 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Change",
+   "action": "change",
+   "http": 200,
+   "move": "challenge",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 3.4,
+   "failed": null,
+   "answer": "Suppliers: customers, field technicians, the spare-parts team. Inputs: the complaint by phone or e-mail, customer and device data, technician reports. Process: (1) log the complaint — about 15 minutes, about 100 a month; (2) diagnose and dispatch a technician — about 2 working days (1 to 6), no technician free in peak weeks (Elena said so); (3) repair on site — about 1 working day (same day to 3);",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.30 s",
+    "input guard 1.23 s",
+    "after the answer (steps, save) 1.23 s",
+    "total 3.43 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Suppliers: customers, field technicians, the spare-parts team. Inputs: the complaint by phone or e-mail, customer and device data, technician reports. Process: (1) log the complaint — about 15 minutes",
+   "action": null,
+   "http": 200,
+   "move": null,
+   "move_field": null,
+   "recorded_move": null,
+   "seconds": 70.9,
+   "failed": "degraded",
+   "answer": "Something went wrong on our side and this step did not go through — nothing was changed.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.33 s",
+    "before the graph 35.70 s",
+    "input guard 1.20 s",
+    "input guard 1.20 s",
+    "planner judgment (failed) 10.25 s",
+    "planner judgment (failed) 10.17 s",
+    "planner judgment (failed) 10.17 s",
+    "planner judgment (failed) 10.23 s",
+    "planner judgment (failed) 10.16 s",
+    "planner judgment (failed) 10.17 s",
+    "retry 0.00 s",
+    "total 70.93 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Work on: Issues and barriers",
+   "action": "revise",
+   "http": 200,
+   "move": "teach",
+   "move_field": "issues_and_barriers",
+   "recorded_move": null,
+   "seconds": 14.7,
+   "failed": null,
+   "answer": "Let's talk about the issues and barriers for your project.\n\nNow, think about your project: What could get in the way — data, people, systems, time?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.49 s",
+    "input guard 1.20 s",
+    "coach 9.77 s",
+    "grader 1.84 s",
+    "after the answer (steps, save) 1.01 s",
+    "total 14.73 s"
+   ]
+  },
+  {
+   "n": 5,
+   "belt": "(1) Data: closure dates are reliable in the service desk system only since March 2026; earlier months need a manual sample. (2) People: in peak weeks Elena Gruber's coordinators must free 4 h a week. ",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "issues_and_barriers",
+   "recorded_move": null,
+   "seconds": 13.9,
+   "failed": null,
+   "answer": "Here’s what I’ve captured for the issues and barriers:\n\n(1) Data: closure dates are reliable in the service desk system only since March 2026; earlier months need a manual sample. (2) People: in peak weeks Elena Gruber's coordinators must free 4 h a week. (3) Systems: the CRM release freeze until January 2027 blocks changes to the closing step.\n\nIs this right?\n\nRead as 3 items:\n1. Data: closure da",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.31 s",
+    "input guard 1.19 s",
+    "planner judgment 4.58 s",
+    "coach 4.95 s",
+    "grader 1.38 s",
+    "after the answer (steps, save) 1.08 s",
+    "total 13.89 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": false,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": false,
+ "model_calls": 14,
+ "cost": {
+  "usd": 0.0671,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0659,
+   "gpt-4o-mini-2024-07-18": 0.0012
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 41.63,
+  "calls": 156,
+  "case": {
+   "seconds": 0.74,
+   "calls": 8
+  },
+  "store": {
+   "seconds": 0.87,
+   "calls": 17
+  },
+  "checkpoint": {
+   "seconds": 40.02,
+   "calls": 131
+  }
+ },
+ "started": "20261027T173823"
+}

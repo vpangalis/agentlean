@@ -9150,7 +9150,7 @@
   },
   {
    "id": "DEF-256",
-   "description": "The planner quotes the SHORTEST words per criterion (two places joined by ' … ', each verbatim), so its one judgment call stays well inside its request timeout",
+   "description": "The planner quotes the SHORTEST exact words per criterion (no join instruction; a join the model makes is kept when each quote is verbatim), and its output has a ceiling, so its one judgment call stays well inside its request timeout",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_a_span_in_two_places_is_kept_when_each_quote_is_the_belts",
@@ -9167,7 +9167,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-336"
+     "G-336",
+     "G-343"
     ]
    },
    "requirement": "R13",
