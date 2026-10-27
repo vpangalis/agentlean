@@ -99,10 +99,18 @@ to that phase's coach. In particular the as-is process and its performance (R17)
 are the baseline Measure verifies with data and Improve compares the to-be process against, step by
 step, so the coach can reason about the difference.
 
-**R13 Turn time** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0043
+**R13 Turn time** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0113
 Hard limit: no turn exceeds 45 s; a turn that would, answers with what it has and says so.
 Goals: 15 s at P50 and 30 s at P95 — measured and reported on every run-through, not blocking
 until production launch.
+
+*Amendment ACCEPTED 2026-10-27 (founder ruling R-F, founder test 2026-10-27 finding 59; Design: ADR-0113, which
+supersedes ADR-0080):* 45 s is a progress threshold, not a cancellation. At 45 s the Belt is told the coach is
+still working ("Still working on your answer — long answers take a little longer"); the turn continues to a hard
+limit of 120 s. A turn whose answer has been produced always completes its save. A failed turn is retried once
+automatically, inside the same 120 s and only with at least 30 s left; only a failed retry is shown, with the
+Belt's message returned to the input and a Send again control. The Belt is never asked to retype. The 45 s goal
+stays what every run-through measures (R12).
 
 **R14 No dead end** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0072
 If an element cannot be completed after three attempts, the coach offers to park it and move on.
@@ -146,12 +154,24 @@ measured and how the process runs today — so that Measure starts from a shared
 
 **b Elements**
 
-**R4 Thirteen elements** · RATIFIED 2026-09-26 · MoSCoW: Must · Design: ADR-0004
+**R4 Thirteen elements** · RATIFIED 2026-09-26, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0004
 The current 12 + BENEFITS ANALYSIS (cost of the gap / COPQ, sustainable vs one-off impact,
 realisation schedule, finance contact; manual p. 60–63). VOC includes the CTQs (p. 82).
 The element list and field names are owned by `backend/phases/define/schema.py` — never restated.
 
-**R7 Acceptance criteria and gate rubric** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27 and 2026-09-29 · MoSCoW: Must · Design: ADR-0071
+*Amendment ACCEPTED 2026-10-27 (founder rulings R-D and R-E, founder test 2026-10-27 findings 42, 47, 49):* R-D —
+scope is taught as In / Out per dimension: process (start → end), places (sites, departments, countries), products
+or services, customers (segments), systems (which may be changed). The example is an In / Out table by dimension
+(Dimension | In scope | Out of scope); the question asks, for each line, what is in and what is out, a line left
+empty when it does not apply; the Belt needs no special syntax; the read-back and the Gate show the same table.
+R-E — calculations are shown, worked out by code: once its inputs are confirmed, the benefits element shows, in its
+teaching card and in any answer about it, the cost of the gap today and the expected saving at the target, each as
+formula and result in € with thousands separators ("1,200 complaints × 38% late × €45 = €20,520 a year";
+"1,200 × (38% − 10%) × €45 = €15,120 a year"), naming the confirmed elements used; both are offered for Confirm
+and stored in their own fields. The model never does the arithmetic; it only explains. The same pattern holds for
+every computation in every phase (ADR-0077).
+
+**R7 Acceptance criteria and gate rubric** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27, 2026-09-29 and 2026-10-27 · MoSCoW: Must · Design: ADR-0071
 From the manual: business case = what, where, when, baseline size, cost, no cause or solution
 speculation (p. 49); exactly ONE primary metric, quantified, linked to a KPI (p. 58); secondary
 metrics capture side effects (p. 58); scope not too broad, map as-is not ideal (p. 80); team names
@@ -162,7 +182,13 @@ the problem statement names the process step(s) where the problem shows (R18). R
 (amended 2026-09-29): the issues and barriers name the key issues and barriers (roadblocks) that
 could stop the project, each specific — or state "none identified at this stage" as a conscious answer.
 
-**R17 The as-is process with its performance** · ACCEPTED 2026-09-27, open decision 6 closed as written 2026-10-12 · MoSCoW: Must · Design: ADR-0078
+*Amendment ACCEPTED 2026-10-27 (founder ruling R-B, founder test 2026-10-27 finding 26):* training needs are NOT a
+Define criterion — they have no impact in Agent Improve's DMAIC cycle and the Belt often cannot know them. The
+coach does not ask for them; they never block Confirm or the gate. Given by the Belt or the team file, they are
+stored in the team table's Training column; otherwise "not stated". Rubric DEF-R02 drops "states any training a
+member needs". This departs deliberately from the BB manual's Define checklist (p. 81).
+
+**R17 The as-is process with its performance** · ACCEPTED 2026-09-27, open decision 6 closed as written 2026-10-12, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0078
 The high-level process element captures not only the SIPOC and its steps but how the process
 performs today. For each step: average, minimum and maximum duration with a unit; how often it runs
 per period; and where the team sees the key problems, in the Belt's and team's own words, with who
@@ -170,12 +196,26 @@ said it. For the whole process: end-to-end lead time and runs per period. Values
 Define, marked as such; Measure replaces them with measured data. All of it is stored in its
 structure (C6), not as prose. The element count stays thirteen — this extends the process element.
 
-**R18 The problem is located in the process** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0078
+*Amendment ACCEPTED 2026-10-27 (founder ruling R-G, founder test 2026-10-27 finding 58):* the SIPOC is collected in
+four short guided parts, in the order the BB manual recommends: (1) the main steps (4–8, each starting with a verb,
+as the process runs today); (2) outputs and customers; (3) inputs and suppliers; (4) for each step, roughly how long
+and what goes wrong — one question, one example line, the steps from part 1 listed above it. How often is asked
+once, for the whole process. A simple S-I-P-O-C skeleton stays visible with the current column lit; the example is
+drawn as a flow of boxes, not described; the long explanation moves behind a "What is a SIPOC?" link. One
+read-back and one Confirm at the end. No grid and no people per step for now.
+
+**R18 The problem is located in the process** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0078
 The problem statement and the process map are linked: the problem statement names the step(s) where
 the problem shows, and those steps carry the matching problem notes (R17). The coach checks the link
 both ways — a problem that points at no step, or a step with problems that the problem statement
 ignores, is raised with the Belt before either element is confirmed. The Define skill instructs the
 coach to obtain this information actively; it is not left to the Belt to volunteer.
+
+*Amendment ACCEPTED 2026-10-27 (founder ruling R-H, founder test 2026-10-27 finding 61):* the link check is shown as
+a picture: the Belt's steps as a flow; the steps named in the problem statement marked; steps with team-noted
+problems the statement does not mention marked in amber with the problem and who said it; two buttons, "Add step n
+to the problem statement" and "Keep as it is — not part of this problem". The same picture is the SIPOC read-back
+and Gate section F.
 
 **R10 As-is process document → SIPOC** · DRAFT 2026-09-26 · open decision 3 · MoSCoW: Won't-now · Design: none
 As a Belt, I want to upload our as-is process description and have the coach turn it into a SIPOC
@@ -296,13 +336,24 @@ Acceptance: every figure is computed once, by the backend, from the case record 
 the overview, the navigation, the case list and the progress bar show the same figures from that one
 computation. Open elements are counted against the phase's element list.
 
-**W3 Coaching page welcome — summary so far** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · MoSCoW: Must · Design: none
+**W3 Coaching page welcome — summary so far** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0114
 As a Belt, I want the coaching page to greet me by name and summarise what has been achieved so far,
 so that I can resume without re-reading history.
 Acceptance: the summary is assembled in code, without a model call, from confirmed values in the
 phase state only; it lists confirmed elements with their current values and the open elements. It
 replaces the browser-built recap, the stubbed welcome banner and the `/context` route, which are
 removed.
+
+*Amendment ACCEPTED 2026-10-27 (founder rulings R-A and R-C, founder test 2026-10-27 findings 9, 11, 12, 17, 18, 27,
+31, 44, 45; Design: ADR-0114):* R-A — the welcome flows straight into the first element's card; the Belt never has
+to type "let's start". R-C — one element card template for every element in every phase, assembled in code from
+the skill and the phase state; a teaching turn makes no coach model call — the card is the whole teaching: (1) a
+step trail "✓ n-1 · previous › [n] current › n+1 · next" with "k of N confirmed"; (2) a one-line saved note naming
+every element the last Confirm stored, with "view in the Gate", replacing the green strip, "Stored: …" and "Now
+let's move on…"; (3) the title and a one-line purpose; (4) YOUR TURN, the strongest block: the element's question
+and a short hint on how much to write and whether a file can be uploaded — never a confirm prompt; (5) "What a good
+answer looks like · example, not your data", a small table in the element's own columns, one label only; (6)
+quiet help links: "Why this matters", an element-specific question, "Where do we stand?".
 
 **W4 Choose what to work on next** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · open decision 1 · MoSCoW: Must · Design: none
 As a Belt, I want to either pick any unconfirmed element whose prerequisites are confirmed, or
@@ -397,6 +448,13 @@ the grader raised a warning. Read from the decision trail (R19).
 A tab shows the case's decision trail as a timeline, filterable by phase, element and person, for
 the Belt, the team, the Champion or an auditor. Each gate's entries are grouped under it. It can be
 printed like a phase report (R11).
+
+**W20 Case location: country and site** · ACCEPTED 2026-10-15 · MoSCoW: Must · Design: ADR-0089
+The project lead selects country and site (plant, office or location) when creating a case, alongside
+department or area; both required. Country from a standard list; site from the customer's site list for
+that country. Shown in the header, the case list (filterable) and Define report section A; changeable by
+the lead with each change in the audit trail (R16); existing cases read "not set" (founder ruling
+2026-10-15).
 
 ---
 

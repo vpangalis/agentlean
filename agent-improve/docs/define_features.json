@@ -8765,7 +8765,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-228"
+     "G-228",
+     "G-335"
     ]
    },
    "requirement": "T99",
@@ -9081,6 +9082,1159 @@
    "stage": "build",
    "layer": "tooling",
    "package": "P0b"
+  },
+  {
+   "id": "DEF-254",
+   "description": "R-F (ADR-0113): a coaching turn is never thrown away — 45 s is a progress threshold, the hard limit 120 s; an answered turn always completes its save; a failed turn is retried once from the checkpoint it started from; a failed retry puts the message back in the box with Send again; the Belt is never asked to retype",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-331",
+     "G-339"
+    ]
+   },
+   "requirement": "R13",
+   "belt_impact": "data_loss",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api",
+   "pilot": true
+  },
+  {
+   "id": "DEF-255",
+   "description": "Each coaching turn logs one INFO line per step with its time (before the graph, guard, judgment, coach, grader, after the answer, total); a read-back's empty teaching blocks are not logged as a FINDING",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_63_each_turn_logs_its_steps_and_a_read_back_is_no_finding",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-340"
+    ]
+   },
+   "requirement": "T43",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform",
+   "pilot": true
+  },
+  {
+   "id": "DEF-256",
+   "description": "The planner quotes the SHORTEST words per criterion (two places joined by ' … ', each verbatim), so its one judgment call stays well inside its request timeout",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_a_span_in_two_places_is_kept_when_each_quote_is_the_belts",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-336"
+    ]
+   },
+   "requirement": "R13",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-257",
+   "description": "A turn reads its checkpoint once before the graph, and each checkpoint's history blob and latest.json upload together, never queued behind the pending-writes lock",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_257_a_turn_reads_its_checkpoint_once_and_saves_each_checkpoint_in_one_round",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-337",
+     "G-338"
+    ]
+   },
+   "requirement": "R13",
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence",
+   "pilot": true
+  },
+  {
+   "id": "DEF-258",
+   "description": "An open element can be picked in the sidebar ('Work on this'); the next message is answered on it",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_62_a_picked_open_element_takes_the_next_message",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-334"
+    ]
+   },
+   "requirement": "W4",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-259",
+   "description": "The SIPOC's code checks gate its read-back, read from the Belt's words: no ✓ on all six while a column is empty, the step-sum question asked across units, how-often gaps marked, no column the Belt did not give",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_259_the_sipoc_code_checks_gate_the_read_back",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-332"
+    ]
+   },
+   "requirement": "R17",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-260",
+   "description": "Soft benefits are taught with the founder-approved hard/soft wording and stored, each with its indicator (15 Oct item 7; the stored field follows ADR-0096)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_260_a_stated_soft_benefit_is_stored",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-320",
+     "G-324"
+    ]
+   },
+   "requirement": "R4",
+   "belt_impact": "data_loss",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-261",
+   "description": "The expected saving is calculated in code from the confirmed values — volume and unit cost from the business case, baseline and target — and stored in its own field",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_261_the_expected_saving_is_calculated_from_the_confirmed_business_case",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-323"
+    ]
+   },
+   "requirement": "R4",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-262",
+   "description": "Gate E's Baseline row reads the number, the source and the period — never the whole answer",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_262_the_gate_baseline_row_is_number_source_and_period",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-311"
+    ]
+   },
+   "requirement": "R5",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-263",
+   "description": "Every ✓ row of a read-back shows its own words from the answer, never the criterion's wording; a row with no words of its own is not ticked; two rows never share one passage; the Gate keeps the same words",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_263_every_ticked_row_has_its_own_words_and_the_gate_keeps_them",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-287",
+     "G-288",
+     "G-292",
+     "G-314"
+    ]
+   },
+   "requirement": "R6",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-264",
+   "description": "An uploaded team, completed by typing, keeps each column under its own key — time, training, function — in the read-back, the store and the Gate",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-297",
+     "G-301"
+    ]
+   },
+   "requirement": "W5",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-265",
+   "description": "The project lead is in the team read-back as in the Gate, with a status that matches the role, in plain words",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_265_the_project_lead_is_in_the_team_read_back",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-294",
+     "G-295",
+     "G-302"
+    ]
+   },
+   "requirement": "R8b",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-266",
+   "description": "R-C (ADR-0114): one element card for every element of every phase, assembled in code from the skill and the state; a teaching turn makes no coach model call",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_266_one_element_card_for_every_element_of_every_phase",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-284",
+     "G-285",
+     "G-290",
+     "G-291",
+     "G-300",
+     "G-304",
+     "G-317",
+     "G-318"
+    ]
+   },
+   "requirement": "W3",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-267",
+   "description": "R-A: the welcome flows straight into the first element's card; the Belt never types 'let's start'",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_267_the_welcome_flows_straight_into_the_first_element_s",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-282"
+    ]
+   },
+   "requirement": "W3",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-268",
+   "description": "R-B: training needs are not a Define criterion — never asked, never blocking; stored in Training when given",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_268_training_needs_are_not_a_define_criterion_never_asked",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-299"
+    ]
+   },
+   "requirement": "R7",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-269",
+   "description": "R-D: scope is taught, read back and shown as In / Out per dimension",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_269_scope_is_taught_read_back_and_shown_as_in",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-313",
+     "G-315"
+    ]
+   },
+   "requirement": "R4",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-270",
+   "description": "R-E: calculations by code, shown with formula and result, offered for Confirm and stored in their own fields",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_270_calculations_by_code_shown_with_formula_and_result_offered",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-319",
+     "G-321",
+     "G-322",
+     "G-325"
+    ]
+   },
+   "requirement": "R4",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-271",
+   "description": "R-G: the SIPOC is collected in four guided parts, a skeleton visible, one read-back and one Confirm at the end",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_271_the_sipoc_is_collected_in_four_guided_parts_a",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-330"
+    ]
+   },
+   "requirement": "R17",
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-272",
+   "description": "R-H: the R18 link check is a flow with the steps marked and two buttons; the same picture in the read-back and Gate section F",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_272_the_r18_link_check_is_a_flow_with_the",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-333"
+    ]
+   },
+   "requirement": "R18",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-273",
+   "description": "A read-back is built from the Belt's current answer: a Change replaces the earlier version, and a message about another element is not folded in",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_273_a_change_replaces_the_earlier_version_and_a_message",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-341"
+    ]
+   },
+   "requirement": "R6",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-274",
+   "description": "The create form: the lead's typed name replaces 'You'; the lead's country and site are asked (R8b's amendment)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_274_the_lead_s_typed_name_replaces_you_the_lead",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-276",
+     "G-342"
+    ]
+   },
+   "requirement": "R8b",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-275",
+   "description": "The create form's sign-in note says one-time codes are used — never 'no account or password needed'",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_275_the_create_form_s_sign_in_note_says_one",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-275"
+    ]
+   },
+   "requirement": "W17",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-276",
+   "description": "The page calls the origin it was loaded from; the startup log names the real port",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_276_the_page_calls_the_origin_it_was_loaded_from",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-277"
+    ]
+   },
+   "requirement": "C5",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "platform",
+   "pilot": true
+  },
+  {
+   "id": "DEF-277",
+   "description": "Create opens Define with a banner: the case number and a real Copy button, kept until closed",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_277_the_case_number_and_a_real_copy_button_kept",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-278"
+    ]
+   },
+   "requirement": "W6",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-278",
+   "description": "The phase overview keeps each step's explanation (why it matters, an example, the hard/soft benefits text)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_278_the_phase_overview_keeps_each_step_s_explanation_why",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-279"
+    ]
+   },
+   "requirement": "W1",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-279",
+   "description": "The page shows 'Define — phase 1 of 5' prominently, D highlighted",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_279_the_page_shows_define_phase_1_of_5_prominently",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-280"
+    ]
+   },
+   "requirement": "W2",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-280",
+   "description": "No internal text, field key, placeholder or raw criteria list reaches the Belt (chat, card or Gate)",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_280_no_internal_text_field_key_placeholder_or_raw_criteria",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-281",
+     "G-296",
+     "G-307",
+     "G-326",
+     "G-329"
+    ]
+   },
+   "requirement": "C1",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-281",
+   "description": "Submit for gate review looks disabled while it is disabled",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_281_submit_for_gate_review_looks_disabled_while_it_is",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-283"
+    ]
+   },
+   "requirement": "R6",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-282",
+   "description": "The read-back card is the read-back: no echo of the answer above it; 'Is this right?' only when every criterion is met",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_282_no_echo_of_the_answer_above_it_is_this",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-286",
+     "G-298"
+    ]
+   },
+   "requirement": "R6",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-283",
+   "description": "Coach text and read-back cards render cleanly: lists inside the bubble, Change styled, tables full width",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_283_lists_inside_the_bubble_change_styled_tables_full_width",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-289",
+     "G-305",
+     "G-306"
+    ]
+   },
+   "requirement": "R6",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-284",
+   "description": "The Gate view: one template per element, no 'not confirmed' under a partly confirmed header, no raw answer",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_284_one_template_per_element_no_not_confirmed_under_a",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-293",
+     "G-327",
+     "G-328"
+    ]
+   },
+   "requirement": "R5",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-285",
+   "description": "'What does … need?' answers as a checklist of what the answer needs, never the card again",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_285_what_does_need_answers_as_a_checklist_of_what",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-303"
+    ]
+   },
+   "requirement": "W3",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-286",
+   "description": "The chat read-back shows the element's picture (5W2H map, baseline and target charts) where it belongs",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_286_the_chat_read_back_shows_the_element_s_picture",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-308",
+     "G-310",
+     "G-312",
+     "G-316"
+    ]
+   },
+   "requirement": "C2",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-287",
+   "description": "Element 5 offers the metric and baseline the business case already gave, for Confirm",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_287_element_5_offers_the_metric_and_baseline_the_business",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-309"
+    ]
+   },
+   "requirement": "R15",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-288",
+   "description": "W20 (ADR-0089): the case's country and site are chosen on the create form from the configured lists",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_def_288_the_case_s_country_and_site_are_chosen_on",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder test 2026-10-27 (case IMPR-2026-PDLWG9, FOUNDER_TEST_FINDINGS_2026-10-27.md)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-274"
+    ]
+   },
+   "requirement": "W20",
+   "belt_impact": "wrong_data",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen",
+   "pilot": true
   }
  ]
 }

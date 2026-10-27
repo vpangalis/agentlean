@@ -123,7 +123,7 @@ Generated from each file's status line; never typed.
 | [0077](0077-calculations-run-in-code-never-by-the-coach.md) | Calculations are run by code, never by the coach; the coach explains them | ACCEPTED | — |
 | [0078](0078-process-step-performance-stored-per-step.md) | The as-is process stores its performance per step, and the problem is located in it | ACCEPTED | — |
 | [0079](0079-coherence-reask-through-the-after-agent-hook.md) | A coherence rejection asks the coach again through layer 2a's after_agent hook | SUPERSEDED by 0083 | — |
-| [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | ACCEPTED | refined by 0101 |
+| [0080](0080-one-turn-deadline-and-request-timeouts.md) | A coaching turn has one deadline, and every model call a request timeout | SUPERSEDED by 0113 | refined by 0101 |
 | [0081](0081-two-independent-judges-log-only-until-proven.md) | Two independent judges on every reply, each log-only until proven | ACCEPTED | — |
 | [0082](0082-model-fallback-keeps-refusals-and-token-limits-out.md) | The coach's model fallback as shipped, with refusals and token-limit errors kept out of it | ACCEPTED | — |
 | [0083](0083-retire-the-ai-coherence-judge.md) | The AI coherence judge (layer 2a) is retired | ACCEPTED | — |
@@ -155,4 +155,6 @@ Generated from each file's status line; never typed.
 | [0110](0110-the-coach-reply-schema-types-its-captured-values.md) | The coach's reply schema types its captured values, citations and contradiction flag | ACCEPTED | refines 0073 |
 | [0111](0111-what-the-model-reads.md) | What the model reads | ACCEPTED | — |
 | [0112](0112-mismatch-feedback-in-the-coachs-reply.md) | Mismatch feedback in the coach's reply | ACCEPTED | refines 0042 |
+| [0113](0113-a-turn-is-never-thrown-away.md) | A coaching turn is never thrown away — 45 s is a progress threshold, the hard limit is 120 s, and a failed turn is retried once from where it started | ACCEPTED | — |
+| [0114](0114-the-element-card-template.md) | One element card for every element of every phase, assembled in code from the skill and the phase state | ACCEPTED | — |
 <!-- END ADR INDEX -->

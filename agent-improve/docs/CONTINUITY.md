@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 199 of 203 Define features pass (core 193 of 194) — A 79/83 · B 40/40 · C 59/59 · integrator 21/21 · M1: 74 proven · 0 awaiting fresh run · 2 open |
-| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
+| **Headline** | 198 of 238 Define features pass, 4 more proven on earlier code (core 192 of 229) — A 78/96 · B 40/40 · C 59/77 · integrator 21/25 (record older than the source) · M1: 74 proven · 3 awaiting fresh run · 17 open |
+| **Next — lane A** | DEF-256 — The planner quotes the SHORTEST words per criterion (two places joined by ' … ', each verbatim), so its one judgment call stays well inside  |
 | **Next — lane B** | every feature passes |
-| **Next — lane C** | every feature passes |
-| **Next — lane integrator** | DEF-241 — The fact-ownership check runs at the commit gate over the staged governed documents, whatever wrote them (G-59) |
-| **Run-through record** | current |
+| **Next — lane C** | DEF-258 — An open element can be picked in the sidebar ('Work on this'); the next message is answered on it |
+| **Next — lane integrator** | DEF-276 — The page calls the origin it was loaded from; the startup log names the real port |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
 | **Block regenerated** | 2026-10-27 |

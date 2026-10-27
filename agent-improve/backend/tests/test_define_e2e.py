@@ -9772,3 +9772,686 @@ def test_an_analyse_turn_plans_its_retrieval() -> None:
     """DEF-240 — G-111 (T102, Analyse): each Analyse turn plans its retrieval rather than taking the phase default. Phase analyse:
     not ranked while Define runs. (founder ruling 2026-10-20)"""
     _not_written('DEF-240')
+
+
+# ── Founder test 2026-10-27 (case IMPR-2026-PDLWG9): the register's features, DEF-254 to DEF-288 ──────────────
+# Wave 0 (R-F and the measured causes of finding 59), then the tests that would have caught the wrong-data findings
+# (19, 28, 38, 51, 52, 60) with the founder's own inputs, then the stubs of waves 2 and 3.
+
+
+def test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes() -> None:
+    """R-F (founder ruling 2026-10-27, amending ADR-0080; founder test 2026-10-27 #59), through the routes and
+    graph, then the page: (1) the 45 s progress threshold cancels nothing; (2) a turn whose answer is produced
+    completes its save even when the save runs past the hard limit — the founder's 15:33 turn, cut at 42 s after
+    every node had finished; (3) a failed turn is retried once, automatically, from the checkpoint it started
+    from: the conversation holds the Belt's message ONCE and no degraded reply (the founder's case held each
+    cancelled message twice); (4) a failed retry is flagged `failed`, and no failure text asks the Belt to send
+    or retype; (5) the page: at 45 s it says the coach is still working, and a flagged failure puts the message
+    back in the box with Send again."""
+    _not_written('DEF-254')
+
+
+def test_63_each_turn_logs_its_steps_and_a_read_back_is_no_finding(env, monkeypatch, stub_planner, caplog) -> None:
+    """Founder test 2026-10-27 #63 and #59: the server log carries one INFO line per step of a turn — before the
+    graph, the planner's judgment, the coach, after the answer (the steps and the save), the total — and the Azure
+    SDK's request blocks are not logged at INFO; a read-back whose explanation, example and prompt are empty (its
+    normal shape) is no longer logged as a FINDING, the line that read as "the coach returned empty" on element 12."""
+    import logging
+
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    assert logging.getLogger("azure.core.pipeline.policies.http_logging_policy").getEffectiveLevel() > logging.INFO
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
+    _askd(env, message="Next, please.")
+    bare = {**REPLY, "message": "Callbacks per month and overtime hours. Is this right?", "explanation": "",
+            "example": "", "prompt": "", "progress": "",
+            "fields_captured": [{"field_name": "secondary_metrics", "value": "Callbacks per month; overtime hours",
+                                 "source": "belt"}]}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": bare, "id": "call_63"}])]))
+        if role == "coach" else planner(role, **kw))
+    caplog.clear()                                     # this turn's lines only
+    with caplog.at_level(logging.INFO):
+        r = _askd(env, message="Callbacks per month; overtime hours")
+    assert r["move"] == "read_back", r
+    timing = [m for m in caplog.messages if m.startswith("turn timing · ")]
+    for step in ("before the graph", "planner judgment", "coach", "after the answer (steps, save)", "total"):
+        assert sum(1 for m in timing if m.startswith(f"turn timing · {step} ")) == 1, (step, timing)
+    assert not [m for m in caplog.messages if "presentational field(s)" in m], "a read-back logged as a FINDING"
+
+
+def test_a_span_in_two_places_is_kept_when_each_quote_is_the_belts() -> None:
+    """DEF-256 — wave 0 (founder test 2026-10-27, #59; the founder's own business case): the planner quotes the SHORTEST words
+    per criterion — its 600-750-token spans timed its 10 s call out — and evidence in two places of the answer comes
+    as quotes joined by " … ", kept when each quote is verbatim. A passage stitched into words the Belt never wrote
+    is still dropped."""
+    from backend.phases.define import templates
+
+    answer = ("In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we "
+              "promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs "
+              "about €45 in callbacks and rework, about €20,500 a year, and late cases escalate to account managers.")
+    got = templates.verbatim_spans({"where-when": "In Field Service Austria … from March to September 2026",
+                                    "what": "In Field Service Austria, from March to September 2026",
+                                    "cost": "about €20,500 a year"}, "business_case", answer)
+    assert got == {"where-when": "In Field Service Austria … from March to September 2026",
+                   "cost": "about €20,500 a year"}, got
+
+
+def test_def_257_a_turn_reads_its_checkpoint_once_and_saves_each_checkpoint_in_one_round(
+        env, monkeypatch, stub_planner) -> None:
+    """Founder test 2026-10-27 #59, measured on the traces (G-337, G-338): before the graph a turn read the checkpoint
+    twice (0.9-5.8 s from arrival to the graph); after the answer each ~500 KB checkpoint went up as two blobs one
+    after the other, and every write of the process waited behind one lock (4.5-5.5 s of saves). Now a turn reads
+    its checkpoint once, and a checkpoint's history blob and latest.json upload together, never queued behind the
+    lock that guards pending writes."""
+    import asyncio
+    from typing import Any, cast
+
+    from langgraph.checkpoint.base import empty_checkpoint
+
+    from backend.core.checkpointer import AzureBlobCheckpointSaver
+    from backend.core.graph import get_graph
+    from backend.tests.test_gate_acceptance import _AsyncContainer, _Container
+
+    _at_element(env, "secondary_metrics")
+    _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
+    _askd(env, message="Next, please.")
+    graph = get_graph()
+    reads = {"n": 0}
+    real_state = type(graph).aget_state
+
+    async def counted(self, *a, **k):
+        reads["n"] += 1
+        return await real_state(self, *a, **k)
+    monkeypatch.setattr(type(graph), "aget_state", counted)
+    _askd(env, message="Next, please.")
+    assert reads["n"] == 1, f"the turn read its checkpoint {reads['n']} times"
+
+    box = _Container()
+    aio = _AsyncContainer(box)
+    saver = AzureBlobCheckpointSaver(container_client=box, async_container_factory=cast(Any, lambda: aio))  # type: ignore[arg-type]
+    flight = {"now": 0, "most": 0}
+    real_blob = aio.get_blob_client
+
+    def tracked(path: str) -> Any:
+        blob = real_blob(path)
+        upload = blob.upload_blob
+
+        async def timed(*a: Any, **k: Any) -> Any:
+            flight["now"] += 1
+            flight["most"] = max(flight["most"], flight["now"])
+            await asyncio.sleep(0.05)
+            try:
+                return await upload(*a, **k)
+            finally:
+                flight["now"] -= 1
+        blob.upload_blob = timed                                      # type: ignore[method-assign]
+        return blob
+    aio.get_blob_client = tracked                                     # type: ignore[method-assign]
+    metadata: Any = {"source": "input", "step": -1, "parents": {}}
+    root = {"configurable": {"thread_id": "T", "checkpoint_ns": ""}}
+
+    async def run() -> None:
+        first = empty_checkpoint()
+        cfg = await saver.aput(root, first, metadata, {})
+        parts = saver._aio_parts()
+        assert parts is not None
+        async with parts[1]:                     # pending writes hold their lock: the put is not queued behind it
+            second: Any = {**empty_checkpoint(), "id": "z" + first["id"][1:]}
+            await asyncio.wait_for(saver.aput(cfg, second, metadata, {}), 2.0)
+    asyncio.run(run())
+    assert flight["most"] == 2, f"a checkpoint's two blobs went up {flight['most']} at a time"
+
+
+def test_62_a_picked_open_element_takes_the_next_message(env, monkeypatch, stub_planner) -> None:
+    """Founder test 2026-10-27 #62 (W4, W9): at element 12 the founder's barriers answer was read back as the SIPOC —
+    an open element in the sidebar could not be picked. Now the sidebar offers "Work on this" on an open element; its
+    click sends the revise action, and the next message is answered on element 13, never folded into the SIPOC."""
+    _at_element(env, "process_map_sipoc")
+    _coach_saying(monkeypatch, "Let's map the process as it runs today.")
+    assert _askd(env, message="Next, please.")["move_field"] == "process_map_sipoc"
+    _coach_saying(monkeypatch, "Issues and barriers: what could stop the project?")
+    picked = _askd(env, action="revise", element="issues_and_barriers", message="Work on: Issues and barriers")
+    assert picked["move_field"] == "issues_and_barriers", picked
+    barriers = ("(1) Data: closure dates are reliable in the service desk system only since March 2026; earlier "
+                "months need a manual sample. (2) People: in peak weeks Elena Gruber's coordinators must free 4 h a "
+                "week. (3) Systems: the CRM release freeze until January 2027 blocks changes to the closing step.")
+    _coach_saying(monkeypatch, "Here are your barriers. Is this right?",
+                  captured=[{"field_name": "issues_and_barriers", "value": barriers, "source": "belt"}])
+    answered = _askd(env, message=barriers)
+    assert answered["move_field"] == "issues_and_barriers", answered
+    got = _ui_run("""
+S.case.define_elements=[{n:12,field:'process_map_sipoc',name:'Process map',status:'current'},
+  {n:13,field:'issues_and_barriers',name:'Issues and barriers',status:'open'}];
+process.stdout.write(JSON.stringify({nav:buildNavDefineElements()}));
+""")
+    row = got["nav"].split('data-field="issues_and_barriers"')[1]
+    assert "reviseElement('issues_and_barriers')" in row and "Work on this" in row, row
+    current = got["nav"].split('data-field="process_map_sipoc"')[1].split("data-field=")[0]
+    assert "Work on this" not in current, "the element in progress is offered as a pick"
+
+
+#: Founder test 2026-10-27 (case IMPR-2026-PDLWG9): the Belt's business case, as typed.
+FOUNDER_BUSINESS_CASE = (
+    "In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we promise, "
+    "from March to September 2026. We handle about 1,200 complaints a year; each late one costs about €45 in "
+    "callbacks and rework, about €20,500 a year, and late cases escalate to account managers.")
+#: The spans the live planner returned for it (the case's field_status.business_case.judged): where-when joins the
+#: sentence's two ends, so it is no substring; the size quotes the same passage as the what.
+FOUNDER_BUSINESS_CASE_SPANS = {
+    "what": "38% of customer complaints were closed later than the 5 working days we promise",
+    "where-when": "In Field Service Austria, from March to September 2026",
+    "baseline": "38% of customer complaints were closed later than the 5 working days we promise",
+    "cost": "each late one costs about €45 in callbacks and rework, about €20,500 a year"}
+#: Founder test 2026-10-27: the Belt's primary metric and baseline, as typed.
+FOUNDER_BASELINE = (
+    "One metric: late-closure rate, in %, the share of complaints closed more than 5 working days after logging. "
+    "38% today, from the service desk system, March to September 2026. It feeds our customer satisfaction KPI.")
+#: The spans the live planner returned for it (field_status.baseline_estimate.judged).
+FOUNDER_BASELINE_SPANS = {
+    "one-primary": "One metric: late-closure rate",
+    "quantified": "38% today, from the service desk system, March to September 2026.",
+    "kpi-link": "It feeds our customer satisfaction KPI.",
+    "real-data": "from the service desk system, March to September 2026.",
+    "defined": "late-closure rate, in %, the share of complaints closed more than 5 working days after logging."}
+#: The registry entry the live coach proposed with it (field_log define:15:metric_definitions).
+FOUNDER_METRIC = [{"name": "late_closure_rate", "unit": "%",
+                   "meaning": "the share of complaints closed more than 5 working days after logging"}]
+
+
+def test_def_263_every_ticked_row_has_its_own_words_and_the_gate_keeps_them(env, monkeypatch, stub_planner) -> None:
+    """DEF-263 — Founder test 2026-10-27, finding 19: a row the read-back ticks shows the Belt's own words for it, and
+    the Gate keeps them — section B never reads "Where and since when: —", and "Size" is not the "What" again.
+
+    On the real routes and graph, with the founder's exact business case and the spans the live planner returned
+    for it (where-when joined from the sentence's two ends; the size quoting the what): element 1 is read back,
+    confirmed and opened in the Gate (GET /gate/review). Section B's "Where and since when" names Field Service
+    Austria and March to September 2026; "Size" is filled and differs from "What"; and every row the read-back
+    card ticked carried a value of its own."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "business_case")
+    _coach_saying(monkeypatch, "Let's start with the business case.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all five criteria met",
+                                                criterion_spans=FOUNDER_BUSINESS_CASE_SPANS)
+    _coach_saying(monkeypatch, f'Here is what I have for your business case: "{FOUNDER_BUSINESS_CASE}" Is this right?',
+                  captured=[{"field_name": "business_case", "value": FOUNDER_BUSINESS_CASE, "source": "belt"}])
+    read = _askd(env, message=FOUNDER_BUSINESS_CASE)
+    assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], read.get("readback_card")
+    _coach_saying(monkeypatch, "Next, the team.")
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE and done["confirmed_strip"], done
+
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    case = _gate_section(report, "B")["elements"][0]
+    assert case["field"] == "business_case" and case["status"] == "confirmed", case
+    items = {i[0]: i[1] for i in case["view"]["items"]}
+    where = items["Where and since when"]
+    assert where and "Field Service Austria" in where and "March to September 2026" in where, items
+    assert items["Size"] and items["Size"] != items["What"], items
+    ticked = [r for r in read["readback_card"]["rows"] if r["met"] and r["id"] != "no-cause-no-fix"]
+    assert all(r["value"] for r in ticked), [(r["id"], r["source"]) for r in ticked if not r["value"]]
+
+
+def test_def_262_the_gate_baseline_row_is_number_source_and_period(env, monkeypatch, stub_planner) -> None:
+    """DEF-262 — Founder test 2026-10-27, finding 38: the Gate's "Baseline" row in section E is the figure, where it
+    comes from and the period it covers — "38% · service desk system · March–September 2026" — never the Belt's
+    whole answer; the stored MetricValue still keeps that whole answer as its `raw` (ADR-0071).
+
+    On the real routes and graph, with the founder's exact answer to element 5, the spans the live planner returned
+    and the registry entry the live coach proposed: element 5 is read back, confirmed and opened in the Gate (GET
+    /gate/review). Section E's "Baseline" starts with 38%, names the service desk system and March to September
+    2026, and carries neither the metric's definition nor the KPI sentence; the stored raw is the Belt's words."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "baseline_estimate")
+    _coach_saying(monkeypatch, "Next: the primary metric and its baseline.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all five criteria met",
+                                                criterion_spans=FOUNDER_BASELINE_SPANS)
+    _coach_saying(monkeypatch, f'Your primary metric and baseline: "{FOUNDER_BASELINE}" Is this right?',
+                  captured=[{"field_name": "metric_definitions", "value": FOUNDER_METRIC, "source": "belt"},
+                            {"field_name": "baseline_estimate", "value": FOUNDER_BASELINE, "source": "belt"}])
+    read = _askd(env, message=FOUNDER_BASELINE)
+    assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], read.get("readback_card")
+    _coach_saying(monkeypatch, "Next, the scope.")
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE and done["confirmed_strip"], done
+
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    five = next(c for c in _gate_section(report, "E")["elements"] if c["field"] == "baseline_estimate")
+    assert five["status"] == "confirmed", five
+    baseline = {i[0]: i[1] for i in five["view"]["items"]}["Baseline"]
+    assert baseline.startswith("38%") and "service desk system" in baseline, baseline
+    assert "March" in baseline and "September 2026" in baseline, baseline
+    assert "One metric" not in baseline and "customer satisfaction KPI" not in baseline, baseline
+    stored = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]["baseline_estimate"]
+    assert stored["value"] == 38.0 and stored["raw"] == FOUNDER_BASELINE, stored
+
+
+#: Founder test 2026-10-27 (IMPR-2026-PDLWG9) — the founder's team file exactly as uploaded
+#: (agent-improve/Claude outputs/team_field_service.csv): four columns, no training column.
+TEAM_FIELD_SERVICE_FOUNDER = (
+    "name,role,department,time_commitment\n"
+    "Katharina Huber,Project Sponsor,Head of Field Service Austria,2 h per month\n"
+    "Markus Steiner,Process Owner,Service Desk Lead Vienna,4 h per week\n"
+    "Elena Gruber,Team Member,Field Technician Coordinator,4 h per week\n"
+    "Thomas Wagner,Team Member,Customer Care Analyst,4 h per week\n"
+    "Sabine Hofer,Team Member,Quality and Complaints Manager,3 h per week\n")
+#: Founder test 2026-10-27 — the values confirmed before element 10, as stored on IMPR-2026-PDLWG9.
+FOUNDER_1027_CONFIRMED: dict = {
+    "business_case": ("In Field Service Austria, 38% of customer complaints were closed later than the 5 working days "
+                      "we promise, from March to September 2026. We handle about 1,200 complaints a year; each late "
+                      "one costs about €45 in callbacks and rework, about €20,500 a year, and late cases escalate to "
+                      "account managers."),
+    "metric_definitions": [{"name": "late_closure_rate", "unit": "%",
+                            "meaning": "the share of complaints closed more than 5 working days after logging"}],
+    "baseline_estimate": {"value": 38.0, "unit": "%", "direction": None, "is_estimate": False,
+                          "raw": ("One metric: late-closure rate, in %, the share of complaints closed more than 5 "
+                                  "working days after logging. 38% today, from the service desk system, March to "
+                                  "September 2026. It feeds our customer satisfaction KPI.")},
+    "goal_statement": "Our goal is to cut late closures from 38% to under 10% by 31.03.2027.",
+    "target_value": {"value": 10.0, "unit": "%", "direction": "<=", "is_estimate": False,
+                     "raw": "Our goal is to cut late closures from 38% to under 10% by 31.03.2027."},
+    "target_date": "2027-03-31",
+}
+#: Founder test 2026-10-27 — the Belt's benefits answer, verbatim.
+FOUNDER_1027_BENEFITS = ("Cost of the gap about €20,500 a year. Sustainable, every year. From the first full quarter "
+                         "after the change, Q2 2027. Checked by Martina Koller, controller Field Service. Soft benefit: "
+                         "fewer escalations to account managers, seen in the monthly escalation count.")
+
+
+def _founder_1027_at_benefits(env, monkeypatch, stub_planner) -> None:
+    """IMPR-2026-PDLWG9 at element 10, as the founder reached it: elements 1-9 confirmed with the founder's values,
+    no calculation recorded, benefits asked; the planner's judgment sufficient with `calculation_inputs` {} (as live);
+    the coach reads back the four keys its shape names (as live — the soft benefit only in its prose)."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "benefits_analysis")
+    record = env.case.phases["define"]
+    record.structured.pop("computation_results", None)          # the complete case's; the founder's had none
+    record.structured.update(FOUNDER_1027_CONFIRMED)
+    record.field_status["benefits_analysis"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(
+        verdict="sufficient", reason="all four parts of the benefits analysis are stated", calculation_inputs={})
+    _coach_saying(monkeypatch, (
+        "Here's what I have for your benefits analysis:\n\n- **Cost of the gap:** About €20,500 a year\n"
+        "- **Impact type:** Sustainable, every year\n- **Realisation schedule:** From the first full quarter after "
+        "the change, Q2 2027\n- **Finance contact:** Martina Koller, Controller Field Service\n- **Soft benefit:** "
+        "Fewer escalations to account managers, seen in the monthly escalation count\n\nIs this right?"), captured=[
+        {"field_name": "benefits_analysis", "source": "belt",
+         "value": {"cost_of_gap": "About €20,500 a year", "impact_type": "Sustainable, every year",
+                   "realisation_schedule": "From the first full quarter after the change, Q2 2027",
+                   "finance_contact": "Martina Koller, Controller Field Service"}}])
+    read = _askd(env, message=FOUNDER_1027_BENEFITS)
+    assert read["move"] == "read_back" and read["move_field"] == "benefits_analysis", (read["move"], read["answer"])
+    assert read["readback_card"]["confirm"], read["readback_card"]
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == "store_and_advance", (done["move"], done["answer"])
+
+
+def test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns(env, monkeypatch) -> None:
+    """DEF-264 — founder test 2026-10-27 (IMPR-2026-PDLWG9), findings #28 and #24: the Belt uploads the four-column
+    team file (no training column), the draft read-back names training as missing, the Belt presses Change and
+    types "Training: Elena Gruber and Thomas Wagner need a half-day on data collection; nobody else.", then
+    confirms. Through the routes and graph, with the coach capturing as it did live ({name, role, function}, the
+    time and the training packed into `function`): each stored entry keeps the file's time commitment under its own
+    key and the typed training under `training`, the function holds neither, and Gate A's Time and Training
+    columns show them."""
+    from backend.gateway import routes
+    from backend.middleware.skills import acceptance_criteria
+    from backend.phases import moves
+    from backend.storage.models import ElementCheck, UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    filename = "team_field_service.csv"
+    people = [line.split(",") for line in TEAM_FIELD_SERVICE_FOUNDER.splitlines()[1:]]
+    hours = {"2 h per month": "2 hours per month", "4 h per week": "4 hours per week", "3 h per week": "3 hours per week"}
+    trained = ("Elena Gruber", "Thomas Wagner")
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/0/{filename}"
+
+    async def index(*a, **k):
+        return "idx-team-1027"
+
+    async def interpret(filename_, parsed, case_meta, phase, element=None):
+        # As live: the file covers the team except its training.
+        return UploadInterpretation(summary="The project team for Field Service Austria.", element_check=ElementCheck(
+            element=element, value="\n".join(f"{n} — {r}, {d}, {t}" for n, r, d, t in people),
+            missing=["details on training needs for team members"],
+            criteria=[{"criterion": cid, "result": "not_covered" if cid == "training" else "supported"}
+                      for cid, _ in acceptance_criteria("define", element)]))
+
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    _shields(monkeypatch)
+    env.case.phases["define"].structured = {"business_case": FOUNDER_1027_CONFIRMED["business_case"]}
+    env.case.phases["define"].field_status = {"business_case": {"status": moves.CONFIRMED},
+                                              "team": {"status": moves.ASKED}}
+    # The coach as live: {name, role, function}, the time commitment packed into `function`.
+    _coach_saying(monkeypatch, "Here is the team structure based on your input. Is this right?", captured=[
+        {"field_name": "team", "source": filename,
+         "value": [{"name": n, "role": r, "function": f"{d}, time commitment: {hours[t]}"} for n, r, d, t in people]}])
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": (filename, TEAM_FIELD_SERVICE_FOUNDER.encode(), "text/csv")})
+    assert r.status_code == 200, r.text
+    draft = _askd(env, message=f"📎 {filename}")
+    assert draft["move"] == "read_back" and draft["move_field"] == "team", (draft["move"], draft.get("move_field"))
+    assert not draft["readback_card"]["confirm"], draft["readback_card"]           # the draft: training missing
+
+    _coach_saying(monkeypatch, "What would you like to change?")
+    changed = _askd(env, message="Change", action="change")
+    assert changed["move"] == "challenge", changed["move"]
+    # The coach as live after the typed training: the training packed into `function` too.
+    _coach_saying(monkeypatch, "Here is the updated team structure based on your input. Is this right?", captured=[
+        {"field_name": "team", "source": "belt",
+         "value": [{"name": n, "role": r, "function": f"{d}, time commitment: {hours[t]}"
+                    + (" (requires a half-day training on data collection)" if n in trained else "")}
+                   for n, r, d, t in people]}])
+    added = _askd(env, message=(
+        "Training: Elena Gruber and Thomas Wagner need a half-day on data collection; nobody else."))
+    assert added["move"] == "read_back" and added["readback_card"]["confirm"], (added["move"], added["readback_card"])
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == "store_and_advance", (done["move"], done["answer"])
+
+    team = {m["name"]: m for m in _define(env)["structured"]["team"]}
+    assert list(team) == [p[0] for p in people], team
+    for n, r, d, t in people:
+        m = team[n]
+        assert m.get("time_commitment") == t, ("the file's time commitment is not under its own key", m)
+        assert "time commitment" not in str(m.get("function") or "").lower(), ("the time is inside the function", m)
+        assert "training" not in str(m.get("function") or "").lower(), ("the training is inside the function", m)
+        assert m.get("department", d) == d, m                                   # every column under its own key
+        said = str(m.get("training") or "").lower()
+        assert ("half-day on data collection" in said) == (n in trained), ("training, as the Belt typed it", m)
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    view = next(e for e in _gate_section(report, "A")["elements"] if e["field"] == "team")["view"]
+    assert view["columns"][3:5] == ["Time", "Training"], view["columns"]
+    rows = {row[0]: row for row in view["rows"]}
+    assert rows["Elena Gruber"][3] == "4 h per week", rows["Elena Gruber"]
+    assert "half-day" in rows["Elena Gruber"][4] and "time commitment" not in rows["Elena Gruber"][4], rows["Elena Gruber"]
+
+
+def test_def_261_the_expected_saving_is_calculated_from_the_confirmed_business_case(env, monkeypatch,
+                                                                                      stub_planner) -> None:
+    """DEF-261 — founder test 2026-10-27 (IMPR-2026-PDLWG9), finding #51: every input of the expected saving is
+    confirmed before element 10 — about 1,200 complaints a year and €45 per late one in the business case, the
+    baseline 38%, the target at most 10% — and the Belt's benefits answer restates none of them, so the planner's
+    `calculation_inputs` is {} (as live). Through the routes and graph: the calculation runs in code (ADR-0077)
+    from the confirmed values, its row is stored in `computation_results` (€15,120 a year; cost of the gap
+    €20,520), and Gate B's "Expected saving at the target" shows it."""
+    _founder_1027_at_benefits(env, monkeypatch, stub_planner)
+
+    stored = _define(env)["structured"]
+    rows = [r for r in stored.get("computation_results") or [] if r.get("tool") == "calculate_expected_savings"]
+    assert rows, ("no expected saving was calculated from the confirmed business case", stored.get("computation_results"))
+    assert float(rows[-1]["result"]["annual_savings"]) == 15120, rows[-1]
+    assert float(rows[-1]["result"]["cost_of_gap"]) == 20520, rows[-1]
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    view = next(e for e in _gate_section(report, "B")["elements"] if e["field"] == "benefits_analysis")["view"]
+    figures = {f[0]: f[1] for f in view["figures"]}
+    assert figures["Expected saving at the target"] == "€15,120 a year", figures
+
+
+def test_def_260_a_stated_soft_benefit_is_stored(env, monkeypatch, stub_planner) -> None:
+    """DEF-260 — founder test 2026-10-27 (IMPR-2026-PDLWG9), finding #52 (founder 15 Oct item 7; ADR-0096, PROPOSED):
+    the Belt's benefits answer ends "Soft benefit: fewer escalations to account managers, seen in the monthly
+    escalation count." Through the routes and graph, the coach capturing the four keys as it did live: the
+    confirmed benefits analysis stores the soft benefit with its indicator, in ADR-0096's shape
+    (`soft_benefits`: a list of {benefit, indicator}) — never only in the coach's prose."""
+    _founder_1027_at_benefits(env, monkeypatch, stub_planner)
+
+    b = _define(env)["structured"]["benefits_analysis"]
+    soft = b.get("soft_benefits")
+    assert isinstance(soft, list) and len(soft) == 1, ("the stated soft benefit is not stored", b)
+    assert "fewer escalations to account managers" in str(soft[0].get("benefit") or "").lower(), soft
+    assert "monthly escalation count" in str(soft[0].get("indicator") or "").lower(), soft
+
+
+#: Founder test 2026-10-27, finding #60 — the SIPOC the founder sent, deliberately flawed: no Outputs, the step "close
+#: the case in the system" left out, the steps adding up to about 4 working days against a stated 8, how often given
+#: on step 1 only.
+FLAWED_SIPOC_60 = (
+    "Suppliers: customers, field technicians, the spare-parts team. Inputs: the complaint by phone or e-mail, "
+    "customer and device data, technician reports. Process: (1) log the complaint — about 15 minutes, about 100 a "
+    "month; (2) diagnose and dispatch a technician — about 2 working days (1 to 6), no technician free in peak weeks "
+    "(Elena said so); (3) repair on site — about 1 working day (same day to 3); (4) inform the customer — about 1 "
+    "working day, customers call us (Thomas said so). Customers: the customer, account managers. Process metrics: "
+    "working days from logging to informing the customer. Whole process: about 8 working days, about 100 complaints "
+    "a month.")
+#: What the live coach captured from it (the turn's trace): the Belt's columns, its steps with their times — and
+#: Outputs the Belt never gave.
+CAPTURED_SIPOC_60 = {
+    "suppliers": "customers, field technicians, the spare-parts team",
+    "inputs": "the complaint by phone or e-mail, customer and device data, technician reports",
+    "process_steps": [
+        {"name": "log the complaint", "duration": {"avg": "about 15 minutes"}, "runs_per_period": "about 100 a month"},
+        {"name": "diagnose and dispatch a technician",
+         "duration": {"avg": "about 2 working days", "min": "1 working day", "max": "6 working days"},
+         "problems": [{"note": "no technician free in peak weeks", "said_by": "Elena"}]},
+        {"name": "repair on site",
+         "duration": {"avg": "about 1 working day", "min": "same day", "max": "3 working days"}},
+        {"name": "inform the customer", "duration": {"avg": "about 1 working day"},
+         "problems": [{"note": "customers call us", "said_by": "Thomas"}]}],
+    "outputs": "Complaint resolved, customer informed",
+    "customers": "the customer, account managers",
+    "process_metrics": "working days from logging to informing the customer",
+    "process_performance": {"lead_time": "about 8 working days", "runs_per_period": "about 100 complaints a month"},
+}
+#: The Outputs the coach invented, in both wordings the trace showed.
+INVENTED_OUTPUTS_60 = ("Complaint resolved", "Resolved complaints")
+
+
+def test_def_259_the_sipoc_code_checks_gate_the_read_back(env, monkeypatch, stub_planner) -> None:
+    """DEF-259 — The SIPOC's code checks gate its read-back, read from the Belt's words (founder test 2026-10-27, finding #60)
+
+    Finding #60 (FALSE PASS, high): the founder's deliberately flawed SIPOC (no Outputs, steps adding up to about 4
+    working days against a stated 8, how often on step 1 only) was read back "5 of 5 criteria met" with Confirm open:
+    the coach's capture invented the Outputs and the all-six check read the capture, the step-sum question was never
+    asked, and "step times and how often" was ticked on the planner's judgment. Through POST /ask, with the planner
+    judging "sufficient" as it did live and the coach capturing what it captured live: (a) all-six is not met, names
+    the outputs and Confirm is closed; (b) the reply asks about the steps adding up to 4 of the 8 working days; (c)
+    the performance row is not met and the card asks for how often; (d) no value the Belt did not give reaches the
+    card or what a Confirm would store; (e) a Confirm stores nothing."""
+    import json
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    # The problem statement places the problem at steps 2 and 4, where the team noted problems: R18 agrees, so this
+    # turn is the read-back itself (the link check is finding #61's, not this test's).
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(
+        verdict="sufficient", reason="the six columns, the steps with their times and the lead time are given",
+        criterion_spans={"as-is": "about 2 working days (1 to 6)", "start-to-end": "(1) log the complaint",
+                         "all-six": "Suppliers: customers, field technicians", "customers-match": "Customers: the customer",
+                         "performance": "Whole process: about 8 working days"})
+    _coach_saying(monkeypatch, "Here is your process map. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": CAPTURED_SIPOC_60, "source": "belt"}])
+    read = _askd(env, message=FLAWED_SIPOC_60)
+    card = read.get("readback_card")
+    assert card is not None, (read["move"], read.get("answer"))
+    rows = {r["id"]: r for r in card["rows"]}
+    shown = {cid: (r["met"], r["value"]) for cid, r in rows.items() if cid != "performance"}
+
+    # (a) the Belt gave no Outputs: all-six is not met, says so, and Confirm stays closed.
+    assert rows["all-six"]["met"] is False, (f'{card["met"]} of {card["total"]} met', shown)
+    assert "outputs" in str(rows["all-six"]["value"]).lower(), rows["all-six"]
+    assert card["confirm"] is False, card["missing"]
+
+    # (b) the steps add up to about 4 working days; the Belt said 8 — asked, in code, before any Confirm.
+    reply = " ".join(str(read.get(k) or "") for k in ("answer", "explanation"))
+    assert "The steps add up to" in reply and "you said 8 working days" in reply, reply
+
+    # (c) how often is given on step 1 only: the performance row is open and the card asks for it.
+    performance = rows["performance"]
+    assert performance["met"] is False, performance["value"]
+    assert [row[2] for row in performance["value"]["rows"][1:4]] == ["—", "—", "—"], performance["value"]
+    assert "how often" in card["ask"].lower(), card["ask"]
+
+    # (d) nothing the Belt did not say: the invented Outputs are on neither the card nor the pending store.
+    pending = ((_define(env).get("field_status") or {}).get("process_map_sipoc") or {}).get("pending") or {}
+    seen = json.dumps({"card": card, "store": pending.get("store")}, ensure_ascii=False)
+    assert not [w for w in INVENTED_OUTPUTS_60 if w.lower() in seen.lower()], seen
+
+    # (e) a Confirm stores nothing.
+    _coach_saying(monkeypatch, "Thank you. Next, the issues and barriers.")
+    _askd(env, message="Confirm", action="confirm")
+    assert "process_map_sipoc" not in (_define(env).get("structured") or {}), _define(env)["structured"]
+    _def_259_unit_checks()                 # the unit twins: the same defect, read in the parts
+
+
+def _def_259_unit_checks() -> None:
+    """DEF-259 — the unit twins of finding #60 (founder test 2026-10-27): what a Confirm would store is read from the
+    Belt's words, so the Outputs the coach invented are not there and all-six is open; the step-sum question compares
+    the steps with the lead time across units (15 minutes + 4 working days against 8 working days); and the
+    performance criterion is a code check — open while a step has no how often."""
+    from backend.phases import moves
+    from backend.phases.define import parse, templates
+
+    stored = parse.sipoc_with_performance(CAPTURED_SIPOC_60)
+    asks = parse.duration_questions(stored)
+    assert any(a.startswith("The steps add up to 4") and "you said 8 working days" in a for a in asks), asks
+
+    pending = {"field": "process_map_sipoc", "fields": ["process_map_sipoc"], "belt_words": FLAWED_SIPOC_60,
+               "messages": 1}
+    store = moves.pending_store("define", pending, {"process_map_sipoc": CAPTURED_SIPOC_60}, {})
+    assert not [w for w in INVENTED_OUTPUTS_60 if w in str(store)], store
+    assert moves.store_missing(["process_map_sipoc"], {}, store) == ["process_map_sipoc"], store
+    assert "all-six" in templates.open_required("process_map_sipoc", {**store}, judged=True)
+    assert "performance" in templates.open_required("process_map_sipoc", {"process_map_sipoc": stored}, judged=True)
+
+
+def test_def_265_the_project_lead_is_in_the_team_read_back() -> None:
+    """DEF-265 — The project lead is in the team read-back as in the Gate, with a status that matches the role, in plain words (founder test 2026-10-27)"""
+    _not_written('DEF-265')
+
+
+def test_def_266_one_element_card_for_every_element_of_every_phase() -> None:
+    """DEF-266 — R-C (ADR-0114): one element card for every element of every phase, assembled in code from the skill and the state; a teaching turn makes no coach model call (founder test 2026-10-27)"""
+    _not_written('DEF-266')
+
+
+def test_def_267_the_welcome_flows_straight_into_the_first_element_s() -> None:
+    """DEF-267 — R-A: the welcome flows straight into the first element's card; the Belt never types 'let's start' (founder test 2026-10-27)"""
+    _not_written('DEF-267')
+
+
+def test_def_268_training_needs_are_not_a_define_criterion_never_asked() -> None:
+    """DEF-268 — R-B: training needs are not a Define criterion — never asked, never blocking; stored in Training when given (founder test 2026-10-27)"""
+    _not_written('DEF-268')
+
+
+def test_def_269_scope_is_taught_read_back_and_shown_as_in() -> None:
+    """DEF-269 — R-D: scope is taught, read back and shown as In / Out per dimension (founder test 2026-10-27)"""
+    _not_written('DEF-269')
+
+
+def test_def_270_calculations_by_code_shown_with_formula_and_result_offered() -> None:
+    """DEF-270 — R-E: calculations by code, shown with formula and result, offered for Confirm and stored in their own fields (founder test 2026-10-27)"""
+    _not_written('DEF-270')
+
+
+def test_def_271_the_sipoc_is_collected_in_four_guided_parts_a() -> None:
+    """DEF-271 — R-G: the SIPOC is collected in four guided parts, a skeleton visible, one read-back and one Confirm at the end (founder test 2026-10-27)"""
+    _not_written('DEF-271')
+
+
+def test_def_272_the_r18_link_check_is_a_flow_with_the() -> None:
+    """DEF-272 — R-H: the R18 link check is a flow with the steps marked and two buttons; the same picture in the read-back and Gate section F (founder test 2026-10-27)"""
+    _not_written('DEF-272')
+
+
+def test_def_273_a_change_replaces_the_earlier_version_and_a_message() -> None:
+    """DEF-273 — A read-back is built from the Belt's current answer: a Change replaces the earlier version, and a message about another element is not folded in (founder test 2026-10-27)"""
+    _not_written('DEF-273')
+
+
+def test_def_274_the_lead_s_typed_name_replaces_you_the_lead() -> None:
+    """DEF-274 — The create form: the lead's typed name replaces 'You'; the lead's country and site are asked (R8b's amendment) (founder test 2026-10-27)"""
+    _not_written('DEF-274')
+
+
+def test_def_275_the_create_form_s_sign_in_note_says_one() -> None:
+    """DEF-275 — The create form's sign-in note says one-time codes are used — never 'no account or password needed' (founder test 2026-10-27)"""
+    _not_written('DEF-275')
+
+
+def test_def_276_the_page_calls_the_origin_it_was_loaded_from() -> None:
+    """DEF-276 — The page calls the origin it was loaded from; the startup log names the real port (founder test 2026-10-27)"""
+    _not_written('DEF-276')
+
+
+def test_def_277_the_case_number_and_a_real_copy_button_kept() -> None:
+    """DEF-277 — Create opens Define with a banner: the case number and a real Copy button, kept until closed (founder test 2026-10-27)"""
+    _not_written('DEF-277')
+
+
+def test_def_278_the_phase_overview_keeps_each_step_s_explanation_why() -> None:
+    """DEF-278 — The phase overview keeps each step's explanation (why it matters, an example, the hard/soft benefits text) (founder test 2026-10-27)"""
+    _not_written('DEF-278')
+
+
+def test_def_279_the_page_shows_define_phase_1_of_5_prominently() -> None:
+    """DEF-279 — The page shows 'Define — phase 1 of 5' prominently, D highlighted (founder test 2026-10-27)"""
+    _not_written('DEF-279')
+
+
+def test_def_280_no_internal_text_field_key_placeholder_or_raw_criteria() -> None:
+    """DEF-280 — No internal text, field key, placeholder or raw criteria list reaches the Belt (chat, card or Gate) (founder test 2026-10-27)"""
+    _not_written('DEF-280')
+
+
+def test_def_281_submit_for_gate_review_looks_disabled_while_it_is() -> None:
+    """DEF-281 — Submit for gate review looks disabled while it is disabled (founder test 2026-10-27)"""
+    _not_written('DEF-281')
+
+
+def test_def_282_no_echo_of_the_answer_above_it_is_this() -> None:
+    """DEF-282 — The read-back card is the read-back: no echo of the answer above it; 'Is this right?' only when every criterion is met (founder test 2026-10-27)"""
+    _not_written('DEF-282')
+
+
+def test_def_283_lists_inside_the_bubble_change_styled_tables_full_width() -> None:
+    """DEF-283 — Coach text and read-back cards render cleanly: lists inside the bubble, Change styled, tables full width (founder test 2026-10-27)"""
+    _not_written('DEF-283')
+
+
+def test_def_284_one_template_per_element_no_not_confirmed_under_a() -> None:
+    """DEF-284 — The Gate view: one template per element, no 'not confirmed' under a partly confirmed header, no raw answer (founder test 2026-10-27)"""
+    _not_written('DEF-284')
+
+
+def test_def_285_what_does_need_answers_as_a_checklist_of_what() -> None:
+    """DEF-285 — 'What does … need?' answers as a checklist of what the answer needs, never the card again (founder test 2026-10-27)"""
+    _not_written('DEF-285')
+
+
+def test_def_286_the_chat_read_back_shows_the_element_s_picture() -> None:
+    """DEF-286 — The chat read-back shows the element's picture (5W2H map, baseline and target charts) where it belongs (founder test 2026-10-27)"""
+    _not_written('DEF-286')
+
+
+def test_def_287_element_5_offers_the_metric_and_baseline_the_business() -> None:
+    """DEF-287 — Element 5 offers the metric and baseline the business case already gave, for Confirm (founder test 2026-10-27)"""
+    _not_written('DEF-287')
+
+
+def test_def_288_the_case_s_country_and_site_are_chosen_on() -> None:
+    """DEF-288 — W20 (ADR-0089): the case's country and site are chosen on the create form from the configured lists (founder test 2026-10-27)"""
+    _not_written('DEF-288')

@@ -1,6 +1,6 @@
 # ADR-0080: A coaching turn has one deadline, and every model call a request timeout
 
-Status: ACCEPTED (founder, 2026-10-12, option B; drafted by Claude Code from the ruling)
+Status: SUPERSEDED by 0113 (founder, 2026-10-27, ruling R-F; accepted 2026-10-12, option B)
 Requirements: R12 (no turn over 45 s), R13 (45 s per turn); DEF-093; G-157
 Depends on: ADR-0043 (native reliability primitives: the executor's `TimeoutPolicy` and `error_handler`
 stay), ADR-0044 (fallback chain: this is its level 0, the timeout), ADR-0059 (call limits), ADR-0066

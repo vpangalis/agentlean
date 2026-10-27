@@ -3461,6 +3461,972 @@
    ],
    "escape_class": "assumption",
    "symptom": "FIXED (founder ruling 2026-10-27, ADR-0112) — A MISMATCH THE COACH DETECTS NEVER REACHED THE BELT. The coach set contradiction_flag every turn, but only for values approved in an EARLIER phase, and nothing reached the Belt: the flag was logged, and the pause was DEF-040, a node never built. The founder's purpose for the judges (2026-10-14): the Belt gets feedback when an entry does not fit the confirmed values or the BB reference book, then moves on. D4 OCCURRENCE: detection was scoped to earlier phases, and the Belt-facing half waited on a pause node. D4 ESCAPE: no eval task had an answer that conflicts with a confirmed value. FIX (ADR-0112): the flag covers this phase's confirmed values and the method's rules (prompts.CONTRADICTION_CHECK); the executor tells the Belt in the reply, in code, what the answer conflicts with and offers to correct or keep it (state_injection.mismatch_line); a Confirm keeps it, noted in field_log.reason and step_log (mismatch_kept); no pause. VERIFY: test_define_e2e.py::test_adr_0112_…, test_middleware.py's mismatch-line test; eval tasks E21–E24 (and Measure's M01, recorded)."
+  },
+  {
+   "id": "G-274",
+   "requirement": [
+    "W20"
+   ],
+   "feature": [
+    "DEF-288"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE CREATE FORM HAS NO COUNTRY OR SITE FIELD (W20, the case's location). W20 was ruled Must on 2026-10-15 but its entry stayed an uncommitted PROPOSED draft until this register (committed ACCEPTED, ruling founder 2026-10-15); ADR-0089 is untracked. Founder test 2026-10-27 finding 1 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-275",
+   "requirement": [
+    "W17"
+   ],
+   "feature": [
+    "DEF-275"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE CREATE FORM SAYS 'NO ACCOUNT OR PASSWORD NEEDED' though sign-in uses one-time codes (ADR-0105). Founder test 2026-10-27 finding 2 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-276",
+   "requirement": [
+    "R8b"
+   ],
+   "feature": [
+    "DEF-274"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE LEAD CARD STAYS 'YOU' with an empty name after the lead's details are typed (repeat of 15 Oct #2). Founder test 2026-10-27 finding 3 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-277",
+   "requirement": [
+    "C5"
+   ],
+   "feature": [
+    "DEF-276"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": null,
+   "symptom": "THE PAGE CALLS PORT 8020 WHATEVER ITS ORIGIN; the startup log says 8020 with AGENT_IMPROVE_PORT=8021 ('Could not create case: Failed to fetch'). Founder test 2026-10-27 finding 4 (case IMPR-2026-PDLWG9). belt_impact: dead_end."
+  },
+  {
+   "id": "G-278",
+   "requirement": [
+    "W6"
+   ],
+   "feature": [
+    "DEF-277"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "AFTER CREATE THE CASE NUMBER SITS OUT OF VIEW; the page does not move; Copy looks like text — the Belt may create a second case. Founder test 2026-10-27 finding 5 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-279",
+   "requirement": [
+    "W1"
+   ],
+   "feature": [
+    "DEF-278"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE PHASE OVERVIEW LOST ITS EXPLANATIONS: each step shows a one-line definition only (regression). Founder test 2026-10-27 finding 6 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-280",
+   "requirement": [
+    "W2"
+   ],
+   "feature": [
+    "DEF-279"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "IT IS HARD TO SEE THAT YOU ARE IN DEFINE: the phase pill and D-M-A-I-C row are small and pale. Founder test 2026-10-27 finding 7 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-281",
+   "requirement": [
+    "C1"
+   ],
+   "feature": [
+    "DEF-280"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE SESSION HISTORY CARD SHOWS '(under –)', an unfilled placeholder. Founder test 2026-10-27 finding 8 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-282",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-267"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE WELCOME ENDS AT 'First: Business case' with no explanation, example or question — a dead end (ruling R-A). Founder test 2026-10-27 finding 9 (case IMPR-2026-PDLWG9). belt_impact: dead_end."
+  },
+  {
+   "id": "G-283",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-281"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "'SUBMIT FOR GATE REVIEW' IS SOLID BLUE while the text says it opens only at 13 of 13. Founder test 2026-10-27 finding 10 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-284",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "ELEMENT 1'S CARD REPEATS THE WHOLE WELCOME (ruling R-C). Founder test 2026-10-27 finding 11 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-285",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "EVERY EXAMPLE IS LABELLED THREE TIMES (elements 1-12) (ruling R-C item 5). Founder test 2026-10-27 finding 12 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-286",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-282"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "EVERY READ-BACK REPEATS THE ANSWER: the coach's restatement, 'Read as n items' and the raw answer in the card (four copies on element 11). Founder test 2026-10-27 finding 13 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-287",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-263"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "'WHERE AND SINCE WHEN' IS TICKED WITH '—' (in your answer): the Belt cannot see what was found. Founder test 2026-10-27 finding 14 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-288",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-263"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "'WHAT IS WRONG' AND 'HOW BIG IT IS TODAY' SHOW THE SAME SENTENCE; the size is not picked out. Founder test 2026-10-27 finding 15 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-289",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-283"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE CHANGE BUTTON IS AN UNSTYLED GREY BOX beside the styled Confirm. Founder test 2026-10-27 finding 16 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-290",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "A CONFIRM IS ANNOUNCED THREE TIMES: green strip, 'Stored: …', 'Now that your … is confirmed…'. Founder test 2026-10-27 finding 17 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-291",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE TEAM CARD'S EXAMPLE IS LABELLED THREE TIMES (repeat of 12). Founder test 2026-10-27 finding 18 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-292",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-263"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "join",
+   "symptom": "GATE B STORES 'WHERE AND SINCE WHEN: —' AND SIZE = WHAT (WRONG DATA). Founder test 2026-10-27 finding 19 (case IMPR-2026-PDLWG9). belt_impact: wrong_data. D4 OCCURRENCE: the planner joined the answer's two ends into one span ('In Field Service Austria, from March to September 2026'), no verbatim substring, so templates.verbatim_spans dropped it; the row stayed ticked on the planner's verdict (templates.rows: met falls back to judged) and Gate B's _view read None; 'baseline' quoted the same passage as 'what' and nothing checks one passage used twice. D4 ESCAPE (join): the read-back side is pinned with a dropped span still ticked (test_define_e2e.py ~7927), the Gate side only with kept spans (~7803); no test joins them; the four runs of 10-26/10-27 recorded Gate B What/Size/Cost null and no check read Gate rows. D7: test_def_263 with the founder's business case and the live planner's spans; a run-through check that no Gate row of a confirmed element is null and no two rows are equal."
+  },
+  {
+   "id": "G-293",
+   "requirement": [
+    "R5"
+   ],
+   "feature": [
+    "DEF-284"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "GATE B SAYS '1 OF 2 CONFIRMED' AND 'NOT CONFIRMED YET.' TOGETHER (repeat of 15 Oct #32). Founder test 2026-10-27 finding 20 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-294",
+   "requirement": [
+    "R8b"
+   ],
+   "feature": [
+    "DEF-265"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE LEAD'S ROW IN GATE A HAS STATUS 'MEMBER' although the role is project lead. Founder test 2026-10-27 finding 21 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-295",
+   "requirement": [
+    "R8b"
+   ],
+   "feature": [
+    "DEF-265"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE PROJECT LEAD IS MISSING FROM THE TEAM READ-BACK; he appears in the Gate after Confirm. Founder test 2026-10-27 finding 22 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-296",
+   "requirement": [
+    "C1"
+   ],
+   "feature": [
+    "DEF-280"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE TEAM IS SHOWN THREE TIMES, ONE WITH FIELD KEYS ('name: … | role: … | time_commitment: …'). Founder test 2026-10-27 finding 23 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-297",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-264"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE TEAM READ-BACK TABLE LACKS TIME; THE FILE'S DEPARTMENT VALUES LAND IN FUNCTION. Founder test 2026-10-27 finding 24 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-298",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-282"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "'IS THIS RIGHT?' IS ASKED WHILE A CRITERION IS STILL OPEN. Founder test 2026-10-27 finding 25 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-299",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-268"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "'TRAINING NEEDED' IS ASKED AND BLOCKS CONFIRM, unexplained (ruling R-B). Founder test 2026-10-27 finding 26 (case IMPR-2026-PDLWG9). belt_impact: dead_end."
+  },
+  {
+   "id": "G-300",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "CONFIRMATION AND THE NEXT ELEMENT RUN TOGETHER; the eye goes to the strip and the example, not the question (ruling R-C). Founder test 2026-10-27 finding 27 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-301",
+   "requirement": [
+    "W5"
+   ],
+   "feature": [
+    "DEF-264"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": "path_test",
+   "symptom": "GATE A STORES TIME INSIDE FUNCTION, TIME EMPTY, TRAINING HOLDS 'time commitment: …' (WRONG DATA). Founder test 2026-10-27 finding 28 (case IMPR-2026-PDLWG9). belt_impact: wrong_data. D4 OCCURRENCE: the founder's file has no training column, so it is a draft; after Change and the typed training line, moves.decide built the pending record without its `upload` key, so pending_store skipped the file's own rows (parse.team_rows) and stored the coach's capture, whose shape is fixed at {name, role, function} (prompts.FIELD_SHAPES) — time and training packed into function; Gate A's _member_training then split that text. D4 ESCAPE (path_test, with a claim): G-236's test labels its file 'team_field_service.csv' but gives it a training column the real file lacks, so only the full-cover path ran; scenario (e) has no department or time column and no Change; no run-through uploads a team; no check reads the team's keys. D7: test_def_264 with the founder's exact four-column file, Change and the typed training line."
+  },
+  {
+   "id": "G-302",
+   "requirement": [
+    "R8b"
+   ],
+   "feature": [
+    "DEF-265"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "GATE A STATUSES 'PROPOSED' AND 'MEMBER' ARE UNEXPLAINED. Founder test 2026-10-27 finding 29 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-303",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-285"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "'WHAT DOES … NEED?' REPEATS THE ELEMENT CARD instead of a checklist. Founder test 2026-10-27 finding 30 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-304",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "'WHERE DO WE STAND?' SAYS 'NEXT: <the element in progress>' and repeats question and example. Founder test 2026-10-27 finding 31 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-305",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-283"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "BULLETS OUTSIDE THE BUBBLE; NUMBERED LISTS MISALIGNED; 'IS THIS RIGHT?' RUNS INTO THE LAST BULLET (repeat of 15 Oct #28/#31). Founder test 2026-10-27 finding 32 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-306",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-283"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE VOC CARD'S CTQ TABLE IS NESTED IN A CRITERIA CELL, wrapping after one or two words. Founder test 2026-10-27 finding 33 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-307",
+   "requirement": [
+    "C1"
+   ],
+   "feature": [
+    "DEF-280"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE PROBLEM STATEMENT EXAMPLE TABLE RUNS COLUMNS TOGETHER; a stray '*' and an internal skill label are shown. Founder test 2026-10-27 finding 34 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-308",
+   "requirement": [
+    "C2"
+   ],
+   "feature": [
+    "DEF-286"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "NO 5W2H MIND MAP IN THE CHAT READ-BACK (the Gate has it). Founder test 2026-10-27 finding 35 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-309",
+   "requirement": [
+    "R15"
+   ],
+   "feature": [
+    "DEF-287"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "ELEMENT 5 ASKS FOR METRIC AND BASELINE FROM SCRATCH though the business case gave 38%. Founder test 2026-10-27 finding 36 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-310",
+   "requirement": [
+    "C2"
+   ],
+   "feature": [
+    "DEF-286"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "NO BASELINE CHART IN THE CHAT READ-BACK; a code paragraph sits between 'Is this right?' and the card. Founder test 2026-10-27 finding 37 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-311",
+   "requirement": [
+    "R5"
+   ],
+   "feature": [
+    "DEF-262"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": "join",
+   "symptom": "GATE E'S BASELINE HOLDS THE WHOLE ANSWER instead of '38% · service desk system · March–September 2026' (WRONG DATA). Founder test 2026-10-27 finding 38 (case IMPR-2026-PDLWG9). belt_impact: wrong_data. D4 OCCURRENCE: moves.pending_store keeps the Belt's whole answer as the MetricValue's raw (correct, ADR-0071) and Gate E's row renders plain(base), which returns raw (templates._view); the verified real-data span (source and period) is stored but never used there. D4 ESCAPE (join): storage pins raw as the whole answer (test_define_e2e.py ~1068) while the Gate test's fixture writes raw by hand as the mockup's display string (test_templates.py ~56), which the code never stores; every run since 10-22 recorded E Baseline as the whole answer and no check read it. D7: test_def_262 with the founder's metric answer."
+  },
+  {
+   "id": "G-312",
+   "requirement": [
+    "C2"
+   ],
+   "feature": [
+    "DEF-286"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE METRIC CHART FLOATS BELOW THE CONVERSATION while the Belt works on scope (repeat of 15 Oct #12). Founder test 2026-10-27 finding 39 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-313",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-269"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "THE SCOPE SUMMARY LISTS ONLY 'OUT OF SCOPE'. Founder test 2026-10-27 finding 40 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-314",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-263"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "READ-BACK ROWS SHOW THE CRITERION'S OWN WORDING AS THE VALUE (scope, SIPOC, secondary metrics) — ✓ without evidence. Founder test 2026-10-27 finding 41 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-315",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-269"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "SCOPE IS NOT TAUGHT AS IN / OUT, NOR BY DIMENSION (ruling R-D). Founder test 2026-10-27 finding 42 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-316",
+   "requirement": [
+    "C2"
+   ],
+   "feature": [
+    "DEF-286"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "NO BASELINE → TARGET CHART IN THE TARGET READ-BACK (38% → 10%). Founder test 2026-10-27 finding 43 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-317",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "'IS THIS RIGHT? CONFIRM…' APPEARS TWICE ON THE TARGET CARD, once as 'Your turn'. Founder test 2026-10-27 finding 44 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-318",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE SAVED STRIP NAMES ELEMENT 8 ONLY though element 9 was stored by the same Confirm. Founder test 2026-10-27 finding 45 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-319",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-270"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "THE BENEFITS CARD DOES NOT OFFER THE CALCULATION though all inputs are confirmed (ruling R-E). Founder test 2026-10-27 finding 47 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-320",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-260"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "THE BENEFITS CARD DOES NOT MENTION SOFT BENEFITS; the founder-approved hard/soft wording (15 Oct item 7) is not used. Founder test 2026-10-27 finding 48 (case IMPR-2026-PDLWG9). belt_impact: data_loss."
+  },
+  {
+   "id": "G-321",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-270"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "'HOW DO I CALCULATE THE COST OF THE GAP?' — 'multiply these four things' lists three; no calculation, no result (ruling R-E). Founder test 2026-10-27 finding 49 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-322",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-270"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "AN INTERNAL LINE REACHES THE BELT: 'I left out figures the platform did not calculate.'. Founder test 2026-10-27 finding 50 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-323",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-261"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "assumption",
+   "symptom": "NO EXPECTED SAVING IN THE READ-BACK OR GATE B though every input is confirmed (MISSING DATA). Founder test 2026-10-27 finding 51 (case IMPR-2026-PDLWG9). belt_impact: wrong_data. D4 OCCURRENCE: calculations.run reads baseline and target from the confirmed state but the volume and unit cost only from the planner's extraction, told to read 'the answer so far and the latest message'; the 1,200 complaints and €45 sat in the confirmed business case, so calculation_inputs was {} and nothing reached computation_results; Gate B's expected-saving row read None. D4 ESCAPE (assumption): every run-through and E10 state the inputs inside the benefits answer, and the unit test hands them to run() directly; nothing tested inputs stated only in the business case, which ADR-0077 names as the first source. D7: test_def_261 with the founder's business case and benefits answer."
+  },
+  {
+   "id": "G-324",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-260"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "none",
+   "symptom": "THE SOFT BENEFIT IS NOT STORED: 'fewer escalations to account managers, seen in the monthly escalation count' was in the coach's summary only (DATA LOST). Founder test 2026-10-27 finding 52 (case IMPR-2026-PDLWG9). belt_impact: data_loss. D4 OCCURRENCE: the benefits schema has four keys (schema.BENEFITS_ANALYSIS_KEYS), the coach is told those four (prompts.FIELD_SHAPES) and the card has four rows, so the soft benefit had no place to go. D4 ESCAPE (none): the requirement amendment and ADR-0096 were PROPOSED and never ruled (G-215 recorded the same gap); secondary: no scripted benefits answer states a part outside the four keys, and nothing compares the coach's prose with what the card shows and stores. D7: test_def_260 with the founder's benefits answer."
+  },
+  {
+   "id": "G-325",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-270"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "THE BENEFITS CARD NEEDS A 'HOW DO I CALCULATE THE COST OF THE GAP?' LINK (ruling R-C item 6). Founder test 2026-10-27 finding 53 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-326",
+   "requirement": [
+    "C1"
+   ],
+   "feature": [
+    "DEF-280"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "GATE B'S SUMMARY PASTES THE BELT'S TEXT RAW ('Cost of the gap today: About €20,500 a year.'). Founder test 2026-10-27 finding 54 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-327",
+   "requirement": [
+    "R5"
+   ],
+   "feature": [
+    "DEF-284"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "GATE E RENDERS ELEMENTS 8 AND 9 AS READ-BACK ROWS, a second template in one report. Founder test 2026-10-27 finding 55 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-328",
+   "requirement": [
+    "R5"
+   ],
+   "feature": [
+    "DEF-284"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "GATE D PRINTS THE RAW VOC ANSWER ABOVE THE CTQ TABLE (repeat of 15 Oct #33). Founder test 2026-10-27 finding 56 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-329",
+   "requirement": [
+    "C1"
+   ],
+   "feature": [
+    "DEF-280"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "GATE F'S OPEN HINT IS A RAW CRITERIA LIST ('…customers agree with the voc, step times and how often'). Founder test 2026-10-27 finding 57 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-330",
+   "requirement": [
+    "R17"
+   ],
+   "feature": [
+    "DEF-271"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": null,
+   "symptom": "THE SIPOC CARD: A 12-LINE 'WHY IT MATTERS', 'THE EXAMPLE IS DRAWN BELOW' WITH NOTHING DRAWN, EIGHT QUESTIONS IN ONE BLOCK (ruling R-G). Founder test 2026-10-27 finding 58 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-331",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-254"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "assumption",
+   "symptom": "THE 45 S DEADLINE THREW AWAY FINISHED TURNS, THEN 'SOMETHING WENT WRONG' (BLOCKER: dead end, work lost). Founder test 2026-10-27 finding 59 (case IMPR-2026-PDLWG9). belt_impact: data_loss. D4 OCCURRENCE (measured, LangSmith and the Store's step_log): of six element-12 turns, three were cut at arrival + 42 s; two of them (15:26, 15:33) had finished every node and were cut in LangGraph's loop exit while their checkpoints uploaded (4.5-5.5 s of saves); the 15:30 turn lost 10.4 s to a planner timeout; the 15:34 turn's planner timed out three times (10 s each) and T29 answered 'Something went wrong… send it again'; the deadline reply is an HTTP 200 by design (ADR-0080 decision 4), hence 'POST /ask 200' under the timeout text; the 15:33 message was the barriers answer, processed as the SIPOC (#62). D4 ESCAPE (assumption): the runs measured the longest turn against 45 s (run 5: 42.3 s, passed) but nothing measured how close a turn came to the cut or what a slow minute of the premium deployment does to it; G-271 (a resend cut at 42.4 s in run 5) was the early signal, left open; the scripted answers never resend, so a cut turn's leftovers were never met. D7: test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes, the per-step timing log (DEF-255), and the live slice of element 12 with the founder's two SIPOC texts."
+  },
+  {
+   "id": "G-332",
+   "requirement": [
+    "R17"
+   ],
+   "feature": [
+    "DEF-259"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test",
+   "symptom": "THE FLAWED SIPOC WAS READ BACK '5 OF 5 CRITERIA MET' (FALSE PASS, high): ✓ all six with no Outputs, no step-sum question, ✓ how often with three steps missing it. Founder test 2026-10-27 finding 60 (case IMPR-2026-PDLWG9). belt_impact: wrong_data. D4 OCCURRENCE: the column check reads the coach's capture (moves.pending_store parses the Belt's words only when the capture is not a dict), and the coach invented Outputs; parse.duration_questions returned nothing because step 1 is in minutes and the sum requires one shared unit, though _in_minutes converts; no code checks per-step frequency, so 'performance' fell back to the planner's verdict; four of the five ticks were the planner's 'sufficient'. D4 ESCAPE (path_test): the run-through's SIPOC is always complete and in plain days; no eval task covers the SIPOC; the one test that drives a dict capture with an Outputs the Belt never gave asserts that it stores. D7: test_def_259 with the founder's flawed SIPOC and the live coach's capture."
+  },
+  {
+   "id": "G-333",
+   "requirement": [
+    "R18"
+   ],
+   "feature": [
+    "DEF-272"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE R18 LINK CHECK IS TEXT ONLY: the Belt cannot see where in the process (ruling R-H). Founder test 2026-10-27 finding 61 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+  },
+  {
+   "id": "G-334",
+   "requirement": [
+    "W4"
+   ],
+   "feature": [
+    "DEF-258"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE BARRIERS ANSWER WAS PROCESSED AS THE SIPOC: an open element in the sidebar has no control, so element 13 could not be picked (verified: the 15:33 request carried no belt_element). Founder test 2026-10-27 finding 62 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
+  },
+  {
+   "id": "G-335",
+   "requirement": [
+    "T99"
+   ],
+   "feature": [
+    "DEF-243"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": null,
+   "symptom": "THE AZURE SDK LOGS EVERY STORAGE REQUEST AT INFO, pushing a failing turn's start off the screen (repeat of 15 Oct #3, G-228). Founder test 2026-10-27 finding 63 (case IMPR-2026-PDLWG9). belt_impact: none."
+  },
+  {
+   "id": "G-336",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-256"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "join",
+   "symptom": "THE PLANNER QUOTED WHOLE PASSAGES 4-5 TIMES PER JUDGMENT (450-754 output tokens): 5-10 s against a 10 s request timeout — one timeout at 15:30, three at 15:34 (the 'Something went wrong'). Founder test 2026-10-27, measured on the traces of finding 59 (case IMPR-2026-PDLWG9). belt_impact: dead_end. D4 OCCURRENCE: SufficiencyJudgment.criterion_spans asked for 'the passage … that meets it'; for the SIPOC every criterion's passage is most of the answer. D4 ESCAPE (join): ADR-0080 set the planner's 10 s timeout before ADR-0093 added the spans; each was tested alone, and no run measured the planner's output size."
+  },
+  {
+   "id": "G-337",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-257"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "assumption",
+   "symptom": "4.5-5.5 S OF SAVES AFTER THE ANSWER: about 20 blobs of 470-595 KB a turn, each checkpoint uploaded twice in a row (history, then latest.json) and every write of the process behind one lock. Founder test 2026-10-27, measured on the traces of finding 59 (case IMPR-2026-PDLWG9). belt_impact: degraded. D4 OCCURRENCE: AzureBlobCheckpointSaver.aput ran the history upload and the latest.json update in sequence inside the one asyncio lock that aput_writes also takes. D4 ESCAPE (assumption): ADR-0101 measured storage seconds per turn into the run records, but nothing checks them, and the in-memory test container uploads instantly."
+  },
+  {
+   "id": "G-338",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-257"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "path_test",
+   "symptom": "A TURN READ ITS CHECKPOINT TWICE BEFORE THE GRAPH (arrival to the graph 0.9-5.8 s). Founder test 2026-10-27, measured on the traces of finding 59 (case IMPR-2026-PDLWG9). belt_impact: degraded. D4 OCCURRENCE: ask() read the thread's state in _with_unfinished_work and again in _graph_input. D4 ESCAPE (path_test): the tests' checkpoint reads are in memory and free."
+  },
+  {
+   "id": "G-339",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-254"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "assumption",
+   "symptom": "A CANCELLED TURN LEFT THE BELT'S MESSAGE STORED WITHOUT A REPLY, AND EACH RESEND STORED IT AGAIN (case messages 90/91, 97/98, 102/103). Founder test 2026-10-27, measured on the traces of finding 59 (case IMPR-2026-PDLWG9). belt_impact: data_loss. D4 OCCURRENCE: ADR-0080 decision 5 kept an abandoned turn's checkpoint (the message after the input guard) as the next turn's start; the resend appended the same message. D4 ESCAPE (assumption): the decision assumed the leftover harmless; nothing tested a resend after a cut."
+  },
+  {
+   "id": "G-340",
+   "requirement": [
+    "T43"
+   ],
+   "feature": [
+    "DEF-255"
+   ],
+   "lane": [
+    "integrator"
+   ],
+   "escape_class": "claim",
+   "symptom": "EVERY READ-BACK LOGGED 'FINDING — presentational field(s) came back empty', read in the founder's terminal as 'the coach returned empty' on element 12. Founder test 2026-10-27, measured on the traces of finding 59 (case IMPR-2026-PDLWG9). belt_impact: none. D4 OCCURRENCE: the executor's warning checked the four blocks on every move, though a read-back writes none of the three teaching blocks and progress is code's. D4 ESCAPE (claim): a log line asserted a defect and nothing checked the assertion."
+  },
+  {
+   "id": "G-341",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-273"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test",
+   "symptom": "THE MOVE'S 'THE BELT'S WORDS' CARRIED EVERY MESSAGE ON THE ELEMENT — the flawed SIPOC after Change and the barriers answer (move section 3,858 chars); the coach read the barriers back as SIPOC 'Additional notes'. Founder test 2026-10-27, measured on the traces of finding 59 (case IMPR-2026-PDLWG9). belt_impact: wrong_data. D4 OCCURRENCE: the element's answer accumulates every Belt message while it is in focus; a Change click does not reset it. D4 ESCAPE (path_test): no run presses Change and sends a full new version, nor answers another element while one is open."
+  },
+  {
+   "id": "G-342",
+   "requirement": [
+    "R8b"
+   ],
+   "feature": [
+    "DEF-274"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": null,
+   "symptom": "THE CREATE FORM DOES NOT ASK THE LEAD'S COUNTRY AND SITE, which R8b's accepted amendment of 2026-10-17 requires (ADR-0090 decision 1) — finding 1's R8b half. Founder test 2026-10-27 finding 1 (case IMPR-2026-PDLWG9). belt_impact: wrong_data."
   }
  ],
  "escape_controls": {
