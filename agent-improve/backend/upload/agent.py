@@ -30,7 +30,7 @@ from backend.upload import parsers
 from backend.core.llm import UPLOAD_TIMEOUT, get_llm
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from backend.core.prompts import (UPLOAD_ELEMENT_CHECK, UPLOAD_INTERPRET_DATA, UPLOAD_INTERPRET_SYSTEM,
+from backend.core.prompts import (UPLOAD_ELEMENT_CHECK, cut_at, UPLOAD_INTERPRET_DATA, UPLOAD_INTERPRET_SYSTEM,
                                   VISION_EXTRACT_PROMPT)
 from backend.storage.models import ElementCheck, ImageRead, UploadInterpretation
 from backend.upload.classifier import (
@@ -201,7 +201,7 @@ async def _interpret(
         column_types=json.dumps(parsed.get("column_types") or {}),
         column_ranges=json.dumps(parsed.get("column_ranges") or {}, default=str),
         row_count=parsed.get("row_count"),
-        sample=(parsed.get("text") or "")[:INTERPRET_SAMPLE_CHARS],
+        sample=cut_at(parsed.get("text") or "", INTERPRET_SAMPLE_CHARS),   # ADR-0111 D3: the cut says so
     )
     # ADR-0074 (DEF-108, W5): the current element's acceptance criteria, judged in this same call —
     # in the system message beside the other instructions (ADR-0067), never in the data block.

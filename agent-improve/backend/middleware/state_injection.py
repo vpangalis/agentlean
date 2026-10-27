@@ -64,6 +64,7 @@ from backend.core.prompts import (
     SECTION_MOVE,
     SECTION_RULES,
     SECTION_STATE,
+    cut_at,
 )
 from backend.core.substate import PhaseState
 from backend.middleware.grader import applies
@@ -148,6 +149,52 @@ def reads_whole(phase: str, focus: Optional[str]) -> set[str]:
     from backend.phases.define.schema import ELEMENT_READS
     own = set(dict(moves.positions(phase)).get(focus or "") or ()) | ({focus} if focus else set())
     return own | set(ELEMENT_READS.get(focus or "", ()))
+
+
+#: What section 3's confirmed values leave out: kept elsewhere in the section, or nowhere.
+_NOT_A_VALUE = ("citations", "uploads", "acknowledged_gaps")
+
+
+def turn_artifacts(state: Any) -> dict[str, Any]:
+    """The case's values after this turn's change — what is stored and what this turn's Confirm stores — so sections
+    3 and 5 agree, and the coaching grader reads the same values (ADR-0111 D5)."""
+    state = state or {}
+    plan = state.get("coaching_plan")
+    return {**dict(state.get("artifacts") or {}), **dict(getattr(plan, "store", None) or {})}
+
+
+def confirmed_values(phase: str, artifacts: dict[str, Any], focus: Optional[str]) -> list[str]:
+    """Section 3's confirmed values (G-252): the current element's own and those it builds on whole, every other in
+    one line written in code, each in its tag under its display name. The coaching grader's "case so far" is this
+    list (ADR-0111 D5)."""
+    whole = reads_whole(phase, focus)
+    return [value_tag(phase, k, v, whole=phase != "define" or k in whole)
+            for k, v in artifacts.items() if k not in _NOT_A_VALUE and v not in (None, "", [], {})]
+
+
+def pending_lines(phase: str, pending: Optional[dict[str, Any]]) -> list[str]:
+    """Section 3's answer awaiting the Belt's confirmation, NOT stored: the element, the Belt's words and what the
+    Belt's yes stores, each value whole in its tag. The coaching grader reads these lines (ADR-0111 D5)."""
+    if not pending:
+        return []
+    lines = ["<pending>", "An answer awaiting the Belt's confirmation; NOT stored.",
+             f"Element: {display_name(phase, str(pending.get('field') or ''))}",
+             f"The Belt's words: {pending.get('belt_words')}"]
+    if pending.get("store"):
+        lines.append("What the Belt's yes stores:")
+        lines += [value_tag(phase, k, v, whole=True, status="awaiting confirmation")
+                  for k, v in pending["store"].items()]
+    return [*lines, "</pending>"]
+
+
+def element_sources(phase: str, plan: Any) -> str:
+    """What the Belt has given for the element, as the coach had it (ADR-0111 D5): section 3's answer awaiting
+    Confirm, else the Belt's words section 5 names. Empty with no plan or nothing given."""
+    if plan is None:
+        return ""
+    lines = pending_lines(phase, getattr(plan, "pending", None))
+    words = str(getattr(plan, "answer", None) or "").strip()
+    return "\n".join(lines or ([f"The Belt's words: {words}"] if words else []))
 
 
 class BeforeModelStateInjection(AgentMiddleware):
@@ -269,17 +316,11 @@ class BeforeModelStateInjection(AgentMiddleware):
         # advanced and the next field current — which is what section 5 tells
         # the coach to say.
         plan = self._state.get("coaching_plan")
-        artifacts = {**dict(self._state.get("artifacts") or {}),
-                     **dict(getattr(plan, "store", None) or {})}
+        artifacts = turn_artifacts(self._state)
         spec = GATE_SPECS[self.phase]
         missing = missing_gate_fields(self.phase, artifacts)
 
         focus = getattr(plan, "focus_field", None)
-        whole = reads_whole(self.phase, focus)
-
-        def sent_whole(field: str) -> bool:
-            # G-252: outside Define every value is complete; in Define, the element's own and its reads.
-            return self.phase != "define" or field in whole
 
         parts = [SECTION_STATE, "<project_state>",
                  f"PROJECT STATE — {self.phase.upper()} PHASE",
@@ -344,10 +385,8 @@ class BeforeModelStateInjection(AgentMiddleware):
         parts.append("<confirmed_values>")
         parts.append("Confirmed by the Belt and stored this phase. The current element's values and those it builds "
                      "on are given whole; every other value in one line.")
-        shown = {k: v for k, v in artifacts.items() if k not in ("citations", "uploads", "acknowledged_gaps")
-                 and v not in (None, "", [], {})}
-        parts += [value_tag(self.phase, k, v, whole=sent_whole(k)) for k, v in shown.items()] \
-            or ["(nothing stored yet)"]
+        # G-252: outside Define every value is complete; in Define, the element's own and its reads.
+        parts += confirmed_values(self.phase, artifacts, focus) or ["(nothing stored yet)"]
         parts.append("</confirmed_values>")
 
         # R5 — every position's stored status, after this turn's change,
@@ -360,17 +399,7 @@ class BeforeModelStateInjection(AgentMiddleware):
             parts.append("Current element: "
                          + (display_name(self.phase, focus) if focus else "(every element is confirmed)"))
             parts.append("</field_status>")
-        pending = getattr(plan, "pending", None) if plan is not None else None
-        if pending:
-            parts.append("<pending>")
-            parts.append("An answer awaiting the Belt's confirmation; NOT stored.")
-            parts.append(f"Element: {display_name(self.phase, str(pending.get('field') or ''))}")
-            parts.append(f"The Belt's words: {pending.get('belt_words')}")
-            if pending.get("store"):
-                parts.append("What the Belt's yes stores:")
-                parts += [value_tag(self.phase, k, v, whole=True, status="awaiting confirmation")
-                          for k, v in pending["store"].items()]
-            parts.append("</pending>")
+        parts += pending_lines(self.phase, getattr(plan, "pending", None) if plan is not None else None)
 
         # R4 — the calculation FEEDS the benefits analysis: while that element is
         # current, its cost of the gap is a fact the coach proposes as `cost_of_gap`.
@@ -502,7 +531,7 @@ class BeforeModelStateInjection(AgentMiddleware):
             u = self._upload
             lines += ["", UPLOAD_TURN.format(
                 filename=u.get("filename") or "(unnamed file)",
-                summary=" ".join(str(u.get("summary") or "(no description)").split())[:600],
+                summary=cut_at(" ".join(str(u.get("summary") or "(no description)").split()), 600),
                 blob_path=u.get("blob_path") or "(unknown)",
                 element=f"`{field}`" if field else "the report")]
         return "\n".join([*lines, "", body])
@@ -578,7 +607,7 @@ class BeforeModelStateInjection(AgentMiddleware):
             parts.append(
                 f"  - {u.get('filename') or '(unnamed file)'}: {u.get('role') or 'other evidence'} "
                 f"[{u.get('shape_match') or 'unsolicited'}, {consumed}] "
-                f"- {summary[:160]}"
+                f"- {cut_at(summary, 160)}"
             )
             parts.append(f"    blob_path: {u.get('blob_path') or '(unknown)'}")
         parts.append("  To use any of these numbers, call load_evidence_series "

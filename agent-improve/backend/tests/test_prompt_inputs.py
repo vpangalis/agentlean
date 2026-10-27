@@ -166,3 +166,84 @@ def test_f_citations_and_the_contradiction_flag_are_typed() -> None:
         "citations": [{"source": "ap.csv", "relevance_summary": "late rate"}]})
     assert ContradictionDetectionMiddleware._flag({"structured_response": reply}) == values
     assert moves is not None
+
+
+# ── ADR-0111 (founder ruling 2026-10-27): D3 cuts said, D5 the grader reads what the coach read, G-254 given ──────
+
+
+def test_adr_0111_d3_a_cut_is_a_cap_on_a_whole_part_and_says_so() -> None:
+    """D3: cuts stay only as caps on whole parts, and every cut says so in the text ("[cut at N characters]"); the
+    model-input builders cut through the one helper, never by slicing."""
+    import inspect
+
+    from backend.core.prompts import cut_at
+    from backend.middleware import grader as G
+    from backend.phases import nodes_common
+    assert cut_at("abc", 3) == "abc"
+    assert cut_at("abcdef", 3) == "abc [cut at 3 characters]"
+    state: Any = {"phase_context": "framing " * 400, "artifacts": {}}
+    prompt = nodes_common._judgment_prompt("define", state, "business_case", "", "Late payments.", False)
+    assert "[cut at 1500 characters]" in prompt
+    for fn in (G.DMAICGraderMiddleware._grade, nodes_common._judgment_prompt, nodes_common._grader_sources,
+               nodes_common._grader_context, BeforeModelStateInjection._upload_manifest):
+        assert not re.search(r"\[-?\d*:-?\d+\]", inspect.getsource(fn)), f"{fn.__qualname__} cuts by slicing"
+
+
+def test_adr_0111_d5_the_grader_reads_the_values_and_the_pending_answer_as_section_3_gives_them() -> None:
+    """D5: the coaching grader's "case so far" and its element sources are section 3's own lines, by the same
+    functions — display names, tags, whole values — never a second rendering."""
+    from backend.phases import nodes_common
+    plan = CoachingPlan(focus_field="business_case", status="answered", move="read_back",
+                        pending={"field": "business_case", "fields": ["business_case"], "belt_words": LONG_CASE,
+                                 "store": {"business_case": LONG_CASE}, "messages": 1})
+    artifacts = {"process_map_sipoc": SIPOC, "problem_statement": "23% of invoices are paid late."}
+    block = _sections(plan, artifacts)._block
+    state: Any = {"artifacts": artifacts, "coaching_plan": plan}
+    context = nodes_common._grader_context("define", state, "business_case")
+    sources = nodes_common._grader_sources("define", plan)
+    assert LONG_CASE in sources and "High-level process" in context
+    for part in (context, sources):
+        missing = [line for line in part.splitlines() if line not in block]
+        assert not missing, missing[:3]
+
+
+def test_g254_code_written_lines_and_the_scripts_example_reach_the_grader_as_given_and_are_not_graded() -> None:
+    """G-254 (founder ruling 2026-10-27, item 3): the eval's E20 failed on the coaching grader quoting the script's
+    own example as ungrounded. What the reply carries as given — the element's worked example, a line code wrote —
+    reaches the grader in its tag, and a fail quoting it is not counted; the coach's own words are graded."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from backend.middleware import grader as G
+    from backend.middleware.skills import element_text
+    from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
+    show = element_text("define", "secondary_metrics", "Show")
+    calc = "Cost of the gap today (at the baseline): EUR 62,000 a year — 23% × 2,400 units × EUR 112."
+    mw = G.DMAICGraderMiddleware("define", move="respond", given=(show, calc))
+    own = "When the late rate falls, watch what else moves."
+    reply = SimpleNamespace(message=f"{own}\n{calc}", explanation="", example=show, prompt="What else could change?")
+    state: Any = {"structured_response": reply}
+    shown = G.DMAICGraderMiddleware._coach_text(state, mw._is_given)
+    assert shown.count("<given ") == 2 and own in shown and f">{own}<" not in shown, shown
+    seen: list[str] = []
+
+    class _Model:
+        def with_structured_output(self, schema, **_):
+            return self
+
+        async def ainvoke(self, prompt):
+            seen.append(prompt)
+            return CoachingGraderVerdict(criteria=[
+                CriterionResult(criterion="G3", status="fail", feedback="invented", evidence=show.strip('"')[:60]),
+                CriterionResult(criterion="G1", status="fail", feedback="off the question", evidence=own)])
+    original = G.get_llm
+    G.get_llm = lambda role, **kw: _Model()          # type: ignore[assignment]
+    try:
+        mw._shown = shown                             # as aafter_agent sets it
+        graded = asyncio.run(mw._grade("What could get worse?", G.DMAICGraderMiddleware._coach_text(state)))
+    finally:
+        G.get_llm = original                          # type: ignore[assignment]
+    by = {c.criterion: c.status for c in graded.criteria}
+    assert by == {"G3": "pass", "G1": "fail"}, by      # the given sentence is not graded; the coach's own is
+    assert mw._uncounted and mw._uncounted[0]["given"] is True, mw._uncounted
+    assert '<given source="code or the phase script" graded="no">' in seen[0]

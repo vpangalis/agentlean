@@ -1126,10 +1126,11 @@ def test_the_grader_receives_the_coachs_sources() -> None:
                         answer="In: PO invoices at three sites. Out: payroll.",
                         pending={"belt_words": "In: PO invoices at three sites. Out: payroll.",
                                  "store": {"project_scope": {"in_scope": "PO invoices", "out_scope": "payroll"}}})
-    sources = _grader_sources(plan)
-    assert "The Belt's words for this element so far: In: PO invoices" in sources
-    assert 'Awaiting the Belt\'s Confirm: {"project_scope"' in sources
-    assert _grader_sources(None) == ""
+    sources = _grader_sources("define", plan)
+    # ADR-0111 D5: section 3's own lines — the Belt's words, and what the yes stores as a tagged value, never JSON.
+    assert "The Belt's words: In: PO invoices at three sites. Out: payroll." in sources
+    assert 'status="awaiting confirmation"' in sources and '{"' not in sources, sources
+    assert _grader_sources("define", None) == ""
     seen: list[str] = []
 
     class _Model:
@@ -1148,7 +1149,7 @@ def test_the_grader_receives_the_coachs_sources() -> None:
     finally:
         G.get_llm = original                          # type: ignore[assignment]
     assert "THE METHOD FOR THIS ELEMENT, exactly as the coach was given it" in seen[0]
-    assert method[:200] in seen[0] and "Awaiting the Belt's Confirm" in seen[0]
+    assert method[:200] in seen[0] and "What the Belt's yes stores:" in seen[0]
 
 def test_the_grader_uses_the_coaching_rubric_never_a_phase_rubric() -> None:
     """**B1**, and §36 calls confusing the two graders a violation.

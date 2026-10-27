@@ -696,7 +696,8 @@ def build_knowledge_context(
         )
         if not text:
             continue
-        blocks.append(f"[Reference {i}]\n{text.strip()[:1200]}")
+        from backend.core.prompts import cut_at          # ADR-0111 D3: the cut says so
+        blocks.append(f"[Reference {i}]\n{cut_at(text.strip(), 1200)}")
 
     if not blocks:
         return None

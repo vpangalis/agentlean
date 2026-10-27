@@ -71,6 +71,7 @@ from backend.core.prompts import (
     READ_BACK_METRIC,
     STORE_NOTE_NOT_STORED,
     STORE_NOTE_STORED,
+    cut_at,
 )
 from backend.core.substate import (
     FIELDS_CAPTURED_NORMALIZED,
@@ -438,7 +439,7 @@ def _judgment_prompt(phase: str, state: PhaseState, field: str, previous: str,
     prompt = PLANNER_JUDGMENT_PROMPT.format(
         phase=phase, field=field,
         needs=field_needs(phase, field) or f"(the phase script gives no block for {field})",
-        context=context[:1500],
+        context=cut_at(context, 1500),                # ADR-0111 D3: the cut says so
         reading_back=PLANNER_JUDGMENT_READING_BACK if reading_back else "",
         previous=previous or "(none — the latest message is the first answer)",
         latest=latest or "(empty)",
@@ -1186,7 +1187,9 @@ def _build_executor(
                 # The coach's own sources — the element's script block as the coach was given it, the
                 # Belt's words for the element, the answer awaiting a Confirm.
                 purpose=_grader_method(phase, plan.focus_field if plan else None),
-                sources=_grader_sources(plan),
+                sources=_grader_sources(phase, plan),
+                # G-254 (founder ruling 2026-10-27, item 3): given, never graded as the coach's own claim.
+                given=_grader_given(phase, state, plan.focus_field if plan else None),
             ),
             ContradictionDetectionMiddleware(),
         ],
@@ -1472,32 +1475,33 @@ def _grader_method(phase: str, field: Optional[str]) -> str:
     return script_section(phase, field, False)
 
 
-def _grader_sources(plan: Optional[CoachingPlan]) -> str:
-    """What the Belt has given for the element this turn works on —
-    their words so far — and the answer awaiting their Confirm, as the coach had them."""
-    if plan is None:
-        return ""
-    pending = dict(plan.pending or {})
-    words = str(pending.get("belt_words") or plan.answer or "").strip()
-    awaiting = pending.get("store") or pending.get("proposed")
-    lines = []
-    if words:
-        lines.append(f"The Belt's words for this element so far: {words[:1500]}")
-    if awaiting:
-        lines.append("Awaiting the Belt's Confirm: " + json.dumps(awaiting, ensure_ascii=False, default=str)[:1000])
-    return "\n".join(lines)
+def _grader_sources(phase: str, plan: Optional[CoachingPlan]) -> str:
+    """What the Belt has given for the element this turn works on, as the coach had it — section 3's answer
+    awaiting Confirm, else the Belt's words: the composer's own lines (ADR-0111 D5), never cut, values in tags."""
+    from backend.middleware.state_injection import element_sources
+    return element_sources(phase, plan)
 
 
 def _grader_context(phase: str, state: PhaseState, field: Optional[str]) -> str:
-    """The case's confirmed values, for the grader's "already given" criterion. G-252: never cut — the
-    element's own values and those it builds on whole, every other one in one line written in code;
-    display names, each value in its tag."""
-    from backend.middleware.state_injection import reads_whole, value_tag
-    whole = reads_whole(phase, field)
-    artifacts = {k: v for k, v in dict(state.get("artifacts") or {}).items()
-                 if k not in ("computation_results", "citations", "uploads", "acknowledged_gaps")}
-    return "\n".join(value_tag(phase, k, v, whole=phase != "define" or k in whole)
-                     for k, v in artifacts.items() if v not in (None, "", [], {}))
+    """The case's confirmed values, for the grader's "already given" criterion — section 3's, by the same function
+    (ADR-0111 D5; G-252: never cut, the element's own values and those it builds on whole, every other in one line;
+    display names, each value in its tag)."""
+    from backend.middleware.state_injection import confirmed_values, turn_artifacts
+    return "\n".join(confirmed_values(phase, turn_artifacts(state), field))
+
+
+def _grader_given(phase: str, state: PhaseState, field: Optional[str]) -> tuple[str, ...]:
+    """G-254 (founder ruling 2026-10-27, item 3): what a reply may carry as given, never as the coach's own claim —
+    the element's worked example as the phase script gives it, and the lines code writes for it (the calculation's
+    two figures, the sample's mark). They reach the grader tagged as given, and a fail quoting one is not counted."""
+    if not field:
+        return ()
+    from backend.core.prompts import SAMPLE_MARK
+    from backend.middleware.skills import element_text
+    from backend.middleware.state_injection import turn_artifacts
+    from backend.phases import calculations
+    lines = calculations.how_it_was_calculated(calculations.latest(turn_artifacts(state), phase, field))
+    return tuple(t for t in (element_text(phase, field, "Show"), *lines.splitlines(), SAMPLE_MARK) if t.strip())
 
 
 def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None:

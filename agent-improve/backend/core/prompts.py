@@ -143,6 +143,16 @@ The file:
 # same documents twice — reproducibility a LangSmith trace can be read
 # against — which means the instruction to vary vocabulary has to be explicit.
 
+#: ADR-0111 D3 (founder ruling 2026-10-27): a cut is a cap on a whole part, and the text says where it was cut.
+CUT_AT = " [cut at {limit} characters]"
+
+
+def cut_at(text: str, limit: int) -> str:
+    """ADR-0111 D3: `text` whole when it fits, else its first `limit` characters and the words saying so — never a
+    silent cut. For plain text only: a structured value is never cut inside (it is sent whole or in one line)."""
+    return text if len(text) <= limit else text[:limit] + CUT_AT.format(limit=limit)
+
+
 VARIANT_PROMPT = """You are preparing search queries for a Lean Six Sigma methodology corpus (a Black Belt reference text).
 
 Rewrite the question below into {min_variants}-{max_variants} ALTERNATIVE phrasings. Each should surface documents the original wording might miss.
