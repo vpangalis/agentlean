@@ -1,6 +1,6 @@
 {
  "_rule": "Founder rulings 2026-10-27, item 10 and ADR-0111 D7 (b): the coach's input tokens per call in a live Define run-through (the record's summary.tokens.by_role[\"coach\"] input_tokens / calls) may fall, never rise above this figure + the allowance, rounded down — scripts/define_runthrough.py lowers the figure when a complete run falls below it, test_define_runthrough.py refuses a record above the ceiling, and the figure is never edited upward.",
- "coach_input_tokens_per_call": 6810,
+ "coach_input_tokens_per_call": 6214,
  "allowance": 0.05,
- "measured_on": "define_runthrough_20261024T155827 (run 4, define-v1)"
+ "measured_on": "define_runthrough_20261027T140847"
 }

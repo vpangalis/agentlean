@@ -138,12 +138,70 @@ def report(turns: list[dict[str, Any]], replays: list[dict[str, Any]], labels: d
     return out
 
 
+#: ADR-0081's thresholds for leaving log-only: agreement with the founder's labels, and the false fails among the grader's.
+AGREEMENT_MIN, FALSE_FAILS_MAX = 0.90, 0.20
+
+
+def join_labels(labels: list[dict[str, str]], verdicts: list[dict[str, str]]) -> list[dict[str, str]]:
+    """C10 (the founder's blind sheet, 2026-10-27): GRADER_LABELS.csv (the founder's pass / fail / n/a per criterion)
+    joined to GRADER_VERDICTS.csv (the grader's verdict per criterion) by row id — one entry per row and criterion the
+    founder labelled pass or fail and the grader judged pass or fail. A fail with no quote counts as the pass it was
+    recorded as; "unknown", n/a and blanks are left out (an unknown is never a fail)."""
+    by_id = {v["row_id"]: v for v in verdicts}
+    out = []
+    for row in labels:
+        graded = by_id.get(row["row_id"]) or {}
+        for key, label in row.items():
+            if not key.endswith("_founder"):
+                continue
+            criterion = key[:-len("_founder")]
+            verdict = str(graded.get(f"{criterion}_verdict") or "")
+            verdict = "pass" if verdict.startswith("not counted") else verdict
+            label = str(label or "").strip().lower()
+            if label in ("pass", "fail") and verdict in ("pass", "fail"):
+                out.append({"row": row["row_id"], "criterion": criterion, "grader_verdict": verdict,
+                            "founder_label": label})
+    return out
+
+
+def label_agreement(rows: list[dict[str, str]]) -> dict[str, Any]:
+    """C10 (founder ruling 2026-10-27): the grader's recorded verdicts against the founder's labels (`join_labels`),
+    per criterion and overall — agreement on every labelled entry, on the grader's fails and on its passes, and the
+    false fails (failed by the grader, labelled pass) — against ADR-0081's thresholds."""
+    def score(group: list[dict[str, str]]) -> dict[str, Any]:
+        fails = [r for r in group if r["grader_verdict"] == "fail"]
+        passes = [r for r in group if r["grader_verdict"] == "pass"]
+        agree = [r for r in group if r["grader_verdict"] == r["founder_label"]]
+        false_fails = [r for r in fails if r["founder_label"] == "pass"]
+        return {"labelled": len(group), "agree": len(agree),
+                "agreement": round(len(agree) / len(group), 3) if group else None,
+                "fails": len(fails), "fails_agreed": len(fails) - len(false_fails),
+                "false_fail_rate": round(len(false_fails) / len(fails), 3) if fails else None,
+                "passes": len(passes), "passes_agreed": sum(r["founder_label"] == "pass" for r in passes),
+                "disagreements": [r["row"] for r in group if r["grader_verdict"] != r["founder_label"]]}
+    per = {c: score([r for r in rows if r["criterion"] == c]) for c in sorted({r["criterion"] for r in rows})}
+    overall = score(rows)
+    met = bool(rows) and (overall["agreement"] or 0) >= AGREEMENT_MIN \
+        and (overall["false_fail_rate"] or 0) < FALSE_FAILS_MAX
+    return {"overall": overall, "per_criterion": per, "thresholds": {"agreement": AGREEMENT_MIN,
+            "false_fails_below": FALSE_FAILS_MAX}, "met": met}
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     ap = argparse.ArgumentParser()
+    ap.add_argument("--labels", default="", help="GRADER_LABELS.csv with the founder's labels: agreement per criterion")
+    ap.add_argument("--verdicts", default="", help="GRADER_VERDICTS.csv, joined to --labels by row id")
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--judgments-only", action="store_true", help="replay only the planner-judgment cases")
     args = ap.parse_args()
+    if args.labels:
+        import csv
+        with open(args.labels, encoding="utf-8-sig", newline="") as lf, \
+                open(args.verdicts, encoding="utf-8-sig", newline="") as vf:
+            joined = join_labels(list(csv.DictReader(lf)), list(csv.DictReader(vf)))
+        print(json.dumps(label_agreement(joined), indent=1, ensure_ascii=False))
+        return 0
     from scripts.define_runthrough import _cost
     from scripts.move_proof_661 import CALLS, _count_model_calls, token_totals
     from scripts.coaching_proof_656 import _tracing_off

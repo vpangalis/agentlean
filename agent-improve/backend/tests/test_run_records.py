@@ -210,30 +210,44 @@ def test_the_founders_sheet_is_read_and_right_for_the_wrong_reason_is_counted_ap
     assert out["rejections_labelled_wrong"]["wrong"] == ["r#2"]
 
 
-def test_c9_the_labels_sheet_has_a_row_per_graded_turn_and_criterion(tmp_path) -> None:
-    """C9 (founder ruling 2026-10-27): GRADER_LABELS.csv — from a run-through and an eval, one row per graded turn and
-    criterion with the Belt's message, the reply shown, the move, the planner's judgment the grader was given, the
-    verdict, its quote and reason, and empty founder columns; a fail with no quote reads "not counted"."""
+def test_c9_the_blind_labels_sheet_and_the_verdicts_are_two_files_joined_by_row_id(tmp_path) -> None:
+    """C9 (founder ruling 2026-10-27; the blind sheet): GRADER_LABELS.csv carries the Belt's message, the confirmed values
+    given to the coach, the move, the planner's decision, the coach's reply and empty founder columns for G1, G3, G4
+    and G6 — no verdict; GRADER_VERDICTS.csv carries the grader's verdicts and quotes by the same row id; the rows are
+    shuffled; judge_replay.py joins them and scores agreement per criterion (C10, ADR-0081's thresholds)."""
     import csv
 
     from scripts import grader_labels
-    grade = {"status": "failed", "move": "challenge", "verdicts": {"G1": "pass", "G4": "fail", "G3": "pass"},
+    from scripts.judge_replay import join_labels, label_agreement
+    grade = {"status": "failed", "move": "challenge",
+             "verdicts": {"G1": "pass", "G4": "fail", "G3": "pass", "G2": "pass"},
              "failed": [{"criterion": "G4", "reason": "explain what fits", "evidence": "Tell me more."}],
              "not_counted": [{"criterion": "G3", "reason": "invented"}], "decision": "insufficient — no step named"}
-    run = [{"kind": "turn", "n": 4, "field": "problem_statement", "belt": "Invoices are late.",
-            "reply": {"answer": "Tell me more.", "prompt": "Where does it show?"}, "grader": grade}]
-    evals = {"runs": {"E21": [{"grades": [{"belt": "Leeds is the barrier.", "grade": {**grade, "move": "read_back"},
-                                           "reply": {"answer": "Your barrier."}}]}]}}
+    run = [{"kind": "turn", "n": n, "field": "problem_statement", "belt": f"Answer {n}.",
+            "reply": {"answer": "Tell me more.", "prompt": "Where does it show?"}, "grader": grade} for n in range(1, 7)]
+    block = '<confirmed_values>\n<value name="Team">{n} people</value>\n</confirmed_values>'
+    inputs = tmp_path / "in.jsonl"
+    inputs.write_text("\n".join(json.dumps({"n": n, "coach_inputs": [[{"type": "system", "blocks": [
+        block.format(n=n)]}]]}) for n in range(1, 7)), encoding="utf-8")
     (tmp_path / "rt.json").write_text(json.dumps(run), encoding="utf-8")
-    (tmp_path / "ev.json").write_text(json.dumps(evals), encoding="utf-8")
-    out = tmp_path / "labels.csv"
-    grader_labels.main(["--record", str(tmp_path / "rt.json"), "--evals", str(tmp_path / "ev.json"),
-                        "--out", str(out)])
-    rows = list(csv.DictReader(out.open(encoding="utf-8-sig")))
-    assert [r["criterion"] for r in rows] == ["G1", "G4", "G3"] * 2
-    g4 = rows[1]
-    assert g4["grader_verdict"] == "fail" and g4["grader_quote"] == "Tell me more." and g4["move"] == "challenge"
-    assert g4["planner_decision"] == "insufficient — no step named" and g4["founder_label"] == ""
-    assert "[QUESTION] Where does it show?" in g4["reply"] and g4["source"] == "rt turn 4"
-    assert rows[2]["grader_verdict"].startswith("not counted") and rows[3]["source"] == "ev E21 trial 1 turn 1"
-    assert rows[3]["element"] == "issues_and_barriers"
+    grader_labels.main(["--record", str(tmp_path / "rt.json"), "--inputs", str(inputs), "--out-dir", str(tmp_path)])
+    labels = list(csv.DictReader((tmp_path / grader_labels.LABELS).open(encoding="utf-8-sig")))
+    verdicts = list(csv.DictReader((tmp_path / grader_labels.VERDICTS).open(encoding="utf-8-sig")))
+    assert [r["row_id"] for r in labels] == [f"R{i:03d}" for i in range(1, 7)] == [r["row_id"] for r in verdicts]
+    assert not any("verdict" in k or "quote" in k for k in labels[0]), "the labels sheet shows no verdict"
+    assert set(labels[0]) >= {"belt_message", "confirmed_values", "move", "planner_decision", "coach_reply",
+                              "G1_founder", "G3_founder", "G4_founder", "G6_founder"}
+    assert [r["belt_message"] for r in labels] != [f"Answer {n}." for n in range(1, 7)], "the rows are not shuffled"
+    first = labels[0]
+    n = int(first["belt_message"].split()[1].rstrip("."))
+    assert f"{n} people" in first["confirmed_values"] and first["planner_decision"] == "insufficient — no step named"
+    v = next(x for x in verdicts if x["row_id"] == first["row_id"])
+    assert v["G4_verdict"] == "fail" and v["G4_quote"] == "Tell me more." and v["G2_verdict"] == "pass"
+    assert v["G3_verdict"].startswith("not counted") and v["source"] == f"rt turn {n}"
+    for r in labels:
+        r.update(G1_founder="pass", G4_founder="fail", G3_founder="n/a", G6_founder="")
+    out = label_agreement(join_labels(labels, verdicts))
+    assert out["per_criterion"]["G4"]["agreement"] == 1.0 and out["per_criterion"]["G1"]["agree"] == 6
+    assert "G3" not in out["per_criterion"] and out["met"] is True
+    worse = [{**r, "G4_founder": "pass"} for r in labels]
+    assert label_agreement(join_labels(worse, verdicts))["per_criterion"]["G4"]["false_fail_rate"] == 1.0
