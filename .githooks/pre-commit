@@ -64,10 +64,11 @@ t_log data-models "$T0"
 
 # Founder 2026-09-30 (ARCHITECTURE.md headroom, A1 and A3) — the code layout and the API routes,
 # generated from the STAGED source into their own documents (test_generated_docs.py checks
-# both are current). Fail-soft, like this hook.
+# both are current). Fail-soft, like this hook. B7 (founder ruling 2026-10-27, item 4): the Define
+# skill's criteria, element order and welcome, from their owner (phases/define/criteria.py).
 T0=$(date +%s)
 if [ -n "$SYSPY" ]; then
-    for GEN in generate_layout generate_routes generate_value_keys generate_middleware_order; do
+    for GEN in generate_layout generate_routes generate_value_keys generate_middleware_order generate_define_script; do
         if [ -f "agent-improve/tools/architecture/$GEN.py" ]; then
             "$SYSPY" "agent-improve/tools/architecture/$GEN.py" --stage </dev/null || echo "  [$GEN] WARNING: not regenerated" >&2
         fi

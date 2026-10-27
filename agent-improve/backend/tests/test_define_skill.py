@@ -87,3 +87,40 @@ def test_r4_thirteen_elements_with_the_benefits_analysis_and_the_ctqs() -> None:
     mw.before_agent(None, None)
     block = mw._block
     assert "<savings_calculation>" in block and "68040.00" in block and "cost_of_gap" in block
+
+
+def test_b7_the_define_readers_read_the_criteria_owner_never_the_skill(monkeypatch) -> None:
+    """B7 (founder ruling 2026-10-27, item 4): Define's criteria, their ids, its element order and its welcome are
+    read from their owner in code (`phases/define/criteria.py`), never parsed from SKILL.md. Proved by changing the
+    OWNER only — the skill file still says the original — and seeing every reader follow the owner."""
+    from backend.core import guard_messages
+    from backend.middleware import skills
+    from backend.phases.define import criteria as owner
+    from backend.phases.define import templates, welcome
+
+    patched = ((owner.A_DATE, "a patched calendar date criterion (p. 0)"),)
+    monkeypatch.setitem(owner.CRITERIA, "target_date", patched)
+    monkeypatch.setattr(owner, "PHASES", (("Define", "a patched purpose"),))
+    skill = (skills.SKILLS_ROOT / "dmaic-define-phase" / "SKILL.md").read_text(encoding="utf-8")
+    assert "a patched calendar date criterion" not in skill and "a patched purpose" not in skill
+    assert acceptance_criteria("define", "target_date") == list(patched)
+    assert templates.criteria("target_date") == list(patched)
+    assert "> - `a-date` — a patched calendar date criterion (p. 0)" in skills.field_needs("define", "target_date")
+    assert "a calendar date, in the future" not in skills.field_needs("define", "target_date")
+    assert welcome.opening()[0] == (("Define", "a patched purpose"),)
+    # The element order and the names: positions from the owner's order, names from the owner's table.
+    order = list(owner.ELEMENT_ORDER)
+    order[7], order[8] = order[8], order[7]                         # target_date before target_value
+    try:
+        with monkeypatch.context() as m:
+            m.setattr(owner, "ELEMENT_ORDER", tuple(order))
+            m.setitem(owner.ELEMENT_NAMES, "team", "The team, patched")
+            for cached in (skills._field_blocks, skills._script_blocks, guard_messages._elements):
+                cached.cache_clear()
+            assert _field_blocks("define")["target_date"][0] == 8
+            assert (skills.script_step("define", ["target_date"], None) or {})["position"] == 8
+            assert guard_messages.element_name("define", "team") == "The team, patched"
+    finally:
+        for cached in (skills._field_blocks, skills._script_blocks, guard_messages._elements):
+            cached.cache_clear()
+    assert _field_blocks("define")["target_date"][0] == 9 and guard_messages.element_name("define", "team") == "Team"

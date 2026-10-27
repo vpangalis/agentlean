@@ -248,6 +248,10 @@ _FIELD_BLOCK = re.compile(
 from backend.phases.define.schema import _CAPTURED_INSIDE as _DEFINE_INSIDE  # noqa: E402
 _CAPTURED_INSIDE = {inner: position for position, inners in _DEFINE_INSIDE.items()
                     for inner in inners}
+#: B7 (founder ruling 2026-10-27, item 4): Define's criteria, their ids and its element order are owned in code;
+#: its script states them because it is generated from that owner (`tools/architecture/generate_define_script.py`).
+#: Define's readers below read the owner; the other four phases' scripts, not built to R2/R3, are still parsed.
+from backend.phases.define import criteria as define_criteria  # noqa: E402
 
 #: The two moves a turn can make on a field ("Explain → Show → Ask → Confirm,
 #: on every field"): teach and ask for it, or read the Belt's value back and
@@ -257,9 +261,14 @@ CONFIRM, EXPLAIN_SHOW_ASK = "confirm", "explain_show_ask"
 
 @lru_cache(maxsize=len(PHASE_ORDER))
 def _field_blocks(phase: str) -> dict[str, tuple[int, str]]:
-    """field -> (position, its script block)."""
-    return {m.group(2): (int(m.group(1)), m.group(3).strip())
-            for m in _FIELD_BLOCK.finditer(instructions(phase))}
+    """field -> (position, its script block). A block is its field's by the name in its head; Define's position is
+    the field's place in the owner's order (B7), never the number the script prints."""
+    blocks = {m.group(2): (int(m.group(1)), m.group(3).strip())
+              for m in _FIELD_BLOCK.finditer(instructions(phase))}
+    if phase != "define":
+        return blocks
+    order = define_criteria.ELEMENT_ORDER
+    return {f: (order.index(f) + 1, block) for f, (_n, block) in blocks.items() if f in order}
 
 
 def script_step(phase: str, captured: list[str],
@@ -289,22 +298,32 @@ def script_step(phase: str, captured: list[str],
 _BLOCK_HEAD = re.compile(r"^\*\*\[(?P<head>[^\]]+)\]\*\*[ \t]*$", re.M)
 
 
-@lru_cache(maxsize=len(PHASE_ORDER))
-def _script_blocks(phase: str) -> tuple[dict[str, str], str, str]:
-    """`({field: its blocks}, opening, closing)` from the phase's coaching script.
-
-    A numbered block `[n · field · …]` is that field's. An unnumbered block
-    that names `field n` belongs to that field (METRIC LITERACY, field 5); a
-    `TOOL` block to the numbered field before it (the savings calculation
-    runs on the target). OPENING and the closing block are kept apart.
-    """
-    body = instructions(phase)
-    heads = list(_BLOCK_HEAD.finditer(body))
+def _numbered_fields(phase: str, heads: list[re.Match[str]]) -> dict[int, str]:
+    """number -> field, for an unnumbered block that names `field n`: Define's from the owner's order (B7), another
+    phase's from its script's own numbered heads."""
+    if phase == "define":
+        return dict(enumerate(define_criteria.ELEMENT_ORDER, start=1))
     numbered: dict[int, str] = {}
     for m in heads:
         parts = [p.strip() for p in m["head"].split("·")]
         if parts[0].isdigit() and len(parts) > 1:
             numbered[int(parts[0])] = parts[1]
+    return numbered
+
+
+@lru_cache(maxsize=len(PHASE_ORDER))
+def _script_blocks(phase: str) -> tuple[dict[str, str], str, str]:
+    """`({field: its blocks}, opening, closing)` from the phase's coaching script.
+
+    A numbered block `[n · field · …]` is that field's, by the name in its head.
+    An unnumbered block that names `field n` belongs to the n-th field — in
+    Define, the n-th of the owner's order (METRIC LITERACY, field 5); a
+    `TOOL` block to the numbered field before it (the savings calculation
+    runs on the target). OPENING and the closing block are kept apart.
+    """
+    body = instructions(phase)
+    heads = list(_BLOCK_HEAD.finditer(body))
+    numbered = _numbered_fields(phase, heads)
     fields: dict[str, list[str]] = {}
     opening = closing = ""
     last: Optional[str] = None
@@ -316,8 +335,8 @@ def _script_blocks(phase: str) -> tuple[dict[str, str], str, str]:
         named = re.search(r"\bfield (\d+)\b", head)
         if head.startswith("OPENING"):
             opening = block
-        elif parts[0].isdigit():
-            last = numbered[int(parts[0])]
+        elif parts[0].isdigit() and len(parts) > 1:
+            last = parts[1]
             fields.setdefault(last, []).append(block)
         elif named and int(named.group(1)) in numbered:
             fields.setdefault(numbered[int(named.group(1))], []).insert(0, block)
@@ -365,9 +384,12 @@ def _sections(block: str) -> dict[str, list[str]]:
 
 def acceptance_criteria(phase: str, field: str) -> list[tuple[str, str]]:
     """`(id, what it checks)` for the element `field` belongs to — the R3
-    validation layer's yardstick, parsed from the element's SKILL.md block."""
+    validation layer's yardstick. Define's from the owner (B7), never parsed;
+    another phase's parsed from the element's SKILL.md block."""
     if phase not in SKILL_DIRS:
         return []
+    if phase == "define":
+        return list(define_criteria.criteria(field))
     _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
     lines = _sections(block).get("Acceptance criteria", [])
     return [(m["id"], m["text"].strip()) for m in
@@ -379,11 +401,13 @@ def field_needs(phase: str, field: str) -> str:
     and its ACCEPTANCE CRITERIA (R3). The planner's one judgment reads this,
     so "sufficient" is judged against the element's criteria and never
     against a model's own notion. No Show section reaches it: neither a
-    worked example nor a demo table."""
+    worked example nor a demo table. Define's criteria are the owner's (B7)."""
     if phase not in SKILL_DIRS:
         return ""
     _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
     sections = _sections(block)
+    if phase == "define" and (owned := define_criteria.criteria_lines(field)):
+        sections["Acceptance criteria"] = owned
     if "Acceptance criteria" not in sections:
         # A script not yet written to R2/R3 (the other four phases): the
         # block without its worked example.

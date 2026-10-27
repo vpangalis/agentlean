@@ -4,8 +4,9 @@ Each Define element is shown as its acceptance criteria, one row each, with the 
 and where it came from: the read-back card (before a Confirm, from the exact value a Confirm will store) and the
 Gate's element card (after it, from the stored value) are drawn from the SAME rows, built here.
 
-- The criteria are the script's own (`acceptance_criteria`, R7), in its order; a template adds no criterion and
-  no wording to any prompt — only a short label and where the row's value is read from.
+- The criteria are the ones the script states (R7), in its order, read from their owner in code (`criteria.py`, B7);
+  a template adds no criterion and no wording to any prompt — only a short label and where the row's value is read
+  from.
 - Structured values are read in code (the ADR-0088 parsers). Free text is read from the judgment's quoted span
   per criterion (`SufficiencyJudgment.criterion_spans`, option (b)); a span counts only when it is a verbatim
   substring of the Belt's answer (`verbatim_spans`) — otherwise the row shows no value of its own and the whole
@@ -22,6 +23,7 @@ import re
 from typing import Any, Callable, Optional
 
 from backend.core.substate import is_empty_capture
+from backend.phases.define import criteria as define_criteria
 from backend.phases.define import parse
 from backend.phases.define.report import REPORT_SECTIONS
 from backend.phases.define.schema import CTQ_KEYS, DEFINE_FIELD_ORDER, DEFINE_POSITIONS, TEAM_MEMBER_KEYS
@@ -261,85 +263,88 @@ def _span() -> Callable[[dict[str, Any]], Read]:
     return read
 
 
-#: element -> criterion id -> (label, how its value is read). The ids are the script's; `rows` drops a template
-#: entry the script no longer lists and shows a script criterion the template does not know as free text.
+#: element -> criterion id -> (label, how its value is read). The ids are the owner's constants (B7,
+#: `phases/define/criteria.py`), never re-typed; `rows` drops a template entry the owner no longer lists and shows a
+#: criterion the template does not know as free text.
 TEMPLATES: dict[str, dict[str, tuple[str, Callable[[dict[str, Any]], Read]]]] = {
     "business_case": {
-        "what": ("What is wrong", _span()),
-        "where-when": ("Where and since when", _span()),
-        "baseline": ("How big it is today", _span()),
-        "cost": ("What it costs", _span()),
-        "no-cause-no-fix": ("No cause and no fix", _stated("No cause and no solution named")),
+        define_criteria.WHAT: ("What is wrong", _span()),
+        define_criteria.WHERE_WHEN: ("Where and since when", _span()),
+        define_criteria.BASELINE: ("How big it is today", _span()),
+        define_criteria.COST: ("What it costs", _span()),
+        define_criteria.NO_CAUSE_NO_FIX: ("No cause and no fix", _stated("No cause and no solution named")),
     },
     "team": {
-        "champion": ("Champion (sponsor)", lambda v: _named(v, parse._CHAMPION)),
-        "process-owner": ("Process owner", lambda v: _named(v, parse._OWNER)),
-        "people": ("Each person: name, role, function", _people),
-        "training": ("Training needed", _training),
+        define_criteria.CHAMPION: ("Champion (sponsor)", lambda v: _named(v, parse._CHAMPION)),
+        define_criteria.PROCESS_OWNER: ("Process owner", lambda v: _named(v, parse._OWNER)),
+        define_criteria.PEOPLE: ("Each person: name, role, function", _people),
+        define_criteria.TRAINING: ("Training needed", _training),
     },
     "voc_summary": {
-        "customers": ("Customers", _ctq_part("customer", "customer")),
-        "needs": ("Their needs", _ctq_part("need", "need")),
-        "ctq": ("CTQs (measurable)", _ctq_table),
+        define_criteria.CUSTOMERS: ("Customers", _ctq_part("customer", "customer")),
+        define_criteria.NEEDS: ("Their needs", _ctq_part("need", "need")),
+        define_criteria.CTQ: ("CTQs (measurable)", _ctq_table),
     },
     "problem_statement": {
-        "defect": ("The defect", _fivew_key("what")),
-        "5w2h": ("The seven 5W2H answers", _fivew_table),
-        "magnitude": ("How big", _fivew_key("how_much")),
-        "no-cause-no-fix": ("No cause, no fix, no blame", _stated("No cause, no solution and no one to blame named")),
-        "located": ("Where in the process", _fivew_key("where")),
+        define_criteria.DEFECT: ("The defect", _fivew_key("what")),
+        define_criteria.FIVE_W_TWO_H: ("The seven 5W2H answers", _fivew_table),
+        define_criteria.MAGNITUDE: ("How big", _fivew_key("how_much")),
+        define_criteria.NO_CAUSE_NO_FIX: ("No cause, no fix, no blame",
+                                          _stated("No cause, no solution and no one to blame named")),
+        define_criteria.LOCATED: ("Where in the process", _fivew_key("where")),
     },
     "baseline_estimate": {
-        "one-primary": ("Primary metric", _primary_name),
-        "quantified": ("Baseline", _metric("baseline_estimate")),
-        "kpi-link": ("Business measure it feeds", _span()),
-        "real-data": ("Where the figure comes from", _span()),
-        "defined": ("Name · unit · meaning", _defined),
+        define_criteria.ONE_PRIMARY: ("Primary metric", _primary_name),
+        define_criteria.QUANTIFIED: ("Baseline", _metric("baseline_estimate")),
+        define_criteria.KPI_LINK: ("Business measure it feeds", _span()),
+        define_criteria.REAL_DATA: ("Where the figure comes from", _span()),
+        define_criteria.DEFINED: ("Name · unit · meaning", _defined),
     },
     "project_scope": {
-        "in-and-out": ("In and out of scope", _scope),
-        "start-end": ("Start and end point", _span()),
-        "not-too-broad": ("One process or area", _stated("One process or area, not everything around it")),
+        define_criteria.IN_AND_OUT: ("In and out of scope", _scope),
+        define_criteria.START_END: ("Start and end point", _span()),
+        define_criteria.NOT_TOO_BROAD: ("One process or area",
+                                        _stated("One process or area, not everything around it")),
     },
     "goal_statement": {
-        "same-metric": ("Same metric as the problem", _span()),
-        "how-much": ("How much improvement", _span()),
-        "by-when": ("By when", _span()),
+        define_criteria.SAME_METRIC: ("Same metric as the problem", _span()),
+        define_criteria.HOW_MUCH: ("How much improvement", _span()),
+        define_criteria.BY_WHEN: ("By when", _span()),
     },
     "target_value": {
-        "number-and-unit": ("Target", _metric("target_value")),
-        "direction": ("From the baseline to the target", _direction),
+        define_criteria.NUMBER_AND_UNIT: ("Target", _metric("target_value")),
+        define_criteria.DIRECTION: ("From the baseline to the target", _direction),
     },
     "target_date": {
-        "a-date": ("Target date", _date),
+        define_criteria.A_DATE: ("Target date", _date),
     },
     "benefits_analysis": {
-        "cost-of-gap": ("Cost of the gap", _benefit("cost_of_gap")),
-        "impact-type": ("Sustainable or one-off", _benefit("impact_type")),
-        "realisation": ("Realisation schedule", _realisation),
-        "finance-contact": ("Finance contact", _benefit("finance_contact")),
+        define_criteria.COST_OF_GAP: ("Cost of the gap", _benefit("cost_of_gap")),
+        define_criteria.IMPACT_TYPE: ("Sustainable or one-off", _benefit("impact_type")),
+        define_criteria.REALISATION: ("Realisation schedule", _realisation),
+        define_criteria.FINANCE_CONTACT: ("Finance contact", _benefit("finance_contact")),
     },
     "secondary_metrics": {
-        "side-effect": ("Side effects watched", _items("secondary_metrics", "Secondary metrics")),
-        "not-the-primary": ("Not the primary metric", _stated("Not the primary metric")),
+        define_criteria.SIDE_EFFECT: ("Side effects watched", _items("secondary_metrics", "Secondary metrics")),
+        define_criteria.NOT_THE_PRIMARY: ("Not the primary metric", _stated("Not the primary metric")),
     },
     "process_map_sipoc": {
-        "as-is": ("As it runs today", _stated("The process as it runs today")),
-        "start-to-end": ("Steps from start to end", _start_to_end),
-        "all-six": ("Suppliers, inputs, steps, outputs, customers, measures", _all_six),
-        "customers-match": ("Customers agree with the VOC", _stated("The customers agree with the voice of the customer")),
-        "performance": ("Step times and how often", _performance),
+        define_criteria.AS_IS: ("As it runs today", _stated("The process as it runs today")),
+        define_criteria.START_TO_END: ("Steps from start to end", _start_to_end),
+        define_criteria.ALL_SIX: ("Suppliers, inputs, steps, outputs, customers, measures", _all_six),
+        define_criteria.CUSTOMERS_MATCH: ("Customers agree with the VOC",
+                                          _stated("The customers agree with the voice of the customer")),
+        define_criteria.PERFORMANCE: ("Step times and how often", _performance),
     },
     "issues_and_barriers": {
-        "specific": ("Issues and barriers", _items("issues_and_barriers", "Issues and barriers")),
+        define_criteria.SPECIFIC: ("Issues and barriers", _items("issues_and_barriers", "Issues and barriers")),
     },
 }
 
 
 def criteria(field: str) -> list[tuple[str, str]]:
-    """The element's acceptance criteria as the script lists them: (id, text)."""
-    from backend.middleware.skills import acceptance_criteria
-    return acceptance_criteria("define", field)
+    """The element's acceptance criteria, (id, text), in order — the owner's (B7), as the script states them."""
+    return list(define_criteria.criteria(field))
 
 
 def verbatim_spans(spans: Any, field: str, *answers: Any) -> dict[str, str]:
@@ -386,7 +391,7 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
         label, read = template.get(cid, (text.split(" — ")[0][:60], _span()))
         value, met = read(values)
         formula = None
-        if cid == "cost-of-gap" and calc is not None:
+        if cid == define_criteria.COST_OF_GAP and calc is not None:
             value, formula = calc
         if is_empty_capture(value) and cid in spans:
             value = spans[cid]
@@ -489,19 +494,20 @@ def open_required(field: str, values: dict[str, Any], *, spans: Optional[dict[st
 
 #: Each row's one-line explanation in the Gate (C1, DEF-086): criterion id -> the report's FIELD_EXPLAIN key.
 _WHY: dict[str, dict[str, str]] = {
-    "business_case": {"what": "business_case"},
-    "team": {"champion": "champion", "people": "team"},
-    "voc_summary": {"customers": "voc_summary", "ctq": "ctqs"},
-    "problem_statement": {"5w2h": "five_w_two_h"},
-    "baseline_estimate": {"one-primary": "primary", "quantified": "baseline_target"},
-    "project_scope": {"in-and-out": "scope"},
-    "goal_statement": {"how-much": "objective"},
-    "target_date": {"a-date": "target_date"},
-    "benefits_analysis": {"cost-of-gap": "cost_of_gap", "impact-type": "impact_type",
-                          "realisation": "realisation_schedule", "finance-contact": "finance_contact"},
-    "secondary_metrics": {"side-effect": "secondary_metrics"},
-    "process_map_sipoc": {"all-six": "sipoc"},
-    "issues_and_barriers": {"specific": "issues"},
+    "business_case": {define_criteria.WHAT: "business_case"},
+    "team": {define_criteria.CHAMPION: "champion", define_criteria.PEOPLE: "team"},
+    "voc_summary": {define_criteria.CUSTOMERS: "voc_summary", define_criteria.CTQ: "ctqs"},
+    "problem_statement": {define_criteria.FIVE_W_TWO_H: "five_w_two_h"},
+    "baseline_estimate": {define_criteria.ONE_PRIMARY: "primary", define_criteria.QUANTIFIED: "baseline_target"},
+    "project_scope": {define_criteria.IN_AND_OUT: "scope"},
+    "goal_statement": {define_criteria.HOW_MUCH: "objective"},
+    "target_date": {define_criteria.A_DATE: "target_date"},
+    "benefits_analysis": {define_criteria.COST_OF_GAP: "cost_of_gap", define_criteria.IMPACT_TYPE: "impact_type",
+                          define_criteria.REALISATION: "realisation_schedule",
+                          define_criteria.FINANCE_CONTACT: "finance_contact"},
+    "secondary_metrics": {define_criteria.SIDE_EFFECT: "secondary_metrics"},
+    "process_map_sipoc": {define_criteria.ALL_SIX: "sipoc"},
+    "issues_and_barriers": {define_criteria.SPECIFIC: "issues"},
 }
 
 #: R16's sources, as the History link says them.
@@ -728,8 +734,9 @@ def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dic
     if field == "team":
         return {**_team_table(artifacts, case), "why": FIELD_EXPLAIN["team"]}
     if field == "business_case":
-        return {"kind": "kv", "items": [item("What", "what"), item("Where and since when", "where-when"),
-                                        item("Size", "baseline"), item("Cost", "cost")]}
+        return {"kind": "kv", "items": [item("What", define_criteria.WHAT),
+                                        item("Where and since when", define_criteria.WHERE_WHEN),
+                                        item("Size", define_criteria.BASELINE), item("Cost", define_criteria.COST)]}
     if field == "benefits_analysis":
         from backend.phases.calculations import expected_saving_text
         raw = artifacts.get("benefits_analysis")
@@ -738,8 +745,9 @@ def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dic
         return {"kind": "kv",
                 "figures": [["Cost of the gap today", plain(b.get("cost_of_gap")) or None, FIELD_EXPLAIN["cost_of_gap"]],
                             ["Expected saving at the target", f"{saving} a year" if saving else None]],
-                "items": [item("Sustainable or one-off", "impact-type"), item("When it lands", "realisation"),
-                          item("Finance contact", "finance-contact")]}
+                "items": [item("Sustainable or one-off", define_criteria.IMPACT_TYPE),
+                          item("When it lands", define_criteria.REALISATION),
+                          item("Finance contact", define_criteria.FINANCE_CONTACT)]}
     if field == "problem_statement":
         fw = _fivew(artifacts)
         return {"kind": "statement", "why": FIELD_EXPLAIN["five_w_two_h"],
@@ -767,7 +775,7 @@ def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dic
         base = artifacts.get("baseline_estimate")
         return {"kind": "kv", "items": [
             ["Metric", " — ".join(x for x in (name, meaning) if x) or None, FIELD_EXPLAIN["primary"]],
-            item("Business measure it feeds", "kpi-link"),
+            item("Business measure it feeds", define_criteria.KPI_LINK),
             ["Baseline", plain(base) or None, FIELD_EXPLAIN["baseline_target"]]],
             **({"chart": chart} if (chart := _chart(artifacts)) else {})}
     if field == "project_scope":

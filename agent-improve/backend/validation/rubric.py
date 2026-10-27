@@ -298,11 +298,11 @@ async def _llm_verdicts(criteria: list[tuple[str, str, str]], document: str) -> 
     document gets the same verdict)."""
     grader = get_llm("gate_judge").with_structured_output(GraderVerdict)
     # G-129: each rubric line carries its element's own acceptance
-    # criteria, so the element check and the gate cannot disagree on the same answer.
-    from backend.middleware.skills import acceptance_criteria
+    # criteria, so the element check and the gate cannot disagree on the same answer — read from their owner (B7).
+    from backend.phases.define import criteria as define_criteria
     lines = "\n".join(
         f"- {cid} ({field}): {text}" + "".join(
-            f"\n    element criterion `{aid}`: {atext}" for aid, atext in acceptance_criteria("define", field))
+            f"\n    element criterion `{aid}`: {atext}" for aid, atext in define_criteria.criteria(field))
         for cid, field, text in criteria)
     out = await grader.ainvoke(GATE_GRADER_PROMPT.format(phase="Define", criteria=lines,
                                                          document=document))
@@ -395,11 +395,11 @@ async def _judged_once(to_judge: list[tuple[str, str, str]], document: str,
     more; the second verdict stands."""
     model = await (judge or _llm_verdicts)(to_judge, document)
     given = {v.criterion.strip(): v for v in model.verdicts}
-    from backend.middleware.skills import acceptance_criteria
+    from backend.phases.define import criteria as define_criteria
     ungrounded = [c for c in to_judge
                   if (v := given.get(c[0])) is not None and v.status != "pass"
                   and foreign_terms(v.feedback, document, c[2] + " " + " ".join(
-                      t for _, t in acceptance_criteria("define", c[1])))]
+                      t for _, t in define_criteria.criteria(c[1])))]
     if ungrounded:
         logger.warning("define rubric: G-241 — %s failed on a fact not in the case; judged once more",
                        ", ".join(c[0] for c in ungrounded))

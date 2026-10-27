@@ -13,6 +13,7 @@ PROJECT = Path(__file__).resolve().parents[2]
 TOOLS = PROJECT / "tools" / "architecture"
 sys.path.insert(0, str(TOOLS))
 
+import generate_define_script  # noqa: E402
 import generate_layout  # noqa: E402
 import generate_routes  # noqa: E402
 import generate_value_keys  # noqa: E402
@@ -133,3 +134,81 @@ def test_the_classes_check_can_fail_and_the_mark_follows_the_rule(tmp_path) -> N
     rows = generate_layout.generate(project)
     assert "`state.py` C |" in rows and "`schema.py` C |" in rows, rows
     assert "`llm.py` |" in rows and "`llm.py` C" not in rows, rows
+
+
+# ── B7 (founder ruling 2026-10-27, item 4): the Define skill, generated from the criteria's owner ──
+
+_DEFINE = PROJECT / "skills" / "dmaic-define-phase"
+
+
+def test_the_define_script_is_a_fresh_generation_from_its_owner() -> None:
+    """B7: "code owns the criteria, their ids and the element order (one owner); the skill text and the welcome are
+    generated from it, not parsed." SKILL.md and coaching_script.md (its section 3, byte for byte) equal a fresh
+    generation from `phases/define/criteria.py`."""
+    assert generate_define_script.stale(PROJECT) == [], "run tools/architecture/generate_define_script.py --write"
+    skill = (_DEFINE / "SKILL.md").read_text(encoding="utf-8")
+    script = (_DEFINE / "coaching_script.md").read_text(encoding="utf-8")
+    assert script.startswith("**[OPENING") and script == generate_define_script.mirror(skill)
+    assert ("\n\n" + script + "\n---\n\n## 4.") in skill, "coaching_script.md is SKILL.md's section 3, byte for byte"
+
+
+def test_the_owners_criteria_order_and_welcome_are_what_the_skill_states() -> None:
+    """B7: what the generated skill says — read here with a parser of the test's own, never the product's — is the
+    owner's: each element's criteria (id and text, in order), the numbered heads in the owner's order, the element
+    table, the [OPENING] block and section F."""
+    import re
+
+    from backend.phases.define import criteria as owner
+    skill = (_DEFINE / "SKILL.md").read_text(encoding="utf-8")
+    blocks = re.findall(r"^\*\*\[(\d+) · (\w+) · [^\]]*\]\*\*\n((?:>.*\n)+)", skill, re.M)
+    assert [(int(n), f) for n, f, _ in blocks] == list(enumerate(owner.ELEMENT_ORDER, start=1))
+    for _n, field, block in blocks:
+        stated = re.findall(r"^> - `([a-z0-9-]+)` — (.+)$", block, re.M)
+        assert tuple(stated) == owner.CRITERIA[field], field
+    table = re.findall(r"^\| (\d+) \| ([^|]+) \| ([^|]+) \|$", skill, re.M)
+    assert [(int(n), name.strip(), tuple(re.findall(r"`(\w+)`", fields))) for n, name, fields in table] == [
+        (n, owner.ELEMENT_NAMES[f], (f, *owner._CAPTURED_INSIDE.get(f, ())))
+        for n, f in enumerate(owner.ELEMENT_ORDER, start=1)]
+    opening = skill.split("**[OPENING — the welcome]**\n", 1)[1].split("\n\n", 1)[0].splitlines()
+    assert opening == [f"> {owner.WELCOME}", *(f"> • **{p}** — {line}" for p, line in owner.PHASES),
+                       f"> {owner.HOW_DEFINE_IS_WORKED}"]
+    assert "### F — The Define report\n\n" + "\n".join(owner.HOW_DEFINE_ENDS) + "\n\n---" in skill
+    assert "**[METRIC LITERACY — field 5," in skill and owner.ELEMENT_ORDER[4] == "baseline_estimate"
+
+
+def test_every_criterion_id_has_one_named_constant() -> None:
+    """B7 (U4): code names a criterion by the owner's constant — one constant per id, every id has one."""
+    from backend.phases.define import criteria as owner
+    ids = {cid for items in owner.CRITERIA.values() for cid, _ in items}
+    named = {v: n for n in dir(owner) if n.isupper() and isinstance(v := getattr(owner, n), str) and v in ids}
+    assert set(named) == ids, sorted(ids - set(named))
+    assert set(owner.CRITERIA) == set(owner.ELEMENT_ORDER) == set(owner.ELEMENT_NAMES)
+    assert all(len({c for c, _ in items}) == len(items) for items in owner.CRITERIA.values()), "an id twice"
+
+
+def test_the_generation_follows_the_owner_and_refuses_a_skill_without_an_element(tmp_path) -> None:
+    """B7, the mutation proof: a criterion reworded and two elements swapped in a copy of the owner and the schema
+    regenerate the copy's skill — the criterion line, the numbered heads, the table and METRIC LITERACY's `field n` —
+    and a skill with no block for one of the owner's elements is refused."""
+    project = tmp_path / "agent-improve"
+    for rel in (generate_define_script.OWNER, generate_define_script.SCHEMA, generate_define_script.SKILL):
+        (project / rel).parent.mkdir(parents=True, exist_ok=True)
+        (project / rel).write_text((PROJECT / rel).read_text(encoding="utf-8"), encoding="utf-8")
+    owner_py, schema_py = project / generate_define_script.OWNER, project / generate_define_script.SCHEMA
+    owner_py.write_text(owner_py.read_text(encoding="utf-8").replace(
+        '"exactly one primary metric (p. 58)"', '"exactly one primary metric, named (p. 58)"'), encoding="utf-8")
+    text = schema_py.read_text(encoding="utf-8")
+    swapped = text.replace('"problem_statement",    # 4', '"baseline_estimate",    # 4').replace(
+        '"baseline_estimate",    # 5', '"problem_statement",    # 5')
+    assert swapped.count('"baseline_estimate",    # 4') == swapped.count('"problem_statement",    # 5') == 1
+    schema_py.write_text(swapped, encoding="utf-8")
+    skill = (project / generate_define_script.SKILL).read_text(encoding="utf-8")
+    new, script = generate_define_script.generate(project, skill)
+    assert "> - `one-primary` — exactly one primary metric, named (p. 58)\n" in new
+    assert "**[4 · baseline_estimate · " in new and "**[5 · problem_statement · " in new
+    assert "| 4 | Primary metric and baseline | `baseline_estimate`, `metric_definitions` |" in new
+    assert "**[METRIC LITERACY — field 4, where the metric gets named]**" in new
+    assert script == generate_define_script.mirror(new) and "exactly one primary metric, named" in script
+    broken = skill.replace("**[13 · issues_and_barriers · required]**", "**[13 · barriers · required]**")
+    with pytest.raises(generate_define_script.GenerationError):
+        generate_define_script.generate(project, broken)

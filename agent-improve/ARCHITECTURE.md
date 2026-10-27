@@ -518,7 +518,7 @@ What each role reads, part by part in order, with each part's owner: ADR-0111's 
 ### 3.7 Skills
 
 `skills/dmaic-{phase}-phase/SKILL.md`: per element, what to teach, the worked example, the
-read-back wording and the acceptance criteria. Read by `DMAICSkillsMiddleware` with a small local
+read-back wording and the acceptance criteria (Define's generated from `phases/define/criteria.py`). Read by `DMAICSkillsMiddleware` with a small local
 file reader: section 2 as §3.3 says (a gate field without a block fails `test_middleware.py`);
 another phase's script via `load_skill`. No level 3. Move sequencing is never in a skill.
 

@@ -51,7 +51,11 @@ _SHOW = re.compile(r"\*\*Show \(illustration[^)]*\):\*\*\s*\*[\"“]?(.+?)[\"”
 
 @lru_cache(maxsize=8)
 def _elements(phase: str) -> dict[str, str]:
-    """field -> the element's name, from the phase SKILL.md's element table."""
+    """field -> the element's name: Define's from the owner of its element order (B7, `phases/define/criteria.py`,
+    which the skill's element table is generated from); another phase's from its SKILL.md's element table."""
+    if phase == "define":
+        from backend.phases.define.criteria import element_names
+        return element_names()
     from backend.middleware.skills import instructions
     rows = re.findall(r"^\| \d+ \| ([^|]+) \| ([^|]+) \|$", instructions(phase), re.M)
     return {f: name.strip() for name, fields in rows for f in re.findall(r"`(\w+)`", fields)}

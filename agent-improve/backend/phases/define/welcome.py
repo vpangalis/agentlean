@@ -1,10 +1,11 @@
 """DEF-200 — the Define welcome, assembled by the server in code (W3; G-201).
 
 No model call. Built from two sources only: the phase state (which elements are confirmed, with their values, and
-which are open — the progress view's own `moves.element_rows`) and the skill's own `[OPENING]` block (the five
-phases' one-line purposes and how Define is worked — the founder's text, never retyped here). Served on
-`GET /cases/{id}` while the case is in Define, for a fresh case and for every return; the page lays it out in blocks
-(`ui/index.html` `welcomeHtml`).
+which are open — the progress view's own `moves.element_rows`) and the welcome's owner in code,
+`phases/define/criteria.py` (the five phases' one-line purposes, how Define is worked and how it ends — the founder's
+text, never parsed from the skill: B7, founder ruling 2026-10-27, item 4; the skill's `[OPENING]` block is generated
+from the same owner). Served on `GET /cases/{id}` while the case is in Define, for a fresh case and for every return;
+the page lays it out in blocks (`ui/index.html` `welcomeHtml`).
 """
 from __future__ import annotations
 
@@ -13,22 +14,13 @@ from functools import lru_cache
 from typing import Any
 
 from backend.core import guard_messages
-from backend.middleware.skills import instructions
 from backend.phases import moves
-
-#: The skill's opening: `**[OPENING — the welcome]**` and its quoted lines.
-_OPENING = re.compile(r"^\*\*\[OPENING[^\]]*\]\*\*[ \t]*\n((?:>.*(?:\n|$))+)", re.M)
-_PHASE_LINE = re.compile(r"^•\s*\*\*(\w+)\*\*\s*—\s*(.+)$")
+from backend.phases.define import criteria as define_criteria
 
 
-@lru_cache(maxsize=1)
 def opening() -> tuple[tuple[tuple[str, str], ...], str]:
-    """(the five phases as (name, purpose), how Define is worked) — read from the skill's [OPENING] block."""
-    m = _OPENING.search(instructions("define"))
-    lines = [line.lstrip(">").strip() for line in (m.group(1).splitlines() if m else [])]
-    phases = tuple((p.group(1), p.group(2).strip()) for p in (_PHASE_LINE.match(x) for x in lines) if p)
-    how = next((x for x in lines if x.startswith("Right now")), "")
-    return phases, how.replace("**", "")
+    """(the five phases as (name, purpose), how Define is worked) — the owner's welcome (B7)."""
+    return define_criteria.PHASES, define_criteria.HOW_DEFINE_IS_WORKED.replace("**", "")
 
 
 def value_text(value: Any) -> str:
@@ -58,20 +50,17 @@ def welcome(name: str, artifacts: dict[str, Any], field_status: dict[str, dict[s
             "next": {"n": nxt["n"], "name": nxt["name"]} if nxt else None}
 
 
-#: DEF-214: the skill's section F — how Define ends.
-_SECTION_F = re.compile(r"^### F — The Define report\n\n(.*?)\n\n---", re.M | re.S)
 #: The skill's internal references, left out of team-facing text: "(section 6)", "(requirement R6)".
 _INTERNAL = re.compile(r"\s*\((?:section \d+|requirement [A-Z]\d+\w*)\)")
 
 
 @lru_cache(maxsize=1)
 def overview() -> dict[str, Any]:
-    """DEF-214 (W1): the Define overview, from the skill only — the
-    thirteen elements (numbered and named as in the sidebar, each with the first sentence of what it is), how Define
-    is worked (the [OPENING] block) and how it ends (section F), without the skill's internal references."""
+    """DEF-214 (W1): the Define overview — the thirteen elements (numbered and named as in the sidebar, each with the
+    first sentence of what it is, from the skill), how Define is worked and how it ends (the owner's, B7), without the
+    skill's internal references."""
     from backend.middleware.skills import teaching_blocks
-    m = _SECTION_F.search(instructions("define"))
-    ends = " ".join(_INTERNAL.sub("", m.group(1)).replace("**", "").split()) if m else ""
+    ends = " ".join(_INTERNAL.sub("", "\n".join(define_criteria.HOW_DEFINE_ENDS)).replace("**", "").split())
     elements = []
     for n, (field, _fields) in enumerate(moves.positions("define"), start=1):
         what = str(teaching_blocks("define", field).get("explanation") or "")
@@ -93,11 +82,12 @@ def _first_sentence(text: str) -> str:
 
 def briefings() -> dict[str, dict[str, Any]]:
     """G-258: the 5W2H and SIPOC briefings the page shows, built from the
-    skill only — what the element is and why it matters, how each part is formulated, the skill's own ask and its
-    worked example — so the screen teaches exactly what is graded. Shaped as the page's briefing card reads it."""
+    skill — what the element is and why it matters, how each part is formulated, the skill's own ask and its
+    worked example — and the SIPOC's criteria from their owner (B7), so the screen teaches exactly what is graded.
+    Shaped as the page's briefing card reads it."""
     import json
 
-    from backend.middleware.skills import SKILLS_ROOT, acceptance_criteria, element_text, show_table
+    from backend.middleware.skills import SKILLS_ROOT, element_text, show_table
     from backend.phases.define.schema import SIPOC_KEYS
     from backend.phases.define.visuals import SIPOC_EXAMPLE
     out: dict[str, dict[str, Any]] = {}
@@ -113,10 +103,11 @@ def briefings() -> dict[str, dict[str, Any]]:
             composed = next((ln for ln in show.splitlines() if "composed from it" in ln), "")
             card["exampleSummary"] = composed.split(":**", 1)[-1].strip(" *\"“”") if composed else ""
         else:
-            crit = dict(acceptance_criteria("define", field))
+            crit = dict(define_criteria.criteria(field))
             how = next((ln for ln in show.splitlines() if ln.startswith("How each part is formulated")), "")
             card["steps"] = [_PAGE_REF.sub("", crit[c]).strip().capitalize() + "."
-                             for c in ("start-to-end", "all-six") if c in crit] + ([how] if how else [])
+                             for c in (define_criteria.START_TO_END, define_criteria.ALL_SIX) if c in crit] \
+                + ([how] if how else [])
             example = json.loads((SKILLS_ROOT / "dmaic-define-phase" / SIPOC_EXAMPLE).read_text(encoding="utf-8"))
 
             def words(v: Any) -> str:

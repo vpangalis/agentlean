@@ -486,21 +486,24 @@ _PAGE = re.compile(r"\s*\(p\.[^)]*\)|\s*\(R\d+\)")
 def _scaffold(template_type: str) -> str:
     """G-258: the problem statement as the script's 5W2H table (each question with how it is formulated), the
     SIPOC as the schema's six columns with the script's step count and how each part is formulated."""
-    from backend.middleware.skills import acceptance_criteria, element_text, show_table
+    from backend.middleware.skills import element_text, show_table
+    from backend.phases.define import criteria as define_criteria
     from backend.phases.define.schema import FIVE_W_TWO_H_KEYS, SIPOC_KEYS
     if template_type == "problem_statement":
-        crit = dict(acceptance_criteria("define", "problem_statement"))
+        crit = dict(define_criteria.criteria("problem_statement"))
         keys = {k.replace("_", " "): k for k in FIVE_W_TWO_H_KEYS}
         lines = [f"  {row[0]} — {row[1]}: {{{keys[row[0].lower()]}}}" for row in show_table("define", "problem_statement")
                  if len(row) > 1 and row[0].lower() in keys]
         return ("PROBLEM STATEMENT — the seven 5W2H answers, then one statement composed from them.\n\n"
-                + "\n".join(lines) + "\n\nIt " + _PAGE.sub("", crit.get("no-cause-no-fix", "")).strip() + ".")
-    crit = dict(acceptance_criteria("define", "process_map_sipoc"))
+                + "\n".join(lines) + "\n\nIt "
+                + _PAGE.sub("", crit.get(define_criteria.NO_CAUSE_NO_FIX, "")).strip() + ".")
+    crit = dict(define_criteria.criteria("process_map_sipoc"))
     columns = "\n".join(f"  {_SIPOC_LABELS.get(k, k.capitalize())}: {{{k}}}" for k in SIPOC_KEYS)
     how = next((ln.split(":", 1)[1].strip() for ln in element_text("define", "process_map_sipoc", "Show").splitlines()
                 if ln.startswith("How each part is formulated")), "")
-    return (f"SIPOC — {_PAGE.sub('', crit.get('start-to-end', '')).strip()}; "
-            f"{_PAGE.sub('', crit.get('all-six', '')).strip()}.\n\n{columns}\n\nHow each part is formulated: {how}")
+    return (f"SIPOC — {_PAGE.sub('', crit.get(define_criteria.START_TO_END, '')).strip()}; "
+            f"{_PAGE.sub('', crit.get(define_criteria.ALL_SIX, '')).strip()}.\n\n{columns}\n\n"
+            f"How each part is formulated: {how}")
 
 
 _TEMPLATES: dict[str, str] = {

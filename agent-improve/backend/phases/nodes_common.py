@@ -496,13 +496,13 @@ def _number_required(phase: str, field: str, previous: str, latest: str,
                      j: SufficiencyJudgment) -> SufficiencyJudgment:
     """ADR-0071 (DEF-076): a baseline or a target with no number is never sufficient — whatever
     the model judged, an answer the one parser reads no figure from is asked again, in code."""
-    from backend.phases.define import parse
+    from backend.phases.define import criteria as define_criteria, parse
     if phase != "define" or field not in parse.METRIC_FIELDS or j.verdict != "sufficient":
         return j
     words = chr(10).join(x for x in (previous, latest) if x)
     if parse.metric_value(words, target=field == "target_value")["value"] is not None:
         return j
-    crit = "quantified" if field == "baseline_estimate" else "number-and-unit"
+    crit = define_criteria.QUANTIFIED if field == "baseline_estimate" else define_criteria.NUMBER_AND_UNIT
     return _checked_criterion(phase, field, SufficiencyJudgment(
         verdict="insufficient", failed_criterion=crit, reason=(
             "decided in code (ADR-0071): the answer holds no number — the "
@@ -522,7 +522,7 @@ def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
     (`parse.metric_value` / `as_metric`)."""
     if phase != "define" or field != "target_value":
         return None
-    from backend.phases.define import parse
+    from backend.phases.define import criteria as define_criteria, parse
     artifacts = dict(state.get("artifacts") or {})
     unit = parse.primary_unit(artifacts)
     baseline = (parse.as_metric(artifacts["baseline_estimate"], unit=unit)
@@ -537,7 +537,7 @@ def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
         logger.info("%s.planner: target in %s, the baseline in %s — asked again (ADR-0071)",
                     phase, target["unit"], base_unit)
         return _checked_criterion(phase, field, SufficiencyJudgment(
-            verdict="insufficient", failed_criterion="number-and-unit", reason=(
+            verdict="insufficient", failed_criterion=define_criteria.NUMBER_AND_UNIT, reason=(
                 f"decided in code (ADR-0071): the target is in {target['unit']} but the baseline is "
                 f"in {base_unit} — ask for the target in {base_unit}, naming both units")))
     if baseline and baseline["value"] is not None and baseline["value"] == target["value"]:
@@ -546,7 +546,8 @@ def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
     if side:
         # G-245: the element's `direction` criterion, decided in code by the gate's own check.
         return _checked_criterion(phase, field, SufficiencyJudgment(
-            verdict="insufficient", failed_criterion="direction", reason=f"decided in code (G-245): {side}"))
+            verdict="insufficient", failed_criterion=define_criteria.DIRECTION,
+            reason=f"decided in code (G-245): {side}"))
     logger.info("%s.planner: target judged in code (G-120): %s %s%s, the baseline's unit",
                 phase, target["direction"], target["value"], target["unit"])
     return SufficiencyJudgment(verdict="sufficient", reason=(
