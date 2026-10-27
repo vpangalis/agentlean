@@ -2,7 +2,8 @@
 """pre-commit writer — CONTINUITY.md's status block, and the feature ratchet. Step 6.67.
 
 Fail-SOFT: a writing hook that breaks must never wedge a commit; the
-commit-msg guard's rules 5 and 11 are the fail-closed checks. Two writes:
+commit-msg guard's rule 11 is the fail-closed check (rule 5, which checked the
+block, retired: founder ruling 2026-10-27, item 6). Two writes:
 
   1. CONTINUITY.md's CURRENT BUILD STATUS block, from `continuity_status.build_block`
      (the features and the recorded run), staged.
@@ -67,6 +68,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except Exception as exc:  # noqa: BLE001 — fail SOFT; rule 5 is the gate
-        note(f"regeneration failed ({exc!r}) — commit proceeding; rule 5 guards")
+    except Exception as exc:  # noqa: BLE001 — fail SOFT
+        note(f"regeneration failed ({exc!r}) — commit proceeding with the block as it was")
         sys.exit(0)

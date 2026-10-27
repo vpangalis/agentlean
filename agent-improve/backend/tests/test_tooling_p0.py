@@ -204,14 +204,10 @@ def test_a_passing_full_run_is_reused_when_the_source_is_unchanged(tmp_path, mon
 
 
 def test_the_commit_message_is_checked_at_preflight_before_any_test(tmp_path) -> None:
-    """DEF-249 — (c): the pre-flight checks the commit message's rules (the subject format, the 8D of a fix) before
-    it runs anything else — a message the guard would refuse is refused in a second, not after the suite."""
+    """DEF-249 — (c): the pre-flight checks the commit message's rules (the 8D of a fix) before it runs anything
+    else — a message the guard would refuse is refused in a second, not after the suite. The subject-format half
+    went with guard rule 1 (founder ruling 2026-10-27, item 6)."""
     hook = _hook_module("preflight-on-commit.py", "preflight_on_commit_p0b")
-    bad = tmp_path / "msg.txt"
-    bad.write_text("refactor(arch-v2): DEF-222, DEF-223 — two ids in the subject\n\nbody\n", encoding="utf-8")
-    payload = {"tool_name": "Bash", "tool_input": {"command": f'git commit -F "{bad}"'}}
-    code, msg = hook.decide(payload, lambda **k: (_ for _ in ()).throw(AssertionError("the pre-flight ran first")))
-    assert code == 2 and "spine format" in msg, (code, msg)
     fix = tmp_path / "fix.txt"
     fix.write_text("fix(upload): G-236 — no 8D in this body\n\nCo-Authored-By: x\n", encoding="utf-8")
     code, msg = hook.decide({"tool_name": "Bash", "tool_input": {"command": f"git commit -F {fix}"}},

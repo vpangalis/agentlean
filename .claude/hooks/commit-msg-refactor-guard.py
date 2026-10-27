@@ -3,15 +3,9 @@
 
 Blocks a commit that breaks a rule below. Rules 2 (tracker), 2b (status changelog) and 9
 (build matrix) are RETIRED — their code is gone (controls review, 2026-09-30); git history holds
-it. Numbers are never reused, so every older reference still points at the right rule.
-
-  1. SUBJECT — matches the spine format EXACTLY:
-         refactor(arch-v2): commit X.Y — <what changed>
-     One space after the colon, lowercase "commit", X.Y digits, a real em dash
-     (U+2014) with a single space either side, and a non-empty description.
-     session-start-context.py parses this subject to report "last completed"
-     (`_GITLOG_STEP_RE`); a malformed one silently drops the step out of the
-     only automated continuity signal the project has.
+it. Rules 1 (spine subject), 5 (CONTINUITY), 8 (step or gap), 15 (chore scope), 16 (data models)
+and 23 (Verified:) are RETIRED the same way (founder ruling 2026-10-27, item 6, the guard diet).
+Numbers are never reused, so every older reference still points at the right rule.
 
   17. DESIGN — a commit that changes a file NAMED in ARCHITECTURE.md §3
      (Components and interfaces) either changes ARCHITECTURE.md outside its
@@ -36,10 +30,6 @@ it. Numbers are never reused, so every older reference still points at the right
   24. DOCUMENT NAMES — every class and function the governing documents (the rules,
      CLAUDE.md, ARCHITECTURE.md) name exists in the repository or the installed packages
      (`tools/architecture/doc_names.py`, a ratchet over today's stale names; founder, 2026-10-13).
-  23. VERIFIED — a commit that changes a mechanism file (backend/middleware/, core/llm.py,
-     core/graph.py, a phase graph, subgraph_common.py, gateway/routes.py) carries
-     `Verified: <docs.langchain.com or reference.langchain.com URL> … installed/pin`, or
-     `Verified: n/a — <reason>` when no framework mechanism changes (founder, 2026-10-13).
   22. DEPRECATED PATTERNS — `.claude/config/deprecated_patterns.yaml`, the editor hook's
      registry with its exclusions, applied to the lines a commit ADDS in every staged code
      file, so an edit made through the shell or a script meets it too (G-165, 2026-10-12).
@@ -56,30 +46,6 @@ it. Numbers are never reused, so every older reference still points at the right
      fall, never rise: `.claude/config/ruff-ratchet.json`, lowered by the pre-commit hook
      (`ruff_ratchet.py --lower`), refused on a rise (founder ruling 2026-10-24, B4).
   4. TESTS — pytest green.
-
-  16. DATA MODELS — ARCHITECTURE.md's generated block (between the
-     `data models` markers) equals a fresh generation from the STAGED code
-     (`tools/architecture/generate_models.py`); the pre-commit hook regenerates
-     it. The block is exempt from rule 17 and from rule 12's measure (Part G).
-
-  15. CHORE SCOPE — a `chore(...)` subject may change `agent-improve/backend/`
-     (tests excluded) only by type annotations; a defect fix carries `fix` or a
-     `Gap:` trailer (founder, 2026-09-27). Rule 2b skips an annotation-only
-     change to the paths it watches.
-
-  5. CONTINUITY — `agent-improve/docs/CONTINUITY.md` is staged AND its CURRENT
-     BUILD STATUS block matches what regeneration from the staged inputs
-     produces. CONTINUITY.md is what a new session reads first, and a
-     first-read document that lags the build is worse than one that is merely
-     terse — it is confidently wrong. Its own title line read `Version 4.7`
-     while its header comment said 4.9, which is the drift this ends.
-
-     NORMALLY THIS RULE NEVER FIRES, and that is the design. `.githooks/
-     pre-commit` regenerates and stages the block automatically, so by the time
-     this runs it is already correct. Rule 5 is the fail-closed backstop for
-     the cases where it did not: pre-commit not installed (`core.hooksPath`
-     unset in a fresh clone), the script erroring, `git commit --no-verify` on
-     an earlier attempt leaving a stale block staged, or a hand-edited block.
 
   6. 8D — the body of a FIX commit answers **D2 IS, D2 IS-NOT, D4 OCCURRENCE,
      D4 ESCAPE, D5 FIX and D7 PREVENT**. CLAUDE.md §20, founder ruling
@@ -111,15 +77,6 @@ it. Numbers are never reused, so every older reference still points at the right
      NAME and never the content, and only paths new to the tree — a ratchet,
      like rule 3, because two `.bak` archives are tracked deliberately.
 
-  8. STEP OR GAP — every path NEW to the tree has a number behind it.
-     **CLAUDE.md §0.32, clause 3.** A spine subject declares its own step;
-     any other type carries `Step: 6.22` or `Gap: G-57` in the body, and the
-     number must RESOLVE — Appendix D for a step, docs/defects.json for a gap,
-     both read from the INDEX so a gap registered in the same commit counts.
-     It checks that a number is declared and exists, never that the file
-     belongs to it: the same limit rule 6 carries, and stated for the same
-     reason. A `chore(tooling):` commit is exempt (founder ruling 2026-09-26).
-
   12. SIZE — a staged governing document (CLAUDE.md, each rule file,
      ARCHITECTURE.md) stays within its bound (base + 10%) in
      `.claude/config/size-budget.json`: warned above base + 5%, refused above
@@ -138,9 +95,10 @@ TYPES, TESTS AND LANDING BIND ON EVERY COMMIT THAT CHANGES CODE OR CONFIG,
 whatever its subject prefix (founder ruling 2026-09-26): rules 3, 4 and 11 run
 for a `feat(`, `fix(` or `chore(` commit exactly as for a spine one
 (`gated_rules`). Until then they ran only under `refactor(arch-v2)`, and a
-`feat(` commit carried two type errors to main (b940725). Rules 1 and 5 — the
-spine's subject format and CONTINUITY — stay the spine's. A documentation-only
-commit (Markdown and the generated outputs) is touched by 2b, 6, 7, 8, 10-14.
+`feat(` commit carried two type errors to main (b940725). A spine commit gets
+them even when docs-only. Any other documentation-only commit (Markdown and the
+generated outputs) is touched only by the rules ahead of the prefix gate: 6, 7,
+10, 11b, 12-14, 17-22 and 24.
 
 USAGE
     commit-msg hook:   <guard> <path-to-commit-message-file>
@@ -148,8 +106,9 @@ USAGE
 
 WHY commit-msg AND NOT pre-commit
     `pre-commit` runs BEFORE the message exists, so it cannot see the subject
-    and rule 1 is unimplementable there. `commit-msg` receives the message as
-    argv[1] and still has the staged index, so it can enforce all four. It runs
+    or the body, and the message rules (6, 11, 17, 19, 20) are unimplementable
+    there. `commit-msg` receives the message as argv[1] and still has the
+    staged index, so it can enforce every rule. It runs
     after pre-commit and before the commit object is written — a non-zero exit
     aborts the commit.
 
@@ -201,8 +160,6 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import continuity_status as cs
-
 # --------------------------------------------------------------------------- #
 # Configuration
 # --------------------------------------------------------------------------- #
@@ -214,15 +171,7 @@ import continuity_status as cs
 # those would train people to bypass the hook.
 GUARDED_PREFIX = "refactor(arch-v2)"
 
-# The spine format, fixed by REFACTORING_PROCEDURE.md's completion contract.
-# The em dash is written as an escape on purpose: a literal one here is
-# invisibly easy to replace with a hyphen by the same editor slip this rule
-# exists to catch.
-SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): (?:commit \d+\.\d+|DEF-\d{3}) — \S.*$")
-
 # `TRACKER_PATH` and `PROCEDURE_PATH` were rule 2's, and went with it.
-# Appendix D's location is `continuity_status.PROCEDURE`, which rule 5 reaches
-# through `build_block` — this file no longer needs to know it.
 
 # Rule 17 — the architecture panel's repo-side source (formerly rule 2b's), and the paths it
 # tabulates. Unlike the rest of this guard it is NOT scoped to
@@ -416,76 +365,11 @@ def _status_changed_by_hand(root: str) -> bool:
     return gm.replace_block(head, "") != gm.replace_block(staged, "")
 
 
-def check_generated_models(root: str, staged: list[str]) -> None:
-    """Rule 16 — ARCHITECTURE.md's data-models block is exactly what the code
-    generates (founder, 2026-09-27, Part G). The pre-commit hook regenerates it
-    from the STAGED tree; this refuses a commit whose staged block differs from
-    a fresh generation: a hand edit, or a commit made without the hooks. It
-    runs when the document or anything the generator reads is staged."""
-    # Founder ruling 6, 2026-09-29: the block lives in its own generated file, linked from §4.2.
-    models = f"{PROJECT}/docs/data-models.md"
-    reads = (f"{PROJECT}/backend/", f"{PROJECT}/tools/architecture/", models)
-    if not any(p == r or p.startswith(r) for p in staged for r in reads):
-        return
-    gm = _models_generator(root)
-    doc = _staged_text(root, models)
-    if gm.block_of(doc) is None:
-        fail("docs/data-models.md has no generated data-models block (rule 16)",
-             "The declarations moved out of ARCHITECTURE.md into docs/data-models.md (founder, 2026-09-29).",
-             "Regenerate it:  python agent-improve/tools/architecture/generate_models.py --stage")
-    from pathlib import Path
-    project = _staged_tree(root).sync(Path(root)) / PROJECT
-    try:
-        body = gm.generate(project)
-    except gm.GenerationError as exc:
-        fail("the data-models generator failed on the staged tree (rule 16)", str(exc))
-    if not gm.is_current(doc, body):
-        fail("docs/data-models.md's generated data-models block differs from the code (rule 16)",
-             "The block between the `BEGIN GENERATED: data models` and END markers is",
-             "rewritten from the code on every commit and is never edited by hand.",
-             "Regenerate it:  python agent-improve/tools/architecture/generate_models.py --stage",
-             "(the pre-commit hook runs exactly this); change the CODE to change the block.")
-    note("rule 16 data models: PASS — the block equals a fresh generation")
-
-
 def _annotation_only(root: str):
     """`.claude/hooks/annotation_only.py` — is a staged change annotation-only (2026-09-27)."""
     sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
     import annotation_only
     return annotation_only
-
-
-CHORE_RE = re.compile(r"^chore(\([^)]*\))?!?:")
-BACKEND_CODE = f"{PROJECT}/backend/"
-BACKEND_TESTS = f"{PROJECT}/backend/tests/"
-
-
-def check_chore_scope(root: str, subject: str, message: str, staged: list[str]) -> None:
-    """Rule 15 — a `chore(...)` commit changes backend code only in annotations
-    (founder, 2026-09-27). A defect fix says so: a `fix(...)` subject, or a
-    `Gap: G-nn` trailer naming its entry in docs/defects.json — and then rule 6
-    asks for its 8D. 8f26a04 changed config.py's behaviour under `chore(config)`.
-
-    Scope: `agent-improve/backend/`, tests excluded — a test is not the product.
-    Annotation-only is `annotation_only.py`'s definition: syntax trees equal
-    once annotations are removed (a model's fields and a decorated function's
-    annotations are behaviour, and are kept).
-    """
-    if not CHORE_RE.match(subject) or _GAP_TRAILER_RE.search(message):
-        return
-    backend = [p for p in staged if p.startswith(BACKEND_CODE) and not p.startswith(BACKEND_TESTS)]
-    if not backend:
-        return
-    ao = _annotation_only(root)
-    code = [p for p in backend if not ao.staged_is_annotation_only(root, p)]
-    if code:
-        fail("a chore(...) commit changes backend code beyond annotations (rule 15)",
-             "Changed in behaviour, not only in type annotations:",
-             *[f"  - {p}" for p in code], "",
-             "A defect fix carries `fix(...)` or a `Gap: G-nn` trailer (docs/defects.json),",
-             "and rule 6 then asks for its 8D; new behaviour is `feat(...)` or `refactor(...)`.",
-             "A `chore(...)` commit may change backend/ only by annotations (founder, 2026-09-27).")
-    note(f"rule 15 chore scope: PASS — {len(backend)} backend file(s), annotations only")
 
 
 def _staged_tree(root: str):
@@ -813,28 +697,29 @@ def check_adr_immutability(root: str, staged: list[str]) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Rules 7 and 8 — what may ENTER the tree (CLAUDE.md §0.32)
+# Rule 7 — what may ENTER the tree (CLAUDE.md §0.32)
 # --------------------------------------------------------------------------- #
 #
 # §0.32's FIRST clause — the tree at HEAD is the only source of truth — binds on
-# what is CLAIMED, and a commit hook cannot check a claim. Its other two clauses
-# bind on what ENTERS the tree, which is precisely what a commit is, so they are
-# gated here and the first is left to the rule and to review.
+# what is CLAIMED, and a commit hook cannot check a claim. Its second clause
+# binds on what ENTERS the tree, which is precisely what a commit is, so it is
+# gated here and the first is left to the rule and to review. (Rule 8, the
+# third clause's gate, retired: founder ruling 2026-10-27, item 6.)
 #
-# BOTH RANGE OVER `added_paths`, NOT `staged_paths`, AND THAT IS A RATCHET —
-# rule 3's argument applied to paths. They see only what is NEW TO THE TREE at
-# this commit; a path that is merely modified is invisible to them. Two `.bak`
+# IT RANGES OVER `added_paths`, NOT `staged_paths`, AND THAT IS A RATCHET —
+# rule 3's argument applied to paths. It sees only what is NEW TO THE TREE at
+# this commit; a path that is merely modified is invisible to it. Two `.bak`
 # files are tracked today under `agent-improve/docs/_archive/`, deliberately, as
 # archives of the root file. A rule reading every staged path would block every
 # commit that touched one, and a guard people route around with --no-verify is
 # worse than no guard. New scratch cannot land; what is already tracked stays
 # visible and countable.
 #
-# NEITHER HAS A SOFT OPT-OUT, unlike rule 6's `8D: NOT A FIX`. Rule 6's opt-out
+# IT HAS NO SOFT OPT-OUT, unlike rule 6's `8D: NOT A FIX`. Rule 6's opt-out
 # exists because its trigger 2 fires on a MENTION and can therefore be wrong
-# about what a commit is. These two fire on the INDEX, which cannot be wrong
-# about it: either a scratch path is staged or it is not, either a number is
-# declared or it is not. The escape is `--no-verify`, which is on the record.
+# about what a commit is. This one fires on the INDEX, which cannot be wrong
+# about it: either a scratch path is staged or it is not. The escape is
+# `--no-verify`, which is on the record.
 
 # Rule 7 — path SEGMENTS that mean "working material". Matched whole, lowered,
 # against the DIRECTORY part only, so `docs/scratch/note.md` is caught and
@@ -874,19 +759,8 @@ SCRATCH_GLOBS = (
     "*conflicted copy*", "~$*",
 )
 
-# Rule 8 — where a declared number has to RESOLVE. Steps live in Appendix D of
-# the procedure (`cs.PROCEDURE` owns that path); gaps live in the defect
-# register, `docs/defects.json` (founder, 2026-09-27 — moved there from the
-# archived procedure's Appendix G, one entry per defect, no status field).
-_APPENDIX_D_STEP_RE = re.compile(r"\*\*Commit (\d+\.\d+)\*\*")
-DEFECTS = "agent-improve/docs/defects.json"
-
-# Rule 8 — where a number may be DECLARED. A spine subject already carries one
-# and is not made to repeat it; every other commit type declares a trailer.
-_SPINE_STEP_RE = re.compile(r"^refactor\(arch-v2\): commit (\d+\.\d+)\b")
-_STEP_TRAILER_RE = re.compile(r"^[\s*_]*Steps?[\s*_]*:[ \t]*(?P<v>.+)$", re.M | re.I)
+# Rule 6 — the `Gap: G-nn` trailer that makes a commit a fix (`is_fix_commit`).
 _GAP_TRAILER_RE = re.compile(r"^[\s*_]*Gaps?[\s*_]*:[ \t]*(?P<v>.+)$", re.M | re.I)
-_STEP_TOKEN_RE = re.compile(r"\b\d+\.\d+\b")
 _GAP_TOKEN_RE = re.compile(r"\bG-\d+\b", re.I)
 
 
@@ -951,29 +825,13 @@ def check_scratch(added: list[str]) -> None:
          "and is never evidence.", "",
          "Staged as new, and caught by name:",
          *[f"  - {p}   ({why})" for p, why in hits], "",
-         "If the artifact matters it becomes a TRACKED FILE WITH A STEP NUMBER",
-         "— a real path, a real name, and rule 8 asking which step or gap it",
-         "belongs to. If it does not matter it belongs outside the tree:",
+         "If the artifact matters it becomes a TRACKED FILE — a real path and",
+         "a real name. If it does not matter it belongs outside the tree:",
          "",
          "  git restore --staged <path>     # then move it out, or ignore it",
          "",
          "Only paths NEW to the tree are read, so this is about what you are",
          "adding now and never about anything already tracked.")
-
-
-#: 6.68 — the tooling prefix: no registration, the checks alone.
-TOOLING_RE = re.compile(r"^chore\(tooling\)!?:")
-
-
-def _declared_numbers(subject: str, message: str) -> tuple:
-    """The step and gap numbers this commit CLAIMS, before any of them resolve."""
-    steps = set(_SPINE_STEP_RE.findall(subject))
-    for m in _STEP_TRAILER_RE.finditer(message):
-        steps.update(_STEP_TOKEN_RE.findall(m.group("v")))
-    gaps = set()
-    for m in _GAP_TRAILER_RE.finditer(message):
-        gaps.update(t.upper() for t in _GAP_TOKEN_RE.findall(m.group("v")))
-    return steps, gaps
 
 
 _FEATURE_TRAILER_RE = re.compile(r"^[\s*_]*Features?[\s*_]*:[ \t]*(?P<v>.+)$", re.M | re.I)
@@ -988,19 +846,13 @@ def _declared_features(subject: str, message: str) -> set:
     return feats
 
 
-def _known_features(root: str) -> set:
-    """Every id in the STAGED docs/define_features.json — the plan since 6.67."""
-    data = json.loads(_staged_text(root, f"{PROJECT}/docs/define_features.json"))
-    return {f["id"] for f in data["features"]}
-
-
 def _staged_text(root: str, rel: str) -> str:
     """A tracked document AS THIS COMMIT WILL CONTAIN IT — the index, not the disk.
 
     **This is §0.32's first clause applied to the guard's own reading.** A
-    commit that registers G-57 and adds the file that gap schedules, together,
-    has to pass — and only the index knows both halves. Reading the working
-    tree would read a version this commit is not making, which is the
+    commit that adds a requirement and the feature that covers it, together,
+    has to pass rule 18 — and only the index knows both halves. Reading the
+    working tree would read a version this commit is not making, which is the
     cached-copy failure the rule names.
     """
     out = subprocess.run(
@@ -1011,88 +863,6 @@ def _staged_text(root: str, rel: str) -> str:
     if out.returncode != 0 or not out.stdout:
         raise RuntimeError(f"cannot read `{rel}` from the index: {out.stderr.strip()}")
     return out.stdout
-
-
-def _known_gaps(root: str, text: str | None = None) -> set:
-    """Every gap number in the defect register, `docs/defects.json`.
-
-    **ONE source.** The register moved from the archived procedure's Appendix G
-    to `docs/defects.json` on 2026-09-27 (founder): an archived document is
-    never current, so it could not stay the register a live rule reads. A
-    closed procedure-era gap is still an entry, and still resolves: a file
-    added under a gap does not stop being scheduled when the gap closes.
-
-    Read from the INDEX: a gap registered in THIS commit still counts, which is
-    what lets a commit register a gap and add the file that gap schedules in
-    one go.
-    """
-    if text is None:
-        text = _staged_text(root, DEFECTS)
-    return {d["id"].upper() for d in json.loads(text)["defects"]}
-
-
-def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -> None:
-    """Rule 8 — a new file in the tree needs a step number or a gap number (§0.32).
-
-    **A file with no number is a file nothing scheduled**, and §66's register
-    already states the consequence in its own words: *"a gap without one does
-    not render on the board and so is not scheduled by anything."* A path that
-    entered the tree with no step and no gap behind it is that condition one
-    level down — present, costing review, owned by no plan.
-
-    THE NUMBER IS DECLARED AND RESOLVED; IT IS NOT VERIFIED TO FIT. A spine
-    subject declares its own step; any other type carries `Step: 6.22` or
-    `Gap: G-57` in the body. The number must exist — in Appendix D, or in the
-    defect register (docs/defects.json) — and that is ALL this checks. Declaring `Step: 2.3` for a file
-    with nothing to do with the dependency upgrade passes. Like rule 6, it makes
-    the discipline cheap and auditable rather than impossible to evade: the
-    trailer is greppable, so a wrong one is findable afterwards, which is more
-    than an undeclared file leaves behind.
-    """
-    if not added:
-        return
-    if TOOLING_RE.match(subject):
-        # 6.68 (founder ruling 2026-09-26): tooling work needs no registration —
-        # a `chore(tooling):` commit names no DEF id and passes on the checks alone.
-        note(f"rule 8 step-or-gap: a chore(tooling) commit — {len(added)} new file(s) need no number")
-        return
-    steps, gaps = _declared_numbers(subject, message)
-    feats = _declared_features(subject, message)
-    if not steps and not gaps and not feats:
-        fail("a new file is entering the tree with no step number and no gap number",
-             "CLAUDE.md §0.32: a new file in the tree needs a step number or a",
-             "gap number.", "",
-             "New in this commit:",
-             *[f"  - {p}" for p in added], "",
-             "Declare the work it belongs to, in the subject or in the body:",
-             "",
-             "  refactor(arch-v2): commit 6.22 — <what changed>  # the spine says it",
-             "  Step: 6.22                                       # any other type",
-             "  Gap: G-57                                        # or the register",
-             "  Feature: DEF-029                                 # a Define feature (6.67)",
-             "",
-             "The number must RESOLVE — Appendix D of docs/REFACTORING_PROCEDURE.md",
-             "for a step, docs/defects.json for a gap. If neither",
-             "exists yet then nothing is scheduling this file: register the gap",
-             "first, in its own commit, per §56.")
-
-    if feats and feats & _known_features(root):
-        return
-    known_steps = set(_APPENDIX_D_STEP_RE.findall(_staged_text(root, cs.PROCEDURE)))
-    known_gaps = _known_gaps(root)
-    if (steps & known_steps) or (gaps & known_gaps):
-        return
-    fail("the step or gap number this commit declares does not resolve",
-         "Declared, and found in no register:",
-         *[f"  - {d}" for d in sorted(steps) + sorted(gaps)], "",
-         f"Steps resolve against Appendix D of {cs.PROCEDURE}.",
-         f"Gaps resolve against the defect register, {DEFECTS}.",
-         "Both are read from the INDEX, so a number registered in THIS commit",
-         "counts — stage the register entry alongside the file.", "",
-         "A number that resolves nowhere schedules nothing, which leaves the",
-         "file in the state rule 8 exists to prevent. §66's own words: a gap",
-         "without a number does not render on the board, and so is not",
-         "scheduled by anything.")
 
 
 # --------------------------------------------------------------------------- #
@@ -1110,7 +880,7 @@ RECORD_TYPE_RE = re.compile(r"^docs\(runthrough\):", re.I)
 
 # The opt-out, and it exempts the GAP TRIGGER ONLY. A commit that carries a
 # `Gap:` trailer but changes no behaviour — a register row, a file filed under
-# the gap for rule 8 — says so on the record instead of reaching for
+# the gap — says so on the record instead of reaching for
 # --no-verify. **It cannot exempt a `fix(` subject**: a commit that calls itself
 # a fix does not get to opt out of being one.
 NOT_A_FIX_RE = re.compile(
@@ -1298,74 +1068,6 @@ def check_8d(subject: str, message: str) -> None:
          "That line cannot exempt a `fix(` subject.")
 
 
-# Rule 5 — CONTINUITY.md moved with the step
-# --------------------------------------------------------------------------- #
-def check_continuity(root: str, staged: list[str]) -> None:
-    """CONTINUITY.md staged, with a CURRENT BUILD STATUS block that is current.
-
-    The comparison ignores the `Block regenerated` date line: a commit made
-    just after midnight, or a rebase replayed on another day, would otherwise
-    be blocked over a value that carries no build meaning.
-    """
-    want = cs.CONTINUITY.lower()
-    # 6.67: the block is derived from the features, so between two commits it
-    # is often UNCHANGED — and an unchanged file is never "staged". What this
-    # rule defends is a CURRENT block; an unchanged one read from the index
-    # (== HEAD's) passes when it is what regeneration gives.
-    if not any(p.lower() == want for p in staged) and \
-            cs.extract_block(cs.staged_text(cs.CONTINUITY, root)) is None:
-        fail("CONTINUITY.md was not updated in this commit",
-             f"Required: {cs.CONTINUITY}", "",
-             f"Staged in this commit ({len(staged)} path(s)):",
-             *[f"  - {p}" for p in staged[:20]],
-             *(["  … and more"] if len(staged) > 20 else []), "",
-             "One step = one commit = both orientation documents moved.",
-             "",
-             "This is normally automatic: .githooks/pre-commit regenerates the",
-             "CURRENT BUILD STATUS block and stages the file for you. Seeing",
-             "this message means that hook did not run. Most likely:",
-             "  git config core.hooksPath .githooks      <- not set in this clone",
-             "Set it and commit again, or stage the file yourself.")
-
-    staged_text = cs.staged_text(cs.CONTINUITY, root)
-    found = cs.extract_block(staged_text)
-    if found is None:
-        fail("CONTINUITY.md carries no CURRENT BUILD STATUS block",
-             f"Expected a block delimited by:",
-             f"  {cs.BEGIN}", f"  {cs.END}", "",
-             "It is generated, not written. Run a commit with .githooks active",
-             "and pre-commit will insert it, or regenerate manually:",
-             "  python .claude/hooks/pre-commit-continuity.py")
-
-    expected = cs.build_block(root)
-
-    def _strip_date(block: str) -> str:
-        return "\n".join(ln for ln in block.splitlines()
-                         if "Block regenerated" not in ln)
-
-    if _strip_date(found) != _strip_date(expected):
-        fail(
-            "CONTINUITY.md's CURRENT BUILD STATUS block is STALE",
-            "The staged block does not match what git log, Appendix D of",
-            "REFACTORING_PROCEDURE.md, CLAUDE.md and ARCHITECTURE.md produce.",
-            "It is derived, so the block is wrong by construction rather than",
-            "merely out of date.",
-            "",
-            "Staged:",
-            *[f"  {ln}" for ln in _strip_date(found).splitlines()
-              if ln.startswith("| **")],
-            "",
-            "Expected:",
-            *[f"  {ln}" for ln in _strip_date(expected).splitlines()
-              if ln.startswith("| **")],
-            "",
-            "Fix by regenerating rather than by editing the block:",
-            "  python .claude/hooks/pre-commit-continuity.py && git add "
-            f"{cs.CONTINUITY}",
-        )
-    note("rule 5 continuity: PASS — status block current")
-
-
 # --------------------------------------------------------------------------- #
 # Rule 10 — the board is a true picture of the tree (step 6.63's D7)
 # --------------------------------------------------------------------------- #
@@ -1449,11 +1151,12 @@ def gated_rules(subject: str, staged: list[str]) -> tuple[str, ...]:
 
     Founder ruling 2026-09-26: types (3), tests (4) and the feature-landing
     rule (11) apply to EVERY commit that changes code or config, whatever its
-    subject prefix. The spine keeps its own two (1, subject format; 5,
-    CONTINUITY), and a spine commit keeps all five even when docs-only."""
+    subject prefix, and a spine commit keeps them even when docs-only. The
+    spine's own two (1, subject format; 5, CONTINUITY) retired: founder ruling
+    2026-10-27, item 6."""
     spine = subject.startswith(GUARDED_PREFIX)
     code = changes_code(staged)
-    order = (("1", spine), ("11", spine or code), ("5", spine),
+    order = (("11", spine or code),
              ("3", spine or code), ("3b", spine or code), ("25", spine or code), ("4", spine or code))
     return tuple(rule for rule, on in order if on)
 
@@ -1463,8 +1166,7 @@ def check_landing(root: str, subject: str) -> None:
     passes and every depends_on feature's test passes (step 6.67, founder
     ruling 2026-09-26). The status is read from THIS commit's full run.
 
-    A legacy `commit X.Y` subject still parses (rule 1) and its step must be in
-    the archived procedure's Appendix D — rule 8's frozen register; the step
+    A legacy `commit X.Y` subject names no feature and lands nothing; the step
     wiring check retired with the procedure.
     """
     m = _DEF_SUBJECT_RE.match(subject)
@@ -1506,7 +1208,7 @@ def check_merge(root: str, subject: str, message: str) -> int:
     if branch != "main":
         note(f"merge into {branch or 'a detached HEAD'}: not main — rules 10 and 11 run when it reaches main")
         return 0
-    # The features the merge names — rule 8's own reader (a DEF subject, `Feature:` trailers).
+    # The features the merge names (a DEF subject, `Feature:` trailers).
     fids = _declared_features(subject, message)
     with _timer("rule 11 landing (merge)"):
         if not fids:
@@ -1786,44 +1488,6 @@ def check_deprecated_patterns(root: str, staged: list[str]) -> None:
     note(f"rule 22 deprecated patterns: PASS — {len(staged)} staged path(s) checked on their added lines")
 
 
-#: Rule 23 (founder ruling 2026-10-13): the files where a framework mechanism lives.
-MECHANISM_FILES = ("agent-improve/backend/middleware/*.py", "agent-improve/backend/core/llm.py",
-                   "agent-improve/backend/core/graph.py", "agent-improve/backend/phases/*/graph.py",
-                   "agent-improve/backend/phases/subgraph_common.py", "agent-improve/backend/gateway/routes.py")
-VERIFIED_HOSTS = ("https://docs.langchain.com/", "https://reference.langchain.com/")
-VERIFIED_NA_MIN = 20
-
-
-def verified_problem(message: str, staged: list[str]) -> str | None:
-    """Rule 23: None when the commit touches no mechanism file or its `Verified:` trailer is well formed;
-    otherwise what is wrong. Well formed: a docs URL and the installed version (or its pin) named, or
-    `n/a — <reason>` of at least VERIFIED_NA_MIN characters."""
-    touched = [p for p in staged if any(fnmatch.fnmatch(p, g) for g in MECHANISM_FILES)]
-    if not touched:
-        return None
-    lines = [ln.split(":", 1)[1].strip() for ln in message.splitlines() if ln.startswith("Verified:")]
-    if not lines:
-        return "no `Verified:` trailer, and the commit changes " + ", ".join(touched)
-    v = lines[-1]
-    if v.lower().startswith("n/a"):
-        reason = v[3:].lstrip(" —-:").strip()
-        return None if len(reason) >= VERIFIED_NA_MIN else f"`Verified: n/a` needs its reason ({VERIFIED_NA_MIN}+ chars)"
-    if any(h in v for h in VERIFIED_HOSTS) and re.search(r"\b(installed|pin)", v):
-        return None
-    return "`Verified:` names no docs.langchain.com / reference.langchain.com URL with the installed version"
-
-
-def check_verified(message: str, staged: list[str]) -> None:
-    """Rule 23 — founder ruling 2026-10-13 (rules hygiene): a mechanism change is checked against the
-    framework's current documentation and the installed version, and the commit says so."""
-    problem = verified_problem(message, staged)
-    if problem:
-        fail("a mechanism file changed without a well-formed `Verified:` trailer (rule 23)", problem, "",
-             "  Verified: https://docs.langchain.com/... checked <date> against the installed <package> (pin in requirements.txt)",
-             "  Verified: n/a — <why no framework mechanism changes>")
-    note("rule 23 verified: PASS")
-
-
 #: Rule 24: the documents whose names are checked, and what can make a name stale.
 DOC_NAME_TRIGGERS = (".claude/rules/", "agent-improve/CLAUDE.md", "agent-improve/ARCHITECTURE.md")
 
@@ -1896,14 +1560,14 @@ def main(argv: list[str]) -> int:
         fail("the guard itself failed", f"{exc}",
              "Blocking rather than passing: a guard that waves a commit through",
              "when its own logic breaks is worse than no guard.")
-    # ── Rules 7 and 8 — what may ENTER the tree (CLAUDE.md §0.32) ─────────
-    # FIRST of all the rules, and ahead of the prefix gate with 2b and 6.
+    # ── Rule 7 — what may ENTER the tree (CLAUDE.md §0.32) ───────────────
+    # FIRST of all the rules, and ahead of the prefix gate with 6.
     # A scratch path in the index is a more basic failure than a stale status
-    # table, and both of these are lexical: they read the index and the message
-    # and spend no subprocess on mypy or pytest to reject a commit that was
-    # never going to land. Both bind on EVERY commit — a draft lands under a
-    # `docs(` subject as easily as under a `refactor(`, which is the same
-    # argument that put 2b ahead of the gate.
+    # table, and the check is lexical: it reads the index and spends no
+    # subprocess on mypy or pytest to reject a commit that was never going to
+    # land. It binds on EVERY commit — a draft lands under a `docs(` subject as
+    # easily as under a `refactor(`, which is the same argument that put 2b
+    # ahead of the gate.
     try:
         added = added_paths(root)
     except Exception as exc:  # noqa: BLE001 — fail CLOSED
@@ -1912,8 +1576,6 @@ def main(argv: list[str]) -> int:
              "when its own logic breaks is worse than no guard.")
     with _timer("rule 7 scratch"):
         check_scratch(added)
-    with _timer("rule 8 step-or-gap"):
-        check_step_or_gap(root, subject, message, added)
 
     with _timer("rule 17 design"):
         check_design(root, message, all_staged)
@@ -1949,10 +1611,6 @@ def main(argv: list[str]) -> int:
     with _timer("rule 24 document names"):
         check_doc_names(root, all_staged)
 
-    # Rule 23 — a mechanism change says what framework docs and version it was checked against.
-    with _timer("rule 23 verified"):
-        check_verified(message, all_staged)
-
     # Rule 22 — the deprecated patterns on what this commit adds, Bash and script edits included (G-165).
     with _timer("rule 22 deprecated patterns"):
         check_deprecated_patterns(root, all_staged)
@@ -1961,10 +1619,6 @@ def main(argv: list[str]) -> int:
     with _timer("rule 14 normative"):
         check_normative(root, all_staged)
 
-    # Rule 16 — the generated data-models block equals the code (Part G, 2026-09-27).
-    with _timer("rule 16 data models"):
-        check_generated_models(root, all_staged)
-
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs
     # nothing and runs before mypy and pytest can spend a minute on a commit
@@ -1972,32 +1626,9 @@ def main(argv: list[str]) -> int:
     with _timer("rule 6 8d"):
         check_8d(subject, message)
 
-    # Rule 15 — a chore commit changes backend code only in annotations (2026-09-27).
-    with _timer("rule 15 chore scope"):
-        check_chore_scope(root, subject, message, all_staged)
-
     rules = gated_rules(subject, all_staged)
     if not rules:
         return 0
-
-    # ── Rule 1 — subject format (the spine only) ──────────────────────────
-    if "1" in rules and not SUBJECT_RE.match(subject):
-        if re.match(r"^refactor\(arch-v2\): commit \d+\.\d+ [-–] ", subject):
-            hint = ["The separator is a HYPHEN or EN DASH. It must be an EM DASH (—, U+2014).",
-                    "This is the most common slip and the easiest to miss on review."]
-        elif not re.match(r"^refactor\(arch-v2\): commit \d+\.\d+\b", subject):
-            hint = ["Expected `commit X.Y` (lowercase, digits) right after the colon.",
-                    "`step 2.4`, `Commit 2.4` and a bare `2.4` are all rejected here,",
-                    "even though the session-start hook tolerates them on read."]
-        else:
-            hint = ["The description after the em dash is empty."]
-        fail("refactor subject does not match the spine format",
-             f"Got:      {subject}",
-             "Expected: refactor(arch-v2): DEF-xxx — <what changed>   (or the legacy commit X.Y)",
-             "", *hint, "",
-             "Why it matters: the session-start hook parses this subject to report",
-             "\"last completed\". A malformed one drops the step out of the only",
-             "automated continuity signal the project has, silently.")
 
     staged = all_staged
 
@@ -2005,13 +1636,6 @@ def main(argv: list[str]) -> int:
     if "11" in rules:
         with _timer("rule 11 landing"):
             check_landing(root, subject)
-
-    # ── Rule 5 — the other orientation document moved too (the spine) ─────
-    # Before the venv rules, because it is instant and needs no subprocess:
-    # a missing CONTINUITY update should not cost a 60s mypy run first.
-    if "5" in rules:
-        with _timer("rule 5 continuity"):
-            check_continuity(root, staged)
 
     # ── Rules 3 and 4 — against the pinned venv, every code commit ────────
     py = venv_python(root)

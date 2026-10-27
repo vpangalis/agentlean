@@ -8,8 +8,8 @@
 #
 # Fail-SOFT, and deliberately the opposite of the commit-msg guard: this hook
 # WRITES, and a writing hook that breaks must never wedge a commit. The
-# commit-msg guard is the enforcement point — rules 5 (CONTINUITY), 10 (the
-# board) and 11 (landing and the ratchet) fail CLOSED.
+# commit-msg guard is the enforcement point — rules 10 (the board) and 11
+# (landing and the ratchet) fail CLOSED; rule 5 (CONTINUITY) retired 2026-10-27.
 #
 # In this order: the commit's ONE full test run, on the STAGED tree (skipped
 # when only Markdown is staged); pre-commit-continuity.py (CONTINUITY's block and the ratchet);
@@ -53,11 +53,12 @@ RAN=""
 # their output, BEFORE the tests on the staged tree — so a commit that changes a generated source never fails
 # its own first run on documents this hook regenerates seconds later.
 # Part G (founder, 2026-09-27) — ARCHITECTURE.md's data-models block, regenerated
-# from the STAGED source into the index copy (commit-msg rule 16 checks it). A
-# document without the markers is left alone. Fail-soft, like this hook.
+# from the STAGED source into the index copy (test_generate_models.py checks it;
+# commit-msg rule 16 retired 2026-10-27). A document without the markers is
+# left alone. Fail-soft, like this hook.
 T0=$(date +%s)
 if [ -n "$SYSPY" ] && [ -f "agent-improve/tools/architecture/generate_models.py" ]; then
-    "$SYSPY" agent-improve/tools/architecture/generate_models.py --stage </dev/null || echo "  [data models] WARNING: not regenerated; rule 16 will check the block" >&2
+    "$SYSPY" agent-improve/tools/architecture/generate_models.py --stage </dev/null || echo "  [data models] WARNING: not regenerated; the block may differ from the code" >&2
 fi
 t_log data-models "$T0"
 

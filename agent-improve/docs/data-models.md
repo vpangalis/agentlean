@@ -1,7 +1,7 @@
 # Agent Improve — data models
 
 *Generated from the code by `tools/architecture/generate_models.py`, on every commit, by the pre-commit
-hook. ARCHITECTURE.md §4.2 links here. Never edited by hand: commit-guard rule 16 refuses a copy that
+hook. ARCHITECTURE.md §4.2 links here. Never edited by hand: `test_generate_models.py` fails on a copy that
 differs from a fresh generation. Founder ruling 6, 2026-09-29: moved out of ARCHITECTURE.md.*
 
 <!-- BEGIN GENERATED: data models — rewritten from the code on every commit; never edit by hand. -->

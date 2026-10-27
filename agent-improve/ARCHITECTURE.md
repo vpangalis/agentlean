@@ -635,7 +635,7 @@ record per phase key.
 
 ### 4.2 Declarations
 
-Generated from the code on every commit: [docs/data-models.md](docs/data-models.md) (rule 16).
+Generated from the code on every commit: [docs/data-models.md](docs/data-models.md).
 
 ---
 

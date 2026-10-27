@@ -1,4 +1,5 @@
-"""Rules 7 and 8 of the commit-msg guard — what may ENTER the tree (CLAUDE.md §0.32).
+"""Rule 7 of the commit-msg guard — what may ENTER the tree (CLAUDE.md §0.32).
+Rule 8 (step or gap) retired with its tests: founder ruling 2026-10-27, item 6.
 
 WHY THIS FILE EXISTS — G-57
 ---------------------------
@@ -8,14 +9,8 @@ tree, on one afternoon. `test_commit_guard_8d.py` states the argument for rule 6
 and it transfers here without a word changed — *a message check fails SILENTLY
 by letting commits through*, which is the one failure mode a gate must not have.
 
-**An index check fails the same way, and has two extra ways to get there.** A
-scratch pattern that stops matching reports nothing. And rule 8 resolves numbers
-by parsing two tables it does not own: Appendix D of `REFACTORING_PROCEDURE.md`
-and §66's register in `ARCHITECTURE.md`. **Rule 8 is the fourth hook parsing
-Appendix D and the second parsing §66** — both tables carry format warnings in
-their own headers because of the readers that came before, and a regex that
-stops resolving after a reformat would let every new file through while
-reporting success.
+**An index check fails the same way.** A scratch pattern that stops matching
+reports nothing.
 
 IT ALSO CARRIES RULE 17's NAMED-FILE INVARIANT (rule 2b's, carried over)
 ----------------------------------------------
@@ -27,21 +22,13 @@ whether or not an architectural fact had changed.
 
 WHAT IS PINNED
 --------------
-What the rules RANGE OVER, not only what they match: that a modified path is
-invisible to both (the ratchet), that a rename into a scratch name is caught,
-that the registers are read from the INDEX rather than the disk, and that a
-declared number must resolve. Plus the two live registers actually parsing —
-the assertion that goes red on a reformat rather than on a rule change.
+What the rule RANGES OVER, not only what it matches: that a modified path is
+invisible to it (the ratchet), that a rename into a scratch name is caught, and
+that the guard reads tracked documents from the INDEX rather than the disk.
 
 WHAT IS DELIBERATELY NOT PINNED
 -------------------------------
-**Whether a file genuinely belongs to the step it declares.** Rule 8 checks that
-a number is declared and that it exists. `Step: 2.3` on a file with nothing to
-do with the dependency upgrade passes, and that limit is in `check_step_or_gap`'s
-docstring for the same reason it is here: so a green suite is not read as
-evidence that the numbers are honest.
-
-**And whether a scratch file is scratch.** Rule 7 reads the NAME. A draft called
+**Whether a scratch file is scratch.** Rule 7 reads the NAME. A draft called
 `notes.md` passes, every time, by design.
 """
 from __future__ import annotations
@@ -167,133 +154,30 @@ def test_a_clean_set_of_added_paths_passes() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Rule 8 — the number, and where it may be declared
+# The guard reads tracked documents from the INDEX
 # ══════════════════════════════════════════════════════════════════════════
-
-
-def test_a_spine_subject_declares_its_own_step() -> None:
-    steps, gaps = g._declared_numbers(
-        "refactor(arch-v2): commit 6.26 — the guard's tree rules get a test suite", "")
-    assert steps == {"6.26"} and not gaps
-
-
-def test_a_trailer_declares_a_step_on_any_commit_type() -> None:
-    steps, _ = g._declared_numbers("docs: an archive note", "body\n\nStep: 6.25\n")
-    assert steps == {"6.25"}
-
-
-def test_a_trailer_declares_a_gap() -> None:
-    _, gaps = g._declared_numbers("docs: an archive note", "body\n\nGap: G-57\n")
-    assert gaps == {"G-57"}
-
-
-def test_the_gap_trailer_is_case_insensitive_and_plural_tolerant() -> None:
-    _, gaps = g._declared_numbers("docs: x", "gaps: g-52, G-57\n")
-    assert gaps == {"G-52", "G-57"}
-
-
-def test_a_number_merely_MENTIONED_in_the_body_does_not_count() -> None:
-    """**Subject or trailer, never a mention** — rule 6's trigger-2 lesson.
-
-    Half the commits in this log name a step or a G-number in passing. A rule
-    that accepted a mention would be satisfiable by accident, which is the same
-    as not being satisfiable at all.
-    """
-    steps, gaps = g._declared_numbers(
-        "docs: the board names every number",
-        "The chips now read G-52 and G-57, and step 6.25 is described.\n")
-    assert not steps and not gaps
-
-
-def test_an_undeclared_new_path_is_refused() -> None:
-    with pytest.raises(SystemExit) as exc:
-        g.check_step_or_gap(_ROOT, "docs: a new note", "no trailer here\n",
-                            ["agent-improve/docs/NEW.md"])
-    assert exc.value.code == 1
-
-
-@pytest.mark.parametrize("trailer", ["Step: 99.9", "Gap: G-999"])
-def test_a_number_that_resolves_nowhere_is_refused(trailer: str) -> None:
-    """**A number that resolves nowhere schedules nothing**, so it is refused
-    exactly like none at all. §66's own words: a gap without one does not render
-    on the board and so is not scheduled by anything.
-    """
-    with pytest.raises(SystemExit) as exc:
-        g.check_step_or_gap(_ROOT, "docs: a new note", f"body\n\n{trailer}\n",
-                            ["agent-improve/docs/NEW.md"])
-    assert exc.value.code == 1
-
-
-def test_no_new_paths_means_the_rule_does_not_fire() -> None:
-    """A commit that adds nothing needs no number, whatever its message says."""
-    g.check_step_or_gap(_ROOT, "docs: an edit to a tracked file", "", [])
-
-
-def test_tooling_work_needs_no_registration() -> None:
-    """Founder ruling 2026-09-26: a `chore(tooling):` commit names no DEF id
-    and passes on the checks alone — its new files need no number. Any other
-    `chore(` still does."""
-    g.check_step_or_gap(_ROOT, "chore(tooling): a new hook", "no trailer\n",
-                        [".claude/hooks/new_hook.py"])
-    with pytest.raises(SystemExit):
-        g.check_step_or_gap(_ROOT, "chore(deps): a new file", "no trailer\n",
-                            ["agent-improve/docs/NEW.md"])
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# The two registers — the assertions that go red on a REFORMAT
-# ══════════════════════════════════════════════════════════════════════════
-
-
-def test_appendix_D_still_parses_into_step_numbers() -> None:
-    """**Rule 8 is the fourth hook parsing this table**, and its header says so.
-
-    If this goes red, Appendix D was reformatted and rule 8 stopped resolving
-    steps — which would let every new file through while reporting success. The
-    fix is the parser, never the table.
-    """
-    steps = set(g._APPENDIX_D_STEP_RE.findall(
-        g._staged_text(_ROOT, g.cs.PROCEDURE)))
-    assert len(steps) > 50, f"Appendix D parsed to {len(steps)} steps"
-    assert {"6.25", "6.26", "2.3"} <= steps
-
-
-def test_the_gap_register_still_parses_into_gap_numbers() -> None:
-    """Same assertion for the register, which rule 8 is one of two hooks to parse.
-
-    **The register is `docs/defects.json` since 2026-09-27** (founder), moved
-    from the archived procedure's Appendix G. A closed gap is still an entry
-    and must still resolve (G-52 was struck through in the old register),
-    because a file added under a gap does not stop being scheduled when the
-    gap closes. Read through `_known_gaps`, so a test pinned to one path does
-    not assert the register emptied when it moves.
-    """
-    gaps = g._known_gaps(_ROOT)
-    assert len(gaps) > 50, f"the register parsed to {len(gaps)} gaps"
-    assert {"G-57", "G-52", "G-49"} <= gaps, "G-52 is struck through and must still parse"
 
 
 def test_the_registers_are_read_from_the_INDEX_not_the_disk() -> None:
     """**This is §0.32's first clause applied to the guard's own reading.**
 
     `_staged_text` goes through `git show :<path>`, so what it returns is what
-    the commit will contain. A gap registered in the same commit counts; a row
-    edited on disk and left unstaged does not. Demonstrated by hand when the
-    rule landed — `Gap: G-57` was refused with the row on disk and accepted
-    once the row was staged — and pinned here so the demonstration survives.
+    the commit will contain: a document edited on disk and left unstaged is not
+    what the rules read (rule 17 reads ARCHITECTURE.md this way, rules 18-21 the
+    requirements, the features and the ADRs).
 
     **It asserts the SOURCE, not a byte count.** An earlier cut compared
     `count("**Commit ")` between index and disk, which is equal only in a clean
-    tree — so it went red on any working copy with an unstaged procedure edit,
-    which is the normal state while writing a step. A test that fails for a
-    reason unrelated to what it checks is a false-alarm generator, and this
-    file already carries the argument for why that is not tolerable.
+    tree — so it went red on any working copy with an unstaged edit, which is
+    the normal state while writing a step. A test that fails for a reason
+    unrelated to what it checks is a false-alarm generator, and this file
+    already carries the argument for why that is not tolerable.
 
     The limit: when the tree is clean, index and disk agree, so the strong
     half of this test only bites when the path is genuinely dirty. That is
     stated rather than papered over.
     """
-    rel = g.cs.PROCEDURE
+    rel = g.STATUS_PATH
     from_index = g._staged_text(_ROOT, rel)
     raw = subprocess.run(["git", "show", f":{rel}"], capture_output=True,
                          cwd=_ROOT).stdout.decode("utf-8", "replace")
@@ -303,8 +187,8 @@ def test_the_registers_are_read_from_the_INDEX_not_the_disk() -> None:
     if on_disk != raw:
         assert from_index != on_disk, (
             "the path is dirty and `_staged_text` returned the DISK content — "
-            "the guard would resolve numbers against a version this commit is "
-            "not making, which is the cached-copy failure §0.32 names")
+            "the guard would check a version this commit is not making, which "
+            "is the cached-copy failure §0.32 names")
 
 
 def test_a_missing_register_fails_CLOSED() -> None:
@@ -319,23 +203,22 @@ def test_a_missing_register_fails_CLOSED() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# The ratchet — what both rules deliberately cannot see
+# The ratchet — what the rule deliberately cannot see
 # ══════════════════════════════════════════════════════════════════════════
 
 
 def test_both_rules_range_over_added_paths_only() -> None:
-    """**The ratchet, and it is why the rules are adoptable.**
+    """**The ratchet, and it is why the rule is adoptable.**
 
     Two `.bak` files are tracked deliberately under `docs/_archive/`. A rule
     reading every staged path would block every commit that touched one, and a
     guard people route around with --no-verify is worse than no guard — rule 3's
     argument, applied to paths. `added_paths` filters `AR`, so a modification is
-    invisible to both rules.
+    invisible to rule 7. (Rule 8, the other rule this pinned, retired 2026-10-27.)
     """
     src = _HOOK.read_text(encoding="utf-8")
     assert "--diff-filter=AR" in src, "added_paths stopped filtering to added/renamed"
     assert "check_scratch(added)" in src, "rule 7 stopped reading the added set"
-    assert "check_step_or_gap(root, subject, message, added)" in src
 
 
 def test_the_tracked_bak_archives_are_the_reason_for_the_ratchet() -> None:
@@ -357,22 +240,21 @@ def test_a_rename_into_a_scratch_name_is_caught() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Both rules bind on EVERY commit — not only on the spine
+# Rule 7 binds on EVERY commit — not only on the spine
 # ══════════════════════════════════════════════════════════════════════════
 
 
 def test_the_rules_run_ahead_of_the_prefix_gate() -> None:
     """A draft lands under a `docs(` subject as easily as under a `refactor(`.
 
-    Scoping these to the spine prefix would exempt exactly the commits nobody
+    Scoping rule 7 to the spine prefix would exempt exactly the commits nobody
     reviews against it — the argument that put rule 2b ahead of the gate, and
-    the reason both calls sit above the prefix gate (`gated_rules`) in `main`.
+    the reason the call sits above the prefix gate (`gated_rules`) in `main`.
     """
     src = _HOOK.read_text(encoding="utf-8")
     scratch_at = src.index("check_scratch(added)")
-    number_at = src.index("check_step_or_gap(root, subject, message, added)")
     gate_at = src.index("rules = gated_rules(subject, all_staged)")
-    assert scratch_at < gate_at and number_at < gate_at
+    assert scratch_at < gate_at
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -448,14 +330,15 @@ DOCS = ["agent-improve/docs/harness-progress.md", "agent-improve/docs/control-bo
     ("chore(tooling): a hook", [".claude/hooks/timing.py"], ("11", "3", "3b", "25", "4")),
     ("chore(tooling): the budget", [".claude/config/size-budget.json"], ("11", "3", "3b", "25", "4")),
     ("docs(requirements): a note", DOCS, ()),
-    ("refactor(arch-v2): DEF-065 — x", DOCS, ("1", "11", "5", "3", "3b", "25", "4")),
-    ("refactor(arch-v2): DEF-065 — x", CODE, ("1", "11", "5", "3", "3b", "25", "4")),
+    ("refactor(arch-v2): DEF-065 — x", DOCS, ("11", "3", "3b", "25", "4")),
+    ("refactor(arch-v2): DEF-065 — x", CODE, ("11", "3", "3b", "25", "4")),
 ])
 def test_types_tests_and_landing_apply_to_every_code_commit(subject, staged, expected) -> None:
     """A `feat(` commit carried two type errors to main (b940725) because rules
     3, 4 and 11 ran only under `refactor(arch-v2)`. Code or config, whatever the
-    prefix, now gets all three, and the two ratchets (3b types, 25 substance — B4); the
-    spine keeps rules 1 and 5 besides."""
+    prefix, now gets all three, and the two ratchets (3b types, 25 substance — B4); a
+    spine commit gets them even when docs-only. The spine's own rules 1 and 5
+    retired (founder ruling 2026-10-27, item 6)."""
     assert g.gated_rules(subject, staged) == expected
 
 
@@ -512,7 +395,7 @@ def test_the_record_is_committed_and_the_hooks_run_it() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Rule 15 and rule 2b's skip — what counts as ANNOTATION-ONLY (2026-09-27)
+# Rule 17's pass — what counts as ANNOTATION-ONLY (2026-09-27; rule 15 retired 2026-10-27)
 # ══════════════════════════════════════════════════════════════════════════
 
 
@@ -564,7 +447,8 @@ def test_added_deleted_and_unparseable_files_are_not_annotation_only() -> None:
 
 def test_the_two_commits_that_prompted_the_rule_classify_as_ruled() -> None:
     """82b9251's backend changes were annotations only (2b need not have fired);
-    8f26a04's config.py change was behaviour under `chore(config)` (rule 15 refuses)."""
+    8f26a04's config.py change was behaviour under `chore(config)` (the case rule 15,
+    retired 2026-10-27, was written for)."""
     ao = _ao()
 
     def show(spec: str) -> str:
@@ -574,31 +458,6 @@ def test_the_two_commits_that_prompted_the_rule_classify_as_ruled() -> None:
         assert ao.is_annotation_only(show(f"82b9251~1:{f}"), show(f"82b9251:{f}")), f
     f = "agent-improve/backend/core/config.py"
     assert not ao.is_annotation_only(show(f"8f26a04~1:{f}"), show(f"8f26a04:{f}"))
-
-
-@pytest.mark.parametrize("subject,message,staged,refused", [
-    ("chore(config): x", "", ["agent-improve/backend/core/config.py"], True),
-    ("chore: x", "", ["agent-improve/backend/core/config.py"], True),
-    ("chore(config): x", "body\n\nGap: G-112\n", ["agent-improve/backend/core/config.py"], False),
-    ("fix(config): x", "", ["agent-improve/backend/core/config.py"], False),
-    ("chore(tooling): x", "", [".claude/hooks/timing.py"], False),
-    ("chore(tooling): x", "", ["agent-improve/backend/tests/test_turn_budget.py"], False),
-])
-def test_rule_15_refuses_a_chore_that_changes_backend_behaviour(
-        monkeypatch, subject, message, staged, refused) -> None:
-    ao = _ao()
-    monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: False)
-    if refused:
-        with pytest.raises(SystemExit):
-            g.check_chore_scope(_ROOT, subject, message, staged)
-    else:
-        g.check_chore_scope(_ROOT, subject, message, staged)
-
-
-def test_rule_15_passes_a_chore_that_only_annotates(monkeypatch) -> None:
-    ao = _ao()
-    monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: True)
-    g.check_chore_scope(_ROOT, "chore(types): x", "", ["agent-improve/backend/core/checkpointer.py"])
 
 
 def test_rule_17_passes_annotations_the_trailer_or_a_design_change_and_fires_otherwise(monkeypatch) -> None:
@@ -660,27 +519,6 @@ def test_rule_22_applies_the_deprecated_patterns_to_the_lines_a_commit_adds() ->
     # Wired into the guard on every commit, ahead of the tests.
     src = _HOOK.read_text(encoding="utf-8")
     assert "check_deprecated_patterns(root, all_staged)" in src
-
-
-def test_rule_23_a_mechanism_change_says_what_it_was_verified_against() -> None:
-    """Founder ruling 2026-10-13 (rules hygiene): a commit that changes a mechanism file carries a
-    `Verified:` trailer naming a docs.langchain.com / reference.langchain.com URL and the installed
-    version, or `Verified: n/a — <reason>`; a commit that touches no mechanism file needs none."""
-    guard = _guard()
-    mech = ["agent-improve/backend/middleware/coherence.py"]
-    good = ("fix: x" + NEWLINE + NEWLINE + "Verified: https://docs.langchain.com/oss/python/langgraph/fault-tolerance "
-            "checked 2026-10-13 against the installed langgraph (pin in requirements.txt)")
-    assert guard.verified_problem(good, mech) is None
-    assert guard.verified_problem("fix: x" + NEWLINE + NEWLINE + "Verified: n/a — only the prompt's wording changes",
-                                  mech) is None
-    assert "no `Verified:`" in guard.verified_problem("fix: x", mech)
-    assert "reason" in guard.verified_problem("fix: x" + NEWLINE + NEWLINE + "Verified: n/a", mech)
-    assert guard.verified_problem("fix: x" + NEWLINE + NEWLINE + "Verified: I checked it", mech)
-    assert guard.verified_problem("docs: y", ["agent-improve/docs/x.md"]) is None
-    for path in ("agent-improve/backend/core/llm.py", "agent-improve/backend/gateway/routes.py",
-                 "agent-improve/backend/phases/define/graph.py"):
-        assert guard.verified_problem("fix: x", [path]), path
-    assert "check_verified(message, all_staged)" in _HOOK.read_text(encoding="utf-8")
 
 
 def test_rule_24_every_name_the_governing_documents_give_exists() -> None:

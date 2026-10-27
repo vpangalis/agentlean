@@ -115,7 +115,7 @@ each milestone's list to total − done and the tile count to the registry. The 
 | Run-through features and the ratchet while the record is stale | Exempt — accepted; the integrator re-runs `scripts/define_runthrough.py` after each merge | `features.ratchet_refusal` |
 | Feature tests not written yet | Stubs that fail "not written yet" — accepted | `backend/tests/test_define_*.py` |
 | What the hooks test | What is STAGED: a second worktree set to the index (`.claude/hooks/staged_tree.py`) runs the suite, mypy and the pre-flight | `.githooks/pre-commit`, guard rules 3 and 4, `preflight.py` |
-| Registering tooling work | None: `chore(tooling):` names no DEF id and passes on the checks alone | guard rule 8 (`TOOLING_RE`) |
+| Registering tooling work | None: `chore(tooling):` names no DEF id and passes on the checks alone | guard rule 8, retired 2026-10-27: no commit needs a number |
 | Dependency blocking | Strict, transitively; lane A fixes DEF-005 first | `features.blockers` — the next feature and rule 11 |
 | agent-resolve broken links | Ignored until Resolve is refactored | — |
 | Pre-flight override | No hand-written "acknowledged"; a failure passes only if HEAD's record has it (`test-results.json` at HEAD; the drift check on HEAD's tree) | `preflight.py`, `preflight-on-commit.py` |

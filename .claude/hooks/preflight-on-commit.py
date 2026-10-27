@@ -51,8 +51,8 @@ def commit_message(command: str) -> str | None:
 
 def message_problems(message: str) -> list[str]:
     """DEF-249 (founder ruling 2026-10-20, hook time c): the commit guard's message rules, run on the message before
-    any test — the subject format of a feature commit (rule 1), the 8D of a fix (rule 6), the number a new file needs
-    (rule 8), `Design:` (rule 17), `Ruling:` (rule 20), `Verified:` (rule 23). Each refusal, in the guard's words."""
+    any test — the 8D of a fix (rule 6), `Design:` (rule 17), `Ruling:` (rule 20). Each refusal, in the guard's
+    words. Rules 1, 8 and 23 retired (founder ruling 2026-10-27, item 6)."""
     import contextlib
     import importlib.util
     import io
@@ -66,17 +66,12 @@ def message_problems(message: str) -> list[str]:
     subject = (lines[0] if lines else "").strip()
     body = "\n".join(lines)
     try:
-        staged, added = guard.staged_paths(root), guard.added_paths(root)
+        staged = guard.staged_paths(root)
     except Exception:                               # noqa: BLE001 — without the index, the message rules alone
-        staged, added = [], []
+        staged = []
     checks = [lambda: guard.check_8d(subject, body),
-              lambda: guard.check_step_or_gap(root, subject, body, added),
               lambda: guard.check_design(root, body, staged),
-              lambda: guard.check_founder_ownership(root, body, staged),
-              lambda: guard.check_verified(body, staged)]
-    if subject.startswith("refactor(arch-v2):") and not guard.SUBJECT_RE.match(subject):
-        checks.insert(0, lambda: guard.fail("refactor subject does not match the spine format", f"Got: {subject}",
-                                            "Expected: refactor(arch-v2): DEF-xxx — <what changed>"))
+              lambda: guard.check_founder_ownership(root, body, staged)]
     out = []
     for check in checks:
         err = io.StringIO()

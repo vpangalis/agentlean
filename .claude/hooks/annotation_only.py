@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Is a staged change to a Python file ANNOTATION-ONLY? (founder, 2026-09-27)
 
-Two rules ask it. Rule 15 refuses a `chore(...)` subject on a backend change
-that is not annotation-only — a defect fix carries `fix` or `Gap:`. Rule 2b
-skips a commit whose watched paths changed only in annotations.
+Rule 17 (2b's successor) asks it: a commit whose named files changed only in
+annotations passes. Rule 15, which refused a `chore(...)` backend change that
+was not annotation-only, retired (founder ruling 2026-10-27, item 6).
 
 **Annotation-only means: the two versions' syntax trees are identical once
 type annotations are removed.** Comments never reach the tree, so they are

@@ -2,8 +2,9 @@
 
 `tools/architecture/generate_models.py` writes the declarations and field tables
 between the `data models` markers from the code, read with `ast` only. The
-pre-commit hook regenerates the block; commit-msg rule 16 refuses a block that
-differs from a fresh generation; rules 2b and 12 do not count it.
+pre-commit hook regenerates the block; this suite fails on a block that differs
+from a fresh generation (commit-msg rule 16, which refused one, retired: founder
+ruling 2026-10-27, item 6); rules 17 and 12 do not count it.
 """
 from __future__ import annotations
 
@@ -108,7 +109,7 @@ def test_the_hooks_run_and_check_it() -> None:
     hook = (_REPO / ".githooks" / "pre-commit").read_text(encoding="utf-8")
     assert "generate_models.py --stage" in hook
     guard = (_REPO / ".claude" / "hooks" / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
-    assert "check_generated_models(root, all_staged)" in guard
+    # Rule 16's check retired (founder ruling 2026-10-27, item 6); rule 17 still sets the block aside.
     assert "_status_changed_by_hand(root)" in guard
 
 
