@@ -1,9 +1,9 @@
 {
- "source_hash": "c6b6b28f897980b9",
- "commit": "557d71b",
+ "source_hash": "eae0119e105a6f4e",
+ "commit": "7b8e3e3",
  "commit_matches_source": false,
- "full_run_hash": "c6b6b28f897980b9",
- "recorded_at": "2026-10-27T11:42:01+00:00",
+ "full_run_hash": "eae0119e105a6f4e",
+ "recorded_at": "2026-10-27T12:02:29+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -490,6 +490,7 @@
   "backend/tests/test_define_e2e.py::test_g250_a_message_pointing_at_a_file_with_none_attached_asks_for_it_or_typing": "passed",
   "backend/tests/test_define_e2e.py::test_g251_an_eval_case_is_seeded_on_the_apps_own_loop": "passed",
   "backend/tests/test_define_e2e.py::test_g251_an_eval_run_records_each_trial_and_seeds_on_the_apps_own_loop": "passed",
+  "backend/tests/test_define_e2e.py::test_g272_a_need_the_belt_stated_in_brackets_is_not_a_placeholder": "passed",
   "backend/tests/test_define_e2e.py::test_g3_never_fails_the_methods_own_material": "skipped",
   "backend/tests/test_define_e2e.py::test_gate_view_section_a_follows_the_mockup": "passed",
   "backend/tests/test_define_e2e.py::test_gate_view_section_b_follows_the_mockup": "passed",
@@ -1900,8 +1901,8 @@
   "backend/tests/test_wiring_local_names.py::test_item_5_a_local_named_like_a_node_is_not_a_direct_node_call": "passed"
  },
  "older": {
-  "source_hash": "1644d2152339012a",
-  "recorded_at": "2026-10-27T11:31:26+00:00",
+  "source_hash": "c6b6b28f897980b9",
+  "recorded_at": "2026-10-27T11:42:01+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2817,6 +2818,7 @@
    "backend/tests/test_define_rubric.py::test_code_fails_a_criterion_with_its_reason_and_the_model_is_not_asked[change6-DEF-R03-CTQ]": "passed",
    "backend/tests/test_define_rubric.py::test_code_fails_a_criterion_with_its_reason_and_the_model_is_not_asked[change7-DEF-R05-no number]": "passed",
    "backend/tests/test_define_rubric.py::test_define_never_warns_and_an_unjudged_criterion_fails_closed": "passed",
+   "backend/tests/test_define_rubric.py::test_e19_the_benefits_criterion_asks_no_working_and_is_decided_in_code": "passed",
    "backend/tests/test_define_rubric.py::test_g129_the_grader_sees_each_elements_acceptance_criteria": "passed",
    "backend/tests/test_define_rubric.py::test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check": "passed",
    "backend/tests/test_define_rubric.py::test_g134_def_r13_is_settled_in_code_first_and_the_model_judges_only_specificity": "passed",

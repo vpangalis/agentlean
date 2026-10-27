@@ -3433,6 +3433,20 @@
    ],
    "escape_class": null,
    "symptom": "OPEN — ON THE FINAL RUN (B12), HARD-PATH SCENARIO B'S RESEND RAN PAST THE TURN DEADLINE. define_runthrough_20261026T091217 (product bb0a8b8d273f6acc, a68fb65): the crashed turn answered as it should ('this step did not go through — nothing was changed'), but the resend made two coach calls (a slow request retried) and took 42.4 s, so the turn deadline answered it ('That took longer than it should…') instead of teaching the business case; the history then held the degraded reply and the deadline reply. D2 IS: one run, the resend of scenario b. D2 IS-NOT: the walk (33 turns, the longest 39.1 s, none over 45 s), scenarios c, d and e, run 4 on define-v1 (the same resend 10.3 s, one coach call, passed). Run 5 was slower throughout: answer turns' p90 31.4 s (run 4: 18.6 s), storage per turn median 19.6 s (16.6 s), in storage code wave 2 did not touch; wave 2's one change on the turn's path is the executor split (a68fb65), which moves code and adds no I/O. Cause not established: the service latency on the day is the leading reading, not a proven one. The next run-through re-tests it."
+  },
+  {
+   "id": "G-272",
+   "requirement": [
+    "R3"
+   ],
+   "feature": [
+    "DEF-007"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test",
+   "symptom": "FIXED (2026-10-27) — A NEED THE BELT STATED, WRITTEN IN BRACKETS, WAS TAKEN FOR A PART LEFT UNFILLED. The final run of the 2026-10-27 rulings (define_runthrough_20261027T114411, kept as failed_…, not counted) stuck at the team after 6 turns: the Belt wrote 'Training: Dev and Amira need a half-day on data collection before Measure', the coach wrote it into the members' function as '(needs a half-day of training on data collection before Measure)', and G-174's placeholder check (nodes_common._PLACEHOLDER, its '(needs …)' form) challenged it three turns running. Runs 4 and 5 wrote the same need without brackets. D4 OCCURRENCE: the '(needs …)' form matched on its shape alone, never asking whose words it holds. D4 ESCAPE: G-174's test fed a coach's note ('(needs measurable requirement)'), never the Belt's own need in brackets. FIX: nodes_common.placeholders reads the Belt's words for the element (pending belt_words): a '(needs …)' at least two and three in four of whose words are the Belt's is theirs; square brackets, TBD/TBC and '??' stay placeholders. VERIFY: test_define_e2e.py::test_g272_… (through the routes and graph: read back for Confirm; the same note the Belt never said is still a gap) and G-174's test unchanged."
   }
  ],
  "escape_controls": {

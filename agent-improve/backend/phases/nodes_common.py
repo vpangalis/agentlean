@@ -2395,16 +2395,26 @@ _PLACEHOLDER = re.compile(r"\[[^\]\n]{3,80}\]|\b(TBD|TBC|to be (confirmed|define
                           r"\(\s*needs?\b[^)]{0,80}\)|\?\?+|\bX{2,}\b", re.I)
 
 
-def placeholders(store: dict[str, Any]) -> list[str]:
+def _need_the_belt_stated(note: str, belt_words: str) -> bool:
+    """G-272: a "(needs …)" note whose words are the Belt's own — at least two, three in four of them in the Belt's
+    words for the element — is the Belt's content ("Dev needs a half-day of training"), not a part left unfilled."""
+    words = [w for w in re.findall(r"[a-z]{4,}", note.lower()) if w not in ("need", "needs")]
+    said = set(re.findall(r"[a-z]{4,}", belt_words.lower()))
+    found = [w for w in words if w in said]
+    return len(found) >= 2 and len(found) >= 0.75 * len(words)
+
+
+def placeholders(store: dict[str, Any], belt_words: str = "") -> list[str]:
     """G-174: the placeholders in what a Confirm would store — an incomplete value is challenged, never
-    read back for a Confirm."""
+    read back for a Confirm. G-272: a bracketed "needs …" made of the Belt's own words is theirs, not a placeholder."""
     def leaves(value: Any) -> list[str]:
         if isinstance(value, dict):
             return [s for v in value.values() for s in leaves(v)]
         if isinstance(value, (list, tuple)):
             return [s for v in value for s in leaves(v)]
         return [value] if isinstance(value, str) else []
-    return [m.group(0) for text in leaves(list(store.values())) for m in _PLACEHOLDER.finditer(text)]
+    found = [m.group(0) for text in leaves(list(store.values())) for m in _PLACEHOLDER.finditer(text)]
+    return [p for p in found if not (p.startswith("(") and _need_the_belt_stated(p, belt_words))]
 
 
 #: G-172 (DEF-020) — a question about where the project stands.
@@ -3053,7 +3063,7 @@ def _read_back_pending(phase: str, state: PhaseState, plan: Optional[CoachingPla
         link = _r18_link(phase, plan.focus_field if plan else None, store, prior_artifacts)
         located_line = _r18_located(phase, plan.focus_field if plan else None, store, prior_artifacts)
         short = moves.store_missing(pending.get("fields") or [pending.get("field")], prior_artifacts, store)
-        unfilled = placeholders(store)
+        unfilled = placeholders(store, str(pending.get("belt_words") or ""))
         if unfilled:
             logger.warning("%s.executor: G-174 — the read-back of `%s` holds a placeholder (%s); it is challenged, "
                            "not offered for a Confirm", phase, pending.get("field"), "; ".join(unfilled[:3]))

@@ -340,7 +340,8 @@
     ],
     "capability_rows": [],
     "gaps": [
-     "G-174"
+     "G-174",
+     "G-272"
     ]
    },
    "requirement": "R3",

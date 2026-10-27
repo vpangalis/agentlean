@@ -5802,6 +5802,35 @@ def test_g174_a_value_with_a_placeholder_is_challenged_never_offered_for_confirm
     assert _askd(env, message=voc + " Status within 1 working day.")["move"] == moves.READ_BACK
 
 
+def test_g272_a_need_the_belt_stated_in_brackets_is_not_a_placeholder(env, monkeypatch, stub_planner) -> None:
+    """G-272 (the final run of 2026-10-27, define_runthrough_20261027T114411, stuck at the team): the Belt wrote
+    "Dev and Amira need a half-day on data collection before Measure", the coach wrote it into a member's function
+    in brackets — "(needs a half-day of training on data collection before Measure)" — and G-174's check took it for
+    the coach's note of a part left unfilled, three turns running. Through the routes and graph: that read-back is
+    offered for a Confirm; a "(needs …)" the Belt never said is still challenged (G-174)."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    from backend.phases.nodes_common import placeholders
+    _at_element(env, "team")
+    _coach_with(monkeypatch, "Next: the team.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names the roles and the training")
+    words = ("Priya Shah leads it, Green Belt. Sponsor: Tom Okafor, Finance Director. Process owner: Lena Hart, AP "
+             "Manager. Members: Dev Patel, AP clerk. Training: Dev needs a half-day on data collection before Measure.")
+    team = [{"name": "Priya Shah", "role": "Leader", "function": "Green Belt"},
+            {"name": "Tom Okafor", "role": "Sponsor", "function": "Finance Director"},
+            {"name": "Lena Hart", "role": "Process Owner", "function": "AP Manager"},
+            {"name": "Dev Patel", "role": "Team Member",
+             "function": "AP clerk (needs a half-day of training on data collection before Measure)"}]
+    _coach_with(monkeypatch, "Here is your team. Is this right?",
+                captured=[{"field_name": "team", "value": team, "source": "belt"}])
+    told = _askd(env, message=words)
+    assert told["move"] == moves.READ_BACK, told["answer"]
+    assert placeholders({"team": team}, "Members: Dev Patel, AP clerk.") == [
+        "(needs a half-day of training on data collection before Measure)"], "a need the Belt never said is a gap"
+
+
 def test_g175_after_a_store_the_reply_teaches_the_next_element(env, monkeypatch, stub_planner) -> None:
     """G-175 (founder ruling A6, 2026-10-13; row 132229#33), through the routes and graph: after a Confirm
     stores an element, the reply teaches the next one — even when the coach writes its blocks about the
