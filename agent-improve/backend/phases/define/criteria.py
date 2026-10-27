@@ -164,7 +164,9 @@ CRITERIA: dict[str, tuple[tuple[str, str], ...]] = {
         (A_DATE, "a calendar date, in the future (p. 52)"),
     ),
     "benefits_analysis": (
-        (COST_OF_GAP, "quantifies what the gap costs (COPQ), with how it was worked out (p. 60)"),
+        # Founder ruling 2026-10-27, item 2 (E19): no question about working — code computes the saving and the
+        # read-back shows the working line for Confirm.
+        (COST_OF_GAP, "quantifies what the gap costs, the cost of poor quality (p. 60)"),
         (IMPACT_TYPE, "says whether the impact is sustainable or one-off (p. 60)"),
         (REALISATION, "when the saving shows: by period, or a start date and sustained (p. 60)"),
         (FINANCE_CONTACT, "names the finance representative who validates the figure (p. 60, p. 62)"),
@@ -183,10 +185,16 @@ CRITERIA: dict[str, tuple[tuple[str, str], ...]] = {
                       "it runs; estimates are fine (R17)"),
     ),
     "issues_and_barriers": (
-        (SPECIFIC, 'names specific roadblocks for this project, or says "none identified at this stage" as a '
-                   "conscious answer (p. 80, p. 82)"),
+        # G-263 (the founder's review, 2026-10-27 11:25): the rule rubric.barrier_names checks, said as it is taught.
+        (SPECIFIC, "names, for each roadblock, the site, system, team, person or rule of this project it concerns (a "
+                   'date alone is not enough), or says "none identified at this stage" as a conscious answer '
+                   "(p. 80, p. 82)"),
     ),
 }
+
+#: G-263: what the Belt is told when the barriers name nothing of this project's own — the `specific` criterion's
+#: rule in plain words, given by the gate's check (rubric._code_half, DEF-R13).
+SPECIFIC_MISSING = "Name the site, system or team that blocks you — as written, these barriers could belong to any project."
 
 # ── the welcome (U17) — the founder's text, served by `welcome.py` and generated into the skill's [OPENING] ──
 

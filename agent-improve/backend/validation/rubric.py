@@ -47,13 +47,14 @@ DEFINE_CRITERIA: tuple[tuple[str, str, str], ...] = tuple(
 
 #: The criteria decided entirely in code; the rest reach the model when their
 #: code half (if any) does not settle them.
-#: DEF-R02 (G-133) and DEF-R10 (G-256) are not code-only: code settles the parts it can read — for DEF-R02 the
-#: champion, the process owner, and the training when it is written in so many words — and the grader judges the
-#: rest (the training said in other words; how the cost of the gap was worked out) against the element's own
-#: criteria, so the element check and the gate cannot disagree.
+#: DEF-R02 (G-133) is not code-only: code settles the parts it can read — the champion, the process owner, and the
+#: training when it is written in so many words — and the grader judges the rest (the training said in other words)
+#: against the element's own criteria, so the element check and the gate cannot disagree.
 #: DEF-R13 (G-263, founder ruling 2026-10-27, item 1's fallback): whether the barriers belong to THIS project is
 #: read in code — the model's verdict flipped with the layout of its prompt on the same barriers.
-CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09", "DEF-R13"})
+#: DEF-R10 (founder ruling 2026-10-27, item 2, E19): no question about working — code computes the saving with the
+#: ratified formula and the read-back shows the working line; the four parts are code's to check.
+CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09", "DEF-R10", "DEF-R13"})
 
 Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
@@ -155,7 +156,7 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
             return _fail(cid, "Say whether the impact is sustainable or one-off.")
         if missing := missing_parts("benefits_analysis", b):                       # G-255: the element's own check
             return _fail(cid, "The benefits analysis does not say " + "; ".join(missing) + ".")
-        return None                                     # G-256: how the cost was worked out is the grader's
+        return _pass(cid)                               # item 2 (E19): the working is code's, never asked
     if cid == "DEF-R13":
         # G-134: the conscious "none identified at this stage", or nothing named at all. G-263 (founder ruling
         # 2026-10-27, item 1's fallback; the founder's review, 11:25): what is named is specific when it names an
@@ -168,8 +169,8 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
                               "or state 'none identified at this stage'.")
         if barrier_names(text, a):
             return _pass(cid)
-        return _fail(cid, "Name the site, system or team that blocks you — as written, these barriers could belong "
-                          "to any project.")
+        from backend.phases.define.criteria import SPECIFIC_MISSING
+        return _fail(cid, SPECIFIC_MISSING)
     if cid == "DEF-R12":
         blank = _blank_keys(a.get("process_map_sipoc"), SIPOC_KEYS)
         return _fail(cid, "The SIPOC leaves out: " + ", ".join(blank) + ".") if blank else None
@@ -230,11 +231,8 @@ def _names_a_roadblock(text: str) -> bool:
 
 #: G-134 — what the grader is asked when code has settled part of a criterion: the rest only.
 MODEL_ASKS: dict[str, str] = {
-    # G-256: the part of the benefits criterion code cannot read.
-    "DEF-R10": ("code has already checked the four parts, the figure, sustainable or one-off, and when the saving "
-                "shows. Judge ONLY whether the cost of the gap says how it was worked out: PASS when it names the "
-                "figures it rests on or a calculation is shown with it; FAIL only for a bare figure with nothing "
-                "behind it"),
+    # DEF-R10's "how the cost of the gap was worked out" is gone (founder ruling 2026-10-27, item 2, E19); DEF-R13's
+    # specificity is code's (G-263). A criterion code settles in part asks the model the rest here.
 }
 
 

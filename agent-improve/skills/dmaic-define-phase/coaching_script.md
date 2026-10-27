@@ -140,9 +140,9 @@
 > **What it is:** The benefits analysis: what the gap costs today (the cost of poor quality), whether the gain is sustainable or one-off, when the money will be realised, and who in finance validates the figure.
 > **Why it matters:** It establishes the value of the project in terms finance will accept. A figure a finance representative has checked is one the champion can defend.
 > **Show (illustration — not your data):** *"Cost of the gap: about €15.1k a year in rework today (12% of 4,200 invoices, about €30 each). Expected saving: about €11.3k a year at the target (12% → 3%), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from the first full quarter after the change, about €2.8k a quarter. Finance contact: Priya Shah, management accountant."*
-> **Ask:** What does the gap cost today, and how did you work it out? Is the saving sustainable or one-off? When will it start to show? Who in finance will validate it?
+> **Ask:** What does the gap cost today? Is the saving sustainable or one-off? When will it start to show? Who in finance will validate it?
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
-> - `cost-of-gap` — quantifies what the gap costs (COPQ), with how it was worked out (p. 60)
+> - `cost-of-gap` — quantifies what the gap costs, the cost of poor quality (p. 60)
 > - `impact-type` — says whether the impact is sustainable or one-off (p. 60)
 > - `realisation` — when the saving shows: by period, or a start date and sustained (p. 60)
 > - `finance-contact` — names the finance representative who validates the figure (p. 60, p. 62)
@@ -189,7 +189,7 @@
 > **Show (illustration — not your data):** *"No clean historical error data before January — we may need to collect it. Two team members on leave in August. The pricing database is owned by IT, so any change needs their sign-off."*
 > **Ask:** What could get in the way — data, people, systems, time? If genuinely none, "none identified at this stage" is a fine answer, but have a think first.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
-> - `specific` — names specific roadblocks for this project, or says "none identified at this stage" as a conscious answer (p. 80, p. 82)
+> - `specific` — names, for each roadblock, the site, system, team, person or rule of this project it concerns (a date alone is not enough), or says "none identified at this stage" as a conscious answer (p. 80, p. 82)
 > **Read back:** their list, in their own words — *"Is this right?"*
 
 **[GATE READINESS — closing]**

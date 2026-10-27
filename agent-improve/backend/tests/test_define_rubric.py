@@ -467,17 +467,22 @@ def test_g246_the_cost_of_the_gap_and_the_saving_are_two_figures_everywhere() ->
         assert f"about €{11340 / 4 / 1000:.1f}k a quarter" in show, (name, show)
 
 
-def test_g256_the_benefits_criterion_is_checked_as_the_skill_states_it() -> None:
-    """G-256 (audit D7; founder 2026-10-24, A3): DEF-R10 is no longer settled by code alone. Its code half fails what
-    code can read — a blank part, no figure, neither sustainable nor one-off, no start and no period for the saving (the
-    element check's own parse.missing_parts, G-255) — and the gate judge is asked only whether the cost of the gap says
-    how it was worked out, reading the calculation shown with it."""
+def test_e19_the_benefits_criterion_asks_no_working_and_is_decided_in_code() -> None:
+    """G-256 (audit D7; founder 2026-10-24, A3) made DEF-R10 fail what code can read — a blank part, no figure, neither
+    sustainable nor one-off, no start and no period for the saving (parse.missing_parts, G-255). Founder ruling
+    2026-10-27, item 2 (E19): "no question about working. Code computes the stated saving with the ratified formula
+    (baseline − target) × volume × cost, and the read-back shows the working line for Confirm." So the gate judge is
+    no longer asked how the cost of the gap was worked out, the element's criterion and Ask no longer ask it, and
+    DEF-R10 is code's alone."""
+    from backend.middleware.skills import acceptance_criteria, element_text
     from backend.validation import rubric
 
-    assert "DEF-R10" not in CODE_ONLY
+    assert "DEF-R10" in CODE_ONLY and "DEF-R10" not in rubric.MODEL_ASKS
+    taught = " ".join(text for _, text in acceptance_criteria("define", "benefits_analysis"))
+    assert "worked out" not in taught and "work it out" not in element_text("define", "benefits_analysis", "Ask")
     judge = Judge()
     got = _grade(COMPLETE, judge)
-    assert got["DEF-R10"].status == "pass" and "DEF-R10" in judge.asked, (got["DEF-R10"], judge.asked)
+    assert got["DEF-R10"].status == "pass" and "DEF-R10" not in judge.asked, (got["DEF-R10"], judge.asked)
     judge = Judge()
     soon = {**COMPLETE, "benefits_analysis": {**COMPLETE["benefits_analysis"], "realisation_schedule": "soon"}}
     got = _grade(soon, judge)
@@ -489,4 +494,4 @@ def test_g256_the_benefits_criterion_is_checked_as_the_skill_states_it() -> None
     doc = rubric._document_by_criterion([("DEF-R10", "benefits_analysis", "")],
                                         {**COMPLETE, "computation_results": [row]})
     assert "calculated:" in doc and "Cost of the gap today" in doc, doc
-    assert "how it was worked out" in rubric.MODEL_ASKS["DEF-R10"]
+    # the working line is code's (calculations.how_it_was_calculated) — what the read-back shows for Confirm
