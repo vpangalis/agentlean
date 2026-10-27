@@ -388,7 +388,7 @@ async def _one_run(case_id: str, messages: list, config: Any,
             "fallback": bool(record.get("fallback")),
             "tools": _tool_trace(out["messages"]),
             "coach_calls": len(COACH_INPUTS) - inputs_before,
-            "section_5": _section(first, "## 5 ·"),
+            "section_4": _section(first, "## 4 ·"),   # the quality feedback
             # The coach's last input past the six sections: what it had said
             # and been answered this run — where a loop shows itself.
             "trail": [{"type": m["type"], "tool_calls": m["tool_calls"], "name": m["name"],

@@ -220,7 +220,7 @@ def test_the_other_phases_walk_their_gate_list() -> None:
 
 def test_sections_3_and_4_agree_on_the_confirming_turn() -> None:
     """Item 2 — section 3 is the state AFTER this turn's change: business_case
-    confirmed and stored, 1 of 13 confirmed, team current — what section 4 says."""
+    confirmed and stored, 1 of 13 confirmed, team current — what section 5 says."""
     from langchain_core.messages import HumanMessage as H
     from backend.core.substate import CoachingPlan
     from backend.middleware.state_injection import BeforeModelStateInjection
@@ -237,7 +237,7 @@ def test_sections_3_and_4_agree_on_the_confirming_turn() -> None:
     assert "1. Business case — confirmed" in state and "Current element: Team" in state
     assert '<value name="Business case" status="confirmed">' in state, "shown stored"
     assert "RECORD `business_case`, THEN TEACH `team`" in move
-    assert "Field: team — status after this turn: asked" in move, "section 4's status is section 3's"
+    assert "Field: team — status after this turn: asked" in move, "section 5's status is section 3's"
 
 
 # ── confirmation is a rule ───────────────────────────────────────────────
@@ -332,7 +332,7 @@ def test_the_guard_would_have_caught_the_old_text() -> None:
         assert SEQUENCING.search(line), line
 
 
-# ── item 3: the grader per move; section 5 never contradicts section 4 ─────
+# ── item 3: the grader per move; section 4 never contradicts section 5 ─────
 
 
 def test_each_move_is_graded_only_on_what_it_does() -> None:
@@ -350,7 +350,7 @@ def test_each_move_is_graded_only_on_what_it_does() -> None:
     assert "G2 HANDLES" not in rubric_for_move("teach") and "G2 HANDLES" in rubric_for_move("challenge")
 
 
-def test_section_5_leaves_out_what_this_turns_move_does_not_do() -> None:
+def test_section_4_leaves_out_what_this_turns_move_does_not_do() -> None:
     from backend.core.substate import CoachingPlan
     from backend.middleware.state_injection import BeforeModelStateInjection
     handles = "G2"                    # founder ruling 2026-10-14: asked of challenges and read-backs only

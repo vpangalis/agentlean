@@ -245,18 +245,19 @@ class BeforeModelStateInjection(AgentMiddleware):
             return request
         existing = request.system_message
         blocks = list(existing.content_blocks) if existing is not None else []
-        # THE SIX SECTIONS, in the ruled order. The rules are the agent's own
-        # system prompt, labelled here as section 1 by a heading block of their
-        # own (their blocks are never concatenated). Section 2, the phase
-        # script, is placed after section 1 by position 2
-        # (`DMAICSkillsMiddleware`), which runs inside this wrap.
+        # THE SIX SECTIONS, in the ruled order (ADR-0111 D2): static first, the
+        # task last. The rules are the agent's own system prompt, labelled here as
+        # section 1 by a heading block of their own (their blocks are never
+        # concatenated). Section 2, the phase script, is placed after section 1
+        # by position 2 (`DMAICSkillsMiddleware`), which runs inside this wrap.
+        # Then the per-turn state and feedback, and the move last.
         return request.override(
             system_message=SystemMessage(content_blocks=[
                 {"type": "text", "text": SECTION_RULES}, {"type": "text", "text": "<coaching_rules>"}, *blocks,
                 {"type": "text", "text": "</coaching_rules>"},
                 {"type": "text", "text": self._block},
-                {"type": "text", "text": self._move},
                 {"type": "text", "text": self._feedback},
+                {"type": "text", "text": self._move},
                 {"type": "text", "text": SECTION_CONVERSATION},
             ])
         )
@@ -265,7 +266,7 @@ class BeforeModelStateInjection(AgentMiddleware):
 
     def _compose(self) -> str:
         # THE STATE AFTER THIS TURN'S CHANGE, so sections 3 and 4 agree: on a confirming turn the value is shown stored, the step
-        # advanced and the next field current — which is what section 4 tells
+        # advanced and the next field current — which is what section 5 tells
         # the coach to say.
         plan = self._state.get("coaching_plan")
         artifacts = {**dict(self._state.get("artifacts") or {}),
@@ -406,7 +407,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         return "\n".join(parts)
 
     def _compose_move(self) -> str:
-        """Section 4 — THIS TURN'S MOVE, from the plan code built.
+        """Section 5 — THIS TURN'S MOVE, from the plan code built: the task, last (ADR-0111 D2).
 
         Authoritative, and says so (`MOVE_PREAMBLE`). The instruction per move
         is `prompts.MOVE_INSTRUCTIONS`; which one applies, and what it names,
@@ -507,7 +508,7 @@ class BeforeModelStateInjection(AgentMiddleware):
         return "\n".join([*lines, "", body])
 
     def _compose_feedback(self) -> str:
-        """Section 5 — last turn's quality feedback, for the coach.
+        """Section 4 — last turn's quality feedback, for the coach.
 
         The grader's verdict on the PREVIOUS reply, read off that reply (there
         is no coherence judge, ADR-0083). **Never presented as a message from the Belt** — it is a
@@ -520,8 +521,8 @@ class BeforeModelStateInjection(AgentMiddleware):
                          "there is no previous reply)")
             return "\n".join(lines)
         g = fb.get("grader")
-        # Only what applies to THIS turn's move: section 5
-        # never contradicts section 4. A criterion the move does not answer
+        # Only what applies to THIS turn's move: section 4
+        # never contradicts section 5. A criterion the move does not answer
         # (a read-back is not a challenge) is left out, and says so.
         plan = self._state.get("coaching_plan")
         move = getattr(plan, "move", None)

@@ -208,7 +208,7 @@ def test_injection_uses_content_blocks_not_string_concatenation() -> None:
         "the existing blocks were not preserved intact"
     )
     assert [t.split("\n", 1)[0] for t in texts[5:]] == [
-        SECTION_STATE, SECTION_MOVE, SECTION_FEEDBACK, SECTION_CONVERSATION]
+        SECTION_STATE, SECTION_FEEDBACK, SECTION_MOVE, SECTION_CONVERSATION]
     assert len(texts) == 9
 
     # **The check is per BLOCK, not on `.content`.** A multi-part message's
@@ -270,8 +270,54 @@ def test_the_two_middlewares_compose_without_flattening() -> None:
     # field: the closing block. The catalogue is gone from the message.
     assert texts[6] == f"<phase_script>\n{script_section('define', None, False)}\n</phase_script>"
     assert [t.split("\n", 1)[0] for t in texts[7:]] == [
-        SECTION_STATE, SECTION_MOVE, SECTION_FEEDBACK, SECTION_CONVERSATION]
+        SECTION_STATE, SECTION_FEEDBACK, SECTION_MOVE, SECTION_CONVERSATION]
     assert not any("'type': 'text'" in t for t in texts)
+
+
+def _coach_system(plan: CoachingPlan, opening: bool, artifacts: dict[str, Any] | None = None) -> str:
+    """The coach's system message as the two wraps build it on the phase's own rules, as one text."""
+    from backend.core.prompts import PHASE_COACH_PROMPT
+    inject = BeforeModelStateInjection("define", _state(coaching_plan=plan, artifacts=artifacts or {}))
+    skills = DMAICSkillsMiddleware("define", focus_field=plan.focus_field, opening=opening)
+    inject.before_agent(None, None)
+    skills.before_agent(None, None)
+    request: Any = _FakeRequest(SystemMessage(content=PHASE_COACH_PROMPT["define"]))
+    return "".join(_texts(skills._append_catalogue(inject._prepend(request)).system_message))
+
+
+def test_adr_0111_d2_the_static_prefix_is_byte_identical_between_two_turns() -> None:
+    """ADR-0111 D2 (founder ruling 2026-10-27): static first, then per element, then per turn, the task last, so the
+    prefix that repeats is served from the prompt cache. Measured before: the coach cached 1,408 tokens a call (the
+    rules); its prefix broke at section 2, where the first turn's opening came before the element's block. Two turns
+    on different elements share section 1 byte for byte; two turns on the same element — one the phase's first —
+    share section 1 and the element's block; the state, the feedback and the move follow, the move last."""
+    first = _coach_system(CoachingPlan(focus_field="business_case", status="asked", move="teach"), opening=True)
+    again = _coach_system(CoachingPlan(focus_field="business_case", status="answered", move="challenge"),
+                          opening=False, artifacts={"problem_statement": "40% of invoices are paid late."})
+    other = _coach_system(CoachingPlan(focus_field="team", status="asked", move="teach"), opening=False,
+                          artifacts={"business_case": "Late payments cost us EUR 62,000 a year."})
+    rules = first[:first.index(SECTION_SCRIPT)]
+    assert len(rules) > 4000 and again.startswith(rules) and other.startswith(rules), "section 1 differs"
+    shared = f"{rules}{SECTION_SCRIPT}<phase_script>\n{script_section('define', 'business_case', False)}"
+    assert first.startswith(shared) and again.startswith(shared), "the element's block is not in the shared prefix"
+    assert first != again, "the fixture's two turns are the same turn"
+    for text in (first, again, other):
+        at = [text.index(s) for s in (SECTION_SCRIPT, SECTION_STATE, SECTION_FEEDBACK, SECTION_MOVE,
+                                      SECTION_CONVERSATION)]
+        assert at == sorted(at), at
+
+
+@pytest.mark.parametrize("phase", PHASE_ORDER)
+def test_item_9_every_gate_field_has_its_own_script_block_never_the_whole_script(phase: str) -> None:
+    """Founder ruling 2026-10-27, item 9: the whole-script fallback in `script_section` is gone. Every field of the
+    phase's gate has its own block in section 2; a field the script gives no block gets none — never the whole
+    script, silently."""
+    whole = instructions(phase)
+    spec = GATE_SPECS[phase]
+    for field in (*spec.tier_1, *(getattr(spec, "tier_2", ()) or ())):
+        section = script_section(phase, field, False)
+        assert section and len(section) < len(whole) // 2, f"{phase}: `{field}` has no script block of its own"
+    assert script_section(phase, "no_such_field", False) == ""
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)

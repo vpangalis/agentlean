@@ -2,9 +2,10 @@
 
 WHAT REACHES THE COACH
     * **The current phase's script** — on every model call, as section 2 of
-      the system message (`script_section`): the opening (first turn only)
-      and the CURRENT field's block; the closing block once every field is
-      confirmed.
+      the system message (`script_section`): the CURRENT field's block, then
+      the opening (first turn only); the closing block once every field is
+      confirmed. Never the whole script: a field with no block of its own is
+      a test failure (`test_middleware.py`), not a silent fallback.
     * **Another phase's full instructions** — when the coach calls
       `load_skill(name)`, as a tool result.
     * **The five descriptions (level 1)** — composed once per turn
@@ -328,18 +329,14 @@ def _script_blocks(phase: str) -> tuple[dict[str, str], str, str]:
 
 
 def script_section(phase: str, field: Optional[str], opening: bool) -> str:
-    """Section 2 of the coach's input: the opening on the phase's first turn
-    only, plus the CURRENT field's script block and nothing else. With no current field (every one confirmed), the
-    closing block. A phase whose script carries no block for the field gets
-    its whole script rather than nothing."""
+    """Section 2 of the coach's input: the CURRENT field's script block, then the opening on the phase's first
+    turn only, and nothing else — per element before per turn (ADR-0111 D2), so the block is part of the prefix
+    that repeats. With no current field (every one confirmed), the closing block. The whole script is never sent:
+    a field the script gives no block gets none (founder ruling 2026-10-27, item 9 — `test_middleware.py` fails
+    on any Define field without its own block)."""
     blocks, open_block, closing = _script_blocks(phase)
-    if field is None:
-        chosen = closing
-    else:
-        chosen = blocks.get(_CAPTURED_INSIDE.get(field, field), "")
-        if not chosen:
-            return instructions(phase)
-    return "\n\n".join(b for b in ((open_block if opening else ""), chosen) if b)
+    chosen = closing if field is None else blocks.get(_CAPTURED_INSIDE.get(field, field), "")
+    return "\n\n".join(b for b in (chosen, (open_block if opening else "")) if b)
 
 
 #: A block's labelled sections: `> **What it is:** …`, `> **Show (…):** …`.
@@ -479,8 +476,8 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         #: Each delivery of the script is handed to the node, which owns
         #: `step_log`; the middleware writes no state itself.
         self.on_delivery = on_delivery
-        #: Section 2 carries the CURRENT field's script block and, on the
-        #: phase's first turn only, the opening.
+        #: Section 2 carries the CURRENT field's script block and, after it on
+        #: the phase's first turn only, the opening.
         self.focus_field = focus_field
         self.opening = opening
         #: **The framework's own registration point.** Not
@@ -579,8 +576,8 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         # THE CURRENT PHASE'S SCRIPT, ON EVERY MODEL CALL — not left to the
         # coach calling `load_skill`. A system-message block is never a tool
         # result, so nothing enters the conversation and the history does not
-        # grow with the script each turn. The opening (first turn only) and the
-        # CURRENT field's block: high signal, not the whole script every call.
+        # grow with the script each turn. The CURRENT field's block, then the
+        # opening (first turn only): high signal, never the whole script.
         script = script_section(self.phase, self.focus_field, self.opening)
         section = [{"type": "text", "text": SECTION_SCRIPT},
                    {"type": "text", "text": f"<phase_script>\n{script}\n</phase_script>"}]   # G-252

@@ -105,9 +105,9 @@ def test_the_models_judgment_fails_a_criterion_with_its_reason() -> None:
 
 
 def test_define_never_warns_and_an_unjudged_criterion_fails_closed() -> None:
-    got = _grade(COMPLETE, Judge({"DEF-R06": "warning"}, drop=("DEF-R13",)))
+    got = _grade(COMPLETE, Judge({"DEF-R06": "warning"}, drop=("DEF-R11",)))
     assert got["DEF-R06"].status == "fail", "Tier 1: a warning is a fail in Define"
-    assert got["DEF-R13"].status == "fail" and "no verdict" in got["DEF-R13"].feedback
+    assert got["DEF-R11"].status == "fail" and "no verdict" in got["DEF-R11"].feedback
     assert all(v.tier == 1 for v in got.values())
 
 
@@ -201,12 +201,18 @@ def test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check() -> N
     assert verdict is not None and verdict.status == "fail"
 
 
-def test_g134_def_r13_is_settled_in_code_first_and_the_model_judges_only_specificity() -> None:
-    """G-134 (founder ruling 4, 2026-09-29): the gate grader failed DEF-R13 once in four runs on
-    the SAME specific answer. Code now settles what it can read — the conscious 'none identified
-    at this stage' passes, an answer that names nothing fails with the reason — and only the
-    specificity of what is named reaches the model, asked that and nothing else."""
-    from backend.validation.rubric import MODEL_ASKS
+def test_g134_g263_def_r13_is_decided_in_code() -> None:
+    """G-134 (founder ruling 4, 2026-09-29): the gate grader failed DEF-R13 once in four runs on the SAME specific
+    answer; code settled the conscious 'none identified at this stage' and an answer that names nothing. G-263
+    (founder ruling 2026-10-27, item 1's fallback): the judge's verdict on the same barriers still flipped with its
+    prompt's layout, so whether they belong to THIS project is code's too. The founder's review (11:25): they pass only
+    when they name an entity of the case — a site, system, team, person or rule its scope, SIPOC or team names; a date
+    adds to it and never suffices; a fail tells the Belt in plain words what is missing. DEF-R13 never reaches the
+    model."""
+    import json
+    from pathlib import Path
+
+    from backend.validation.rubric import CODE_ONLY, MODEL_ASKS
 
     class Recorder(Judge):
         async def __call__(self, criteria, document):
@@ -219,12 +225,24 @@ def test_g134_def_r13_is_settled_in_code_first_and_the_model_judges_only_specifi
         got = _grade({**COMPLETE, "issues_and_barriers": blank}, j2 := Recorder())
         assert got["DEF-R13"].status == "fail" and "none identified at this stage" in got["DEF-R13"].feedback, blank
         assert "DEF-R13" not in j2.asked, blank
-    live = ("Two barriers: the three sites use different approval routes, and an ERP change freeze until "
-            "January limits system changes. One risk: AP staff turnover over the winter.")
-    got = _grade({**COMPLETE, "issues_and_barriers": live}, j3 := Recorder())
-    assert "DEF-R13" in j3.asked and got["DEF-R13"].status == "pass"
-    assert j3.texts["DEF-R13"] == MODEL_ASKS["DEF-R13"], "the model is asked specificity only"
-    assert "FAIL only when they are generic labels" in j3.texts["DEF-R13"]
+    # The founder's cases: run 4's and run 5's barriers on their own documents pass; a date alone, and generic labels,
+    # fail — with the Belt told what is missing.
+    runs = Path(__file__).resolve().parents[2] / "docs" / "runthrough"
+    for stamp in ("20261024T155827", "20261026T091217"):
+        lines = json.loads((runs / f"define_runthrough_{stamp}.json").read_text(encoding="utf-8"))
+        document = next(x for x in lines if x.get("kind") == "final_case")["define_structured"]
+        assert "ERP change freeze" in document["issues_and_barriers"], stamp
+        got = _grade(document, j3 := Recorder())
+        assert "DEF-R13" not in j3.asked and got["DEF-R13"].status == "pass", (stamp, got["DEF-R13"])
+    for vague in ("since January things are difficult", "people resist change",
+                  "Lack of resources, time, stakeholder buy-in and resistance to change."):
+        got = _grade({**COMPLETE, "issues_and_barriers": vague}, j4 := Recorder())
+        assert "DEF-R13" not in j4.asked and got["DEF-R13"].status == "fail", (vague, got["DEF-R13"])
+        assert got["DEF-R13"].feedback.startswith("Name the site, system or team that blocks you"), got["DEF-R13"]
+    # a date adds to an entity: COMPLETE's "ERP freeze until January" names the ERP its scope leaves out
+    got = _grade(COMPLETE, Judge())
+    assert got["DEF-R13"].status == "pass", got["DEF-R13"]
+    assert "DEF-R13" in CODE_ONLY and "DEF-R13" not in MODEL_ASKS
 
 
 # ── G-241 (founder ruling 2026-10-22 afternoon, item 1) — the gate judge reads at temperature 0, and a failing reason
@@ -306,25 +324,25 @@ def test_g241_each_gate_criterion_is_the_majority_of_three_verdicts() -> None:
     from backend.validation import rubric
     from backend.validation.schemas import CriterionVerdict, GraderVerdict
 
-    def votes(*r13: str):
+    def votes(*r11: str):
         calls: list = []
 
         async def judge(criteria, document):
             calls.append([c[0] for c in criteria])
-            status = r13[len(calls) - 1]
+            status = r11[len(calls) - 1]
             return GraderVerdict(verdicts=[
-                CriterionVerdict(criterion=cid, status=status if cid == "DEF-R13" else "pass",
-                                 feedback="The barriers are not specific to this project." if
-                                 (cid == "DEF-R13" and status == "fail") else "") for cid, _, _ in criteria])
+                CriterionVerdict(criterion=cid, status=status if cid == "DEF-R11" else "pass",
+                                 feedback="The side effect restates the primary metric." if
+                                 (cid == "DEF-R11" and status == "fail") else "") for cid, _, _ in criteria])
         return judge, calls
 
-    for r13, expected in ((("fail", "pass", "pass"), "pass"), (("fail", "fail", "pass"), "fail"),
+    for r11, expected in ((("fail", "pass", "pass"), "pass"), (("fail", "fail", "pass"), "fail"),
                           (("pass", "pass", "pass"), "pass")):
-        judge, calls = votes(*r13)
+        judge, calls = votes(*r11)
         out = asyncio.run(rubric.grade_define(dict(COMPLETE), judge=judge))
-        v = next(x for x in out.verdicts if x.criterion == "DEF-R13")
-        assert v.status == expected and len(calls) == rubric.GATE_VOTES == 3, (r13, v, calls)
-        assert (v.feedback == "The barriers are not specific to this project.") is (expected == "fail"), v
+        v = next(x for x in out.verdicts if x.criterion == "DEF-R11")
+        assert v.status == expected and len(calls) == rubric.GATE_VOTES == 3, (r11, v, calls)
+        assert (v.feedback == "The side effect restates the primary metric.") is (expected == "fail"), v
         assert not set(rubric.CODE_ONLY) & set(calls[0]), calls[0]
 
 
@@ -352,16 +370,16 @@ def test_g241_each_criterion_is_judged_on_the_values_it_reads() -> None:
 
     def named(field: str) -> str:
         return f'<value name="{display_name("define", field)}"'
-    r13 = sections["DEF-R13 — the values it reads"]
-    for field in ("issues_and_barriers", "business_case", "project_scope", "process_map_sipoc"):
-        assert named(field) in r13, field
-    for field in ("team", "voc_summary", "goal_statement", "secondary_metrics"):
-        assert named(field) not in r13, field
+    r07 = sections["DEF-R07 — the values it reads"]
+    for field in ("goal_statement", "baseline_estimate", "target_value", "target_date"):
+        assert named(field) in r07, field
+    for field in ("team", "voc_summary", "business_case", "secondary_metrics"):
+        assert named(field) not in r07, field
     r03 = sections["DEF-R03 — the values it reads"]
     assert named("voc_summary") in r03 and named("critical_to_quality") in r03 and named("business_case") not in r03, r03
     assert "on its own section" in GATE_GRADER_PROMPT
     # G-263 (founder ruling 2026-10-27): tagged text under display names, never JSON, never a code name.
-    assert '{"' not in doc and "process_map_sipoc" not in doc and "issues_and_barriers" not in doc, doc[:600]
+    assert '{"' not in doc and "process_map_sipoc" not in doc and "baseline_estimate" not in doc, doc[:600]
 
 
 def test_g244_the_element_check_and_the_gate_share_one_check() -> None:

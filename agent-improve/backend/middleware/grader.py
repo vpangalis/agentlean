@@ -312,7 +312,7 @@ class DMAICGraderMiddleware(AgentMiddleware):
             # Every asked criterion's verdict (G1–G5, the code check), not only the fails.
             "verdicts": {c.criterion: c.status for c in verdict.criteria},
             "feedback": [c.feedback for c in verdict.failed if c.feedback],
-            # Each failed criterion WITH its feedback, so section 5 can
+            # Each failed criterion WITH its feedback, so section 4 can
             # keep only what applies to the next turn's move.
             "failed": [{"criterion": c.criterion, "feedback": c.feedback or "", "evidence": c.evidence or ""}
                        for c in verdict.failed],

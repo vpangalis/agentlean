@@ -33,7 +33,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from backend.core.llm import get_llm
 from backend.core.prompts import DEFINE_RUBRIC, GATE_GRADER_PROMPT
-from backend.phases.define.schema import BENEFITS_ANALYSIS_KEYS, SIPOC_KEYS
+from backend.phases.define.schema import BENEFITS_ANALYSIS_KEYS, PROJECT_SCOPE_KEYS, SIPOC_KEYS
 from backend.validation.schemas import CriterionVerdict, GraderVerdict
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,9 @@ DEFINE_CRITERIA: tuple[tuple[str, str, str], ...] = tuple(
 #: champion, the process owner, and the training when it is written in so many words — and the grader judges the
 #: rest (the training said in other words; how the cost of the gap was worked out) against the element's own
 #: criteria, so the element check and the gate cannot disagree.
-CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09"})
+#: DEF-R13 (G-263, founder ruling 2026-10-27, item 1's fallback): whether the barriers belong to THIS project is
+#: read in code — the model's verdict flipped with the layout of its prompt on the same barriers.
+CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09", "DEF-R13"})
 
 Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
@@ -155,16 +157,19 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
             return _fail(cid, "The benefits analysis does not say " + "; ".join(missing) + ".")
         return None                                     # G-256: how the cost was worked out is the grader's
     if cid == "DEF-R13":
-        # G-134: code settles what can be read — the conscious
-        # "none identified at this stage", or nothing named at all; the model judges only
-        # whether what is named is specific (MODEL_ASKS).
+        # G-134: the conscious "none identified at this stage", or nothing named at all. G-263 (founder ruling
+        # 2026-10-27, item 1's fallback; the founder's review, 11:25): what is named is specific when it names an
+        # entity of this project's own — a date alone never is.
         text = _text(a.get("issues_and_barriers")).strip()
         if _NONE_IDENTIFIED.search(text):
             return _pass(cid)
         if not _names_a_roadblock(text):
             return _fail(cid, "Name at least one specific issue or barrier that could stop the project, "
                               "or state 'none identified at this stage'.")
-        return None
+        if barrier_names(text, a):
+            return _pass(cid)
+        return _fail(cid, "Name the site, system or team that blocks you — as written, these barriers could belong "
+                          "to any project.")
     if cid == "DEF-R12":
         blank = _blank_keys(a.get("process_map_sipoc"), SIPOC_KEYS)
         return _fail(cid, "The SIPOC leaves out: " + ", ".join(blank) + ".") if blank else None
@@ -174,6 +179,46 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
 #: G-134 — the conscious answer DEF-R13 accepts, and the words that name no roadblock at all.
 _NONE_IDENTIFIED = re.compile(r"(?<![a-z])none identified at this stage(?![a-z])", re.I)
 _NO_ROADBLOCK = re.compile(r"^(none|no|nothing|n/?a|tbd|tbc|unknown|not sure|don'?t know|-+)(?![a-z])[\s.!]*$", re.I)
+
+
+#: G-263: words a scope, a SIPOC or a team uses that name no particular project — and the generic labels DEF-R13
+#: fails ('resources', 'time', 'stakeholder buy-in', 'resistance to change').
+_GENERIC = frozenset((
+    "team teams process processes project projects member members owner other others their them they with from that "
+    "this about hours days weeks months years minutes resource resources time timing budget money funding people "
+    "staff staffing capacity stakeholder stakeholders support resistance change changes management leadership "
+    "communication culture priority priorities workload data training skills lack pressure engagement commitment "
+    "availability three four five seven eight nine").split())
+#: G-263: a date — a month named in full, or a year. It adds to what the barriers name; it never suffices.
+_DATE = re.compile(r"\b(?:january|february|march|april|june|july|august|september|october|november|december)\b"
+                   r"|\b(?:19|20)\d{2}\b", re.I)
+
+
+def _record_names(a: dict[str, Any]) -> str:
+    """G-263: the words that name this project's own things — its scope (sites, systems), its SIPOC's suppliers,
+    inputs, outputs, customers and steps, and its team's names and roles."""
+    scope, sipoc = a.get("project_scope"), a.get("process_map_sipoc")
+    parts = ([str(scope.get(k) or "") for k in PROJECT_SCOPE_KEYS] if isinstance(scope, dict)
+             else [str(scope or "")])
+    if isinstance(sipoc, dict):
+        parts += [str(sipoc.get(k) or "") for k in ("suppliers", "inputs", "outputs", "customers")]
+        parts += [str(s.get("name") or "") for s in sipoc.get("process_steps") or [] if isinstance(s, dict)]
+    parts += [f"{e.get('name') or ''} {e.get('role') or ''}" for e in a.get("team") or [] if isinstance(e, dict)]
+    return " ".join(parts)
+
+
+def barrier_names(text: str, a: dict[str, Any]) -> list[str]:
+    """G-263 (founder ruling 2026-10-27, item 1's fallback; tightened in the founder's review, 11:25): the entities of
+    THIS project the barriers name — a site, system, team, person or rule its scope, SIPOC or team names: an acronym
+    they use ('ERP'), or a word of theirs that is no generic label, no number and no date. A date adds to what is
+    named and never suffices: with no entity, the list is empty."""
+    names = _record_names(a)
+    own = {w for w in re.findall(r"[a-zà-ÿ]{4,}", names.lower()) if w not in _GENERIC and not _DATE.fullmatch(w)}
+    entities = [w for w in re.findall(r"\b[A-Z]{2,6}\b", text) if re.search(rf"\b{w}\b", names)]
+    entities += [w for w in re.findall(r"[a-zà-ÿ]{4,}", text.lower()) if w in own]
+    if not entities:
+        return []
+    return list(dict.fromkeys([*entities, *(m.group(0) for m in _DATE.finditer(text))]))
 
 
 def _names_a_roadblock(text: str) -> bool:
@@ -190,12 +235,6 @@ MODEL_ASKS: dict[str, str] = {
                 "shows. Judge ONLY whether the cost of the gap says how it was worked out: PASS when it names the "
                 "figures it rests on or a calculation is shown with it; FAIL only for a bare figure with nothing "
                 "behind it"),
-    # G-134: the question says what passes and what fails, in the project's terms.
-    "DEF-R13": ("code has already checked that at least one issue or barrier is named. Judge ONLY "
-                "whether they belong to THIS project: PASS when the roadblocks named mention something "
-                "concrete from it — a site, process, system, team, rule, supplier, date or event; FAIL "
-                "only when they are generic labels that would fit any project ('resources', 'time', "
-                "'stakeholder buy-in', 'resistance to change') with nothing concrete from this project"),
 }
 
 

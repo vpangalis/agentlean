@@ -1094,7 +1094,7 @@ def _build_executor(
             BeforeModelStateInjection(
                 phase, state, config,
                 prior_documents=_prior_gate_documents(phase, config),
-                # DEF-108 (W5) — on an upload turn, the file section 4 names, routed in code.
+                # DEF-108 (W5) — on an upload turn, the file section 5 names, routed in code.
                 upload=_unread_upload(state) if turn_type == turn_tools.UPLOAD else None,
             ),
             # 2 — before_agent + a registered `load_skill` tool.
@@ -1501,7 +1501,7 @@ def _grader_context(phase: str, state: PhaseState, field: Optional[str]) -> str:
 
 
 def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """This turn's quality verdict, for the NEXT turn's section 5: the grader's
+    """This turn's quality verdict, for the NEXT turn's section 4: the grader's
     failed criteria with their feedback. `None` when it did not run or runs
     log-only (the coherence judge is retired, ADR-0083)."""
     # A judge in `log_only` mode changes nothing — its verdict is recorded in step_log and does not
@@ -2885,7 +2885,7 @@ def _consumed_uploads(state: PhaseState, produced: list, citations: list[dict],
     # only its arguments and cannot reach `PhaseState`; the node inspects the
     # turn's tool calls afterwards.
     uploads, consumed = _mark_consumed(state, produced, citations)
-    # DEF-108 (W5) — an upload turn READ its file: section 4 named it, whether or not a numeric
+    # DEF-108 (W5) — an upload turn READ its file: section 5 named it, whether or not a numeric
     # column was loaded, so the next turn is not an upload turn again for the same file.
     routed = (_unread_upload(state) if turn_type == turn_tools.UPLOAD and not ROUTED_READ_FAILED.get()
               else None)
@@ -3673,7 +3673,7 @@ async def executor(
 
     # ── the move record and the quality feedback ride on the reply ────
     # The next turn's planner reads the record (status, answer, PENDING); the
-    # next turn's coach reads the feedback as section 5 of its input — never as
+    # next turn's coach reads the feedback as section 4 of its input — never as
     # a message from the Belt. Attached even when the turn degraded, so a
     # confirmed value the plan stored is not taught again.
     record = _turn_move_record(

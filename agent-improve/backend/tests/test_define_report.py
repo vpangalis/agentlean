@@ -55,7 +55,7 @@ COMPLETE: dict[str, Any] = {
                            {"name": "cycle_days", "unit": "days", "meaning": "invoice to payment"}],
     "baseline_estimate": metric_value("23%", unit="%"), "target_value": metric_value("5%", target=True, unit="%"),
     "target_date": "2027-03-31",
-    "project_scope": {"in_scope": "PO invoices", "out_scope": "payroll"},
+    "project_scope": {"in_scope": "PO invoices", "out_scope": "payroll and the ERP system"},   # G-263: the barrier's ERP
     "goal_statement": "23% to 5% by March 2027",
     "benefits_analysis": {"cost_of_gap": "£68k", "impact_type": "sustainable",
                           "realisation_schedule": "Q2 2027", "finance_contact": "Sam"},

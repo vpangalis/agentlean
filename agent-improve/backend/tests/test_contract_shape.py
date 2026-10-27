@@ -20,7 +20,7 @@ step exists to close, one level up.
 
 WHERE THE SHAPES TRAVEL — G-252 (founder ruling 2026-10-23, item 2e)
 ---------------------------------------------------------------------
-The shapes moved from `fields_captured`'s description to the turn's task section (section 4), named for
+The shapes moved from `fields_captured`'s description to the turn's task section (section 5), named for
 the fields the read-back carries — sent on every read-back, never loaded on demand. The history below
 is why they must reach the model every turn.
 Measured, 2026-09-23. The same four shapes were written into
@@ -44,7 +44,7 @@ from backend.phases.gate_registry import GATE_SPECS
 
 
 def _read_back_task(phase: str, field: str) -> str:
-    """Section 4 of a read-back of `field` — where the model is told the field's shape (G-252)."""
+    """Section 5 of a read-back of `field` — where the model is told the field's shape (G-252)."""
     plan = CoachingPlan(focus_field=field, status="answered", move="read_back",
                         pending={"field": field, "fields": [field], "belt_words": "the Belt's words", "messages": 1})
     state: Any = {"artifacts": {}, "phase_context": "", "coaching_plan": plan, "messages": []}

@@ -406,7 +406,7 @@ flowchart TB
   b2 --> loop
   subgraph loop["model / tool loop (≤ hop budget)"]
     s3["3 Summarization.before_model"] --> w1["1 StateInjection.wrap — prepend composed input"]
-    w1 --> w2["2 Skills.wrap — phase SKILL.md into system message"]
+    w1 --> w2["2 Skills.wrap — element script block into system message"]
     w2 --> w4["4 ModelRetry.wrap — retry transient failures"]
     w4 --> m(("model call"))
     m --> t5["5 ToolRetry.wrap — each tool call"]
@@ -440,8 +440,8 @@ below are §19's names for the original eight, not positions:
 
 | Middleware | Where, and what it does |
 |---|---|
-| **1 · `BeforeModelStateInjection`** | `middleware/state_injection.py`, custom.<br>`before_agent`: composes the coach input **once per turn** in six labelled sections, in this order: coaching rules · phase script · project state · this turn's move (authoritative) · last turn's quality feedback · conversation (ADR-0003).<br>The project-state section holds this phase's confirmed `artifacts`, earlier phases' approved records read from the Store, the phase's required fields, and what is still missing (computed at injection by `phases/gate_registry.py::missing_gate_fields`). For Define it opens with "WHERE THE BELT IS — Define · Step n of N — field", from `define_progress`.<br>`wrap_model_call`: prepends the composed block to every model request without recomputing it. Declared first, so its wrap encloses the model retry and a retry re-sends the same request.<br>Quality feedback is never presented as a Belt message; nothing is appended to `messages`. |
-| **2 · `DMAICSkillsMiddleware`** | `middleware/skills.py`, custom.<br>Every model call: the current phase's full SKILL.md in the system message; its version and hash are recorded in `step_log` each turn. The phase script is never left for the model to fetch.<br>Registers the tool `load_skill(name)` for other phases' scripts and level-3 reference files. |
+| **1 · `BeforeModelStateInjection`** | `middleware/state_injection.py`, custom.<br>`before_agent`: composes the coach input **once per turn** in six labelled sections, in this order: coaching rules · phase script · project state · last turn's quality feedback · this turn's move (authoritative) · conversation (ADR-0003, ADR-0111 D2).<br>The project-state section holds this phase's confirmed `artifacts`, earlier phases' approved records read from the Store, the phase's required fields, and what is still missing (computed at injection by `phases/gate_registry.py::missing_gate_fields`). For Define it opens with "WHERE THE BELT IS — Define · Step n of N — field", from `define_progress`.<br>`wrap_model_call`: prepends the composed block to every model request without recomputing it. Declared first, so its wrap encloses the model retry and a retry re-sends the same request.<br>Quality feedback is never presented as a Belt message; nothing is appended to `messages`. |
+| **2 · `DMAICSkillsMiddleware`** | `middleware/skills.py`, custom.<br>Every model call, as section 2 (`script_section`): the current element's block, then the opening on the first turn; the closing block once all are confirmed; never the whole script. Version and hash go to `step_log` each turn.<br>Registers `load_skill(name)` for another phase's script. |
 | **3 · `SummarizationMiddleware`** | LangChain, as shipped.<br>`before_model`: when the conversation passes the token trigger, older messages are replaced by a summary made with the operational model; the most recent messages are kept. Trigger and keep values are set in `_build_executor`. |
 | **Turn tools · `@wrap_model_call`** | (ADR-0069) — LangChain's dynamic tool selection: offers the model only the turn type's tools (`request.override(tools=…)`, §3.6); every tool stays registered. |
 | **Call limit · `ModelCallLimitMiddleware`** | LangChain, as shipped (ADR-0059, T69), declared just outside the fallback. `run_limit` is the coach's share of four model calls a turn, after the planner's judgment and the two after-agent checks; a run it ends gets the move's reply from code. The turn's count is `step_log`'s `call_budget`; calls inside tools, `tool_model_calls`. |
@@ -518,9 +518,9 @@ What each role reads, part by part in order, with each part's owner: ADR-0111's 
 ### 3.7 Skills
 
 `skills/dmaic-{phase}-phase/SKILL.md`: per element, what to teach, the worked example, the
-read-back wording and the acceptance criteria. Loaded by `DMAICSkillsMiddleware` with a
-small local file reader: level 1 descriptions at start-up, level 2 the current phase on every model
-call, level 3 references on demand. Move sequencing is never in a skill.
+read-back wording and the acceptance criteria. Read by `DMAICSkillsMiddleware` with a small local
+file reader: section 2 as §3.3 says (a gate field without a block fails `test_middleware.py`);
+another phase's script via `load_skill`. No level 3. Move sequencing is never in a skill.
 
 ### 3.8 Validation
 

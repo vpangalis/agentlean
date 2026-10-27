@@ -2054,7 +2054,7 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
     """DEF-108 — W5, ARCHITECTURE §3.6 and ADR-0074 (founder 2026-10-01): every new upload makes the
     next turn an upload turn, and the file is judged against the current element when it is
     interpreted. (a) A file the Belt adds is in the case files; its interpretation is asked about the
-    element the planner is on; the next turn is an upload turn: section 4 names the file and says the
+    element the planner is on; the next turn is an upload turn: section 5 names the file and says the
     file part is written in code; the reply opens with that part — the file named, what it shows for
     the element, what it does not cover and the ask — and step_log records the check. (b) The turn
     after is not an upload turn: the phase record keeps the file read (ADR-0066). (c) A record from
@@ -9351,27 +9351,28 @@ def test_the_same_answer_gets_the_same_verdict(env, monkeypatch, stub_planner) -
 
     async def flipping(criteria, document):
         asked.append([cid for cid, _, _ in criteria])
-        fail_r13 = len(asked) <= rubric.GATE_VOTES             # G-241: the first judgment is GATE_VOTES calls
+        fail_r11 = len(asked) <= rubric.GATE_VOTES             # G-241: the first judgment is GATE_VOTES calls
+        # G-263: DEF-R13 is decided in code; DEF-R11 (secondary metrics) is a model-judged criterion
         return rubric.GraderVerdict(verdicts=[
-            rubric.CriterionVerdict(criterion=cid, status="fail" if fail_r13 and cid == "DEF-R13" else "pass",
-                                    feedback="generic barriers" if fail_r13 and cid == "DEF-R13" else "")
+            rubric.CriterionVerdict(criterion=cid, status="fail" if fail_r11 and cid == "DEF-R11" else "pass",
+                                    feedback="the primary metric restated" if fail_r11 and cid == "DEF-R11" else "")
             for cid, _, _ in criteria])
     monkeypatch.setattr(rubric, "_llm_verdicts", flipping)
     one = _submit(env)
     two = _submit(env)
     assert len(asked) == rubric.GATE_VOTES, f"the unchanged report went to the model again: {asked}"
     assert one["passed"] is False and two["passed"] is False, (one, two)
-    assert one["missing_fields"] == two["missing_fields"] and "DEF-R13" in one["missing_fields"][0], (one, two)
+    assert one["missing_fields"] == two["missing_fields"] and "DEF-R11" in one["missing_fields"][0], (one, two)
 
     # a changed element: only its criteria are judged (code level, the kept verdicts as the gate keeps them)
     kept = rubric.kept_verdicts(COMPLETE, rubric.GraderVerdict(verdicts=[
         rubric.CriterionVerdict(criterion=cid, status="pass", feedback="") for cid, _, _ in rubric.DEFINE_CRITERIA]))
-    edited = {**COMPLETE, "issues_and_barriers": COMPLETE["issues_and_barriers"] + " Also the auditors' visit."}
+    edited = {**COMPLETE, "secondary_metrics": COMPLETE["secondary_metrics"] + ", and overtime in AP"}
     asked.clear()
     import asyncio
     asyncio.run(rubric.grade_define(edited, judge=flipping, kept=kept))
-    on_13 = [cid for cid, field, _ in rubric.DEFINE_CRITERIA if field == "issues_and_barriers"]
-    assert asked and set(asked[0]) <= set(on_13), f"criteria on unchanged elements were judged again: {asked}"
+    on_11 = [cid for cid, field, _ in rubric.DEFINE_CRITERIA if field == "secondary_metrics"]
+    assert asked and set(asked[0]) <= set(on_11), f"criteria on unchanged elements were judged again: {asked}"
 
 
 def test_practice_lookup_returns_only_the_cases_industry_and_licensed_content() -> None:
