@@ -710,6 +710,17 @@ async def decide(phase: str, artifacts: dict[str, Any],
                 messages=so_far + 1, reason=reason)
 
 
+def _sipoc_store(phase: str, value: dict[str, Any], words: str, artifacts: Optional[dict[str, Any]]) -> Any:
+    """The SIPOC a Confirm stores, from the coach's capture: ADR-0078 (DEF-084) — steps as entries with stable ids,
+    their figures read in code. G-332 (DEF-259, founder test 2026-10-27 #60): when the Belt labelled the columns, a
+    column the Belt did not label is not taken from the capture — the live coach wrote Outputs the Belt never gave, and
+    the all-six check passed on them."""
+    from backend.phases.define import parse
+    if phase == "define" and len(labelled := parse.parse_sipoc(words)) >= 2:
+        value = {k: v for k, v in value.items() if k not in parse.SIPOC_KEYS or k in labelled}
+    return parse.sipoc_with_performance(value, (artifacts or {}).get("process_map_sipoc"))
+
+
 def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
                   artifacts: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """What a confirmation of this read-back will store.
@@ -771,8 +782,7 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
             # ADR-0088 decision 2: the rows as the Belt stated them, never a cross product.
             value = parse.ctq_rows(value)
         if f == "process_map_sipoc" and isinstance(value, dict):
-            # ADR-0078 (DEF-084): steps as entries with stable ids, their figures read in code.
-            value = parse.sipoc_with_performance(value, (artifacts or {}).get("process_map_sipoc"))
+            value = _sipoc_store(phase, value, words, artifacts)
         verbatim =(f == field and one_message and f not in COMPOSED_FIELDS and not structured
                     and (value is None or isinstance(value, str)))
         if verbatim:

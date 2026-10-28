@@ -4368,15 +4368,23 @@ def test_g121_a_structured_element_is_never_confirmed_as_prose(env, monkeypatch)
     assert re.search(r"not stored yet", body["answer"], re.I), body["answer"]
     assert "customers and process metrics columns" in body["answer"], body["answer"]
 
-    # 2 — the two missing columns given: the six parse, Confirm stores the SIPOC as six columns.
-    rest = "Customers: the suppliers and ward managers. Process metrics: days to pay."
-    _coach_saying(monkeypatch, f'Here is your SIPOC: "{partial} {rest}" Is this right?',
-                  captured=[{"field_name": "process_map_sipoc", "value": f"{partial} {rest}", "source": "belt"}])
+    # 2 — the two missing columns given, with the step times and how often the whole process runs (R17; since
+    #     DEF-259, 2026-10-28, "Step times and how often" is a code check — R-G: how often once, for the whole
+    #     process): the coach captures the six columns as the live coach does, and Confirm stores all six.
+    rest = ("Customers: the suppliers and ward managers. Process metrics: days to pay. Each step takes about 1 "
+            "working day; the whole process about 4 working days, about 600 invoices a week.")
+    steps = [{"name": n, "duration": {"avg": "about 1 working day"}} for n in ("receive", "match", "approve", "pay")]
+    _coach_saying(monkeypatch, f'Here is your SIPOC: "{partial} {rest}" Is this right?', captured=[
+        {"field_name": "process_map_sipoc", "source": "belt", "value": {
+            "suppliers": "our suppliers", "inputs": "invoices", "process_steps": steps, "outputs": "paid invoices",
+            "customers": "the suppliers and ward managers", "process_metrics": "days to pay",
+            "process_performance": {"lead_time": "about 4 working days",
+                                    "runs_per_period": "about 600 invoices a week"}}}])
     ask(message=rest)
     ask(message="Confirm", action="confirm")
     sipoc = stored().get("process_map_sipoc")
-    assert isinstance(sipoc, dict) and sorted(sipoc) == sorted(
-        ["suppliers", "inputs", "process_steps", "outputs", "customers", "process_metrics"]), sipoc
+    assert isinstance(sipoc, dict) and {"suppliers", "inputs", "process_steps", "outputs", "customers",
+                                        "process_metrics"} <= set(sipoc), sipoc
 
 
 def test_g120_a_target_written_as_a_limit_is_judged_in_code(env, monkeypatch, stub_planner) -> None:
@@ -10337,7 +10345,7 @@ FLAWED_SIPOC_60 = (
     "a month.")
 #: What the live coach captured from it (the turn's trace): the Belt's columns, its steps with their times — and
 #: Outputs the Belt never gave.
-CAPTURED_SIPOC_60 = {
+CAPTURED_SIPOC_60: dict[str, Any] = {
     "suppliers": "customers, field technicians, the spare-parts team",
     "inputs": "the complaint by phone or e-mail, customer and device data, technician reports",
     "process_steps": [
@@ -10367,8 +10375,10 @@ def test_def_259_the_sipoc_code_checks_gate_the_read_back(env, monkeypatch, stub
     asked, and "step times and how often" was ticked on the planner's judgment. Through POST /ask, with the planner
     judging "sufficient" as it did live and the coach capturing what it captured live: (a) all-six is not met, names
     the outputs and Confirm is closed; (b) the reply asks about the steps adding up to 4 of the 8 working days; (c)
-    the performance row is not met and the card asks for how often; (d) no value the Belt did not give reaches the
-    card or what a Confirm would store; (e) a Confirm stores nothing."""
+    the performance row is a code check, never the planner's verdict (ruling R-G, applied by the founder 2026-10-28:
+    how often is given once, for the whole process — every step here has a time and the whole process "about 100
+    complaints a month", so it is met in code); (d) no value the Belt did not give reaches the card or what a Confirm
+    would store; (e) a Confirm stores nothing."""
     import json
 
     from backend.core.substate import SufficiencyJudgment
@@ -10403,11 +10413,12 @@ def test_def_259_the_sipoc_code_checks_gate_the_read_back(env, monkeypatch, stub
     reply = " ".join(str(read.get(k) or "") for k in ("answer", "explanation"))
     assert "The steps add up to" in reply and "you said 8 working days" in reply, reply
 
-    # (c) how often is given on step 1 only: the performance row is open and the card asks for it.
+    # (c) R-G (founder 2026-10-28): how often once, for the whole process. The row is met in code — each step has a
+    # time, the whole process a how often — and shows the three steps the Belt gave no frequency for as "—".
     performance = rows["performance"]
-    assert performance["met"] is False, performance["value"]
+    assert performance["met"] is True, performance["value"]
     assert [row[2] for row in performance["value"]["rows"][1:4]] == ["—", "—", "—"], performance["value"]
-    assert "how often" in card["ask"].lower(), card["ask"]
+    assert performance["value"]["rows"][-1][0] == "Whole process", performance["value"]
 
     # (d) nothing the Belt did not say: the invented Outputs are on neither the card nor the pending store.
     pending = ((_define(env).get("field_status") or {}).get("process_map_sipoc") or {}).get("pending") or {}
@@ -10425,7 +10436,8 @@ def _def_259_unit_checks() -> None:
     """DEF-259 — the unit twins of finding #60 (founder test 2026-10-27): what a Confirm would store is read from the
     Belt's words, so the Outputs the coach invented are not there and all-six is open; the step-sum question compares
     the steps with the lead time across units (15 minutes + 4 working days against 8 working days); and the
-    performance criterion is a code check — open while a step has no how often."""
+    performance criterion is a code check (R-G: how often once, for the whole process) — met without the planner's
+    verdict, open while a step has no time or no how often is given at all."""
     from backend.phases import moves
     from backend.phases.define import parse, templates
 
@@ -10439,7 +10451,15 @@ def _def_259_unit_checks() -> None:
     assert not [w for w in INVENTED_OUTPUTS_60 if w in str(store)], store
     assert moves.store_missing(["process_map_sipoc"], {}, store) == ["process_map_sipoc"], store
     assert "all-six" in templates.open_required("process_map_sipoc", {**store}, judged=True)
-    assert "performance" in templates.open_required("process_map_sipoc", {"process_map_sipoc": stored}, judged=True)
+    assert "performance" not in templates.open_required("process_map_sipoc", {"process_map_sipoc": stored},
+                                                        judged=False)
+    untimed = {**CAPTURED_SIPOC_60, "process_steps": [*CAPTURED_SIPOC_60["process_steps"],
+                                                      {"name": "close the case in the system"}]}
+    never_often = {**CAPTURED_SIPOC_60, "process_steps": CAPTURED_SIPOC_60["process_steps"][1:],
+                   "process_performance": {"lead_time": "about 8 working days"}}
+    for sipoc in (untimed, never_often):
+        assert "performance" in templates.open_required(
+            "process_map_sipoc", {"process_map_sipoc": parse.sipoc_with_performance(sipoc)}, judged=True), sipoc
 
 
 def test_def_265_the_project_lead_is_in_the_team_read_back() -> None:

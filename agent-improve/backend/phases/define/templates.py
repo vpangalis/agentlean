@@ -245,7 +245,11 @@ def _performance(values: dict[str, Any]) -> Read:
     if perf.get("lead_time") or perf.get("runs_per_period"):
         rows.append(["Whole process", text(perf.get("lead_time")) if perf.get("lead_time") else "—",
                      text(perf.get("runs_per_period")) if perf.get("runs_per_period") else "—", "—"])
-    return {"columns": ["Step", "Time (range)", "How often", "Problems seen"], "rows": rows}, None
+    # G-332 (DEF-259): a code check, never the planner's verdict — every step has a time, and how often is given once
+    # for the whole process (ruling R-G, founder 2026-10-27; applied 2026-10-28) or for every step.
+    timed = all(any(st["duration"].get(k) for k in parse.DURATION_KEYS) for st in steps)
+    often = bool(perf.get("runs_per_period")) or all(st.get("runs_per_period") for st in steps)
+    return {"columns": ["Step", "Time (range)", "How often", "Problems seen"], "rows": rows}, timed and often
 
 
 def _stated(statement: str) -> Callable[[dict[str, Any]], Read]:

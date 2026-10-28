@@ -724,12 +724,31 @@ def duration_questions(sipoc: Any) -> list[str]:
         asks.append("Some times are in working days and some in calendar days — which should they all be in?")
     averages = [s["duration"]["avg"] for s in steps if s["duration"].get("avg", {}).get("value") is not None]
     lead = perf.get("lead_time")
-    if lead and lead.get("value") and averages and len({a["unit"] for a in averages if a["value"]} | {lead["unit"]}) == 1:
-        total = sum(a["value"] for a in averages)
-        if abs(total - lead["value"]) > 0.25 * lead["value"]:
-            asks.append(f"The steps add up to {total:g} {lead['unit']}, you said {lead['value']:g} {lead['unit']} "
-                        "from start to end — is there waiting time between the steps?")
+    if lead and lead.get("value") and averages:
+        total = _steps_total(averages, lead)
+        if total is not None and abs(total - lead["value"]) > 0.25 * lead["value"]:
+            asks.append(f"The steps add up to {round(total, 1):g} {lead['unit']}, you said {lead['value']:g} "
+                        f"{lead['unit']} from start to end — is there waiting time between the steps?")
     return asks
+
+
+#: G-332 (DEF-259): the units a step sum converts across — one kind of day with the minutes and hours of a working
+#: day, or calendar days with weeks and months. "Days" of no kind is never converted: its question is asked first.
+_SUMMABLE = (frozenset({"minutes", "hours", "working days"}),
+             frozenset({"minutes", "hours", "calendar days", "weeks", "months"}))
+
+
+def _steps_total(averages: list[dict[str, Any]], lead: dict[str, Any]) -> Optional[float]:
+    """The steps' averages added up in the lead time's unit: as they are when they share it; converted when they mix
+    units that convert (G-332, founder test 2026-10-27 #60: "about 15 minutes" + 4 working days against 8 working
+    days); None when they mix units that do not."""
+    units = {a["unit"] for a in averages if a["value"]} | {lead["unit"]}
+    if len(units) == 1:
+        return float(sum(a["value"] for a in averages))
+    if not any(units <= s for s in _SUMMABLE):
+        return None
+    minutes = [_in_minutes(a) for a in averages]
+    return sum(m for m in minutes if m is not None) / _MINUTES[lead["unit"]]
 
 
 def _step_name(entry: Any) -> str:

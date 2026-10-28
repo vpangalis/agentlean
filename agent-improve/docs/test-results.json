@@ -1,9 +1,9 @@
 {
- "source_hash": "23f457fb55222d64",
- "commit": "36a0285",
+ "source_hash": "cc196a690c944e97",
+ "commit": "d0fa811",
  "commit_matches_source": false,
  "full_run_hash": "23f457fb55222d64",
- "recorded_at": "2026-10-28T15:15:37+00:00",
+ "recorded_at": "2026-10-28T15:58:52+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -455,7 +455,7 @@
   "backend/tests/test_define_e2e.py::test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures": "passed",
   "backend/tests/test_define_e2e.py::test_ctq_rows_are_the_rows_the_belt_stated": "passed",
   "backend/tests/test_define_e2e.py::test_def_257_a_turn_reads_its_checkpoint_once_and_saves_each_checkpoint_in_one_round": "passed",
-  "backend/tests/test_define_e2e.py::test_def_259_the_sipoc_code_checks_gate_the_read_back": "skipped",
+  "backend/tests/test_define_e2e.py::test_def_259_the_sipoc_code_checks_gate_the_read_back": "passed",
   "backend/tests/test_define_e2e.py::test_def_260_a_stated_soft_benefit_is_stored": "skipped",
   "backend/tests/test_define_e2e.py::test_def_261_the_expected_saving_is_calculated_from_the_confirmed_business_case": "skipped",
   "backend/tests/test_define_e2e.py::test_def_262_the_gate_baseline_row_is_number_source_and_period": "skipped",

@@ -1980,8 +1980,11 @@ def _missing_words(phase: str, missing: list[str], artifacts: dict[str, Any],
             parts.extend(missing_parts(f, (pending.get("store") or {}).get(f)))      # ADR-0088 decision 6
         elif f in METRIC_FIELDS:
             parts.append(f"a number with its unit for the {f.replace('_', ' ')}")
-        elif f == "process_map_sipoc" and isinstance(store.get(f), dict):
-            cols = [c.replace("_", " ") for c in missing_columns(store.get(f))]
+        elif f == "process_map_sipoc" and isinstance(sipoc := (pending.get("store") or {}).get(f, store.get(f)), dict) \
+                and missing_columns(sipoc):
+            # G-332 (DEF-259): the columns of what a Confirm would store — never of the coach's capture, which held
+            # Outputs the Belt never gave ("still needs the  columns").
+            cols = [c.replace("_", " ") for c in missing_columns(sipoc)]
             named = " and ".join([", ".join(cols[:-1]), cols[-1]] if len(cols) > 1 else cols)
             parts.append(f"the {named} column{'s' if len(cols) != 1 else ''} of the process map")
         elif phase == "define" and f == pending.get("field") and _open_rows(f, store, pending):
@@ -3342,6 +3345,10 @@ def _code_written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPl
         said = (SAMPLE_COPIED.format(element=element) if set(copied) & set(short) else
                 STORE_SHORT.format(element=element, missing=_missing_words(phase, short, prior_artifacts, pending or {}))
                 if short else STORE_PLACEHOLDER.format(element=element, gap="; ".join(f"“{g}”" for g in unfilled[:3])))
+        # G-332 (DEF-259, founder test 2026-10-27 #60): the step-time questions are asked with what is missing — the
+        # read-back's own lines are not shown on this turn, and "the steps add up to 4, you said 8" was never asked.
+        from backend.phases.define.parse import duration_questions
+        said = " ".join([said, *duration_questions(((pending or {}).get("store") or {}).get("process_map_sipoc"))])
         new_messages = _with_text(new_messages, said)
         if reply is not None:
             reply = reply.model_copy(update={"message": said, "explanation": "", "example": "", "prompt": ""})

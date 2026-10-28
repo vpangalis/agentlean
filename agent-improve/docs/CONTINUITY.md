@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 167 of 238 Define features pass, 34 more proven on earlier code (core 164 of 229) — A 55/96 · B 37/40 · C 59/77 · integrator 16/25 · M1: 53 proven · 23 awaiting fresh run · 18 open |
+| **Headline** | 168 of 238 Define features pass, 34 more proven on earlier code (core 165 of 229) — A 56/96 · B 37/40 · C 59/77 · integrator 16/25 · M1: 54 proven · 23 awaiting fresh run · 17 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-262 — Gate E's Baseline row reads the number, the source and the period — never the whole answer |
