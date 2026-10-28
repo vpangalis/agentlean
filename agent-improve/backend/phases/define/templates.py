@@ -654,6 +654,12 @@ def gate_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any
 _TIME = re.compile(r"time|hours|commitment|availab|capacity", re.I)
 _LEAD = re.compile(r"\blead(?:er)?\b", re.I)
 _DASH = "—"
+#: DEF-265 (founder test 2026-10-27 #21, #29; wording ruled by the founder 2026-10-28): the team table's statuses in
+#: plain words — the lead's matches the role — and the one line under the table that explains them.
+LEAD_STATUS = "Leads the project"
+PERSON_STATUS = {"member": "On the case", "proposed": "Proposed — the lead confirms"}
+TEAM_STATUS_NOTE = ("On the case: can open and work on the case. Proposed: named in the team, not yet confirmed by "
+                    "the project lead in the team panel.")
 
 
 def _time_of(m: dict[str, Any]) -> str:
@@ -662,13 +668,15 @@ def _time_of(m: dict[str, Any]) -> str:
     return str(v or "").strip() or _DASH
 
 
-def _team_table(artifacts: dict[str, Any], case: dict[str, Any]) -> dict[str, Any]:
+def _team_table(artifacts: dict[str, Any], case: dict[str, Any], *, before_confirm: bool = False) -> dict[str, Any]:
     """DEF-176 (gate_view_mockup.html, section A): ONE table,
     Name | Role | Function | Time | Training | Status — the project lead first under the case's one name for the
     lead (ADR-0090 decision 4), then the champion (named as such), the process owner and the members, each as
     their confirmed entry states it, with member / proposed from their person record; then anyone on the case
     element 2 does not name. "—" where nothing states a value. The department is one case-level line above the
-    table, not a column."""
+    table, not a column. DEF-265: the lead's status is "Leads the project"; a person's, in plain words; before the
+    Confirm (`before_confirm`, the read-back) a named member not yet on the case is the proposed member the Confirm
+    makes (ADR-0090); `note` explains the statuses."""
     def _norm(t: Any) -> str:
         return " ".join(str(t or "").lower().split())
     team = _team(artifacts)
@@ -686,8 +694,9 @@ def _team_table(artifacts: dict[str, Any], case: dict[str, Any]) -> dict[str, An
         return hits[0] if len(hits) == 1 else None          # never a guess between two
 
     def status(p: Optional[dict[str, Any]]) -> str:
-        return {"member": "Member", "proposed": "Proposed"}.get(str((p or {}).get("status") or "member"), _DASH) \
-            if p else _DASH
+        if p is None:
+            return PERSON_STATUS["proposed"] if before_confirm else _DASH
+        return PERSON_STATUS.get(str(p.get("status") or "member"), _DASH)
 
     def is_lead(m: dict[str, Any]) -> bool:
         if lead and named(m.get("name"), lead):
@@ -702,8 +711,7 @@ def _team_table(artifacts: dict[str, Any], case: dict[str, Any]) -> dict[str, An
         rows.append([lead or str(e.get("name") or _DASH), "Project lead",
                      str(e.get("function") or (record or {}).get("function") or "").strip()
                      or (f"{belt.capitalize()} Belt" if belt else _DASH),
-                     _time_of(e) if e else _DASH, (_member_training(e) if e else None) or _DASH,
-                     status(record) if record else _DASH])
+                     _time_of(e) if e else _DASH, (_member_training(e) if e else None) or _DASH, LEAD_STATUS])
     rest = [m for m in team if m is not entry]
     champions = [m for m in rest if parse._CHAMPION.search(str(m.get("role") or ""))]
     order = champions + [m for m in rest if parse._OWNER.search(str(m.get("role") or ""))
@@ -723,7 +731,8 @@ def _team_table(artifacts: dict[str, Any], case: dict[str, Any]) -> dict[str, An
             continue
         rows.append([str(p.get("full_name") or "").strip() or _DASH, str(p.get("role") or "").strip() or _DASH,
                      str(p.get("function") or "").strip() or _DASH, _DASH, _DASH, status(p)])
-    return {"kind": "table", "columns": ["Name", "Role", "Function", "Time", "Training", "Status"], "rows": rows}
+    return {"kind": "table", "columns": ["Name", "Role", "Function", "Time", "Training", "Status"], "rows": rows,
+            "note": TEAM_STATUS_NOTE}
 
 
 #: DEF-178: the 5W2H table's row labels in the Gate (gate_view_mockup.html, section C).

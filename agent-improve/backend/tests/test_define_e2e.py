@@ -6660,15 +6660,19 @@ def test_gate_view_section_a_follows_the_mockup() -> None:
     view = team["view"]
     assert view["kind"] == "table" and view["columns"] == [
         "Name", "Role", "Function", "Time", "Training", "Status"], view
+    # DEF-265 (founder test 2026-10-27 #21, #29; the words ruled 2026-10-28): the lead's status matches the role, the
+    # others' are plain words, and one line under the table explains them.
     assert view["rows"] == [
-        ["Vassilis Pangalis", "Project lead", "Green Belt", "—", "—", "Member"],
+        ["Vassilis Pangalis", "Project lead", "Green Belt", "—", "—", "Leads the project"],
         ["Katharina Huber", "Project Sponsor (Champion)", "Head of Field Service Austria", "2 h per month", "none",
-         "Member"],
+         "On the case"],
         ["Markus Steiner", "Process owner", "Service Desk Lead Vienna", "4 h per week", "none", "—"],
         ["Elena Gruber", "Team member", "Field Technician Coordinator", "4 h per week",
-         "half a day on data collection", "Proposed"],
+         "half a day on data collection", "Proposed — the lead confirms"],
         ["Sabine Hofer", "Team member", "Quality and Complaints Manager", "3 h per week", "none", "—"],
-        ["Max Berg", "Analyst", "—", "—", "—", "Proposed"]], view["rows"]
+        ["Max Berg", "Analyst", "—", "—", "—", "Proposed — the lead confirms"]], view["rows"]
+    assert view["note"].startswith("On the case: can open and work on the case. Proposed:"), view
+    assert "On the case: can open and work on the case." in html, "the statuses are not explained under the table"
     # One name for the lead: the team naming the lead by first name only still gives one lead row, the case's name;
     # the belt level is the lead's function when nothing else states one.
     short, _ = _a99_gate(team=[{"name": "Vassilis", "role": "Lead"},
@@ -6685,7 +6689,7 @@ def test_gate_view_section_a_follows_the_mockup() -> None:
     for th in view["columns"]:
         assert f">{th}</th>" in table, (th, table[:400])
     assert table.count("Vassilis Pangalis") == 1 and "Project lead" in table, table[:1500]
-    assert "half a day on data collection" in table and "2 h per month" in table and "<td>Proposed</td>" in table
+    assert "half a day on data collection" in table and "2 h per month" in table and "<td>Leads the project</td>" in table
     assert table.index("Vassilis Pangalis") < table.index("Katharina Huber") < table.index("Elena Gruber")
     for gone in ("Project lead:", "Champion:", "Belt level:", "The people on the case"):
         assert gone not in a, (gone, a[:1500])

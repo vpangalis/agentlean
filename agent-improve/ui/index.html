@@ -4781,7 +4781,9 @@ function defineReportHtml(rep, isPassed, approvedAt) {
       bar('target', 'Target', ch.target, '#1E6B3A')}${axis}</div>`;
   };
   const viewHtml = v => {
-    if (v.kind === 'table') return viewTable(v, v.columns && v.columns[0] === 'Customer' ? 'gate-ctq' : 'gate-team') + viewWhy(v.why);
+    // DEF-265 (founder 2026-10-28): the team table's statuses explained in one line under it.
+    if (v.kind === 'table') { const ctq = v.columns && v.columns[0] === 'Customer';
+      return viewTable(v, ctq ? 'gate-ctq' : 'gate-team') + viewWhy(v.why) + (ctq ? '' : viewWhy(v.note)); }
     if (v.kind === 'kv') return `<dl class="kv" style="display:grid;grid-template-columns:minmax(110px,170px) 1fr;gap:4px 12px;margin:6px 0;font-size:11px">${
       kvItems(v.figures, 'figure')}${kvItems(v.items, '')}</dl>` + (v.chart ? figure('baseline_target', chartHtml(v.chart)) : '');
     if (v.kind === 'boxes') return `<div class="scope-boxes" style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0">${
@@ -6206,7 +6208,9 @@ function elementValueHtml(v){
     '<div style="flex:1;min-width:140px;padding:6px 8px;background:var(--surface2);border-radius:var(--radius-sm)"><b>'+escapeHtml(b[0])+':</b> '+escapeHtml(b[1])+'</div>').join('')+'</div>';
   if(typeof v==='object'&&Array.isArray(v.rows)){
     const head=(v.columns||[]).some(c=>c)?'<tr>'+(v.columns||[]).map(c=>'<th>'+escapeHtml(c)+'</th>').join('')+'</tr>':'';
-    return '<div class="el-scroll"><table class="sub">'+head+v.rows.map(r=>'<tr>'+r.map(c=>'<td>'+escapeHtml(c)+'</td>').join('')+'</tr>').join('')+'</table></div>';
+    // DEF-265: a table's one explaining line (the team's statuses) under it.
+    const note=v.note?'<div class="field-why" style="font-size:9.5px;color:#8A93A0">'+escapeHtml(v.note)+'</div>':'';
+    return '<div class="el-scroll"><table class="sub">'+head+v.rows.map(r=>'<tr>'+r.map(c=>'<td>'+escapeHtml(c)+'</td>').join('')+'</tr>').join('')+'</table></div>'+note;
   }
   return escapeHtml(v);
 }
