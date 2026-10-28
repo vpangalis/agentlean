@@ -720,6 +720,20 @@ async def decide(phase: str, artifacts: dict[str, Any],
                 messages=so_far + 1, reason=reason)
 
 
+def _structured_store(phase: str, field: str, value: dict[str, Any], words: str,
+                      artifacts: Optional[dict[str, Any]]) -> Any:
+    """A structured capture as a Confirm stores it: the SIPOC (`_sipoc_store`); the benefits analysis with the soft
+    benefits the Belt stated (ADR-0096 decision 1, DEF-260, founder test 2026-10-27 #52), read in code from the
+    Belt's words — the live coach captured the four hard keys only and the soft benefit was lost."""
+    if field == "process_map_sipoc":
+        return _sipoc_store(phase, value, words, artifacts)
+    if phase == "define" and field == "benefits_analysis":
+        from backend.phases.define import parse
+        soft = parse.soft_benefits(words)
+        return {**value, "soft_benefits": soft} if soft else value
+    return value
+
+
 def _sipoc_store(phase: str, value: dict[str, Any], words: str, artifacts: Optional[dict[str, Any]]) -> Any:
     """The SIPOC a Confirm stores, from the coach's capture: ADR-0078 (DEF-084) — steps as entries with stable ids,
     their figures read in code. G-332 (DEF-259, founder test 2026-10-27 #60): when the Belt labelled the columns, a
@@ -792,8 +806,8 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
         if phase == "define" and f == "critical_to_quality" and isinstance(value, list):
             # ADR-0088 decision 2: the rows as the Belt stated them, never a cross product.
             value = parse.ctq_rows(value)
-        if f == "process_map_sipoc" and isinstance(value, dict):
-            value = _sipoc_store(phase, value, words, artifacts)
+        if isinstance(value, dict):
+            value = _structured_store(phase, f, value, words, artifacts)
         verbatim =(f == field and one_message and f not in COMPOSED_FIELDS and not structured
                     and (value is None or isinstance(value, str)))
         if verbatim:

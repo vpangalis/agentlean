@@ -407,6 +407,39 @@ _START = re.compile(r"\b(?:from|starting|beginning|as of|after)\b|\bQ[1-4]\b|\b2
 _SUSTAINED = re.compile(r"\bsustain|\bon-?going\b|\bevery year\b|\brecurr", re.I)
 
 
+#: ADR-0096 decision 1 (DEF-260): the soft benefits the Belt labels ("Soft benefit: fewer escalations to account managers,
+#: seen in the monthly escalation count"), each split from how it will be seen.
+_SOFT_LABEL = re.compile(r"(?i)\bsoft benefits?\s*:\s*")
+_NEXT_LABEL = re.compile(r"(?i)\n|\b(?:hard benefits?|cost of the gap|finance contact|impact|realisation)\s*:")
+_SEEN = re.compile(r"(?i)\s*(?:\(|,|;|—|-)?\s*\b(?:seen|visible|shown|measured|tracked|counted)\s+(?:in|by|through|via|as)\s+")
+_NONE_SOFT = re.compile(r"(?i)^\s*(?:none|none identified|no soft benefits?)\b")
+
+
+def soft_benefits(words: Any) -> list[dict[str, str]]:
+    """ADR-0096 decision 1 (DEF-260, founder test 2026-10-27 #52): `[{benefit, indicator}]` from the Belt's labelled
+    soft benefits, in the Belt's words — never converted into money. "None identified" is a conscious answer, kept as
+    one entry. Empty when the Belt labelled none."""
+    text = str(words or "")
+    out: list[dict[str, str]] = []
+    for label in _SOFT_LABEL.finditer(text):
+        rest = text[label.end():]
+        stop = _NEXT_LABEL.search(rest)
+        part = rest[:stop.start()] if stop else rest
+        if _NONE_SOFT.match(part):
+            out.append({"benefit": "None identified", "indicator": ""})
+            continue
+        for item in list_items(part) or [part]:
+            item = item.strip().rstrip(".").strip()
+            if not item:
+                continue
+            split = _SEEN.search(item)
+            benefit = (item[:split.start()] if split else item).strip(" ,;(—-")
+            indicator = (item[split.end():] if split else "").strip(" .)")
+            if benefit:
+                out.append({"benefit": benefit, "indicator": indicator})
+    return out
+
+
 def realisation_stated(benefits: Any) -> bool:
     """G-255: the benefits' `realisation` criterion, read in code — in Define a schedule by
     period meets it, and so does a start date with the saving sustained or ongoing (said in the schedule or as the
