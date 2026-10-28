@@ -35,7 +35,7 @@ A feature passes only when its end-to-end test passes.*
 | **Still open** | G-139 — its cause is NOT captured: it occurred on 1 run of 3 on the pre-G-140 code (174434) and on neither run since; the diagnosis is live on every run. G-141 (DEF-002) waits on it |
 | **Found and fixed** | f511b68: 416d9df's merge regex took the name of rule 8's and crashed the guard on any `Feature:` trailer (failed closed; nothing landed under it) |
 
-## ⇒ CURRENT POSITION — 2026-10-27
+## ⇒ CURRENT POSITION — 2026-10-28
 
 *Hand-written, and the ONLY place the position is written: pointers, not copies. Update it at the end of
 every session. Every other hand-written section of this file is dated history.*
@@ -44,10 +44,10 @@ every session. Every other hand-written section of this file is dated history.*
 |---|---|
 | **Where Define stands** | The generated block's **Headline** above — never copied here |
 | **The brief** | Founder Define test 2026-10-27 (`docs/founder-inputs/FOUNDER_TEST_FINDINGS_2026-10-27.md`): step 0 and waves 0-3, then the checks; **define-v1.1 is NOT tagged until waves 0 and 1 pass** |
-| **Done** | Step 0 — the register, G-274 to G-343, features DEF-254 to DEF-288, rulings R-A to R-H and W20 (5cec7a5). Wave 0 — R-F, ADR-0113 (f04fa52), and G-343, wave 0's own regression found by the live slice (8666008); the live slice of element 12 with the founder's two SIPOC texts passes (record `live_slice_process_map_sipoc_20261027T180052.json`) |
-| **Waiting on** | The founder's review of wave 0 (`agent-improve/Claude outputs/WAVE0_REPORT_2026-10-27.md`) before wave 1 starts. ADR-0089 "Case location" is to be shown to the founder before it is accepted (DEF-288 waits on it) |
-| **Next** | Wave 1: DEF-259 to DEF-265 — each has its failing test with the founder's own inputs already in `backend/tests/test_define_e2e.py`. Then waves 2 (R-C card ADR-0114: a teaching turn makes no coach model call; R-A, R-B, R-D, R-E, R-G, R-H) and 3, then one eval run and one live run-through on the founder's field-service inputs |
-| **Owed** | The run-through record is stale since f04fa52 (34 features "proven on earlier code" until the next run-through) · a same-size save measurement (the slice's case is small) · the 15 Oct transcript replay (R-B change 4) · the one ARCHITECTURE.md update after Define |
+| **Done** | Step 0 — the register, G-274 to G-343, features DEF-254 to DEF-288, rulings R-A to R-H and W20 (5cec7a5). Wave 0 — R-F, ADR-0113 (f04fa52), and G-343, wave 0's own regression found by the live slice (8666008); the live slice of element 12 with the founder's two SIPOC texts passes (record `live_slice_process_map_sipoc_20261027T180052.json`). The founder's review of 2026-10-28: wave 0 accepted, ADR-0089 ACCEPTED with a sample site list (DEF-288 in wave 3), the G-343 lesson in LESSONS.md (36a0285). The full-size measurement: the same slice on a copy of IMPR-2026-PDLWG9 (105 messages, a 470 KB checkpoint) passes, every turn under 45 s, longest 38.5 s (record `live_slice_process_map_sipoc_20261028T145945.json`) |
+| **Waiting on** | A founder decision on the full-size save tail (below, Owed): an ADR is needed before it is built. Wave 1 does not wait on it |
+| **Next** | Wave 1 (started 2026-10-28): DEF-259 to DEF-265 — each has its failing test with the founder's own inputs already in `backend/tests/test_define_e2e.py`; report after wave 1, before wave 2. Then waves 2 (R-C card ADR-0114: a teaching turn makes no coach model call; R-A, R-B, R-D, R-E, R-G, R-H) and 3, then one eval run and one live run-through on the founder's field-service inputs |
+| **Owed** | The run-through record is stale since f04fa52 (34 features "proven on earlier code" until the next run-through) · the full-size save tail: 4.5-8.3 s after the answer, as before wave 0 — each turn writes 12 checkpoints of 470-627 KB (the whole conversation in each, twice: history and latest), about 13 MB at about 1.5 MB/s; the fix is a persistence change, so it needs an ADR (the founder's decision) · the 15 Oct transcript replay (R-B change 4) · the one ARCHITECTURE.md update after Define |
 
 ## ⇒ WHERE THE PLAN LIVES
 

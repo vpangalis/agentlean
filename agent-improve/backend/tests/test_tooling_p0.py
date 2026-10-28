@@ -341,3 +341,46 @@ def test_a_live_slice_replays_up_to_the_element_and_runs_only_it() -> None:
         return C()
     assert live_slice.replay(answering("read_back", "voc_summary"), "IMPR-X", plan)["passed"]
     assert not live_slice.replay(answering("read_back", "team"), "IMPR-X", plan)["passed"]
+
+
+def test_a_full_size_copy_asks_the_slice_s_element_again_and_keeps_every_message() -> None:
+    """Founder review 2026-10-28, item 3: the slice on a full-size copy of a real case. The copy keeps every message
+    as the Belt and the coach wrote it; only the newest Define record and the newest kept verdicts change, so the
+    slice's element is asked again (its draft answer, its link question and its verdicts gone) and the elements after
+    it are unset. A value already stored for the element is refused, never silently kept."""
+    import sys
+    sys.path.insert(0, str(PROJECT))
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    from backend.phases import record as phase_record
+    from scripts import live_slice
+    whole = {"phase": "define", "structured": {"business_case": "B"},
+             "field_status": {"business_case": {"status": "confirmed"}, "process_map_sipoc": {"status": "asked"}}}
+    draft = {"phase": "define", phase_record.DELTA: True,
+             "field_status": {"process_map_sipoc": {"status": "asked", "answer": "Suppliers: … the draft", "messages": 2,
+                                                    "link_raised": True},
+                              "issues_and_barriers": {"status": "asked"}}}
+    messages = [AIMessage(content="Welcome", additional_kwargs={phase_record.KEY: whole}),
+                HumanMessage(content="Suppliers: customers …"),
+                AIMessage(content="How do the steps add up?", additional_kwargs={
+                    phase_record.KEY: draft,
+                    phase_record.KEPT_KEY: {"phase": "define", "verdicts": {
+                        "business_case": {"judged": "sufficient"}, "process_map_sipoc": {"judged": "insufficient"}}}}),
+                HumanMessage(content="(1) Data: closure dates …")]
+    out = live_slice.reset_element(messages, "process_map_sipoc")
+    rec = phase_record.latest(out, "define") or {}
+    assert rec["field_status"]["process_map_sipoc"] == {"status": "asked"}, rec["field_status"]
+    assert "issues_and_barriers" not in rec["field_status"], rec["field_status"]
+    assert rec["field_status"]["business_case"] == {"status": "confirmed", "judged": "sufficient"}
+    assert rec["structured"] == {"business_case": "B"}
+    assert [m.content for m in out] == [m.content for m in messages], "a message's words changed"
+    assert messages[2].additional_kwargs[phase_record.KEY] is draft and draft["field_status"]["process_map_sipoc"][
+        "messages"] == 2, "the source conversation was changed in place"
+    held = [AIMessage(content="Read back", additional_kwargs={phase_record.KEY: {
+        **whole, "structured": {"business_case": "B", "process_map_sipoc": {"suppliers": ["customers"]}}}})]
+    try:
+        live_slice.reset_element(held, "process_map_sipoc")
+    except ValueError as e:
+        assert "process_map_sipoc" in str(e)
+    else:
+        raise AssertionError("a stored value was kept under a reset status")
