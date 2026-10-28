@@ -687,6 +687,13 @@ async def decide(phase: str, artifacts: dict[str, Any],
                         **_attempts(entry), **_earlier_kw(entry, pending), **_upload_kw(pending)}
         return done(field, fields, status, CHALLENGE, answer=words,
                     messages=int(pending.get("messages") or 1), reason=CHANGE_REASON)
+    if action == CHANGE_CLICK and not pending and str(entry.get("answer") or "").strip():
+        # Wave 1's final slice (founder's flawed SIPOC, 2026-10-28): Change pressed under a read-back a Confirm could
+        # not store (the short card, G-163) shows the answer to edit, as under any read-back — never judged as the
+        # answer "Change".
+        words = str(entry.get("answer") or "")
+        return done(field, fields, status, CHALLENGE, answer=words,
+                    messages=int(entry.get("messages") or 1), reason=CHANGE_REASON)
 
     previous = str((pending or {}).get("belt_words") or entry.get("answer") or "")
     so_far = int((pending or entry).get("messages") or 0)

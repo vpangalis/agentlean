@@ -10666,3 +10666,32 @@ def test_def_287_element_5_offers_the_metric_and_baseline_the_business() -> None
 def test_def_288_the_case_s_country_and_site_are_chosen_on() -> None:
     """DEF-288 — W20 (ADR-0089): the case's country and site are chosen on the create form from the configured lists (founder test 2026-10-27)"""
     _not_written('DEF-288')
+
+
+def test_change_under_a_refused_read_back_shows_the_answer_to_edit(env, monkeypatch, stub_planner) -> None:
+    """Wave 1's final live slice (founder 2026-10-28, the founder's own element-12 messages): the founder's flawed
+    SIPOC is now refused ("still needs the outputs column", DEF-259) and its card offers Change; the founder's next
+    message, Change, was judged as an answer and got "It seems like you've mentioned 'Change'". Through POST /ask: a
+    Change under the refused card shows the Belt's SIPOC to edit (a challenge), with no planner judgment, and nothing
+    is stored."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="the columns and the steps are given")
+    _coach_saying(monkeypatch, "Here is your process map. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": CAPTURED_SIPOC_60, "source": "belt"}])
+    refused = _askd(env, message=FLAWED_SIPOC_60)
+    assert refused["move"] == "challenge" and "outputs column" in refused["answer"], refused["answer"]
+    judged = len(stub_planner.prompts)
+    _coach_saying(monkeypatch, "Change what you need.")
+    change = _askd(env, message="Change", action="change")
+    assert change["move"] == "challenge" and change["move_field"] == "process_map_sipoc", (change["move"],
+                                                                                           change["answer"])
+    assert "mentioned 'Change'" not in change["answer"], change["answer"]
+    assert len(stub_planner.prompts) == judged, "the Change click was judged as an answer"
+    assert "process_map_sipoc" not in (_define(env).get("structured") or {})
