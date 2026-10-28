@@ -182,6 +182,15 @@ def _benefit(key: str) -> Callable[[dict[str, Any]], Read]:
     return read
 
 
+def soft_text(benefits: Any) -> Optional[str]:
+    """ADR-0096 decisions 1 and 4 (DEF-260): the stored soft benefits as words, each with how it will be seen —
+    "fewer escalations to account managers (seen in the monthly escalation count)"; None when none is stored."""
+    b = benefits.get("soft_benefits") if isinstance(benefits, dict) else None
+    items = [s for s in b or [] if isinstance(s, dict) and str(s.get("benefit") or "").strip()]
+    return "; ".join(f"{s['benefit']} (seen in {s['indicator']})" if str(s.get("indicator") or "").strip()
+                     else str(s["benefit"]) for s in items) or None
+
+
 def _realisation(values: dict[str, Any]) -> Read:
     """G-255: when the saving shows, met by the code check the Confirm and the gate share (`parse.realisation_stated`,
     which `parse.missing_parts` applies)."""
@@ -474,6 +483,12 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
         out.append({"id": cid, "label": label, "required": True, "met": bool(met),
                     "value": None if is_empty_capture(value) else value, "source": source,
                     **({"formula": formula} if formula else {})})
+    soft = soft_text(values.get("benefits_analysis")) if field == "benefits_analysis" else None
+    if soft:
+        # DEF-260 (ADR-0096 decision 4): the soft benefits on the card and in the Gate, apart from the hard figures —
+        # shown, not a criterion (decision 3's criterion waits on its requirement).
+        out.append({"id": "soft-benefits", "label": "Soft benefits", "required": False, "met": True,
+                    "value": soft, "source": FROM_FILE if upload else YOUR_ANSWER})
     return out
 
 
@@ -546,7 +561,7 @@ def card(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
     return {
         "field": field, "n": number_of(field), "of": DEFINE_POSITIONS, "name": name_of(field),
         "section": section_of(field), "rows": rs,
-        "met": sum(1 for r in rs if r["met"]), "total": len(rs),
+        "met": sum(1 for r in rs if r["required"] and r["met"]), "total": sum(1 for r in rs if r["required"]),
         **({"statement": statement} if isinstance(statement, str) and statement.strip() else {}),
         **({"answer": answer_text(field, values, belt_words)}
            if any(r["source"] == IN_ANSWER for r in rs) or _dropped_figure(belt_words, f"{shown} {statement or ''}")
@@ -843,7 +858,10 @@ def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dic
                             ["Expected saving at the target", f"{saving} a year" if saving else None]],
                 "items": [item("Sustainable or one-off", define_criteria.IMPACT_TYPE),
                           item("When it lands", define_criteria.REALISATION),
-                          item("Finance contact", define_criteria.FINANCE_CONTACT)]}
+                          item("Finance contact", define_criteria.FINANCE_CONTACT),
+                          # DEF-260 (ADR-0096 decisions 4 and 6): soft benefits apart from the money; "not stated"
+                          # when the Belt gave none, never added to the hard figure.
+                          ["Soft benefits", soft_text(b) or "not stated"]]}
     if field == "problem_statement":
         fw = _fivew(artifacts)
         return {"kind": "statement", "why": FIELD_EXPLAIN["five_w_two_h"],

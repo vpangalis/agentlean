@@ -6719,7 +6719,10 @@ def test_gate_view_section_b_follows_the_mockup() -> None:
     assert fig["kind"] == "kv" and [(i[0], i[1]) for i in fig["figures"]] == [
         ("Cost of the gap today", "About €20,500 a year today"),
         ("Expected saving at the target", "€15,120 a year")], fig
-    assert [i[0] for i in fig["items"]] == ["Sustainable or one-off", "When it lands", "Finance contact"], fig["items"]
+    # DEF-260 (ADR-0096 decisions 4 and 6): the soft benefits apart from the money — "not stated" when none was given.
+    assert [i[0] for i in fig["items"]] == ["Sustainable or one-off", "When it lands", "Finance contact",
+                                            "Soft benefits"], fig["items"]
+    assert fig["items"][-1][1] == "not stated", fig["items"]
     # The page.
     sec = _html_section(html, "B")
     one = sec.split('data-element="1"')[1].split('data-element="10"')[0]
@@ -10363,6 +10366,12 @@ def test_def_260_a_stated_soft_benefit_is_stored(env, monkeypatch, stub_planner)
     assert isinstance(soft, list) and len(soft) == 1, ("the stated soft benefit is not stored", b)
     assert "fewer escalations to account managers" in str(soft[0].get("benefit") or "").lower(), soft
     assert "monthly escalation count" in str(soft[0].get("indicator") or "").lower(), soft
+    # ADR-0096 decision 4: shown in Gate B apart from the hard figures — never added to the money.
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    view = next(e for e in _gate_section(report, "B")["elements"] if e["field"] == "benefits_analysis")["view"]
+    shown = {i[0]: i[1] for i in view["items"]}["Soft benefits"]
+    assert shown == "fewer escalations to account managers (seen in the monthly escalation count)", shown
+    assert "escalation" not in str(view["figures"]), view["figures"]
 
 
 #: Founder test 2026-10-27, finding #60 — the SIPOC the founder sent, deliberately flawed: no Outputs, the step "close
