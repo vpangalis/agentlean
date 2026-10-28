@@ -1,9 +1,9 @@
 {
- "source_hash": "cc196a690c944e97",
- "commit": "d0fa811",
+ "source_hash": "466ee4e28f7d6066",
+ "commit": "eda9682",
  "commit_matches_source": false,
  "full_run_hash": "23f457fb55222d64",
- "recorded_at": "2026-10-28T15:58:52+00:00",
+ "recorded_at": "2026-10-28T16:31:30+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -458,8 +458,8 @@
   "backend/tests/test_define_e2e.py::test_def_259_the_sipoc_code_checks_gate_the_read_back": "passed",
   "backend/tests/test_define_e2e.py::test_def_260_a_stated_soft_benefit_is_stored": "skipped",
   "backend/tests/test_define_e2e.py::test_def_261_the_expected_saving_is_calculated_from_the_confirmed_business_case": "skipped",
-  "backend/tests/test_define_e2e.py::test_def_262_the_gate_baseline_row_is_number_source_and_period": "skipped",
-  "backend/tests/test_define_e2e.py::test_def_263_every_ticked_row_has_its_own_words_and_the_gate_keeps_them": "skipped",
+  "backend/tests/test_define_e2e.py::test_def_262_the_gate_baseline_row_is_number_source_and_period": "passed",
+  "backend/tests/test_define_e2e.py::test_def_263_every_ticked_row_has_its_own_words_and_the_gate_keeps_them": "passed",
   "backend/tests/test_define_e2e.py::test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns": "skipped",
   "backend/tests/test_define_e2e.py::test_def_265_the_project_lead_is_in_the_team_read_back": "skipped",
   "backend/tests/test_define_e2e.py::test_def_266_one_element_card_for_every_element_of_every_phase": "skipped",

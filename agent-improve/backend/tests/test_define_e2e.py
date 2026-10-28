@@ -6613,8 +6613,11 @@ def _a99_gate(team: list | None = None, case: dict | None = None, extra: dict | 
              "where-when": "Since January 2026", "baseline": "About 1,200 complaints a year",
              "cost": "each late one costs about €45 extra handling, about €20,000 a year"}
     assert all(s in BUSINESS_CASE for s in spans.values())
+    # DEF-262 (2026-10-28): the Gate's Baseline is the figure and the "real data" span — where it comes from, and when.
     status = {"business_case": {"status": "confirmed", "spans": spans},
-              "baseline_estimate": {"status": "confirmed", "spans": {"kpi-link": "feeds the monthly service-level KPI"}}}
+              "baseline_estimate": {"status": "confirmed", "spans": {
+                  "kpi-link": "feeds the monthly service-level KPI",
+                  "real-data": "January–June 2026 · ticket system export"}}}
     case = case if case is not None else {
         "title": "Complaint closure time", "leader": "Vassilis Pangalis", "belt_level": "green",
         "people": [{"full_name": "Vassilis Pangalis", "role": "project lead", "function": "Green Belt"}]}
@@ -7819,8 +7822,10 @@ def test_one_numbering_and_per_element_status_everywhere(env, monkeypatch, stub_
     env.case.phases["define"].structured = {}
     env.case.phases["define"].field_status = {"business_case": {"status": "asked"}}
     answer = "Since January 2026, 23% of invoices are paid late; about £62k a year in late fees."
-    read_card = _confirm_business_case(env, coach_says, stub_planner, answer,
-                                       spans={"where-when": "Since January 2026"})
+    # DEF-263 (2026-10-28): a free-text row is ticked only with words of its own — the planner quotes each one.
+    read_card = _confirm_business_case(env, coach_says, stub_planner, answer, spans={
+        "what": "invoices are paid late", "where-when": "Since January 2026", "baseline": "23%",
+        "cost": "about £62k a year in late fees"})
 
     case = env.client.get(f"/cases/{CASE_ID}").json()
     sidebar = {e["field"]: (e["n"], e["name"]) for e in case["define_elements"]}
@@ -7839,7 +7844,7 @@ def test_one_numbering_and_per_element_status_everywhere(env, monkeypatch, stub_
     gate_rows = [{k: v for k, v in r.items() if k != "why"} for r in cards["business_case"]["rows"]]
     assert gate_rows == read_card["rows"], (gate_rows, read_card["rows"])
     assert next(r for r in gate_rows if r["id"] == "where-when")["value"] == "Since January 2026"
-    assert cards["business_case"]["answer"] == answer
+    assert "answer" not in cards["business_case"], "every row shows its own words: the whole answer is not repeated"
     assert [e["n"] for e in gate["still_to_confirm"]] == list(range(2, 14))
     assert "Benefits analysis" not in json.dumps(cards["business_case"])
 
@@ -7927,6 +7932,7 @@ def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, 
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all five criteria met", criterion_spans={
         "what": "38% of complaints in the Austrian field service close later than 10 working days",
         "where-when": "Since January 2026",
+        "baseline": "About 1,200 a year",
         "cost": "costs us roughly twenty thousand a year",          # a paraphrase: dropped
         "champion": "Katharina Huber"})                             # another element's criterion: dropped
     coach_says(f'Your business case: "{answer}" Is this right?',
@@ -7937,14 +7943,27 @@ def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, 
     case = env.client.get(f"/cases/{CASE_ID}").json()
     pending = case["phases"]["define"]["field_status"]["business_case"]["pending"]
     kept = {"what": "38% of complaints in the Austrian field service close later than 10 working days",
-            "where-when": "Since January 2026"}
+            "where-when": "Since January 2026", "baseline": "About 1,200 a year"}
     assert pending["spans"] == kept, pending.get("spans")
     card = case["conversation_history"][-1]["readback_card"]
     rows = {r["id"]: r for r in card["rows"]}
     assert (card["n"], card["of"], card["name"], card["section"]) == (1, 13, "Business case", "B"), card
     assert rows["what"]["value"] == kept["what"] and rows["what"]["source"] == templates.YOUR_ANSWER
-    assert rows["cost"]["value"] is None and rows["cost"]["source"] == templates.IN_ANSWER
-    assert card["answer"] == answer and card["confirm"] is True and card["met"] == card["total"] == 5, card
+    # DEF-263 (founder test 2026-10-27 #14): the dropped paraphrase leaves the cost with no words of its own — not
+    # ticked, the whole answer shown once, Confirm closed.
+    assert rows["cost"]["value"] is None and rows["cost"]["source"] == templates.IN_ANSWER and not rows["cost"]["met"]
+    assert card["answer"] == answer and card["confirm"] is False and card["met"] == 4, card
+
+    # The Belt names the cost again; the planner quotes it from the answer, and the Confirm opens.
+    more = "The cost: each late one costs about €45 extra handling."
+    answer = f"{answer}\n{more}"
+    kept = {**kept, "cost": "each late one costs about €45 extra handling"}
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all five criteria met",
+                                                criterion_spans=kept)
+    coach_says(f'Your business case: "{answer}" Is this right?',
+               captured=[{"field_name": "business_case", "value": answer, "source": "belt"}])
+    again = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": more})
+    assert again.status_code == 200 and again.json()["readback_card"]["confirm"] is True, again.text
 
     coach_says("Stored.")
     done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Confirm",
@@ -9949,10 +9968,15 @@ def test_a_span_in_two_places_is_kept_when_each_quote_is_the_belts() -> None:
               "promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs "
               "about €45 in callbacks and rework, about €20,500 a year, and late cases escalate to account managers.")
     got = templates.verbatim_spans({"where-when": "In Field Service Austria … from March to September 2026",
-                                    "what": "In Field Service Austria, from March to September 2026",
+                                    "what": "In Field Service Austria, many complaints were late every month",
                                     "cost": "about €20,500 a year"}, "business_case", answer)
     assert got == {"where-when": "In Field Service Austria … from March to September 2026",
                    "cost": "about €20,500 a year"}, got
+    # DEF-263 (founder test 2026-10-27 #19, 2026-10-28): the live planner joined the two places with no " … " — read
+    # as its verbatim runs, the gap shown.
+    joined = templates.verbatim_spans({"where-when": "In Field Service Austria, from March to September 2026"},
+                                      "business_case", answer)
+    assert joined == {"where-when": "In Field Service Austria … from March to September 2026"}, joined
 
 
 def test_def_257_a_turn_reads_its_checkpoint_once_and_saves_each_checkpoint_in_one_round(

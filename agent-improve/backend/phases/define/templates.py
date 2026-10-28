@@ -253,18 +253,29 @@ def _performance(values: dict[str, Any]) -> Read:
 
 
 def _stated(statement: str) -> Callable[[dict[str, Any]], Read]:
-    """A criterion that is a check on the answer as a whole (no cause named, as-is): what it states, met by the
-    judgment."""
-    def read(values: dict[str, Any]) -> Read:
+    """A criterion that is a check on the answer as a whole (no cause named, as-is), met by the judgment. Its row
+    shows the judgment's quoted span, else "in your answer" — never the criterion's own wording (G-314, founder
+    2026-10-28); only an absence (`_ABSENCES`), which no quote can show, keeps its statement."""
+    def stated_read(values: dict[str, Any]) -> Read:
         return statement, None
-    return read
+    return stated_read
 
 
 def _span() -> Callable[[dict[str, Any]], Read]:
-    """Free text: the row's value is the judgment's quoted span (option (b)), read by `rows`."""
-    def read(values: dict[str, Any]) -> Read:
+    """Free text: the row's value is the judgment's quoted span (option (b)), read by `rows` — a row with no span of
+    its own is not met (DEF-263)."""
+    def span_read(values: dict[str, Any]) -> Read:
         return None, None
-    return read
+    return span_read
+
+
+#: G-314 (DEF-263): the whole-answer checks that are an absence ("no cause and no fix named") — no quote can show
+#: one, so their row keeps its statement.
+_ABSENCES = frozenset({define_criteria.NO_CAUSE_NO_FIX})
+#: G-288 (DEF-263): the rows that state a size — when their span repeats another row's, the size is the figure in it.
+_SIZE_ROWS = frozenset({define_criteria.BASELINE})
+#: A figure as the Belt wrote it: a share, else a number with the word or two after it ("1,200 complaints").
+_SIZE = re.compile(r"\d[\d,.]*\s?(?:%|percent|per cent)|\d[\d,.]*(?:\s+[^\s\d,.;:]+){0,2}")
 
 
 #: element -> criterion id -> (label, how its value is read). The ids are the owner's constants (B7,
@@ -358,15 +369,44 @@ def verbatim_spans(spans: Any, field: str, *answers: Any) -> dict[str, str]:
     A span of two or more quotes joined by " … " (evidence in two places of the answer — wave 0, founder test
     2026-10-27 #19: "In Field Service Austria … from March to September 2026") is kept when EVERY quote is a
     verbatim substring."""
-    ids = {cid for cid, _ in criteria(field)}
+    ids = [cid for cid, _ in criteria(field)]
     texts = [str(a) for a in answers if isinstance(a, str) and a.strip()]
+    given = dict(spans) if isinstance(spans, dict) else {}
     out: dict[str, str] = {}
-    for cid, span in (spans.items() if isinstance(spans, dict) else []):
-        s = str(span or "").strip().strip("\"'“”‘’").strip()
+    for cid in ids:
+        s = str(given.get(cid) or "").strip().strip("\"'“”‘’").strip()
         pieces = [p.strip().strip("\"'“”‘’").strip() for p in re.split(r"\s*(?:…|\.\.\.)\s*", s)]
-        pieces = [p for p in pieces if p]
-        if str(cid) in ids and pieces and texts and all(p in t for p in pieces for t in texts):
-            out[str(cid)] = " … ".join(pieces)
+        runs = [_quotes(p, texts) for p in pieces if p]
+        if not s or not texts or not runs or any(r is None for r in runs):
+            continue
+        span = " … ".join(q for r in runs for q in r or [])
+        if span in out.values() and cid in _SIZE_ROWS:
+            # G-288: "how big it is today" quoted the same passage as "what is wrong" — the size is its figure.
+            span = next((m.group(0).strip() for m in _SIZE.finditer(span)), "")
+        if span and span not in out.values():
+            out[cid] = span                                      # G-292: two rows never share one passage
+    return out
+
+
+def _quotes(piece: str, texts: list[str]) -> Optional[list[str]]:
+    """DEF-263 (G-292, founder test 2026-10-27 #19): `piece` as the verbatim quotes it is made of, in order — itself
+    when it is a substring of every text; else at most three runs of at least two words each, joined by the planner
+    from two places of the answer ("In Field Service Austria, from March to September 2026"). None otherwise."""
+    if all(piece in t for t in texts):
+        return [piece]
+    words, first = piece.split(), texts[0]
+    out: list[str] = []
+    i, at = 0, 0
+    while i < len(words) and len(out) < 3:
+        j = next((j for j in range(len(words), i + 1, -1) if first.find(" ".join(words[i:j]), at) >= 0), None)
+        if j is None:
+            return None
+        run = " ".join(words[i:j])
+        at = first.find(run, at) + len(run)
+        out.append(run.rstrip(",;:"))
+        i = j
+    if i < len(words) or not all(q in t for q in out for t in texts):
+        return None
     return out
 
 
@@ -391,14 +431,20 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
     `values` holds the element's value(s) as a Confirm stores them (with the case's confirmed values beside,
     for the calculation and the target's direction); `spans` the verified spans (`verbatim_spans`); `judged`
     whether the judgment found the answer sufficient (a read-back is made only then; a confirmed element was);
-    `upload` the file the values came from (ADR-0085)."""
+    `upload` the file the values came from (ADR-0085). DEF-263: when the judgment quoted (`spans` given, even empty),
+    a free-text row is met only with a span of its own; a judgment that quoted nothing (`spans` None) is met on its
+    verdict."""
     template = TEMPLATES.get(field, {})
+    quoted = spans is not None
     spans = spans or {}
     calc = _calculated(field, values)
     out = []
     for cid, text in criteria(field):
         label, read = template.get(cid, (text.split(" — ")[0][:60], _span()))
         value, met = read(values)
+        kind = getattr(read, "__name__", "")
+        if kind == "stated_read" and (cid in spans or cid not in _ABSENCES):
+            value = None                       # G-314: the quote, or "in your answer" — never the criterion's wording
         formula = None
         if cid == define_criteria.COST_OF_GAP and calc is not None:
             value, formula = calc
@@ -406,8 +452,11 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
             value = spans[cid]
         source = (CALCULATED if formula else FROM_FILE if upload else IN_ANSWER if is_empty_capture(value)
                   else YOUR_ANSWER)
-        out.append({"id": cid, "label": label, "required": True,
-                    "met": bool(met) if met is not None else bool(judged),
+        if met is None:
+            # DEF-263 (founder test 2026-10-27 #14, #19): a free-text row is met only with words of its own; a
+            # whole-answer check and a file's row on the judgment's verdict.
+            met = bool(judged) and (kind != "span_read" or not quoted or bool(upload) or not is_empty_capture(value))
+        out.append({"id": cid, "label": label, "required": True, "met": bool(met),
                     "value": None if is_empty_capture(value) else value, "source": source,
                     **({"formula": formula} if formula else {})})
     return out
@@ -731,6 +780,20 @@ def _sipoc_view(artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
             "why": FIELD_EXPLAIN["sipoc"], "measured_why": FIELD_EXPLAIN["process_metrics"]}
 
 
+def _baseline_line(artifacts: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> Optional[str]:
+    """DEF-262 (G-311, founder test 2026-10-27 #38): Gate E's Baseline — the figure as parsed, then where it comes from
+    and the period, in the Belt's words (the verified "real data" span): "38% · from the service desk system, March to
+    September 2026". Never the whole answer, which the stored MetricValue keeps as its `raw` (ADR-0071). Without the
+    span, the figure alone."""
+    base = artifacts.get("baseline_estimate")
+    if is_empty_capture(base):
+        return None
+    mv = parse.as_metric(base)
+    figure = parse.metric_text(mv) if mv.get("value") is not None else plain(base)
+    source = str((by_id.get(define_criteria.REAL_DATA) or {}).get("value") or "").strip().rstrip(".").strip()
+    return " · ".join(x for x in (figure, source) if x) or None
+
+
 def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dict[str, Any]) -> Optional[dict[str, Any]]:
     """DEF-176..178: how a confirmed element's card is laid out in the Gate (gate_view_mockup.html, sections A–C),
     read from the card's own rows and the stored values — never a value they do not hold. None: the rows."""
@@ -781,11 +844,10 @@ def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dic
         p = _primary(artifacts)
         name, _ok = _primary_name(artifacts)
         meaning = str(p.get("meaning") or "").strip()
-        base = artifacts.get("baseline_estimate")
         return {"kind": "kv", "items": [
             ["Metric", " — ".join(x for x in (name, meaning) if x) or None, FIELD_EXPLAIN["primary"]],
             item("Business measure it feeds", define_criteria.KPI_LINK),
-            ["Baseline", plain(base) or None, FIELD_EXPLAIN["baseline_target"]]],
+            ["Baseline", _baseline_line(artifacts, by_id), FIELD_EXPLAIN["baseline_target"]]],
             **({"chart": chart} if (chart := _chart(artifacts)) else {})}
     if field == "project_scope":
         boxes, _met = _scope(artifacts)

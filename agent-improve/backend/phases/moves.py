@@ -471,18 +471,21 @@ def element_rows(phase: str, artifacts: dict[str, Any],
 
 def _spans_kw(phase: str, field: str, judgment: Any, answer: str) -> dict[str, Any]:
     """ADR-0093 decision 5 (option (b)): the judgment's quoted span per criterion, kept only where it is a
-    verbatim substring of the Belt's answer (`templates.verbatim_spans`) — `{"spans": …}`, or nothing."""
+    verbatim substring of the Belt's answer (`templates.verbatim_spans`) — `{"spans": …}` whenever the judgment
+    quoted at least one criterion, even if no quote held (DEF-263: the free-text rows are then met only with words of
+    their own); nothing for a judgment that quoted nothing."""
     if phase != "define":
         return {}
     from backend.phases.define.templates import verbatim_spans
-    spans = verbatim_spans(getattr(judgment, "criterion_spans", None), field, answer)
-    return {"spans": spans} if spans else {}
+    quoted = getattr(judgment, "criterion_spans", None)
+    return {"spans": verbatim_spans(quoted, field, answer)} if quoted else {}
 
 
 def _confirmed(pending: dict[str, Any]) -> dict[str, Any]:
     """A confirmed element's status, with what its Gate rows read (ADR-0093 decision 7): the verified spans and
     the file its values came from."""
-    return {"status": CONFIRMED, **{k: pending[k] for k in ("spans", "upload") if pending.get(k)}}
+    return {"status": CONFIRMED, **({"spans": pending["spans"]} if isinstance(pending.get("spans"), dict) else {}),
+            **({"upload": pending["upload"]} if pending.get("upload") else {})}
 
 
 def criteria_open(phase: str, field: str, values: dict[str, Any], pending: dict[str, Any]) -> list[str]:
