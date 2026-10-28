@@ -13,6 +13,7 @@ Module-level functions only, per CLAUDE.md.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 #: The inputs the judgment may be asked to extract: name -> how the judgment prompt names it.
@@ -31,13 +32,39 @@ def _metric_number(artifacts: dict[str, Any], field: str) -> Optional[str]:
     return None
 
 
+#: G-323 (DEF-261, founder test 2026-10-27 #51): the volume and the cost of one late unit as the CONFIRMED business case
+#: states them — "We handle about 1,200 complaints a year; each late one costs about €45 in callbacks and rework, about
+#: €20,500 a year". ADR-0077: the case's confirmed values come before the judgment's extraction.
+_MONEY = re.compile(r"(?:€|£|\$|EUR ?|GBP ?|USD ?|CHF ?)\d[\d,.]*\d|(?:€|£|\$)\d|\d[\d,.]*\s?(?:€|EUR|GBP|USD|CHF)\b")
+_A_YEAR = re.compile(r"(?i)\b(?:a|per|each|every)\s+year\b|\bannual(?:ly)?\b|\byearly\b")
+_EACH = re.compile(r"(?i)\b(?:each|per|every|one)\b")
+_VOLUME = re.compile(r"(?i)(?<![\d€£$.,])(\d{1,3}(?:,\d{3})+|\d+)\s+(?:[a-z-]+\s+){0,3}?(?:a|per|each|every)\s+year\b")
+
+
+def _from_business_case(artifacts: dict[str, Any]) -> dict[str, str]:
+    """G-323: `unit_cost` — a money figure in a clause about each unit, never a yearly total; `annual_volume` — a count
+    "a year" that is no money figure. Each clause (split at ";", ".", ", ") is read on its own; nothing is guessed."""
+    text = artifacts.get("business_case")
+    if not isinstance(text, str):
+        return {}
+    out: dict[str, str] = {}
+    for clause in (c.strip() for c in re.split(r"[;.]\s+|,\s+(?=[^\d\s])|\n", text) if c.strip()):
+        money = _MONEY.search(clause)
+        if money and "unit_cost" not in out and _EACH.search(clause) and not _A_YEAR.search(clause):
+            out["unit_cost"] = money.group(0).strip()
+        volume = _VOLUME.search(clause)
+        if volume and "annual_volume" not in out and not _MONEY.search(clause):
+            out["annual_volume"] = volume.group(1).replace(",", "")
+    return out
+
+
 def _savings_from_state(artifacts: dict[str, Any]) -> dict[str, str]:
     out = {}
     for name, field in (("baseline_value", "baseline_estimate"), ("target_value", "target_value")):
         n = _metric_number(artifacts, field)
         if n is not None:
             out[name] = n
-    return out
+    return {**_from_business_case(artifacts), **out}
 
 
 #: (phase, element) -> the tool, the inputs read from state, and the inputs asked of the judgment.
