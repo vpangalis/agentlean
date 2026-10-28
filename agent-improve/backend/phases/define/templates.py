@@ -275,6 +275,11 @@ def _span() -> Callable[[dict[str, Any]], Read]:
 #: G-314 (DEF-263): the whole-answer checks that are an absence ("no cause and no fix named") — no quote can show
 #: one, so their row keeps its statement.
 _ABSENCES = frozenset({define_criteria.NO_CAUSE_NO_FIX})
+#: Founder ruling 2026-10-28 (locked parts, .claude/rules/planning.md): goal → target → target date was accepted
+#: with real answers on 2026-10-27 and changes only for a blocker. DEF-263's rules — a free-text row met only with a
+#: quote of its own, two rows never sharing one passage — do not reach the goal statement's rows: they are met on
+#: the judgment's verdict, as accepted.
+_LOCKED_ELEMENTS = frozenset({"goal_statement"})
 #: G-288 (DEF-263): the rows that state a size — when their span repeats another row's, the size is the figure in it.
 _SIZE_ROWS = frozenset({define_criteria.BASELINE})
 #: A figure as the Belt wrote it: a share, else a number with the word or two after it ("1,200 complaints").
@@ -383,6 +388,9 @@ def verbatim_spans(spans: Any, field: str, *answers: Any) -> dict[str, str]:
         if not s or not texts or not runs or any(r is None for r in runs):
             continue
         span = " … ".join(q for r in runs for q in r or [])
+        if field in _LOCKED_ELEMENTS:
+            out[cid] = span                                      # locked (founder 2026-10-28): as accepted
+            continue
         if span in out.values() and cid in _SIZE_ROWS:
             # G-288: "how big it is today" quoted the same passage as "what is wrong" — the size is its figure.
             span = next((m.group(0).strip() for m in _SIZE.finditer(span)), "")
@@ -438,7 +446,7 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
     a free-text row is met only with a span of its own; a judgment that quoted nothing (`spans` None) is met on its
     verdict."""
     template = TEMPLATES.get(field, {})
-    quoted = spans is not None
+    quoted = spans is not None and field not in _LOCKED_ELEMENTS
     spans = spans or {}
     calc = _calculated(field, values)
     out = []

@@ -217,3 +217,22 @@ def test_the_judgment_carries_the_spans_in_its_one_call() -> None:
     assert field.default is None and "character for character" in (field.description or "")
     assert json.loads(SufficiencyJudgment(verdict="sufficient", reason="r", criterion_spans={"what": "x"})
                       .model_dump_json())["criterion_spans"] == {"what": "x"}
+
+
+def test_the_locked_goal_statement_keeps_its_accepted_ticks() -> None:
+    """Founder ruling 2026-10-28 (locked parts, .claude/rules/planning.md): goal → target → target date was accepted
+    with real answers on 2026-10-27. DEF-263's rules (a free-text row met only with a quote of its own; two rows never
+    sharing one passage) do not reach it: a row the planner did not quote is met on the verdict, and two rows may quote
+    the same words — while the business case, unlocked, keeps both rules."""
+    goal = "Reduce late closures from 38% to under 10% by 31 March 2027."
+    spans = templates.verbatim_spans({"same-metric": "late closures", "how-much": "from 38% to under 10%"},
+                                     "goal_statement", goal)
+    assert all(r["met"] for r in templates.rows("goal_statement", {"goal_statement": goal}, spans=spans))
+    same = templates.verbatim_spans({"same-metric": "late closures from 38% to under 10%",
+                                     "how-much": "late closures from 38% to under 10%"}, "goal_statement", goal)
+    assert len(same) == 2, same
+    case = "Since 2026, 38% of complaints close late; about €20,500 a year."
+    kept = templates.verbatim_spans({"what": "38% of complaints close late", "where-when": "Since 2026"},
+                                    "business_case", case)
+    assert not next(r for r in templates.rows("business_case", {"business_case": case}, spans=kept)
+                    if r["id"] == "cost")["met"]
