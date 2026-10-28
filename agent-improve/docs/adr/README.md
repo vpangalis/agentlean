@@ -132,7 +132,7 @@ Generated from each file's status line; never typed.
 | [0086](0086-the-target-is-read-from-the-confirmed-goal.md) | The target value and date are read from the confirmed goal, for one Confirm | ACCEPTED | refined by 0088 |
 | [0087](0087-the-approval-node-writes-both-records.md) | The approval node writes both records — the Store's and the case's — has no error handler, and LangGraph's retry completes it | ACCEPTED | refines 0063 |
 | [0088](0088-element-values-parsed-and-checked-in-code.md) | Element values are parsed and checked in code by one parser per kind — lists, durations, dates — and an element's required parts are checked before its read-back and its Confirm | ACCEPTED | refines 0071, 0086 |
-| [0089](0089-case-location-country-and-site.md) | A case carries its location — country and site — chosen from lists the customer ships as configuration | PROPOSED | — |
+| [0089](0089-case-location-country-and-site.md) | A case carries its location — country and site — chosen from lists the customer ships as configuration | ACCEPTED | — |
 | [0090](0090-the-people-on-a-case.md) | One person record for everyone on a case, kept in the case record and written on every team change; Define's team element refers to it | ACCEPTED | — |
 | [0091](0091-basic-access-check-by-registered-e-mail.md) | A basic access check — sign-in by a registered e-mail, a per-case session the server checks on every request, approval by the session's person | ACCEPTED | refined by 0105 |
 | [0092](0092-unique-case-numbers-and-a-safe-case-list.md) | A case number is reserved by a create-only-if-absent write and retried on conflict; the case list is updated by a conditional write | ACCEPTED | — |
