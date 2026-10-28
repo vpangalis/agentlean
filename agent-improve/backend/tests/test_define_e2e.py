@@ -10373,6 +10373,15 @@ def test_def_260_a_stated_soft_benefit_is_stored(env, monkeypatch, stub_planner)
     assert shown == "fewer escalations to account managers (seen in the monthly escalation count)", shown
     assert "escalation" not in str(view["figures"]), view["figures"]
 
+    # ADR-0096 decision 6 (T88): a version-14 benefits analysis, without soft benefits, migrates unchanged; Gate B then
+    # reads "not stated".
+    from backend.core import migrations
+    from backend.phases.define import templates
+    v14 = {"benefits_analysis": {k: v for k, v in b.items() if k != "soft_benefits"}, migrations.VERSION_KEY: 14}
+    assert migrations.migrate(v14, 14)["benefits_analysis"] == v14["benefits_analysis"] and migrations.current() >= 15
+    old = templates._view("benefits_analysis", {"benefits_analysis": v14["benefits_analysis"]}, {"rows": []}, {})
+    assert old is not None and {i[0]: i[1] for i in old["items"]}["Soft benefits"] == "not stated", old
+
 
 #: Founder test 2026-10-27, finding #60 — the SIPOC the founder sent, deliberately flawed: no Outputs, the step "close
 #: the case in the system" left out, the steps adding up to about 4 working days against a stated 8, how often given

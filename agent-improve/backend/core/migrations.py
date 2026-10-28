@@ -260,6 +260,13 @@ def migrate_v13_to_v14(values: Mapping[str, Any]) -> dict[str, Any]:
     an entry or a person without them reads as having none."""
     return dict(values)
 
+def migrate_v14_to_v15(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0096 "Hard and soft benefits" (DEF-260, founder 2026-10-28): a confirmed benefits analysis may carry
+    `soft_benefits`, a list of {benefit, indicator} in the Belt's words. A no-op: a benefits analysis without it reads
+    as "not stated" (Gate B), and the Belt is asked when the element is next opened."""
+    return dict(values)
+
+
 def case_people_v12(case: Mapping[str, Any]) -> dict[str, Any]:
     """ADR-0090 decision 6: a version-11 case record's typed `leader` becomes the lead's person record and each
     `team` entry ({name, role}) a member's, all without an e-mail — the lead completes them on the next open.
@@ -286,7 +293,8 @@ MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3:
                                     4: migrate_v4_to_v5, 5: migrate_v5_to_v6, 6: migrate_v6_to_v7,
                                     7: migrate_v7_to_v8, 8: migrate_v8_to_v9, 9: migrate_v9_to_v10,
                                     10: migrate_v10_to_v11, 11: migrate_v11_to_v12,
-                                    12: migrate_v12_to_v13, 13: migrate_v13_to_v14}
+                                    12: migrate_v12_to_v13, 13: migrate_v13_to_v14,
+                                    14: migrate_v14_to_v15}
 
 
 def current() -> int:
