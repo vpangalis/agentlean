@@ -384,3 +384,31 @@ def test_a_full_size_copy_asks_the_slice_s_element_again_and_keeps_every_message
         assert "process_map_sipoc" in str(e)
     else:
         raise AssertionError("a stored value was kept under a reset status")
+
+
+def test_a_scripted_slice_uploads_a_file_as_the_page_does(tmp_path) -> None:
+    """Wave 1 (founder 2026-10-28, item 5: the final slice of element 2 with the founder's team file): a scripted
+    {"upload": path} turn posts the file to /upload, then sends the page's own "📎 name" message."""
+    import sys
+    sys.path.insert(0, str(PROJECT))
+    from scripts import live_slice
+    team = tmp_path / "team_field_service.csv"
+    team.write_text("name,role\nElena Gruber,Team Member\n", encoding="utf-8")
+    turns = live_slice.scripted_turns([{"upload": str(team)}, {"message": "Confirm", "action": "confirm"}])
+    assert [t["belt"] for t in turns] == ["📎 team_field_service.csv", "Confirm"], turns
+    sent: list = []
+
+    class Client:
+        def post(self, url, json=None, data=None, files=None):
+            sent.append((url, (files or {}).get("file", (None,))[0], (json or {}).get("message")))
+
+            class R:
+                status_code = 200
+                text = ""
+
+                @staticmethod
+                def json():
+                    return {"move": "read_back", "move_field": "team"}
+            return R()
+    live_slice.replay(Client(), "IMPR-X", {"element": "team", "turns": turns})
+    assert sent[:2] == [("/upload", "team_field_service.csv", None), ("/ask", None, "📎 team_field_service.csv")], sent

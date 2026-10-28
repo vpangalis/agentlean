@@ -168,9 +168,11 @@ async def copy_case(source: str, case_id: str, element: str, title: str) -> dict
 
 
 def scripted_turns(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """`--messages`: the Belt's exact messages as the slice's turns."""
-    return [{"n": i, "belt": str(m["message"]), "action": m.get("action"), "element": m.get("element"),
-             "recorded_move": None} for i, m in enumerate(messages, 1)]
+    """`--messages`: the Belt's exact messages as the slice's turns. An entry {"upload": path} is the Belt uploading
+    that file (wave 1, element 2: the founder's team file): POST /upload, then the page's own "📎 name" turn."""
+    return [{"n": i, "belt": str(m.get("message") or f"📎 {Path(str(m['upload'])).name}"), "action": m.get("action"),
+             "element": m.get("element"), "upload": m.get("upload"), "recorded_move": None}
+            for i, m in enumerate(messages, 1)]
 
 
 def _timing(queue: Any) -> list[str]:
@@ -193,6 +195,14 @@ def replay(client: Any, case_id: str, plan: dict[str, Any], timing: Any = None) 
         return x["move"] == "store_and_advance" or (
             x.get("action") == "confirm" and x["http"] == 200 and x.get("move_field") not in (None, plan["element"]))
     for t in plan["turns"]:
+        if t.get("upload"):
+            import mimetypes
+            path = Path(str(t["upload"]))
+            up = client.post("/upload", data={"case_id": case_id, "uploaded_by": USER, "phase": "define"},
+                             files={"file": (path.name, path.read_bytes(),
+                                             mimetypes.guess_type(path.name)[0] or "application/octet-stream")})
+            if up.status_code != 200:
+                raise SystemExit(f"upload of {path.name} refused: {up.status_code} {getattr(up, 'text', '')[:200]}")
         body = {"case_id": case_id, "phase": "define", "user": USER, "message": t["belt"],
                 **({"action": t["action"]} if t.get("action") else {}),
                 **({"element": t["element"]} if t.get("element") else {})}
