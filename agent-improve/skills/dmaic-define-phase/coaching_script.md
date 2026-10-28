@@ -137,20 +137,20 @@
 > **Read back:** the date — *"Is this right?"*
 
 **[10 · benefits_analysis · required]**
-> **What it is:** The benefits analysis: what the gap costs today (the cost of poor quality), whether the gain is sustainable or one-off, when the money will be realised, and who in finance validates the figure.
-> **Why it matters:** It establishes the value of the project in terms finance will accept. A figure a finance representative has checked is one the champion can defend.
-> **Show (illustration — not your data):** *"Cost of the gap: about €15.1k a year in rework today (12% of 4,200 invoices, about €30 each). Expected saving: about €11.3k a year at the target (12% → 3%), from the savings calculation. Impact: sustainable — reduced cost every year. Realisation: from the first full quarter after the change, about €2.8k a quarter. Finance contact: Priya Shah, management accountant."*
-> **Ask:** What does the gap cost today? Is the saving sustainable or one-off? When will it start to show? Who in finance will validate it?
+> **What it is:** Hard benefits — money finance can count: what the gap costs today (the cost of poor quality), recurring or one-off, when it shows, who in finance checks it. Soft benefits — gains not booked as money (fewer escalations, workload), each with how you will see it.
+> **Why it matters:** The hard figure is what your champion defends to finance, and Control later checks the realised saving against it. Soft benefits show impact finance will not count; they are never added to the money figure.
+> **Show (illustration — not your data):** *"Cost of the gap: about €15.1k a year in rework today (12% of 4,200 invoices, about €30 each). Expected saving: about €11.3k a year at the target (12% → 3%). Sustainable. From the first full quarter after the change, about €2.8k a quarter. Checked by Priya Shah, management accountant. Soft benefit: fewer escalations to account managers (seen in the monthly escalation count)."*
+> **Ask:** What does the gap cost today? Is the saving sustainable or one-off? When will it start to show? Who in finance will validate it? Any soft benefits, and how will you see each?
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `cost-of-gap` — quantifies what the gap costs, the cost of poor quality (p. 60)
 > - `impact-type` — says whether the impact is sustainable or one-off (p. 60)
 > - `realisation` — when the saving shows: by period, or a start date and sustained (p. 60)
 > - `finance-contact` — names the finance representative who validates the figure (p. 60, p. 62)
-> **Read back:** the four parts — *"Is this right?"*
+> **Read back:** the four parts and any soft benefits — *"Is this right?"*
 > **Capture as:** `{cost_of_gap, impact_type, realisation_schedule, finance_contact}` — all four keys, each in the Belt's words.
 
 **[TOOL · calculate_expected_savings · for the benefits analysis]**
-> **Educate:** The calculation gives two annual money figures, never one for the other. The cost of the gap is what the problem costs today, at the baseline; the expected saving is what reaching the target removes. Errors at 12% on about 4,200 invoices a year, at about €30 to put each one right, cost about €15k a year — that is the cost of the gap; cutting them to 3% saves about €11k a year — that is the expected saving.
+> **Educate:** The calculation gives two annual money figures, never one for the other. The cost of the gap is what the problem costs today, at the baseline; the expected saving is what reaching the target removes.
 > **Why now:** The baseline and the target exist, so both figures rest on your numbers, not a guess — the cost of the gap goes into your benefits analysis, and the expected saving shows what reaching the target is worth.
 > **Prepare:** Four things, rough is fine: the current level (we have it), the target (we have it), roughly what one defect costs, and how many you handle a year.
 > **Run:** *(call `calculate_expected_savings`)*

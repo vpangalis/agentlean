@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 174 of 238 Define features pass, 34 more proven on earlier code (core 171 of 229) — A 59/96 · B 37/40 · C 62/77 · integrator 16/25 (record older than the source) · M1: 60 proven · 23 awaiting fresh run · 11 open |
+| **Headline** | 174 of 238 Define features pass, 34 more proven on earlier code (core 171 of 229) — A 59/96 · B 37/40 · C 62/77 · integrator 16/25 · M1: 60 proven · 23 awaiting fresh run · 11 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-267 — R-A: the welcome flows straight into the first element's card; the Belt never types 'let's start' |
