@@ -1,0 +1,132 @@
+{
+ "kind": "live_slice",
+ "element": "team",
+ "case_id": "IMPR-2026-3B8XF8",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "slice_messages_team.json",
+ "recorded_product_hash": null,
+ "product_hash": "3be3f52ed73c169f",
+ "seeded": [
+  "business_case"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "📎 team_field_service.csv",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 16.7,
+   "failed": null,
+   "answer": "I've read your file team_field_service.csv. For Team it shows: names a champion (sponsor) by name; names the process owner by name; each person has a name, a role and a function. It does not cover yet: says what training anyone needs, or that none is needed; details on training needs for team members. Could you add that?\n\nWelcome — I'm here to coach you and your team through your improvement proje",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.36 s",
+    "input guard 2.52 s",
+    "coach 9.26 s",
+    "grader 1.83 s",
+    "after the answer (steps, save) 1.52 s",
+    "total 16.71 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Change",
+   "action": "change",
+   "http": 200,
+   "move": "challenge",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 5.6,
+   "failed": null,
+   "answer": "name: Katharina Huber | role: Project Sponsor | department: Head of Field Service Austria | time_commitment: 2 h per month\nname: Markus Steiner | role: Process Owner | department: Service Desk Lead Vienna | time_commitment: 4 h per week\nname: Elena Gruber | role: Team Member | department: Field Technician Coordinator | time_commitment: 4 h per week\nname: Thomas Wagner | role: Team Member | departm",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.47 s",
+    "input guard 2.75 s",
+    "after the answer (steps, save) 1.82 s",
+    "total 5.57 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Training: Elena Gruber and Thomas Wagner need a half-day on data collection; nobody else.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 16.1,
+   "failed": null,
+   "answer": "Here’s what I understand about your project team so far:\n\n- **Katharina Huber** — Project Sponsor, Head of Field Service Austria, 2 hours per month\n- **Markus Steiner** — Process Owner, Service Desk Lead Vienna, 4 hours per week\n- **Elena Gruber** — Team Member, Field Technician Coordinator, 4 hours per week (needs a half-day of training on data collection)\n- **Thomas Wagner** — Team Member, Custo",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.38 s",
+    "input guard 3.25 s",
+    "planner judgment 2.83 s",
+    "coach 5.22 s",
+    "grader 1.56 s",
+    "after the answer (steps, save) 1.72 s",
+    "total 16.13 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "voc_summary",
+   "recorded_move": null,
+   "seconds": 17.0,
+   "failed": null,
+   "answer": "Stored: Team.\n\nGreat, now let's move to the next step: identifying the Voice of the Customer (VOC) and Critical-to-Quality (CTQ) requirements.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.50 s",
+    "input guard 2.52 s",
+    "coach 9.66 s",
+    "grader 1.39 s",
+    "after the answer (steps, save) 1.90 s",
+    "total 16.95 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 8,
+ "cost": {
+  "usd": 0.0536,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0521,
+   "gpt-4o-mini-2024-07-18": 0.0015
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 59.63,
+  "calls": 126,
+  "case": {
+   "seconds": 0.93,
+   "calls": 9
+  },
+  "checkpoint": {
+   "seconds": 57.68,
+   "calls": 103
+  },
+  "store": {
+   "seconds": 1.02,
+   "calls": 14
+  }
+ },
+ "started": "20261028T190519"
+}

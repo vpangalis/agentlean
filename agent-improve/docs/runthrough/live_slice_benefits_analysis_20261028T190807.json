@@ -1,0 +1,103 @@
+{
+ "kind": "live_slice",
+ "element": "benefits_analysis",
+ "case_id": "IMPR-2026-QWUAUU",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "slice_messages_benefits.json",
+ "recorded_product_hash": null,
+ "product_hash": "3be3f52ed73c169f",
+ "seeded": [
+  "baseline_estimate",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "Cost of the gap about €20,500 a year. Sustainable, every year. From the first full quarter after the change, Q2 2027. Checked by Martina Koller, controller Field Service. Soft benefit: fewer escalatio",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "benefits_analysis",
+   "recorded_move": null,
+   "seconds": 13.8,
+   "failed": null,
+   "answer": "Thanks for providing the details. Here's the benefits analysis as I understand it based on your input:\n\n- **Cost of the gap:** about €20,500 a year.\n- **Impact type:** Sustainable, every year.\n- **Realisation schedule:** From the first full quarter after the change, Q2 2027.\n- **Finance contact:** Martina Koller, controller Field Service.\n- **Soft benefit:** Fewer escalations to account managers, ",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.63 s",
+    "input guard 1.28 s",
+    "planner judgment 2.06 s",
+    "coach 6.57 s",
+    "grader 1.45 s",
+    "after the answer (steps, save) 1.13 s",
+    "total 13.77 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "secondary_metrics",
+   "recorded_move": null,
+   "seconds": 18.9,
+   "failed": null,
+   "answer": "Stored: Benefits analysis.\n\nLet's move on to the next element: secondary metrics.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.31 s",
+    "input guard 1.55 s",
+    "coach 13.54 s",
+    "grader 1.34 s",
+    "after the answer (steps, save) 1.21 s",
+    "total 18.89 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 5,
+ "cost": {
+  "usd": 0.0328,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0321,
+   "gpt-4o-mini-2024-07-18": 0.0007
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 21.22,
+  "calls": 63,
+  "case": {
+   "seconds": 0.45,
+   "calls": 5
+  },
+  "store": {
+   "seconds": 0.64,
+   "calls": 6
+  },
+  "checkpoint": {
+   "seconds": 20.14,
+   "calls": 52
+  }
+ },
+ "started": "20261028T190807"
+}
