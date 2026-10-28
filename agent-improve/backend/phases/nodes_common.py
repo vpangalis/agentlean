@@ -1555,7 +1555,7 @@ def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None
 
 
 def _element_card(phase: str, record: dict | None, artifacts: dict[str, Any],
-                  plan: Optional[CoachingPlan]) -> tuple[dict | None, dict | None]:
+                  plan: Optional[CoachingPlan], case: Optional[dict] = None) -> tuple[dict | None, dict | None]:
     """ADR-0093 decisions 2 and 3: the read-back card, drawn in code from the exact value a Confirm will store
     (the record's pending store over the case's values) — Confirm opens only under a read-back with every
     required criterion met; a challenge made because a Confirm could not store shows the same card with Confirm
@@ -1568,12 +1568,14 @@ def _element_card(phase: str, record: dict | None, artifacts: dict[str, Any],
     strip = templates.strip(str(record["stored_field"])) if record.get("stored_field") in templates.TEMPLATES else None
     if pending and field in templates.TEMPLATES and record.get("move") == moves.READ_BACK:
         card = templates.card(field, {**artifacts, **dict(pending.get("store") or {})}, spans=pending.get("spans"),
-                              upload=pending.get("upload"), belt_words=str(pending.get("belt_words") or ""))
+                              upload=pending.get("upload"), belt_words=str(pending.get("belt_words") or ""),
+                              case=case)
         return card, strip
     return None, strip
 
 
-def _short_card(phase: str, field: Optional[str], pending: dict | None, artifacts: dict[str, Any]) -> dict | None:
+def _short_card(phase: str, field: Optional[str], pending: dict | None, artifacts: dict[str, Any],
+                case: Optional[dict] = None) -> dict | None:
     """ADR-0093: the card of a read-back a Confirm could not store (G-163) — its rows show what is open; Confirm
     stays closed."""
     if phase != "define" or not pending or not field:
@@ -1584,7 +1586,7 @@ def _short_card(phase: str, field: Optional[str], pending: dict | None, artifact
     # A read-back made again after a refused Confirm carries the refused value under `earlier`.
     values = {**artifacts, **dict(pending.get("earlier") or {}), **dict(pending.get("store") or {})}
     card = templates.card(field, values, spans=pending.get("spans"), upload=pending.get("upload"),
-                          belt_words=str(pending.get("belt_words") or ""))
+                          belt_words=str(pending.get("belt_words") or ""), case=case)
     return {**card, "confirm": False}
 
 
@@ -3795,9 +3797,11 @@ async def executor(
     feedback = _quality_feedback(grader_log)
     new_messages, reply, completion = _define_completion(phase, plan, record, new_messages, reply, fell_back)
     _attach_move(new_messages, record, feedback)
-    card, strip = _element_card(phase, record, artifacts, plan)
+    # DEF-265: the case's lead and people, so the team read-back draws the Gate's table.
+    case = ((config or {}).get("configurable") or {}).get("case_metadata")
+    card, strip = _element_card(phase, record, artifacts, plan, case)
     if card is None and sample_challenge and short and plan is not None:
-        card = _short_card(phase, plan.focus_field, pending, artifacts)
+        card = _short_card(phase, plan.focus_field, pending, artifacts, case)
     _attach_card(new_messages, card, strip, _reply_element(phase, record))
     if completion is not None:
         next(m for m in reversed(new_messages) if isinstance(m, AIMessage)).additional_kwargs[COMPLETION_KEY] = completion

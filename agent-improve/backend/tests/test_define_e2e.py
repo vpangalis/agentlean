@@ -7653,9 +7653,12 @@ def test_the_read_back_is_the_exact_value_a_confirm_stores(env, monkeypatch, stu
     assert [r["id"] for r in card["rows"]] == ["champion", "process-owner", "people", "training"]
     assert (card["n"], card["of"], card["name"], card["met"], card["total"], card["confirm"]) == (
         2, 13, "Team", 4, 4, True), card
-    # DEF-264 (G-297): the read-back's table has the Gate's Time and Training columns.
-    assert rows["people"]["value"]["rows"] == [[m["name"], m["role"], m["function"], "—", m["training"]]
-                                               for m in stored_team]
+    # DEF-264 (G-297) and DEF-265 (G-295): the read-back's table is the Gate's — the lead first, then each person
+    # with their Time, Training and Status.
+    people_rows = rows["people"]["value"]["rows"]
+    assert people_rows[0][:2] == [ACTOR, "Project lead"] and people_rows[0][-1] == "Leads the project", people_rows
+    assert [r[:5] for r in people_rows[1:]] == [[m["name"], m["role"], m["function"], "—", m["training"]]
+                                                for m in stored_team], people_rows
     assert rows["champion"]["value"] == "Katharina Huber" and rows["process-owner"]["value"] == "Markus Steiner"
     html = _draw_turn({"role": "ai", "text": "Here is your team. Is this right?", "move": "read_back",
                        "readback_card": card})
@@ -10494,9 +10497,42 @@ def _def_259_unit_checks() -> None:
             "process_map_sipoc", {"process_map_sipoc": parse.sipoc_with_performance(sipoc)}, judged=True), sipoc
 
 
-def test_def_265_the_project_lead_is_in_the_team_read_back() -> None:
-    """DEF-265 — The project lead is in the team read-back as in the Gate, with a status that matches the role, in plain words (founder test 2026-10-27)"""
-    _not_written('DEF-265')
+def test_def_265_the_project_lead_is_in_the_team_read_back(env, monkeypatch, stub_planner) -> None:
+    """DEF-265 — The project lead is in the team read-back as in the Gate, with a status that matches the role, in plain words (founder test 2026-10-27)
+
+    Findings 21, 22 and 29 (case IMPR-2026-PDLWG9): the team read-back after the upload had no project lead — he
+    appeared in Gate A only after the Confirm — and Gate A gave the lead the status "Member" and the others
+    "Proposed", unexplained. Through POST /ask, the Confirm and GET /gate/review, with the founder's team as the coach
+    captured it and the case's lead: the read-back's people row IS the Gate's table — the lead first as "Project
+    lead", "Leads the project"; each member named for the first time "Proposed — the lead confirms" (the Confirm
+    proposes them, ADR-0090); the line that explains the statuses under it (the founder's words, 2026-10-28) — and
+    after the Confirm, Gate A shows the same lead row."""
+    from backend.phases import moves
+    from backend.phases.define.templates import LEAD_STATUS, PERSON_STATUS, TEAM_STATUS_NOTE
+
+    people = [line.split(",") for line in TEAM_FIELD_SERVICE_FOUNDER.splitlines()[1:]]
+    env.case.phases["define"].structured = {"business_case": FOUNDER_1027_CONFIRMED["business_case"]}
+    env.case.phases["define"].field_status = {"business_case": {"status": moves.CONFIRMED},
+                                              "team": {"status": moves.ASKED}}
+    team = [{"name": n, "role": r, "function": d, "time_commitment": t, "training": "none"} for n, r, d, t in people]
+    _coach_saying(monkeypatch, "Here is your team. Is this right?",
+                  captured=[{"field_name": "team", "value": team, "source": "belt"}])
+    read = _askd(env, message="; ".join(f"{n}, {r}, {d}, {t}" for n, r, d, t in people)
+                 + ". Training: none needed.")
+    assert read["move"] == "read_back" and read["move_field"] == "team", (read["move"], read["answer"])
+    table = next(r for r in read["readback_card"]["rows"] if r["id"] == "people")["value"]
+    assert table["columns"][-1] == "Status" and table["note"] == TEAM_STATUS_NOTE, table
+    assert table["rows"][0][:2] == [ACTOR, "Project lead"] and table["rows"][0][-1] == LEAD_STATUS, table["rows"]
+    assert all(row[-1] == PERSON_STATUS["proposed"] for row in table["rows"][1:]), table["rows"]
+    assert [row[0] for row in table["rows"][1:]] == [p[0] for p in people], table["rows"]
+
+    _coach_saying(monkeypatch, "Next, the voice of the customer.")
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == "store_and_advance", (done["move"], done["answer"])
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    view = next(e for e in _gate_section(report, "A")["elements"] if e["field"] == "team")["view"]
+    assert view["rows"][0] == table["rows"][0], (view["rows"][0], table["rows"][0])
+    assert view["note"] == TEAM_STATUS_NOTE, view
 
 
 def test_def_266_one_element_card_for_every_element_of_every_phase() -> None:

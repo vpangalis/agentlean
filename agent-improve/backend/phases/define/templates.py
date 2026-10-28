@@ -436,7 +436,8 @@ def _calculated(field: str, values: dict[str, Any]) -> Optional[tuple[str, str]]
 
 
 def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] = None,
-         judged: bool = True, upload: Optional[str] = None) -> list[dict[str, Any]]:
+         judged: bool = True, upload: Optional[str] = None, case: Optional[dict[str, Any]] = None,
+         before_confirm: bool = False) -> list[dict[str, Any]]:
     """The element's rows: {id, label, required, met, value, source, formula}, in the script's order.
 
     `values` holds the element's value(s) as a Confirm stores them (with the case's confirmed values beside,
@@ -444,7 +445,8 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
     whether the judgment found the answer sufficient (a read-back is made only then; a confirmed element was);
     `upload` the file the values came from (ADR-0085). DEF-263: when the judgment quoted (`spans` given, even empty),
     a free-text row is met only with a span of its own; a judgment that quoted nothing (`spans` None) is met on its
-    verdict."""
+    verdict. DEF-265 (founder test 2026-10-27 #22): with the `case` (its lead and people), the team's people row
+    is the Gate's own table — the lead first, each person's status; `before_confirm` for a read-back."""
     template = TEMPLATES.get(field, {})
     quoted = spans is not None and field not in _LOCKED_ELEMENTS
     spans = spans or {}
@@ -453,6 +455,8 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
     for cid, text in criteria(field):
         label, read = template.get(cid, (text.split(" — ")[0][:60], _span()))
         value, met = read(values)
+        if cid == define_criteria.PEOPLE and case and (case.get("leader") or case.get("people")):
+            value = {k: v for k, v in _team_table(values, case, before_confirm=before_confirm).items() if k != "kind"}
         kind = getattr(read, "__name__", "")
         if kind == "stated_read" and (cid in spans or cid not in _ABSENCES):
             value = None                       # G-314: the quote, or "in your answer" — never the criterion's wording
@@ -529,11 +533,11 @@ def _dropped_figure(belt_words: str, shown: str) -> bool:
 
 
 def card(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] = None, judged: bool = True,
-         upload: Optional[str] = None, belt_words: str = "") -> dict[str, Any]:
+         upload: Optional[str] = None, belt_words: str = "", case: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """The read-back card (readback_card_mockup.html): "Element n of 13 · name", "k of m criteria met", the rows,
     the whole answer once when a row is marked "in your answer", what is missing in plain words with one ask,
     and whether Confirm opens (every required criterion met — the server refuses it otherwise)."""
-    rs = rows(field, values, spans=spans, judged=judged, upload=upload)
+    rs = rows(field, values, spans=spans, judged=judged, upload=upload, case=case, before_confirm=True)
     open_rows = [r for r in rs if r["required"] and not r["met"]]
     shown = " ".join(plain(r.get("value")) + " " + str(r.get("formula") or "") for r in rs)
     # G-253 (DEF-185): the voice of the customer in the Belt's words, as the Gate's card shows it — a need with no CTQ
@@ -626,7 +630,7 @@ def history(field: str, field_log: list[dict[str, Any]] | None) -> list[str]:
 
 
 def gate_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any],
-              field_log: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+              field_log: list[dict[str, Any]] | None = None, case: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """ADR-0093 decision 4: the element's card in the Gate — "Element n · name", its status, its History, and for a
     confirmed element the SAME rows as its read-back card (`rows`, with the spans and the file its Confirm kept);
     for one not confirmed, what it still needs (its criteria by label), never a value."""
@@ -638,7 +642,7 @@ def gate_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any
     if status != "confirmed":
         out["needs"] = [label for cid, (label, _read) in TEMPLATES[field].items()]
         return out
-    rs = rows(field, artifacts, spans=entry.get("spans"), upload=entry.get("upload"))
+    rs = rows(field, artifacts, spans=entry.get("spans"), upload=entry.get("upload"), case=case)
     why = _WHY.get(field, {})
     out["rows"] = [{**r, **({"why": FIELD_EXPLAIN[why[r["id"]]]} if r["id"] in why else {})} for r in rs]
     if field in ("problem_statement", "goal_statement", "voc_summary") and isinstance(artifacts.get(field), str):
@@ -891,7 +895,7 @@ def gate_view(artifacts: dict[str, Any], field_status: dict[str, Any] | None = N
             e = element_of(f)
             if e in TEMPLATES and e not in elements:
                 elements.append(e)
-        cards = [gate_card(e, artifacts, field_status, field_log) for e in elements]
+        cards = [gate_card(e, artifacts, field_status, field_log, case) for e in elements]
         for c in cards:
             view = (_view(c["field"], artifacts, c, case or {}) if c["status"] == "confirmed" else
                     # DEF-176: the people on the case are case data — listed while element 2 is still open.

@@ -663,6 +663,10 @@ def _graph_config(case: CaseDocument, phase: str, user: str, entry: str,
                 "belt_level": case.belt_level,
                 "leader": case.leader,
                 "department": case.department,
+                # DEF-265 (founder test 2026-10-27 #22): the team read-back draws the Gate's table — the lead first,
+                # each person's status. Names, roles, functions and statuses only; never an e-mail or a code.
+                "people": [{"full_name": p.full_name, "role": p.role, "function": p.function, "status": p.status}
+                           for p in case.people],
             },
             # EVERY phase's captured fields, not just this turn's phase.
             # Measure seeds its metric confirmations from Define, and Analyse,

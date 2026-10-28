@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Headline** | 171 of 238 Define features pass, 34 more proven on earlier code (core 168 of 229) — A 57/96 · B 37/40 · C 61/77 · integrator 16/25 · M1: 57 proven · 23 awaiting fresh run · 14 open |
+| **Headline** | 172 of 238 Define features pass, 34 more proven on earlier code (core 169 of 229) — A 57/96 · B 37/40 · C 62/77 · integrator 16/25 · M1: 58 proven · 23 awaiting fresh run · 13 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
-| **Next — lane C** | DEF-265 — The project lead is in the team read-back as in the Gate, with a status that matches the role, in plain words |
+| **Next — lane C** | DEF-267 — R-A: the welcome flows straight into the first element's card; the Belt never types 'let's start' |
 | **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
