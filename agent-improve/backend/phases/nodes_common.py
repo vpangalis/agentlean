@@ -1973,7 +1973,7 @@ def _missing_words(phase: str, missing: list[str], artifacts: dict[str, Any],
     """G-163 — what a read-back still lacks, in the Belt's words: a number with its unit for a baseline
     or target, the SIPOC's missing columns, otherwise the part's own name."""
     from backend.phases.define.parse import METRIC_FIELDS, missing_columns, missing_parts
-    store = {**artifacts, **(pending.get("store") or {}), **(pending.get("proposed") or {})}
+    store = {**artifacts, **(pending.get("store") or {})}        # read-back = Gate (founder 2026-10-28)
     parts = []
     for f in missing:
         if missing_parts(f, (pending.get("store") or {}).get(f)):
@@ -3115,13 +3115,12 @@ def _read_back_pending(phase: str, state: PhaseState, plan: Optional[CoachingPla
             store = {f: v for f, v in store.items() if f not in copied}
             logger.warning("%s.executor: C3 — the answer to `%s` reproduces the sample the Belt was "
                            "shown; it will not be stored", phase, ", ".join(copied))
-        # ADR-0071: the read-back's MetricValues are what the Belt sees (below) and the chart draws.
-        from backend.phases.define.parse import METRIC_FIELDS
-        read = {f: v for f, v in store.items() if phase == "define" and f in METRIC_FIELDS}
+        # Read-back = Gate (founder 2026-10-28): the card, the drawing, the metric's meaning and what is missing
+        # are all read from `store` — what a Confirm stores — never from the coach's capture beside it.
         # DEF-021 / DEF-082 (R16) — the reason the Belt gave for a change, and where each value came
         # from, as the coach captured them in this read-back; the Confirm writes them to the log.
         captures = captured_entries(reply)
-        pending = {**pending, "proposed": {**kept, **read}, "store": store,
+        pending = {**pending, "store": store,
                    "reasons": {str(e.get("field_name")): str(e["reason"]).strip()
                                for e in captures if e.get("field_name") and str(e.get("reason") or "").strip()},
                    "sources": {str(e.get("field_name")): str(e.get("source") or "")
@@ -3263,7 +3262,7 @@ def _with_define_read_back_lines(phase: str, move: Optional[str], pending: Optio
             # code-written line is written only for a read-back that draws no card, never run into the coach's text.
             new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
         # DEF-018 — the metric's first appearance: its meaning from the Belt's registry entry, in code.
-        meaning = _metric_meaning({**dict(pending.get("proposed") or {}), **dict(pending.get("store") or {})}) \
+        meaning = _metric_meaning(dict(pending.get("store") or {})) \
             if "metric_definitions" in (pending.get("fields") or []) else None
         if meaning:
             new_messages = _with_code_line(new_messages, reply, meaning)
@@ -3303,7 +3302,7 @@ def _attach_visual(phase: str, plan: Optional[CoachingPlan], move: Optional[str]
     # the stored values. No model call draws.
     if phase == "define":
         from backend.phases.define import visuals
-        drawn = (visuals.for_field(plan.focus_field, {**prior_artifacts, **dict((pending or {}).get("proposed") or {})},
+        drawn = (visuals.for_field(plan.focus_field, {**prior_artifacts, **dict((pending or {}).get("store") or {})},
                                    confirmed=False)
                  if move == moves.READ_BACK and plan is not None and pending is not None else
                  # ADR-0086: the target read back from the goal — its chart, not yet confirmed.

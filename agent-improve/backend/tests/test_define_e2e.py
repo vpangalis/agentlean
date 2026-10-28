@@ -10448,7 +10448,9 @@ def test_def_259_the_sipoc_code_checks_gate_the_read_back(env, monkeypatch, stub
 
     # (d) nothing the Belt did not say: the invented Outputs are on neither the card nor the pending store.
     pending = ((_define(env).get("field_status") or {}).get("process_map_sipoc") or {}).get("pending") or {}
-    seen = json.dumps({"card": card, "store": pending.get("store")}, ensure_ascii=False)
+    # Read-back = Gate (founder 2026-10-28): the drawing beside the card is read from the same stored value.
+    seen = json.dumps({"card": card, "store": pending.get("store"), "drawn": read.get("sipoc_diagram"),
+                       "visual": read.get("visualisation")}, ensure_ascii=False)
     assert not [w for w in INVENTED_OUTPUTS_60 if w.lower() in seen.lower()], seen
 
     # (e) a Confirm stores nothing.

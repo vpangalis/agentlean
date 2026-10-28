@@ -444,7 +444,7 @@ def _earlier(entry: dict[str, Any], pending: Optional[dict[str, Any]]) -> dict[s
     out = dict(entry.get("earlier") or {})
     if pending:
         out.update(pending.get("earlier") or {})
-        out.update(pending.get("proposed") or pending.get("store") or {})
+        out.update(pending.get("store") or pending.get("proposed") or {})      # read-back = Gate: the store first
     return {f: v for f, v in out.items() if not is_empty_capture(v)}
 
 
