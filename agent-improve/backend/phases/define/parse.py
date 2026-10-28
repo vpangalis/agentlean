@@ -314,6 +314,59 @@ def team_rows(text: Any) -> list[dict[str, str]]:
     return out
 
 
+#: G-301 (DEF-264): a training line the Belt types to complete an uploaded team ("Training: Elena Gruber and Thomas
+#: Wagner need a half-day on data collection; nobody else.").
+_TRAINING_LINE = re.compile(r"(?im)^\s*training\s*:\s*(.+)$")
+_NOBODY_ELSE = re.compile(r"(?i)\b(?:nobody|no one|no-one|none)\s+(?:else|for the others|for the rest)\b"
+                          r"|\b(?:the )?others?\s*(?::|—|-)?\s*none\b")
+_NEEDS = re.compile(r"(?i)^(?:(?:and|,|&)\s*)*(?:each\s+|both\s+)?(?:needs?|requires?|should get|get)\s+")
+#: A typed line with no "Training:" label still states training when it names a member and says what they need
+#: ("Elena Gruber and Thomas Wagner need half a day on data collection; the others none").
+_TRAINING_CUE = re.compile(r"(?i)\bhalf an? (?:day|hour)\b|\b\d+\s*(?:days?|hours?)\s+(?:of|on)\b")
+
+
+def with_typed_training(rows: list[dict[str, str]], words: Any) -> list[dict[str, str]]:
+    """G-301 (DEF-264, founder test 2026-10-27 #28): the team rows with a typed training line read into each named
+    member's own `training` — the clause that names them, without their names ("a half-day on data collection");
+    "nobody else" gives every member not named "none". The line is labelled "Training: …", or a typed line (never a
+    file's labelled row) that names a member and states training. A member is named by their full name, or by a
+    first name no other member shares. Rows the line does not touch keep what the file gave them."""
+    out = [dict(r) for r in rows]
+    firsts = [str(r.get("name") or "").split()[0].lower() for r in out if str(r.get("name") or "").split()]
+
+    def names(r: dict[str, str]) -> list[str]:
+        full = str(r.get("name") or "").strip()
+        first = full.split()[0] if full.split() else ""
+        return [full] + ([first] if first and firsts.count(first.lower()) == 1 else [])
+
+    def names_someone(line: str) -> bool:
+        return any(n and re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", line, re.I) for r in out for n in names(r))
+    text = str(words or "")
+    typed = [x.strip() for x in text.splitlines() if x.strip() and " | " not in x and not _TRAINING_LINE.match(x)
+             and not x.strip().lower().startswith("name:") and names_someone(x)
+             and (_TRAINING.search(x) or _TRAINING_CUE.search(x))]
+    for line in [*_TRAINING_LINE.findall(text), *typed]:
+        named: set[int] = set()
+        for clause in (c.strip() for c in re.split(r"[;.]\s*", line) if c.strip()):
+            hits = [i for i, r in enumerate(out) if any(
+                n and re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", clause, re.I) for n in names(r))]
+            if not hits:
+                continue
+            what = clause
+            for i in hits:
+                for n in names(out[i]):
+                    what = re.sub(r"(?<!\w)" + re.escape(n) + r"(?!\w)", " ", what, flags=re.I)
+            what = _NEEDS.sub("", " ".join(what.split()).strip(" ,&")).strip(" ,")
+            for i in hits:
+                out[i]["training"] = what
+                named.add(i)
+        if _NOBODY_ELSE.search(line):
+            for i, r in enumerate(out):
+                if i not in named and not str(r.get("training") or "").strip():
+                    r["training"] = "none"
+    return out
+
+
 def missing_parts(field: str, value: Any) -> list[str]:
     """ADR-0088 decision 6: the required parts of an element R7 names that `value` lacks, in the Belt's words —
     the seven 5W2H answers (DEF-R04); a champion, a process owner and training stated (DEF-R02); customers, needs

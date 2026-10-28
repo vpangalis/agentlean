@@ -7649,7 +7649,9 @@ def test_the_read_back_is_the_exact_value_a_confirm_stores(env, monkeypatch, stu
     assert [r["id"] for r in card["rows"]] == ["champion", "process-owner", "people", "training"]
     assert (card["n"], card["of"], card["name"], card["met"], card["total"], card["confirm"]) == (
         2, 13, "Team", 4, 4, True), card
-    assert rows["people"]["value"]["rows"] == [[m["name"], m["role"], m["function"]] for m in stored_team]
+    # DEF-264 (G-297): the read-back's table has the Gate's Time and Training columns.
+    assert rows["people"]["value"]["rows"] == [[m["name"], m["role"], m["function"], "—", m["training"]]
+                                               for m in stored_team]
     assert rows["champion"]["value"] == "Katharina Huber" and rows["process-owner"]["value"] == "Markus Steiner"
     html = _draw_turn({"role": "ai", "text": "Here is your team. Is this right?", "move": "read_back",
                        "readback_card": card})

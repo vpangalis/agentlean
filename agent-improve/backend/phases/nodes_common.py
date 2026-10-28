@@ -3232,7 +3232,8 @@ def _read_back_outcome(phase: str, state: PhaseState, plan: Optional[CoachingPla
             "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
             "messages": int(pending.get("messages") or 1),
             **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
-            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
+            **({"earlier": pending["earlier"]} if pending.get("earlier") else {}),
+            **({"upload": pending["upload"]} if pending.get("upload") else {})}          # G-301 (DEF-264)
     link_challenge = bool(link and not resend and not refused and not sample_challenge and not focus_before.get("link_raised")
                           and move == moves.READ_BACK and pending is not None and plan and plan.focus_field)
     if link_challenge and plan is not None and plan.focus_field and pending is not None:
@@ -3240,7 +3241,8 @@ def _read_back_outcome(phase: str, state: PhaseState, plan: Optional[CoachingPla
             "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
             "messages": int(pending.get("messages") or 1), "link_raised": True,
             **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
-            **({"earlier": pending["earlier"]} if pending.get("earlier") else {})}
+            **({"earlier": pending["earlier"]} if pending.get("earlier") else {}),
+            **({"upload": pending["upload"]} if pending.get("upload") else {})}          # G-301 (DEF-264)
         logger.info("%s.executor: R18 — the read-back of `%s` is raised as a challenge: %s",
                     phase, plan.focus_field, link)
     elif (not resend and not refused and not sample_challenge and move == moves.READ_BACK

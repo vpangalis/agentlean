@@ -507,6 +507,13 @@ def _join(*parts: str) -> str:
     return chr(10).join(p for p in (s.strip() for s in parts) if p)
 
 
+def _upload_kw(*sources: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """G-301 (DEF-264, founder test 2026-10-27 #28): the uploaded file an element's answer started from, carried
+    through a Change and the Belt's typed additions — a Confirm then still stores the file's own rows, never the
+    coach's re-typing of them. `{"upload": filename}` from the first source that names one, else nothing."""
+    return next(({"upload": s["upload"]} for s in sources if s and s.get("upload")), {})
+
+
 async def decide(phase: str, artifacts: dict[str, Any],
                  field_status: dict[str, dict[str, Any]], belt: str,
                  judge: Judge, action: Optional[str] = None,
@@ -677,7 +684,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
     if pending and action == CHANGE_CLICK:
         words = str(pending.get("belt_words") or "")
         after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1),
-                        **_attempts(entry), **_earlier_kw(entry, pending)}
+                        **_attempts(entry), **_earlier_kw(entry, pending), **_upload_kw(pending)}
         return done(field, fields, status, CHALLENGE, answer=words,
                     messages=int(pending.get("messages") or 1), reason=CHANGE_REASON)
 
@@ -693,7 +700,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
     if judgment.verdict == "sufficient":
         new_pending = {"field": field, "fields": list(fields), "belt_words": answer,
                        "messages": so_far + 1, **_earlier_kw(entry, pending),
-                       **_spans_kw(phase, field, judgment, answer)}
+                       **_spans_kw(phase, field, judgment, answer), **_upload_kw(pending, entry)}
         after[field] = {"status": ANSWERED, "answer": answer, "messages": so_far + 1,
                         "pending": new_pending, **_attempts(entry)}
         return done(field, fields, status, READ_BACK, judgment=judgment, answer=answer,
@@ -701,7 +708,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
     # ADR-0072 — an insufficient answer is a failed attempt; the third brings the offer to park.
     tries = int(entry.get("attempts") or 0) + 1
     after[field] = {"status": ASKED, "answer": answer, "messages": so_far + 1, "attempts": tries,
-                    **_earlier_kw(entry, pending)}
+                    **_earlier_kw(entry, pending), **_upload_kw(pending, entry)}
     if tries >= PARK_AFTER:
         after[field]["offer_park"] = True
         return done(field, fields, status, OFFER_PARK, judgment=judgment, answer=answer,
@@ -779,8 +786,9 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
             value = parse.five_w_two_h_store(words, value) or value
         if phase == "define" and f in parse.TABLE_ELEMENTS and pending.get("upload") and parse.team_rows(words):
             # G-236 (DEF-229): a read-back of an uploaded table stores the file's rows, read in code from its
-            # labelled lines (every column, training included) — never the coach's re-typing of them.
-            value = parse.team_rows(words)
+            # labelled lines (every column, training included) — never the coach's re-typing of them. G-301
+            # (DEF-264): a training line the Belt typed to complete the file goes to each named member's own column.
+            value = parse.with_typed_training(parse.team_rows(words), words)
         if phase == "define" and f == "critical_to_quality" and isinstance(value, list):
             # ADR-0088 decision 2: the rows as the Belt stated them, never a cross product.
             value = parse.ctq_rows(value)

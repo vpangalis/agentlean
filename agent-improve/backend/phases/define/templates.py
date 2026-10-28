@@ -51,8 +51,11 @@ def _named(values: dict[str, Any], pattern: Any) -> Read:
 
 
 def _people(values: dict[str, Any]) -> Read:
-    rows = [[str(m.get(k) or "—") for k in TEAM_MEMBER_KEYS] for m in _team(values)]
-    return ({"columns": ["Name", "Role", "Function"], "rows": rows} if rows else None), None
+    # G-297 (DEF-264, founder test 2026-10-27 #24): the read-back's table has the Gate's Time and Training columns —
+    # a file's time commitment was in the coach's bullet list but not in the table.
+    rows = [[str(m.get(k) or "—") for k in TEAM_MEMBER_KEYS] + [_time_of(m), _member_training(m) or "—"]
+            for m in _team(values)]
+    return ({"columns": ["Name", "Role", "Function", "Time", "Training"], "rows": rows} if rows else None), None
 
 
 def _member_training(m: dict[str, Any]) -> Optional[str]:

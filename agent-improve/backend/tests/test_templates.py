@@ -119,7 +119,9 @@ def test_each_a99_element_reads_back_complete_with_no_json(field: str) -> None:
 def test_the_structured_elements_show_the_values_that_go_into_the_gate() -> None:
     team = {r["id"]: r for r in templates.rows("team", A99)}
     assert team["champion"]["value"] == "Katharina Huber" and team["process-owner"]["value"] == "Markus Steiner"
-    assert team["people"]["value"]["rows"][2] == ["Markus Steiner", "Process owner", "Service Desk Lead Vienna"]
+    # DEF-264 (G-297): the read-back's table has the Gate's Time and Training columns.
+    assert team["people"]["value"]["rows"][2][:3] == ["Markus Steiner", "Process owner", "Service Desk Lead Vienna"]
+    assert team["people"]["value"]["columns"] == ["Name", "Role", "Function", "Time", "Training"]
     assert "Elena Gruber: half-day data collection" in team["training"]["value"]
     voc = {r["id"]: r for r in templates.rows("voc_summary", A99)}
     assert voc["ctq"]["value"]["rows"][0][2].startswith("Closed within 5 working days")
