@@ -429,8 +429,8 @@ def _calculated(field: str, values: dict[str, Any]) -> Optional[tuple[str, str]]
     if field != "benefits_analysis":
         return None
     from backend.phases import calculations
-    row = calculations.latest(values, "define", field)
-    lines = calculations.how_it_was_calculated(row)
+    row = calculations.current(values, "define", field)          # R-E: from the confirmed values when not yet run
+    lines = calculations.how_it_was_calculated(row, values)
     result = calculations._result(row)
     if not lines or not result.get("cost_of_gap"):
         return None
@@ -1013,9 +1013,11 @@ def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str,
     from backend.phases import calculations
     calc = None
     if calculations.calculation_for("define", field):
-        # ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card, before any figure exists.
+        # ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card, before any figure exists;
+        # R-E (founder ruling 2026-10-27): once its inputs are confirmed, the card shows both figures, worked out in code.
         from backend.core.prompts import CALCULATION_CARD
-        calc = {"text": CALCULATION_CARD}
+        worked = calculations.how_it_was_calculated(calculations.current(artifacts, "define", field), artifacts)
+        calc = {"lines": worked.splitlines()} if worked else {"text": CALCULATION_CARD}
     return {
         "field": field, "n": n, "of": DEFINE_POSITIONS, "name": name_of(field), "section": section_of(field),
         "trail": {"previous": step(n - 1), "current": step(n), "next": step(n + 1),

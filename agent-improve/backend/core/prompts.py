@@ -664,9 +664,13 @@ NUMBERS_LEFT_OUT = "I left out figures the platform did not calculate."
 #: ADR-0077 point 4, G-226 — the lines under a read-back of an element with a calculation, written in code
 #: (`calculations.how_it_was_calculated`): two labelled figures, never one for the other — what the problem
 #: costs today, and what reaching the target removes; money with its currency and thousands separators.
-CALCULATION_LINE = ("Cost of the gap today (at the baseline): {cost_of_gap} a year — {base}% × {volume} units "
-                    "× {unit_cost}.\nExpected saving (reaching the target): {saving} a year — ({base}% − {target}%) "
-                    "× {volume} units × {unit_cost}.")
+#: R-E (founder ruling 2026-10-27): each figure as formula and result, with the currency and thousands separators —
+#: "Cost of the gap today (calculated): 1,200 complaints × 38% × €45 = €20,520 a year".
+CALCULATION_LINE = ("Cost of the gap today (calculated): {volume} {noun} × {base}% × {unit_cost} = {cost_of_gap} a year"
+                    "\nExpected saving at your target (calculated): {volume} × ({base}% − {target}%) × {unit_cost} = "
+                    "{saving} a year")
+#: R-E: the confirmed elements a calculation from the case's own values used, named under its two figures.
+CALCULATION_SOURCES = "From your confirmed business case, primary metric and baseline, and target."
 
 #: DEF-018 (R2) — when the Belt's metric first comes up (the read-back of position 5), what it means,
 #: from the registry entry the Belt gave — never invented — why Define cares, and how to read it.

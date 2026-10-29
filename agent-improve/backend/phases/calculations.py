@@ -173,22 +173,65 @@ def expected_saving_text(row: Optional[dict[str, Any]]) -> Optional[str]:
     return money_text(result["annual_savings"], str(result.get("currency") or ""))
 
 
-def how_it_was_calculated(row: Optional[dict[str, Any]]) -> str:
-    """The lines under a read-back (ADR-0077 point 4, G-226): the cost of the gap and the expected
-    saving, each labelled, with the multiplication in the Belt's own numbers, written in code.
-    Empty when nothing was calculated."""
+#: R-E: the noun after the yearly volume in the business case ("1,200 complaints a year" -> "complaints").
+_VOLUME_NOUN = re.compile(r"(?i)(?<![\d€£$.,])(?:\d{1,3}(?:,\d{3})+|\d+)\s+([a-z][a-z-]+)\b(?:\s+[a-z-]+){0,2}?\s+"
+                          r"(?:a|per|each|every)\s+year\b")
+
+
+def volume_noun(artifacts: Optional[dict[str, Any]]) -> str:
+    """What the yearly volume counts, in the business case's own word; "units" when it names none."""
+    text = (artifacts or {}).get("business_case")
+    m = _VOLUME_NOUN.search(text) if isinstance(text, str) else None
+    return m.group(1).lower() if m else "units"
+
+
+def preview(phase: str, field: Optional[str], artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """R-E (founder ruling 2026-10-27): the element's calculation from the case's confirmed values alone — the business
+    case's volume and unit cost, the baseline, the target — worked out by the same tool, NOT recorded: what the
+    element's card and an answer about it show before the Belt answers. None when an input is not confirmed."""
+    calc = calculation_for(phase, field)
+    if calc is None:
+        return None
+    inputs = dict(calc["from_state"](artifacts))
+    if any(not inputs.get(n) for n in ("baseline_value", "target_value", *calc["asked"])):
+        return None
+    return {"tool": calc["tool"], "inputs": inputs, "result": _tool(calc["tool"]).invoke(inputs), "phase": phase,
+            "from_case": True}
+
+
+def current(artifacts: dict[str, Any], phase: str, field: Optional[str]) -> Optional[dict[str, Any]]:
+    """The calculation the element shows: its newest recorded row, else the preview from the confirmed values."""
+    return latest(artifacts, phase, field) or preview(phase, field, artifacts)
+
+
+def how_it_was_calculated(row: Optional[dict[str, Any]], artifacts: Optional[dict[str, Any]] = None) -> str:
+    """The lines under a read-back (ADR-0077 point 4, G-226; R-E): the cost of the gap and the expected saving, each
+    labelled "(calculated)", as formula and result in the Belt's own numbers — the volume in the business case's own
+    word — written in code; for a calculation from the case's confirmed values, the line naming them. Empty when
+    nothing was calculated."""
     result = _result(row)
     if not result.get("cost_of_gap"):
         return ""
-    from backend.core.prompts import CALCULATION_LINE
+    from backend.core.prompts import CALCULATION_LINE, CALCULATION_SOURCES
     currency = str(result.get("currency") or "")
-    return CALCULATION_LINE.format(
+    lines = CALCULATION_LINE.format(
         cost_of_gap=money_text(result["cost_of_gap"], currency),
         saving=money_text(result["annual_savings"], currency),
-        base=result.get("baseline_percent"), target=result.get("target_percent"),
-        volume=number_text(result.get("annual_volume")),
+        base=number_text(result.get("baseline_percent")), target=number_text(result.get("target_percent")),
+        volume=number_text(result.get("annual_volume")), noun=volume_noun(artifacts),
         unit_cost=money_text(result.get("unit_cost"), currency))
+    return f"{lines}\n{CALCULATION_SOURCES}" if _from_case(row, artifacts) else lines
 
 
-__all__ = ["ASKED", "CALCULATIONS", "calculation_for", "missing_inputs", "run", "latest",
+def _from_case(row: Optional[dict[str, Any]], artifacts: Optional[dict[str, Any]]) -> bool:
+    """Whether a calculation's inputs are all the case's own confirmed values (the preview, or a row run from them)."""
+    if (row or {}).get("from_case"):
+        return True
+    calc = calculation_for(str((row or {}).get("phase") or "define"), "benefits_analysis") if artifacts else None
+    inputs = (row or {}).get("inputs") or {}
+    held = calc["from_state"](artifacts) if calc else {}
+    return bool(inputs) and all(held.get(k) == v for k, v in inputs.items())
+
+
+__all__ = ["ASKED", "CALCULATIONS", "calculation_for", "missing_inputs", "run", "latest", "preview", "current", "volume_noun",
            "number_text", "money_text", "expected_saving_text", "how_it_was_calculated"]

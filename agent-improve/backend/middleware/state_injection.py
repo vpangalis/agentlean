@@ -439,14 +439,16 @@ class BeforeModelStateInjection(AgentMiddleware):
         # G-226: the expected saving is the other figure, never the cost of the gap.
         # Proposed, never stored — the Belt confirms it.
         if self.phase == "define" and focus == "benefits_analysis":
-            from backend.phases.calculations import how_it_was_calculated
+            from backend.phases.calculations import how_it_was_calculated, preview
             savings = [r for r in (artifacts.get("computation_results") or [])
                        if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
+            # R-E: before the Belt answers, the calculation from the case's confirmed values — the coach explains it.
+            savings = savings or [r for r in (preview(self.phase, focus, artifacts),) if r]
             parts.append("<savings_calculation>")
             parts.append("Calculated this phase; propose the cost of the gap (today, at the baseline) as "
                          "benefits_analysis.cost_of_gap, with its assumptions. The expected saving (reaching the "
                          "target) is a separate figure: never call it the cost of the gap.")
-            parts += [f"{how_it_was_calculated(r) or value_text(r.get('result'))}\nInputs:\n"
+            parts += [f"{how_it_was_calculated(r, artifacts) or value_text(r.get('result'))}\nInputs:\n"
                       f"{value_text(r.get('inputs'), '  ')}" for r in savings[-1:]] \
                 or ["(not calculated yet — the calculation needs the baseline, the target, "
                     "the cost of one defect and the yearly volume)"]

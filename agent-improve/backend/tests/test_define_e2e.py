@@ -4055,7 +4055,9 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks how to calculate")
     _coach_saying(monkeypatch, "Multiply 1,800 late calls by £15: the gap costs about £27,000 a year.")
     r = _askd(env, message="How do I calculate the cost of the gap?")
-    assert r["answer"].startswith("Cost of the gap today (at the baseline): €20,520 a year"), r["answer"]
+    # R-E (founder ruling 2026-10-27): formula and result, worked out in code.
+    assert r["answer"].startswith("Cost of the gap today (calculated): 1,200 units × 38% × €45 = €20,520 a year"), \
+        r["answer"]
 
     # G-235, the cause: a planner model that returns no verdict (None) is answered in code — not an answer, the
     # coach responds and asks again, nothing stored — never the degraded reply.
@@ -5269,10 +5271,11 @@ def test_the_savings_calculation_is_taught_and_reads_percent_once(env, monkeypat
     # R-C (ADR-0114): the benefits card teaches the calculation — both formulas and the two figures it needs.
     assert CALCULATION_CARD in seen["teaching"], "the teaching turn does not teach the calculation"
     assert "the cost of the gap is today's rate" in CALCULATION_CARD and "the expected saving is" in CALCULATION_CARD
-    assert "Expected saving (reaching the target):" not in seen["teaching"], \
+    assert "Expected saving at your target (calculated):" not in seen["teaching"], \
         "a figure appeared before the calculation was taught"
     # G-226: the figure and how it was calculated, labelled, with the currency and separators.
-    assert ("Expected saving (reaching the target): £68,040 a year — (23% − 5%) × 42,000 units × £9."
+    # R-E (founder ruling 2026-10-27): formula and result.
+    assert ("Expected saving at your target (calculated): 42,000 × (23% − 5%) × £9 = £68,040 a year"
             in seen["read_back"]), seen["read_back"][-400:]
     savings = [calculate_expected_savings.invoke({"baseline_value": b, "target_value": t, "unit_cost": "9",
                                                   "annual_volume": "42000"})["annual_savings"]
@@ -9652,16 +9655,25 @@ def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures(env, monke
 
     seen = _walk_the_benefits_analysis(env, monkeypatch, stub_planner)
     said = seen["read_back"]
-    assert "Cost of the gap today (at the baseline): £86,940 a year — 23% × 42,000 units × £9." in said, said[-400:]
-    assert "Expected saving (reaching the target): £68,040 a year — (23% − 5%) × 42,000 units × £9." in said, said[-400:]
+    # R-E (founder ruling 2026-10-27): each figure as formula and result, labelled "(calculated)".
+    assert "Cost of the gap today (calculated): 42,000 units × 23% × £9 = £86,940 a year" in said, said[-400:]
+    assert "Expected saving at your target (calculated): 42,000 × (23% − 5%) × £9 = £68,040 a year" in said, said[-400:]
     assert "Calculated:" not in said, "the old unlabelled figure"
 
     # The founder's case (finding 57): € with separators, the two figures apart.
     row = {"tool": "calculate_expected_savings", "inputs": {}, "result": calculate_expected_savings.invoke(
         {"baseline_value": "38%", "target_value": "10%", "unit_cost": "€45 per unit", "annual_volume": "1200"})}
     lines = calculations.how_it_was_calculated(row)
-    assert "Cost of the gap today (at the baseline): €20,520 a year — 38% × 1,200 units × €45." in lines, lines
-    assert "Expected saving (reaching the target): €15,120 a year — (38% − 10%) × 1,200 units × €45." in lines, lines
+    assert "Cost of the gap today (calculated): 1,200 units × 38% × €45 = €20,520 a year" in lines, lines
+    assert "Expected saving at your target (calculated): 1,200 × (38% − 10%) × €45 = €15,120 a year" in lines, lines
+    # R-E: the founder's own business case names what the volume counts, and the confirmed elements used.
+    case = {"business_case": FOUNDER_BUSINESS_CASE, "baseline_estimate": {"value": 38.0, "unit": "%", "raw": "38%"},
+            "target_value": {"value": 10.0, "unit": "%", "raw": "under 10%"}}
+    worked = calculations.how_it_was_calculated(calculations.preview("define", "benefits_analysis", case), case)
+    assert worked.splitlines() == [
+        "Cost of the gap today (calculated): 1,200 complaints × 38% × €45 = €20,520 a year",
+        "Expected saving at your target (calculated): 1,200 × (38% − 10%) × €45 = €15,120 a year",
+        "From your confirmed business case, primary metric and baseline, and target."], worked
     # A row recorded before G-226 (no cost of the gap) is worked out again from its own inputs.
     old = {"tool": "calculate_expected_savings", "inputs": {"baseline_value": "38%", "target_value": "10%",
            "unit_cost": "€45", "annual_volume": "1200"}, "result": {"annual_savings": "15120"}}
@@ -10891,9 +10903,51 @@ def test_def_269_scope_is_taught_read_back_and_shown_as_in(env, monkeypatch, stu
     assert view["kind"] == "table" and view["rows"] == expected, view
 
 
-def test_def_270_calculations_by_code_shown_with_formula_and_result_offered() -> None:
-    """DEF-270 — R-E: calculations by code, shown with formula and result, offered for Confirm and stored in their own fields (founder test 2026-10-27)"""
-    _not_written('DEF-270')
+def test_def_270_calculations_by_code_shown_with_formula_and_result_offered(env, monkeypatch, stub_planner) -> None:
+    """DEF-270 — R-E: calculations by code, shown with formula and result, offered for Confirm and stored in their own fields (founder test 2026-10-27)
+
+    Founder test 2026-10-27 #47, #49, #51 and ruling R-E: once its inputs are confirmed, the benefits element shows —
+    on its card and in any answer about it — "Cost of the gap today (calculated): 1,200 complaints × 38% × €45 = €20,520
+    a year" and "Expected saving at your target (calculated): 1,200 × (38% − 10%) × €45 = €15,120 a year", naming the
+    confirmed elements used; the model never does the arithmetic. Through the routes and graph on IMPR-2026-PDLWG9's own
+    confirmed values: the card shows both, the answer to "How do I calculate the cost of the gap?" shows both whatever
+    the coach wrote, the read-back carries them for Confirm, and the Confirm stores the calculation in its own record."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    want = ["Cost of the gap today (calculated): 1,200 complaints × 38% × €45 = €20,520 a year",
+            "Expected saving at your target (calculated): 1,200 × (38% − 10%) × €45 = €15,120 a year",
+            "From your confirmed business case, primary metric and baseline, and target."]
+    _at_element(env, "benefits_analysis")
+    record = env.case.phases["define"]
+    record.structured.pop("computation_results", None)
+    record.structured.update(FOUNDER_1027_CONFIRMED)
+    card = _askd(env, message="Next, please.")["teaching_card"]
+    assert card["field"] == "benefits_analysis" and card["calculation"] == {"lines": want}, card.get("calculation")
+
+    stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="asks how to calculate it")
+    _coach_saying(monkeypatch, "The cost of the gap is what the problem costs you today.")
+    asked = _askd(env, message="How do I calculate the cost of the gap?")
+    assert asked["move"] == moves.RESPOND and all(line in asked["answer"] for line in want), asked["answer"]
+
+    # The founder's benefits answer, read back as the live coach did (its four keys; the judgment extracts nothing).
+    stub_planner.judgment = SufficiencyJudgment(
+        verdict="sufficient", reason="all four parts of the benefits analysis are stated", calculation_inputs={})
+    _coach_saying(monkeypatch, "Here's what I have for your benefits analysis. Is this right?", captured=[
+        {"field_name": "benefits_analysis", "source": "belt",
+         "value": {"cost_of_gap": "About €20,500 a year", "impact_type": "Sustainable, every year",
+                   "realisation_schedule": "From the first full quarter after the change, Q2 2027",
+                   "finance_contact": "Martina Koller, Controller Field Service"}}])
+    read = _askd(env, message=FOUNDER_1027_BENEFITS)
+    assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], read["readback_card"]
+    assert want[0] in read["answer"] and want[1] in read["answer"], read["answer"][-700:]
+    cost = next(r for r in read["readback_card"]["rows"] if r["id"] == "cost-of-gap")
+    assert cost["source"] == "calculated" and cost["value"] == "€20,520 per year", cost
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE, done["move"]
+    rows = [r for r in _define(env)["structured"].get("computation_results") or []
+            if r.get("tool") == "calculate_expected_savings"]
+    assert rows and rows[-1]["result"]["annual_savings"] in ("15120.00", "15120", 15120, 15120.0), rows[-1:]
 
 
 def test_def_271_the_sipoc_is_collected_in_four_guided_parts_a() -> None:

@@ -6356,8 +6356,11 @@ function teachingCardHtml(c,latest){
   const yt=c.your_turn||{};
   const turnBlk=`<div class="tc-yourturn"><div class="tc-yt-h">YOUR TURN</div><div class="tc-q">${escapeHtml(yt.question||'')}</div>`
     +`${yt.hint?`<div class="tc-hint">${escapeHtml(yt.hint)}</div>`:''}</div>`;
-  // ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card.
-  const calc=c.calculation?`<div class="tc-calc">${escapeHtml(c.calculation.text)}</div>`:'';
+  // ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card; R-E: once its inputs are
+  // confirmed, both figures as formula and result, worked out in code, and the elements they come from.
+  const calc=!c.calculation?'':c.calculation.lines
+    ?`<div class="tc-calc">${c.calculation.lines.map(l=>`<div>${escapeHtml(l)}</div>`).join('')}</div>`
+    :`<div class="tc-calc">${escapeHtml(c.calculation.text)}</div>`;
   const ex=c.example?`<div class="tc-example"><div class="tc-ex-h">${escapeHtml(c.example.label)}</div><table class="tc-ex"><thead><tr>`
     +`${(c.example.columns||[]).map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>`
     +`${(c.example.rows||[]).map(r=>`<tr>${r.map(x=>`<td>${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'';

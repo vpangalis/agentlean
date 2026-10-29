@@ -1540,7 +1540,8 @@ def _grader_given(phase: str, state: PhaseState, field: Optional[str]) -> tuple[
     from backend.middleware.skills import element_text
     from backend.middleware.state_injection import turn_artifacts
     from backend.phases import calculations
-    lines = calculations.how_it_was_calculated(calculations.latest(turn_artifacts(state), phase, field))
+    arts = turn_artifacts(state)
+    lines = calculations.how_it_was_calculated(calculations.current(arts, phase, field), arts)
     return tuple(t for t in (element_text(phase, field, "Show"), *lines.splitlines(), SAMPLE_MARK) if t.strip())
 
 
@@ -2916,7 +2917,7 @@ def _sourced_numbers(phase: str, state: PhaseState, plan: Optional[CoachingPlan]
             needs = calculations.missing_inputs(phase, plan.focus_field, arts)
             # In the catalogue (this element has a calculation in code): its own figures when it has run,
             # else what it still needs; outside it, `CALCULATION_FALLBACK`.
-            said = (calculations.how_it_was_calculated(calculations.latest(arts, phase, plan.focus_field))
+            said = (calculations.how_it_was_calculated(calculations.current(arts, phase, plan.focus_field), arts)
                     or (CALCULATION_NEEDS.format(needs=" and ".join(needs.values())) if needs else "")
                     or CALCULATION_FALLBACK)
             fallback = fallback.model_copy(update={"message": f"{said}\n\n{fallback.message}"})
@@ -2964,6 +2965,22 @@ def _with_mismatch(phase: str, plan: Optional[CoachingPlan], reply: CoachingResp
     return reply.model_copy(update={"message": message})
 
 
+def _with_calculation_lines(phase: str, state: PhaseState, plan: Optional[CoachingPlan],
+                            reply: CoachingResponse) -> CoachingResponse:
+    """ADR-0077 point 4 — the figures and how they were calculated, in code, under a read-back; R-E (founder ruling
+    2026-10-27) — and under any answer about an element with a calculation ("How do I calculate the cost of the gap?"),
+    from its recorded row or, before the Belt answered, from the case's confirmed values. Returns a COPY, or `reply`."""
+    from backend.phases import calculations
+    if plan is None or not (plan.move == moves.READ_BACK or (
+            plan.move == moves.RESPOND and calculations.calculation_for(phase, plan.focus_field))):
+        return reply
+    arts = dict(state.get("artifacts") or {})
+    line = calculations.how_it_was_calculated(calculations.current(arts, phase, plan.focus_field), arts)
+    if not line or line in (reply.message or ""):
+        return reply
+    return reply.model_copy(update={"message": f"{(reply.message or '').rstrip()}\n\n{line}"})
+
+
 def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], reply: CoachingResponse | None,
                   new_messages: list, turn_type: str, written: Optional[CoachingResponse], *,
                   fell_back: bool, filtered: bool, level_4: Optional[str], card: bool = False
@@ -2983,12 +3000,7 @@ def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], r
                                    state))
         if turn_type == turn_tools.UPLOAD:
             reply = _with_upload_check(phase, reply, _unread_upload(state), plan.focus_field if plan else None)
-        if plan is not None and plan.move == moves.READ_BACK:
-            # ADR-0077 point 4 — the figure and how it was calculated, one line in code.
-            line = calculations.how_it_was_calculated(
-                calculations.latest(dict(state.get("artifacts") or {}), phase, plan.focus_field))
-            if line and line not in (reply.message or ""):
-                reply = reply.model_copy(update={"message": f"{(reply.message or '').rstrip()}\n\n{line}"})
+        reply = _with_calculation_lines(phase, state, plan, reply)
         reply = _with_mismatch(phase, plan, reply)                 # ADR-0112: told in the reply, never a pause
         new_messages = _with_coaching_text(new_messages, reply)
 
