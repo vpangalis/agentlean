@@ -4491,6 +4491,17 @@
    ],
    "escape_class": "path_test",
    "control": "backend/tests/test_source_bytes.py::test_g347_no_control_character_in_the_product_source refuses any control character in the product source, so a heredoc's backspace fails the commit"
+  },
+  {
+   "id": "G-348",
+   "symptom": "A LIVE SLICE HUNG AFTER ITS LAST TURN AND WROTE NO RECORD. Twice on 2026-10-29: DEF-292's benefits slice and DEF-293's SIPOC slice ran every turn, logged 'Agent Improve shutting down', and never returned; the turns were read from the log. D4 OCCURRENCE: scripts/live_slice.py wrote its record after `with TestClient(app)` exited, and the app's shutdown hung (an aiohttp session's SSL shutdown, logged 'SSL shutdown timed out'). D4 ESCAPE (assumption): the shutdown was assumed to return; it did in every slice before 2026-10-29. D5 FIX: the record is written and printed inside the client block, before the shutdown. D6 VERIFY: DEF-293's slice re-run writes its record. D7 PREVENT: the record no longer depends on the shutdown.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "escape_class": "assumption",
+   "control": "scripts/live_slice.py writes the record inside `with TestClient(app)`, before the app's shutdown, so a shutdown that hangs cannot lose it"
   }
  ],
  "escape_controls": {

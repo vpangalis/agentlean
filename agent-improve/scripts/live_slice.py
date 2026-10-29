@@ -313,35 +313,37 @@ def main() -> int:
         s0 = len(STORAGE)
         result = replay(client, case_id, plan, timing)
         final = client.get(f"/cases/{case_id}").json()
-    stored = args.element in (((final.get("phases") or {}).get("define") or {}).get("structured") or {})
-    checks = {"the element's recorded turns were found": bool(plan["turns"]),
-              "a turn stored the element and moved on": result["passed"],
-              "the element is in the case record": stored}
-    if args.messages:
-        # The founder's scripted messages (wave 0, R-F): the slice is judged on the turns, not on a store.
-        checks = {"every message was sent": len(result["turns"]) == len(plan["turns"]),
-                  "no turn was discarded (HTTP 200, not failed)": all(
-                      x["http"] == 200 and not x["failed"] for x in result["turns"]),
-                  "no reply asks the Belt to send again": not any(x["asks_to_send_again"] for x in result["turns"]),
-                  "every turn logged its steps": all(x["steps"] for x in result["turns"])}
-    if args.copy_case:
-        # Founder review 2026-10-28, item 3: a turn over 45 s on the full-size copy stops the work for its cause.
-        checks["every turn answered within 45 s"] = all(x["seconds"] <= 45 for x in result["turns"])
-    entry = {"kind": "live_slice", "element": args.element, "case_id": case_id, "from_record": source.name,
-             **({"copied": {k: v for k, v in copied.items() if k != "sign_in"}} if copied else {}),
-             "messages": args.messages and Path(args.messages).name,
-             "recorded_product_hash": plan["product_hash"], "product_hash": _product_hash(),
-             "seeded": sorted(plan["structured"]), "turns": result["turns"], "checks": checks,
-             "passed": all(checks.values()), "model_calls": len(CALLS), "cost": _cost(token_totals(CALLS)),
-             "storage": storage_since(s0), "started": stamp}
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    out = OUT_DIR / f"live_slice_{args.element}_{stamp}.json"
-    out.write_text(json.dumps(entry, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"live slice {args.element}: {'PASS' if entry['passed'] else 'FAIL'} · case {case_id} · "
-          f"{len(result['turns'])} live turn(s) · model calls {len(CALLS)} · USD {entry['cost'].get('usd')}")
-    for name, ok in checks.items():
-        print(f"  {'ok ' if ok else 'NO '} {name}")
-    print(f"record: {out}")
+        # G-348 (2026-10-29): the record is written before the client's exit — the app's shutdown has hung twice
+        # after the last turn, and a record written after it was lost.
+        stored = args.element in (((final.get("phases") or {}).get("define") or {}).get("structured") or {})
+        checks = {"the element's recorded turns were found": bool(plan["turns"]),
+                  "a turn stored the element and moved on": result["passed"],
+                  "the element is in the case record": stored}
+        if args.messages:
+            # The founder's scripted messages (wave 0, R-F): the slice is judged on the turns, not on a store.
+            checks = {"every message was sent": len(result["turns"]) == len(plan["turns"]),
+                      "no turn was discarded (HTTP 200, not failed)": all(
+                          x["http"] == 200 and not x["failed"] for x in result["turns"]),
+                      "no reply asks the Belt to send again": not any(x["asks_to_send_again"] for x in result["turns"]),
+                      "every turn logged its steps": all(x["steps"] for x in result["turns"])}
+        if args.copy_case:
+            # Founder review 2026-10-28, item 3: a turn over 45 s on the full-size copy stops the work for its cause.
+            checks["every turn answered within 45 s"] = all(x["seconds"] <= 45 for x in result["turns"])
+        entry = {"kind": "live_slice", "element": args.element, "case_id": case_id, "from_record": source.name,
+                 **({"copied": {k: v for k, v in copied.items() if k != "sign_in"}} if copied else {}),
+                 "messages": args.messages and Path(args.messages).name,
+                 "recorded_product_hash": plan["product_hash"], "product_hash": _product_hash(),
+                 "seeded": sorted(plan["structured"]), "turns": result["turns"], "checks": checks,
+                 "passed": all(checks.values()), "model_calls": len(CALLS), "cost": _cost(token_totals(CALLS)),
+                 "storage": storage_since(s0), "started": stamp}
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        out = OUT_DIR / f"live_slice_{args.element}_{stamp}.json"
+        out.write_text(json.dumps(entry, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"live slice {args.element}: {'PASS' if entry['passed'] else 'FAIL'} · case {case_id} · "
+              f"{len(result['turns'])} live turn(s) · model calls {len(CALLS)} · USD {entry['cost'].get('usd')}")
+        for name, ok in checks.items():
+            print(f"  {'ok ' if ok else 'NO '} {name}")
+        print(f"record: {out}", flush=True)
     return 0 if entry["passed"] else 1
 
 
