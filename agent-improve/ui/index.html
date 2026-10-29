@@ -6386,6 +6386,14 @@ function teachingCardHtml(c,latest){
   return `<div class="tcard">${trail}${saved}${note}${head}${sk}${turnBlk}${calc}${ex}${help}</div>`;
 }
 
+// DEF-290 (W3 amendment, founder 2026-10-29): after a Confirm whose reply is not a card, the card's saved note — the
+// same words and Gate link as on a card. A turn saved before it keeps its old green strip.
+function confirmedNoteHtml(s){
+  if(!s)return '';
+  if(!s.saved)return `<div class="rb-strip">${escapeHtml(s.text)}</div>`;
+  return `<div class="tc-saved" style="margin:0 0 8px">✓ ${escapeHtml(s.text)} · <a href="#" onclick="selectTab('gate');return false">view in the Gate</a></div>`;
+}
+
 function renderTurn(turn){
   if(turn.role==='failed') return failedTurnHtml(turn);       // DEF-055 / DEF-081
   if(turn.role==='ai'){
@@ -6399,7 +6407,7 @@ function renderTurn(turn){
     const el=turn.reply_element;
     const prog=el?`<div class="blk-progress">Element ${el.n} of ${el.of} · ${escapeHtml(el.name)}</div>`
       :turn.progress?`<div class="blk-progress">${escapeHtml(turn.progress)}</div>`:'';
-    const strip=turn.confirmed_strip?`<div class="rb-strip">${escapeHtml(turn.confirmed_strip.text)}</div>`:'';
+    const strip=turn.confirmed_strip?confirmedNoteHtml(turn.confirmed_strip):'';
     const warn=turn.grader_warning?`<div class="blk blk-warning">${escapeHtml(turn.grader_warning)}</div>`:'';
     // Step 6.61 (R4) — Confirm / Change under a read-back, on the latest turn
     // only. The move comes from the backend (the code decided it); a click

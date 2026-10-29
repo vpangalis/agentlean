@@ -929,12 +929,12 @@ def gate_view(artifacts: dict[str, Any], field_status: dict[str, Any] | None = N
     return {"sections": sections, "still_to_confirm": still}
 
 
-def strip(field: str) -> dict[str, Any]:
-    """After a Confirm (ADR-0093 decision 3): "✓ Element n · name confirmed — the Gate document is updated
-    (section X)"."""
-    n, name, section = number_of(field), name_of(field), section_of(field)
-    return {"field": field, "n": n, "name": name, "section": section,
-            "text": f"✓ Element {n} · {name} confirmed — the Gate document is updated (section {section})."}
+def strip(stored: list[str], artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """After a Confirm whose reply is not a card — the target read from the goal, an element offered from an earlier
+    answer, Define's last Confirm: the card's saved note, the same words and Gate link as on a card, marked `saved`
+    for the page (W3 amendment, founder 2026-10-29; DEF-290). Never "Stored: X." nor the old green strip."""
+    note = saved_note(stored, artifacts)
+    return {**note, "saved": True} if note else None
 
 
 #: R-C (ADR-0114, the approved mockup "progress-led, business" v2): the card's fixed words.

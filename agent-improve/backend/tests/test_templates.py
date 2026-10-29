@@ -212,8 +212,12 @@ def test_a_required_criterion_a_code_check_finds_open_closes_confirm() -> None:
 
 
 def test_the_strip_names_the_element_and_its_gate_section() -> None:
-    assert templates.strip("benefits_analysis")["text"] == (
-        "✓ Element 10 · Benefits analysis confirmed — the Gate document is updated (section B).")
+    # DEF-290 (W3 amendment, founder 2026-10-29): after a Confirm that is not followed by a card, the card's saved
+    # note — every element the Confirm stored, in short, and its Gate section — marked for the page.
+    note = templates.strip(["target_value", "target_date"], {"target_value": "under 10%", "target_date": "2027-03-31"})
+    assert note == {"fields": ["target_value", "target_date"], "section": "E", "saved": True,
+                    "text": "Target and target date saved: under 10% · 31 March 2027"}, note
+    assert templates.strip([], {}) is None
     assert [templates.section_of(f) for f in DEFINE_FIELD_ORDER] == [
         "B", "A", "D", "C", "E", "C", "C", "E", "E", "B", "E", "F", "G"]
 

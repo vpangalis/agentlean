@@ -323,7 +323,8 @@ process.stdout.write(JSON.stringify({{with:renderTurn(t), without:renderTurn({{.
 #: The page functions another one calls — brought along whenever it is run (ADR-0093: renderTurn draws the card).
 _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
     "function renderTurn": ("function elementValueHtml", "function elementRowsHtml", "function readbackCardHtml",
-                            "function completionCardHtml", "function mdHtml", "function teachingCardHtml"),   # R-C
+                            "function completionCardHtml", "function mdHtml", "function teachingCardHtml",    # R-C
+                            "function confirmedNoteHtml"),                                                     # DEF-290
     "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml", "function reportPrintHead"),
     "function renderPhaseNav": ("function gateSubmitState", "function renderGateSubmit"),
     "function renderLiveViz": ("function latestReply",),
@@ -6574,8 +6575,11 @@ def test_a8_the_target_is_read_from_the_confirmed_goal_and_confirmed_once(env, m
     _a8_at_goal_read_back(env, monkeypatch, goal)
     first = _askd(env, action="confirm", message="Confirm")
     assert first["move"] == "read_back" and first["move_field"] == "target_value", (first["move"], first["move_field"])
-    assert "Stored: " in first["answer"] and "at most 5%" in first["answer"] and "31 March 2027" in first["answer"], \
-        first["answer"]
+    assert "at most 5%" in first["answer"] and "31 March 2027" in first["answer"], first["answer"]
+    # DEF-290 (W3 amendment, founder 2026-10-29): the goal's Confirm is named by the saved note, never "Stored: X.".
+    assert "Stored: " not in first["answer"], first["answer"]
+    assert first["confirmed_strip"]["saved"] is True and first["confirmed_strip"]["fields"] == ["goal_statement"], \
+        first["confirmed_strip"]
     assert first["example"] == "", "a read-back shows no sample"
     assert (first.get("visualisation") or {}).get("confirmed") is False, first.get("visualisation")
     define = _define(env)
@@ -8105,8 +8109,11 @@ def test_adr0093_a_read_back_reads_verbatim_spans_and_a_confirm_keeps_them(env, 
     assert {k: v for k, v in entry.items() if k != "judged"} == {"status": moves.CONFIRMED, "spans": kept}, entry
     assert entry["judged"]["verdict"]["verdict"] == "sufficient", entry
     assert case["phases"]["define"]["structured"]["business_case"] == answer
-    assert case["conversation_history"][-1]["confirmed_strip"]["text"] == (
-        "✓ Element 1 · Business case confirmed — the Gate document is updated (section B).")
+    # DEF-290 (W3 amendment, founder 2026-10-29): the saved note — the element and its value in short, its Gate section.
+    note = case["conversation_history"][-1]["confirmed_strip"]
+    assert note["saved"] is True and note["section"] == "B" and note["fields"] == ["business_case"], note
+    assert note["text"].startswith("Business case saved: Since January 2026, 38% of complaints in the Austrian") \
+        and note["text"].endswith("…") and len(note["text"]) <= len("Business case saved: ") + 91, note
 
     # T88: a version-12 status without spans migrates unchanged; its rows show the whole answer once.
     v12 = {"field_status": {"business_case": {"status": moves.CONFIRMED}}, migrations.VERSION_KEY: 12}
@@ -8847,7 +8854,9 @@ def test_the_completion_card_and_the_decision_banner(env, monkeypatch, stub_plan
     body = _askd(env, message="Confirm", action="confirm")
     assert body.get("move") == "store_and_advance" and body.get("move_field") is None, body
     answer = body["answer"]
-    assert answer.startswith("Stored: Issues and barriers."), answer
+    # DEF-290 (W3 amendment, founder 2026-10-29): the last Confirm is named by the saved note, never "Stored: X.".
+    assert "Stored:" not in answer and body["confirmed_strip"]["text"] == f"Issues and barriers saved: {issues}", \
+        (answer, body["confirmed_strip"])
     assert "All 13 elements are confirmed" in answer and not re.search(r"approve|reject", answer, re.I), answer
     card = body.get("completion_card")
     assert card and card["title"] == "Define is ready for your team", card
@@ -11173,9 +11182,37 @@ def test_def_289_a_soft_benefits_criterion_stated_with_an_indicator_or() -> None
     _not_written('DEF-289')
 
 
-def test_def_290_every_confirm_is_named_in_the_card_s_saved_note() -> None:
-    """DEF-290 — W3 amendment (founder 2026-10-29, wave-2 decision 4): every Confirm's stored values are named in the card's saved note with its Gate section, the goal chain's included — never a 'Stored: X.' line"""
-    _not_written('DEF-290')
+def test_def_290_every_confirm_is_named_in_the_card_s_saved_note(env, monkeypatch) -> None:
+    """DEF-290 — W3 amendment (founder 2026-10-29, wave-2 decision 4): every Confirm's stored values are named in the card's saved note with its Gate section, the goal chain's included — never a 'Stored: X.' line
+
+    Through POST /ask on the goal chain (ADR-0086), the one place a Confirm was still followed by "Stored: Goal." and
+    the green strip: the goal's Confirm reads the target back with the saved note beside it; the target's Confirm
+    names both values it stored in the next element's card. The page draws the note with its Gate link; a turn saved
+    before keeps its strip."""
+    import json
+
+    from backend.phases.define import templates
+    goal = "Reduce the late payment rate from 23% to under 5% by 31 March 2027."
+    _a8_at_goal_read_back(env, monkeypatch, goal)
+
+    first = _askd(env, action="confirm", message="Confirm")
+    assert first["move"] == "read_back" and first["move_field"] == "target_value", first
+    assert "Stored" not in first["answer"], first["answer"]
+    note = first["confirmed_strip"]
+    assert note == {"fields": ["goal_statement"], "section": templates.section_of("goal_statement"), "saved": True,
+                    "text": f"{templates.name_of('goal_statement')} saved: {goal}"}, note
+
+    second = _askd(env, action="confirm", message="Confirm")
+    assert "Stored" not in second["answer"] and second["confirmed_strip"] is None, second
+    saved = (second.get("teaching_card") or {}).get("saved") or {}
+    assert saved.get("fields") == ["target_value", "target_date"] and "31 March 2027" in saved.get("text", ""), second
+
+    page = _page_js("escapeHtml", "confirmedNoteHtml", script="console.log(JSON.stringify({"
+                    f"note: confirmedNoteHtml({json.dumps(note)}),"
+                    "old: confirmedNoteHtml({text: '✓ Element 1 · Business case confirmed'}), none: confirmedNoteHtml(null)}))")
+    assert f"✓ {templates.name_of('goal_statement')} saved: " in page["note"] and "view in the Gate" in page["note"] \
+        and "selectTab('gate')" in page["note"], page
+    assert 'class="rb-strip"' in page["old"] and "view in the Gate" not in page["old"] and page["none"] == "", page
 
 
 def test_def_291_every_read_back_with_a_natural_picture_shows_it() -> None:

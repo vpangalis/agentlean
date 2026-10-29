@@ -1563,17 +1563,23 @@ def _quality_feedback(grader_log: list[dict[str, Any]]) -> dict[str, Any] | None
 
 
 def _element_card(phase: str, record: dict | None, artifacts: dict[str, Any],
-                  plan: Optional[CoachingPlan], case: Optional[dict] = None) -> tuple[dict | None, dict | None]:
+                  plan: Optional[CoachingPlan], case: Optional[dict] = None,
+                  kept: Optional[dict[str, Any]] = None) -> tuple[dict | None, dict | None]:
     """ADR-0093 decisions 2 and 3: the read-back card, drawn in code from the exact value a Confirm will store
     (the record's pending store over the case's values) — Confirm opens only under a read-back with every
     required criterion met; a challenge made because a Confirm could not store shows the same card with Confirm
-    closed. After a Confirm, the green strip naming the element and its Gate section. (None, None) otherwise."""
+    closed. After a Confirm, the saved note naming every element it stored, in short, and its Gate section
+    (DEF-290). (None, None) otherwise."""
     if phase != "define" or record is None:
         return None, None
     from backend.phases.define import templates
     pending = record.get("pending") or goal_read_back(plan)
     field = str((pending or {}).get("field") or "")
-    strip = templates.strip(str(record["stored_field"])) if record.get("stored_field") in templates.TEMPLATES else None
+    strip = None
+    if record.get("stored_field") in templates.TEMPLATES:
+        stored = [f for f, keys in moves.positions(phase)
+                  if f == record["stored_field"] or any(k in (kept or {}) for k in (f, *(keys or ())))]
+        strip = templates.strip(stored, artifacts)
     if pending and field in templates.TEMPLATES and record.get("move") == moves.READ_BACK:
         card = templates.card(field, {**artifacts, **dict(pending.get("store") or {})}, spans=pending.get("spans"),
                               upload=pending.get("upload"), belt_words=str(pending.get("belt_words") or ""),
@@ -2125,7 +2131,9 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
     if plan is None:
         return messages
     note = ""
-    if stored and plan.stored_field:
+    # DEF-290 (W3 amendment, founder 2026-10-29): a Define Confirm's stored values are named by the saved note on the
+    # card or beside the reply (`_element_card`), never by a "Stored: X." line.
+    if stored and plan.stored_field and not (phase == "define" and plan.stored_field in DEFINE_FIELD_ORDER):
         note = STORE_NOTE_STORED.format(elements=guard_messages.element_name(phase, plan.stored_field))
     elif plan.move in (moves.READ_BACK, moves.CHALLENGE) and (plan.reason or "").startswith(moves.CONFIRM_INCOMPLETE[:40]):
         missing = re.findall(r"`(\w+)`", plan.reason.split(".")[0] + ".")
@@ -3594,11 +3602,10 @@ def _define_completion(phase: str, plan: Optional[CoachingPlan], record: dict[st
     if (phase == "define" and record is not None and record.get("move") == moves.STORE_AND_ADVANCE
             and record.get("stored_field") and plan is not None and not plan.focus_field and not fell_back):
         # DEF-212 (G-213): the last Confirm of Define — every element confirmed, none left in focus. The reply is
-        # written in code: what was stored, that all are confirmed, and the completion card's steps in order —
-        # never the coach's own word on approving before anything was submitted.
+        # written in code: that all are confirmed, and the completion card's steps in order — never the coach's own
+        # word on approving before anything was submitted. What was stored is the saved note's (DEF-290).
         from backend.core.prompts import DEFINE_COMPLETE_CARD, DEFINE_COMPLETE_LINE
-        done = (f"{STORE_NOTE_STORED.format(elements=guard_messages.element_name(phase, record['stored_field']))}"
-                f"{chr(10) * 2}{DEFINE_COMPLETE_LINE.format(n=len(DEFINE_FIELD_ORDER))}")
+        done = DEFINE_COMPLETE_LINE.format(n=len(DEFINE_FIELD_ORDER))
         new_messages = _with_text(new_messages, done)
         if reply is not None:
             reply = reply.model_copy(update={"message": done})
@@ -3929,7 +3936,7 @@ async def executor(
     _attach_move(new_messages, record, feedback)
     # DEF-265: the case's lead and people, so the team read-back draws the Gate's table.
     case = ((config or {}).get("configurable") or {}).get("case_metadata")
-    card, strip = _element_card(phase, record, artifacts, plan, case)
+    card, strip = _element_card(phase, record, artifacts, plan, case, kept if move == moves.STORE_AND_ADVANCE else {})
     if card is None and sample_challenge and short and plan is not None:
         card = _short_card(phase, plan.focus_field, pending, artifacts, case)
     _attach_card(new_messages, card, _with_teaching_card(new_messages, teaching, strip), _reply_element(phase, record))
