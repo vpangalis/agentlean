@@ -4824,8 +4824,11 @@ function defineReportHtml(rep, isPassed, approvedAt) {
       const col = (label, items) => `<div class="gate-sipoc-col" style="flex:1;min-width:110px;border:1px solid #E4E2DC;border-radius:6px;padding:6px">
         <div style="font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#5B6B7C;margin-bottom:4px">${escapeHtml(label)}</div>${
         (items || []).map(x => `<div style="font-size:10.5px;background:#F7F9FB;border-radius:4px;padding:3px 5px;margin:2px 0">${escapeHtml(String(x))}</div>`).join('')}</div>`;
-      const step = s => `<div data-mark="${escapeHtml(s.mark || 'none')}" style="border:${s.mark === 'located' ? '2px solid #C77700;background:#FFF4D6' : s.mark === 'flagged' ? '1px dashed #B3261E' : '1px solid #0070BA'};border-radius:6px;padding:4px 6px;font-size:10.5px">
-        <div style="font-weight:600">${escapeHtml(String(s.n))} ${escapeHtml(s.name)}</div><div style="font-size:9.5px;color:#5B6B7C">${escapeHtml(s.time)} · ${escapeHtml(s.often)}</div></div>`;
+      // R-H (founder ruling 2026-10-27): the steps the problem statement names marked; a step with team-noted problems
+      // it does not mention in amber, with the problem and who said it.
+      const step = s => `<div data-mark="${escapeHtml(s.mark || 'none')}" style="border:${s.mark === 'located' ? '2px solid #0070BA;background:#EAF4FC' : s.mark === 'flagged' ? '2px solid #C77700;background:#FFF4D6' : '1px solid #E4E2DC'};border-radius:6px;padding:4px 6px;font-size:10.5px">
+        <div style="font-weight:600">${escapeHtml(String(s.n))} ${escapeHtml(s.name)}</div><div style="font-size:9.5px;color:#5B6B7C">${escapeHtml(s.time)} · ${escapeHtml(s.often)}</div>${
+        s.mark === 'flagged' ? (s.problems || []).map(p => `<div class="flag-note" style="font-size:9.5px;color:#8A5300">${escapeHtml(p.note)}${p.said_by ? ` — ${escapeHtml(p.said_by)}` : ''}</div>`).join('') : ''}</div>`;
       const flow = (v.steps || []).map(step).join('<div style="text-align:center;color:#0070BA;font-size:11px;line-height:1">↓</div>');
       const c = v.columns || {};
       const perf = v.table || {columns: [], rows: [], marks: []};
@@ -4833,8 +4836,8 @@ function defineReportHtml(rep, isPassed, approvedAt) {
         <div class="gate-sipoc-col" style="flex:1.5;min-width:150px;border:1px solid #E4E2DC;border-radius:6px;padding:6px"><div style="font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:#5B6B7C;margin-bottom:4px">Process</div>${flow}</div>
         ${col('Outputs', c.outputs)}${col('Customers', c.customers)}</div></div>
         <div class="gate-legend" style="display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:#5B6B7C;margin:4px 0">${(v.located || []).length
-          ? '<span><span style="display:inline-block;width:10px;height:10px;border:2px solid #C77700;background:#FFF4D6;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Step named in the problem statement</span>' : ''}${
-          (v.steps || []).some(s => s.mark === 'flagged') ? '<span><span style="display:inline-block;width:10px;height:10px;border:1px dashed #B3261E;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Problems noted at another step</span>' : ''}${
+          ? '<span><span style="display:inline-block;width:10px;height:10px;border:2px solid #0070BA;background:#EAF4FC;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Step named in the problem statement</span>' : ''}${
+          (v.steps || []).some(s => s.mark === 'flagged') ? '<span><span style="display:inline-block;width:10px;height:10px;border:2px solid #C77700;background:#FFF4D6;border-radius:3px;vertical-align:-1px;margin-right:4px"></span>Problems noted at a step the problem statement does not name</span>' : ''}${
           v.measured ? `<span>Measured on the outputs: ${escapeHtml(v.measured)}</span>` : ''}</div>${viewWhy(v.why)}${viewWhy(v.measured_why)}</div>`)
         + `<div class="el-scroll"><table class="gate-perf" style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0">
         <tr>${(perf.columns || []).map(h => `<th style="text-align:left;padding:4px 6px;border-bottom:1px solid #E4E2DC;color:#5B6B7C;font-weight:600">${escapeHtml(h)}</th>`).join('')}</tr>${
@@ -6420,11 +6423,16 @@ function renderTurn(turn){
     // DEF-095 (C4): the next steps the server computed, under the latest reply only; choosing one sends its words.
     const steps=(latest&&(turn.suggestion_chips||[]).length)?`<div class="next-steps" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${
       turn.suggestion_chips.map(c=>`<button class="chip" onclick="sendPresetMessage(${escapeHtml(JSON.stringify(c))})">${escapeHtml(c)}</button>`).join('')}</div>`:'';
+    // R-H (founder ruling 2026-10-27): under the SIPOC's link check, the flagged steps with their notes and two buttons.
+    const lc=turn.link_check;
+    const linkBtns=(lc&&latest)?`<div class="rb-actions link-check">${(lc.flagged||[]).map(f=>`<div style="font-size:12px;width:100%;color:#8A5300">${f.n} · ${escapeHtml(f.name)}${(f.notes||[]).map(t=>` — ${escapeHtml(t)}`).join('')}</div>`).join('')}
+      <button id="lc-add" class="btn btn-primary" onclick="sendMessage('link_add','process_map_sipoc')">${escapeHtml(lc.add)}</button>
+      <button id="lc-keep" class="btn" onclick="sendPresetMessage(${escapeHtml(JSON.stringify(lc.keep))})">${escapeHtml(lc.keep)}</button></div>`:'';
     // R-C (ADR-0114): a teaching turn is its element card alone — no text, blocks, strip or chips beside it.
     if(turn.teaching_card) return `<div class="msg"><div class="mav mai">AI</div>
       <div class="bbl bbl-ai">${teachingCardHtml(turn.teaching_card,latest)}${warn}${cites}</div></div>`;
     return `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai">${strip}${prog}<div class="md">${mdHtml(turn.text)}</div>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${steps}${warn}${cites}</div></div>`;
+      <div class="bbl bbl-ai">${strip}${prog}<div class="md">${mdHtml(turn.text)}</div>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${linkBtns}${steps}${warn}${cites}</div></div>`;
   }else{
     const initials=(turn.user||S.user||'U').split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase();
     return `<div class="msg user"><div class="mav mu">${initials}</div>
@@ -6612,6 +6620,7 @@ async function sendMessage(action, element){
   // side of the chat shows the button they pressed.
   const picked=(action==='revise'&&S.case&&(S.case.define_elements||[]).find(e=>e.field===element))||null;
   const text=action?({confirm:'Confirm',change:'Change',park:'Park and move on',try_again:'Try again',
+    link_add:(((S.localChat||[]).slice().reverse().find(t=>t.link_check)||{}).link_check||{}).add||'Add the steps to the problem statement',
     revise:(picked&&picked.status==='parked'?'Resume: ':picked&&picked.status==='open'?'Work on: ':'Change: ')
       +(picked?picked.name:element)}[action]||action):input.value.trim();
   if(!text||!S.case)return;
@@ -6671,6 +6680,7 @@ async function sendMessage(action, element){
         readback_card:resp.readback_card||null,confirmed_strip:resp.confirmed_strip||null,reply_element:resp.reply_element||null,
         completion_card:resp.completion_card||null,       // DEF-212
         teaching_card:resp.teaching_card||null,           // R-C (ADR-0114)
+        link_check:resp.link_check||null,                 // R-H
         suggestion_chips:resp.suggestion_chips||[],       // DEF-095
         // G-79 — the visual travels with the turn too, for the next redraw.
         visualisation:resp.visualisation||null,sipoc_diagram:resp.sipoc_diagram||null};
@@ -7375,10 +7385,14 @@ function renderSipocDiagram(sipoc, containerId) {
   const item = (k, v, j, style) => {
     if (k !== 'process_steps') return `<div style="${style}">${escapeHtml(String(v))}</div>`;
     const n = j + 1, mark = located.has(n) ? 'located' : flagged.has(n) ? 'flagged' : '';
-    const look = mark === 'located' ? 'background:#FFF4D6;border-left:3px solid #C77700;padding-left:4px;font-weight:600;'
-      : mark === 'flagged' ? 'border-left:3px dashed #B3261E;padding-left:4px;' : '';
+    // R-H (founder ruling 2026-10-27): the named steps marked; a step with problems the statement does not mention in
+    // amber, with the problem and who said it.
+    const look = mark === 'located' ? 'background:#EAF4FC;border-left:3px solid #0070BA;padding-left:4px;font-weight:600;'
+      : mark === 'flagged' ? 'background:#FFF4D6;border-left:3px solid #C77700;padding-left:4px;' : '';
+    const notes = mark === 'flagged' ? ((sipoc.notes || {})[String(n)] || []) : [];
     return `<div${mark ? ` data-mark="${mark}"` : ''} style="${style};${look}">${n} ${escapeHtml(String(v))}${
-      mark === 'flagged' ? ' <span style="font-size:9px;color:#B3261E">problems noted</span>' : ''}</div>`;
+      mark === 'flagged' ? (notes.length ? notes.map(t => `<div class="flag-note" style="font-size:9.5px;color:#8A5300">${escapeHtml(t)}</div>`).join('')
+        : ' <span style="font-size:9px;color:#8A5300">problems noted</span>') : ''}</div>`;
   };
   const labels = {
     suppliers: 'Suppliers',

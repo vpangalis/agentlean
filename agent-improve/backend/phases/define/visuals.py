@@ -81,7 +81,7 @@ def _date(value: Any) -> Optional[str]:
     return found[0] if found else (text or None)
 
 
-def _marks(values: dict[str, Any]) -> dict[str, list[int]]:
+def _marks(values: dict[str, Any]) -> dict[str, Any]:
     """DEF-211 (ADR-0078's note, point 4): the flow's marks when the problem statement places the
     problem — `located`, the numbers of the steps it is located in (a "from → to" location: every step between its
     ends); `flagged`, the numbers of steps with problem notes outside them. `parse.located_steps` is the matching."""
@@ -94,8 +94,12 @@ def _marks(values: dict[str, Any]) -> dict[str, list[int]]:
         return {}
     steps = process_steps(sipoc.get("process_steps"))
     hit = set(located_steps(where, sipoc)["located"])
-    return {"located": [i + 1 for i, s in enumerate(steps) if s["id"] in hit],
-            "flagged": [i + 1 for i, s in enumerate(steps) if s["problems"] and s["id"] not in hit]}
+    flagged = [i + 1 for i, s in enumerate(steps) if s["problems"] and s["id"] not in hit]
+    # R-H (founder ruling 2026-10-27): a flagged step shows its problem and who said it.
+    notes = {str(n): [" — ".join(x for x in (str(p.get("note") or ""), str(p.get("said_by") or "")) if x)
+                      for p in steps[n - 1]["problems"] if isinstance(p, dict)] for n in flagged}
+    return {"located": [i + 1 for i, s in enumerate(steps) if s["id"] in hit], "flagged": flagged,
+            **({"notes": notes} if notes else {})}
 
 
 #: DEF-211 (ADR-0070's note): the SIPOC's worked example, a structured file in the skill.

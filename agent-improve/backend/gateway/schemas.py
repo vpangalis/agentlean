@@ -65,7 +65,7 @@ class AskRequest(BaseModel):
     phase: str                   # current phase — UI sends this for routing
     # R4 — the Belt's Confirm or Change button under a read-back.
     # A click sets the field's status in code; no model reads it.
-    action: Optional[Literal["confirm", "change", "park", "try_again", "revise"]] = None
+    action: Optional[Literal["confirm", "change", "park", "try_again", "revise", "link_add"]] = None   # R-H: link_add
     # W9 (DEF-079) — with action "revise": the element picked in the progress view.
     element: Optional[str] = None
 
@@ -157,6 +157,8 @@ class AskResponse(BaseModel):
     #: R-C (ADR-0114) — a teaching turn's element card, assembled in code: the trail, the saved note, title and
     #: purpose, YOUR TURN, the example, the help links. The page draws it in place of the reply's text.
     teaching_card: Optional[dict] = None
+    #: R-H — under the SIPOC's link check: {flagged: [{n, name, notes}], add, keep} — the page draws the two buttons.
+    link_check: Optional[dict] = None
 
 
 class CaseCreateResponse(BaseModel):

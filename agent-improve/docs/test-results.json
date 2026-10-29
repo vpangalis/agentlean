@@ -1,9 +1,9 @@
 {
- "source_hash": "575dbf64022eaa5b",
- "commit": "b2a8b99",
+ "source_hash": "901ed3c76f2cc73b",
+ "commit": "7c424d6",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T12:23:10+00:00",
+ "recorded_at": "2026-10-29T12:43:27+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -469,7 +469,7 @@
   "backend/tests/test_define_e2e.py::test_def_269_scope_is_taught_read_back_and_shown_as_in": "passed",
   "backend/tests/test_define_e2e.py::test_def_270_calculations_by_code_shown_with_formula_and_result_offered": "passed",
   "backend/tests/test_define_e2e.py::test_def_271_the_sipoc_is_collected_in_four_guided_parts_a": "passed",
-  "backend/tests/test_define_e2e.py::test_def_272_the_r18_link_check_is_a_flow_with_the": "skipped",
+  "backend/tests/test_define_e2e.py::test_def_272_the_r18_link_check_is_a_flow_with_the": "passed",
   "backend/tests/test_define_e2e.py::test_def_273_a_change_replaces_the_earlier_version_and_a_message": "skipped",
   "backend/tests/test_define_e2e.py::test_def_274_the_lead_s_typed_name_replaces_you_the_lead": "skipped",
   "backend/tests/test_define_e2e.py::test_def_275_the_create_form_s_sign_in_note_says_one": "skipped",

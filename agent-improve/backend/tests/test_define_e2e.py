@@ -11034,9 +11034,58 @@ def test_def_271_the_sipoc_is_collected_in_four_guided_parts_a(env, monkeypatch,
                                                                                          flawed["answer"])
 
 
-def test_def_272_the_r18_link_check_is_a_flow_with_the() -> None:
-    """DEF-272 — R-H: the R18 link check is a flow with the steps marked and two buttons; the same picture in the read-back and Gate section F (founder test 2026-10-27)"""
-    _not_written('DEF-272')
+def test_def_272_the_r18_link_check_is_a_flow_with_the(env, monkeypatch, stub_planner) -> None:
+    """DEF-272 — R-H: the R18 link check is a flow with the steps marked and two buttons; the same picture in the read-back and Gate section F (founder test 2026-10-27)
+
+    Founder test 2026-10-27 #61 and ruling R-H: the link check was text only. Now the Belt's steps are a flow; the steps
+    the problem statement names are marked; steps with team-noted problems it does not mention are amber, with the
+    problem and who said it; two buttons — "Add step n to the problem statement" / "Keep as it is — not part of this
+    problem". Through the routes and graph on the founder's A99 process (the problem located at steps 3–4): the check
+    is raised with steps 1, 2 and 5 flagged with their notes; the read-back's drawing carries the same notes; "Add"
+    reads the process back again in code (no model call) for one Confirm, which stores the SIPOC and the problem
+    statement with the added steps, dated in the log; the Gate's section F then marks all five as named; the page draws
+    the buttons and the notes."""
+    from backend.core.prompts import LINK_KEEP_LABEL
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    steps = [s["name"] for s in SIPOC_A99["process_steps"]]
+    _at_the_sipoc(env, ["Technician visit and repair → Close complaint in ticket system"])
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all six columns and the step times")
+    _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": SIPOC_A99, "source": "belt"}])
+    raised = _askd(env, message="Log, schedule, visit, close, inform — problems at every step.")
+    assert raised["move"] == moves.CHALLENGE, (raised["move"], raised["answer"])
+    check = raised["link_check"]
+    assert [(f["n"], f["name"]) for f in check["flagged"]] == [(1, steps[0]), (2, steps[1]), (5, steps[4])], check
+    assert check["flagged"][0]["notes"] == ["missing contract data — Markus Steiner"], check["flagged"][0]
+    assert check["add"] == "Add steps 1, 2 and 5 to the problem statement" and check["keep"] == LINK_KEEP_LABEL
+    drawn = raised["sipoc_diagram"]
+    assert drawn["located"] == [3, 4] and drawn["flagged"] == [1, 2, 5], drawn
+    assert drawn["notes"]["5"] == ["customer not told the next step — Thomas Wagner"], drawn.get("notes")
+
+    html = _draw_turn({"role": "ai", "text": raised["answer"], "move": "challenge", "link_check": check})
+    assert 'id="lc-add"' in html and "Add steps 1, 2 and 5 to the problem statement" in html and 'id="lc-keep"' in html
+    assert "missing contract data — Markus Steiner" in html
+
+    judged = len(stub_planner.prompts)
+    _coach_saying(monkeypatch, "(not called: the read-back after Add is written in code)")
+    added = _askd(env, message="Add steps 1, 2 and 5 to the problem statement", action="link_add",
+                  element="process_map_sipoc")
+    assert added["move"] == moves.READ_BACK and added["readback_card"]["confirm"], (added["move"], added["answer"])
+    assert added["answer"].startswith(f"Added to the problem statement: {steps[0]}, {steps[1]}, {steps[4]}."), \
+        added["answer"]
+    assert len(stub_planner.prompts) == judged and not added.get("link_check")
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE, (done["move"], done["answer"])
+    stored = _define(env)
+    assert [s["name"] for s in stored["structured"]["process_map_sipoc"]["process_steps"]] == steps
+    assert stored["structured"]["problem_5w2h"]["steps"] == steps, stored["structured"]["problem_5w2h"]
+    assert any(e.get("field") == "problem_5w2h" for e in stored.get("field_log") or []), "the change is not dated"
+
+    gate = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]["gate"]
+    sipoc = next(c for sec in gate["sections"] for c in sec["elements"] if c["field"] == "process_map_sipoc")
+    assert [s["mark"] for s in sipoc["view"]["steps"]] == ["located"] * 5, sipoc["view"]["steps"]
 
 
 def test_def_273_a_change_replaces_the_earlier_version_and_a_message() -> None:

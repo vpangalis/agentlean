@@ -77,6 +77,11 @@ PARK_CLICK, TRY_AGAIN_CLICK = "park", "try_again"
 #: W9 (DEF-079) — the Belt picked an element in the progress view: Change on a confirmed one,
 #: Resume on a parked one. It rides with `element` and starts coaching on that element, in code.
 REVISE_CLICK = "revise"
+#: R-H (founder ruling 2026-10-27): under the SIPOC's link check, "Add step n to the problem statement" — the steps
+#: with team-noted problems the statement does not mention join its steps; the SIPOC is read back again, in code, and
+#: its one Confirm stores the changed problem statement with it.
+LINK_ADD_CLICK = "link_add"
+LINK_ADDED_REASON = "R-H: steps added to the problem statement: {steps}. Read back again, in code."
 REVISE_REASON = ("The Belt chose to change `{field}`, confirmed earlier: show their current words "
                  "and ask what they want to change.")
 OFFER_PARK_REASON = ("The Belt has tried `{field}` {n} times without it meeting its criteria. Explain "
@@ -528,6 +533,29 @@ def sipoc_parts_covered(words: str, answered: list[int]) -> set[int]:
     return covered
 
 
+def _link_added(phase: str, field: str, entry: dict[str, Any],
+                artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """R-H: after the SIPOC's link check (its entry keeps the read-back it challenged), the read-back again with the
+    steps that have team-noted problems the statement does not mention added to the problem statement's steps — the
+    changed 5W2H is held in the same pending store, so one Confirm stores both. None when there is nothing to add."""
+    challenged = dict(entry.get("challenged") or {})
+    store = dict(challenged.get("store") or {})
+    sipoc, fivew = store.get(SIPOC_FIELD), artifacts.get("problem_5w2h")
+    if phase != "define" or field != SIPOC_FIELD or not isinstance(sipoc, dict) or not isinstance(fivew, dict):
+        return None
+    from backend.phases.define import parse
+    flagged = parse.link_mismatch(fivew.get("steps"), sipoc)["ignored"]
+    if not flagged:
+        return None
+    located = set(parse.located_steps(fivew.get("steps"), sipoc)["located"])
+    steps = [s["name"] for s in parse.process_steps(sipoc.get("process_steps"))
+             if s["id"] in located or s["name"] in flagged]
+    changed = {**fivew, "steps": steps}
+    pending = {**challenged, "fields": [*(challenged.get("fields") or [field]), "problem_5w2h"],
+               "store": {**store, "problem_5w2h": changed}}
+    return {"pending": pending, "steps": list(flagged)}
+
+
 def _sipoc_part(phase: str, field: str, entry: dict[str, Any], belt: str) -> Optional[dict[str, Any]]:
     """R-G: while the SIPOC is being collected (its entry names the part asked), the entry after the Belt's answer when
     a part is still to be asked — the answer joined, the part answered recorded, the next part named — else None: all
@@ -671,6 +699,13 @@ async def decide(phase: str, artifacts: dict[str, Any],
         after[field] = {"status": ASKED, **({"part": 1} if phase == "define" and field == SIPOC_FIELD else {})}
         return done(field, fields, status, TEACH)
 
+    added = _link_added(phase, field, entry, artifacts) if action == LINK_ADD_CLICK else None
+    if added is not None:
+        # R-H: the Belt added the flagged steps to the problem statement — read back again with both, for one Confirm.
+        after[field] = {"status": ANSWERED, "answer": str(entry.get("answer") or ""), "messages": int(entry.get("messages")
+                        or 1), "pending": added["pending"], "link_raised": True, **_attempts(entry)}
+        return done(field, fields, status, READ_BACK, answer=str(entry.get("answer") or ""), pending=added["pending"],
+                    reason=LINK_ADDED_REASON.format(steps=", ".join(added["steps"])))
     pending = entry.get("pending") if status == ANSWERED else None
     if pending and (action == CONFIRM_CLICK or (action is None and (is_confirmation(belt)
                                                                      or uses_upload(belt, pending)))):
@@ -878,7 +913,7 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
 
 __all__ = [
     "MOVES", "STATUSES", "OFFER_PARK", "PARKED", "PARK_CLICK", "TRY_AGAIN_CLICK", "PARK_AFTER",
-    "parked", "park_events", "element_rows", "criteria_open", "REVISE_CLICK", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
+    "parked", "park_events", "element_rows", "criteria_open", "REVISE_CLICK", "LINK_ADD_CLICK", "LINK_ADDED_REASON", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
     "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK", "REJECTED",
     "MOVE_RECORD_KEY", "QUALITY_FEEDBACK_KEY", "COMPOSED_FIELDS", "positions", "focus",
     "current", "status_of", "last_record", "last_feedback", "belt_message",

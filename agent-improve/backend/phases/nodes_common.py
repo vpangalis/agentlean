@@ -61,7 +61,7 @@ from backend.middleware import turn_tools
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S
 from backend.core.request_context import mark_answered, turn_step   # R-F, #63
 from backend.core.conversation import CARD_KEY, COMPLETION_KEY, ELEMENT_KEY, STRIP_KEY  # ADR-0093
-from backend.core.conversation import TEACHING_CARD_KEY  # R-C (ADR-0114)
+from backend.core.conversation import LINK_CHECK_KEY, TEACHING_CARD_KEY  # R-C (ADR-0114), R-H
 from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
 from backend.core.prompts import (
@@ -1787,7 +1787,8 @@ def _written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], 
     are answered in code; R-C (ADR-0114 decision 4): a teaching move's reply is the element card, assembled in code —
     no coach call. An upload turn stays the coach's (W5, DEF-108; locked 2026-10-28: an upload starts its own turn)."""
     written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
-                                                    or _goal_target_reply(phase, plan) or _offer_reply(phase, plan))
+                                                    or _goal_target_reply(phase, plan) or _offer_reply(phase, plan)
+                                                    or _link_added_reply(plan))
     if written is not None or engine_timeout or turn_type == turn_tools.UPLOAD:
         return written, None
     teaching = _teaching_card(phase, state, plan)
@@ -1795,6 +1796,49 @@ def _written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], 
         return None, None
     from backend.phases.define.templates import card_text
     return CoachingResponse(message=card_text(teaching)), teaching
+
+
+def _link_added_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
+    """R-H: the SIPOC read back again after "Add step n to the problem statement", written in code — the steps added,
+    and that its one Confirm stores the changed problem statement with it. No coach call."""
+    head = moves.LINK_ADDED_REASON.split("{")[0]
+    if plan is None or plan.move != moves.READ_BACK or not str(plan.reason or "").startswith(head):
+        return None
+    from backend.core.prompts import LINK_ADDED
+    return CoachingResponse(message=LINK_ADDED.format(steps=str(plan.reason)[len(head):].split(".")[0]))
+
+
+def _link_check(phase: str, pending: Optional[dict], prior: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """R-H (founder ruling 2026-10-27): the SIPOC's link check as the page draws it under the challenge — each step with
+    team-noted problems the problem statement does not mention, with the problem and who said it, and the two buttons'
+    words. None when no such step."""
+    pair = _r18_pair(phase, "process_map_sipoc", dict((pending or {}).get("store") or {}), prior)
+    if pair is None:
+        return None
+    from backend.core.prompts import LINK_ADD_LABEL, LINK_KEEP_LABEL
+    from backend.phases.define import parse
+    sipoc, fivew = pair
+    ignored = parse.link_mismatch(fivew.get("steps"), sipoc)["ignored"]
+    steps = parse.process_steps(sipoc.get("process_steps"))
+    flagged = [{"n": i + 1, "name": s["name"],
+                "notes": [" — ".join(x for x in (str(p.get("note") or ""), str(p.get("said_by") or "")) if x)
+                          for p in s["problems"] if isinstance(p, dict)]}
+               for i, s in enumerate(steps) if s["name"] in ignored]
+    if not flagged:
+        return None
+    numbers = [str(f["n"]) for f in flagged]
+    which = numbers[0] if len(numbers) == 1 else ", ".join(numbers[:-1]) + " and " + numbers[-1]
+    return {"flagged": flagged, "add": LINK_ADD_LABEL.format(s="" if len(numbers) == 1 else "s", n=which),
+            "keep": LINK_KEEP_LABEL}
+
+
+def _with_link_check(messages: list, phase: str, pending: Optional[dict], prior: dict[str, Any],
+                     raised: bool) -> None:
+    """R-H: on the turn the SIPOC's link check is raised, its flagged steps and two buttons on the reply. In place."""
+    check = _link_check(phase, pending, prior) if raised else None
+    last = next((m for m in reversed(messages) if isinstance(m, AIMessage)), None)
+    if check is not None and last is not None:
+        last.additional_kwargs[LINK_CHECK_KEY] = check
 
 
 def _with_teaching_card(messages: list, teaching: Optional[dict], strip: Optional[dict]) -> Optional[dict]:
@@ -2182,8 +2226,9 @@ def _r18_pair(phase: str, field: Optional[str], store: dict[str, Any],
     if phase != "define":
         return None
     if field == "process_map_sipoc" and isinstance(store.get("process_map_sipoc"), dict) \
-            and isinstance(prior.get("problem_5w2h"), dict):
-        return store["process_map_sipoc"], prior["problem_5w2h"]
+            and isinstance(store.get("problem_5w2h") or prior.get("problem_5w2h"), dict):
+        # R-H: a read-back carrying steps the Belt added to the problem statement is checked against them.
+        return store["process_map_sipoc"], store.get("problem_5w2h") or prior["problem_5w2h"]
     if field == "problem_statement" and isinstance(store.get("problem_5w2h"), dict) \
             and isinstance(prior.get("process_map_sipoc"), dict):
         return prior["process_map_sipoc"], store["problem_5w2h"]
@@ -3183,7 +3228,10 @@ def _read_back_pending(phase: str, state: PhaseState, plan: Optional[CoachingPla
         earlier = dict(pending.get("earlier") or {})
         carried = {f: earlier[f] for f in (pending.get("fields") or [])
                    if f != pending.get("field") and f not in kept and f in earlier}
-        kept = {**kept, **carried}
+        # R-H: a read-back made again in code (no coach capture) proposes the value its pending already holds.
+        held = {f: v for f, v in (pending.get("store") or {}).items()
+                if f in (pending.get("fields") or []) and f not in kept}
+        kept = {**held, **kept, **carried}
         store = moves.pending_store(phase, pending, kept, prior_artifacts)
         # C3 (DEF-083): what a Confirm would store is never the sample the Belt was shown — even when it
         # is the Belt's own typed words (a plain-text answer stores those). G-160: no read-back is then
@@ -3318,6 +3366,7 @@ def _read_back_outcome(phase: str, state: PhaseState, plan: Optional[CoachingPla
         field_status[plan.focus_field] = {
             "status": moves.ASKED, "answer": str(pending.get("belt_words") or ""),
             "messages": int(pending.get("messages") or 1), "link_raised": True,
+            "challenged": pending,         # R-H: what "Add step n to the problem statement" reads back again
             **({"attempts": focus_before["attempts"]} if focus_before.get("attempts") else {}),
             **({"earlier": pending["earlier"]} if pending.get("earlier") else {}),
             **({"upload": pending["upload"]} if pending.get("upload") else {})}          # G-301 (DEF-264)
@@ -3884,6 +3933,7 @@ async def executor(
     if card is None and sample_challenge and short and plan is not None:
         card = _short_card(phase, plan.focus_field, pending, artifacts, case)
     _attach_card(new_messages, card, _with_teaching_card(new_messages, teaching, strip), _reply_element(phase, record))
+    _with_link_check(new_messages, phase, pending, prior_artifacts, link_challenge)          # R-H
     if completion is not None:
         next(m for m in reversed(new_messages) if isinstance(m, AIMessage)).additional_kwargs[COMPLETION_KEY] = completion
 

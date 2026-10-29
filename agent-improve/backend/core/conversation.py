@@ -75,8 +75,10 @@ ELEMENT_KEY = "reply_element"
 COMPLETION_KEY = "completion_card"
 #: R-C (ADR-0114) — the element card a teaching turn shows, kept on the turn so a reload draws it again.
 TEACHING_CARD_KEY = "teaching_card"
+#: R-H — the SIPOC's link check under its challenge: the flagged steps with their notes, and the two buttons' words.
+LINK_CHECK_KEY = "link_check"
 TURN_RECORD_KEYS: tuple[str, ...] = (MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY, CARD_KEY, STRIP_KEY, ELEMENT_KEY,
-                                     COMPLETION_KEY, TEACHING_CARD_KEY)
+                                     COMPLETION_KEY, TEACHING_CARD_KEY, LINK_CHECK_KEY)
 
 
 def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
@@ -170,6 +172,7 @@ __all__ = [
     "ELEMENT_KEY",
     "COMPLETION_KEY",
     "TEACHING_CARD_KEY",
+    "LINK_CHECK_KEY",
     "TURN_RECORD_KEYS",
     "message_to_turn",
     "turn_to_message",

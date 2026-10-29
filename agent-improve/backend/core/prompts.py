@@ -741,6 +741,11 @@ LINK_CHALLENGE = ("Before this is stored: the problem statement and the process 
                   "same place. {details} Name the step(s) where the problem shows, or add the problems the "
                   "team sees at those steps — or tell me to keep it as it is.")
 LINK_KEPT = "Kept as you said: {details}"
+#: R-H (founder ruling 2026-10-27): the link check's two buttons, and the read-back made again after the first.
+LINK_ADD_LABEL = "Add step{s} {n} to the problem statement"
+LINK_KEEP_LABEL = "Keep as it is — not part of this problem"
+LINK_ADDED = ("Added to the problem statement: {steps}. Here is your process again — your Confirm stores it with the "
+              "changed problem statement. Is this right?")
 LINK_UNMATCHED = "The problem statement names {names}, which is not one of the process steps."
 LINK_QUIET = "The step(s) {names} have no problems noted, though the problem statement points there."
 LINK_IGNORED = "The step(s) {names} have problems noted that the problem statement does not mention."
