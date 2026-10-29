@@ -11206,6 +11206,8 @@ def test_def_290_every_confirm_is_named_in_the_card_s_saved_note(env, monkeypatc
     assert "Stored" not in second["answer"] and second["confirmed_strip"] is None, second
     saved = (second.get("teaching_card") or {}).get("saved") or {}
     assert saved.get("fields") == ["target_value", "target_date"] and "31 March 2027" in saved.get("text", ""), second
+    # G-346: the target as its number, never the goal sentence it was read from.
+    assert saved["text"] == "Target and target date saved: at most 5% · 31 March 2027", saved
 
     page = _page_js("escapeHtml", "confirmedNoteHtml", script="console.log(JSON.stringify({"
                     f"note: confirmedNoteHtml({json.dumps(note)}),"

@@ -941,6 +941,8 @@ def strip(stored: list[str], artifacts: dict[str, Any]) -> Optional[dict[str, An
 EXAMPLE_LABEL = "What a good answer looks like · example, not your data"
 WHY_LINK, STATUS_LINK = "Why this matters", "Where do we stand?"
 _SUMMARY_CHARS = 90
+#: G-346: the most words a number's own wording takes ("less than 10 percent a month"); more is a sentence.
+_VALUE_WORDS = 6
 
 
 def _summary(field: str, artifacts: dict[str, Any]) -> str:
@@ -950,7 +952,12 @@ def _summary(field: str, artifacts: dict[str, Any]) -> str:
         return f"{len(value)} {'people' if field == 'team' else 'listed'}"
     if field == "process_map_sipoc" and isinstance(value, dict):
         return f"{len(value.get('process_steps') or [])} steps"
-    text = " ".join(plain(value).split())
+    # G-346: a number with its unit in the Belt's own words when they are the value alone ("under 10%"); when they are
+    # a whole sentence — a target read from the goal keeps the goal as its `raw` — as the confirmed read-back showed it
+    # ("at most 10%").
+    sentence = (isinstance(value, dict) and "raw" in value and "value" in value
+                and len(str(value.get("raw") or "").split()) > _VALUE_WORDS)
+    text = " ".join((parse.metric_text(value) if sentence else plain(value)).split())
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
         import datetime as _dt
         day = _dt.date.fromisoformat(text)

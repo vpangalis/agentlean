@@ -1,0 +1,157 @@
+{
+ "kind": "live_slice",
+ "element": "project_scope",
+ "case_id": "IMPR-2026-PTSWUR",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "def290_slice_messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "27bcd6cdc57f1e93",
+ "seeded": [
+  "baseline_estimate",
+  "business_case",
+  "critical_to_quality",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "In: customer complaints logged at the Vienna service desk for Field Service Austria, from logging to informing the customer. Out: warranty claims, spare-parts logistics, the CRM system itself, other c",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "project_scope",
+   "recorded_move": null,
+   "seconds": 17.3,
+   "failed": null,
+   "answer": "Here’s the scope you provided for your project. Let’s confirm it:\n\nOut of scope: warranty claims, spare-parts logistics, the CRM system itself, other countries.\n\nIs this right?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.63 s",
+    "input guard 1.61 s",
+    "planner judgment 2.44 s",
+    "coach 8.36 s",
+    "grader 1.75 s",
+    "after the answer (steps, save) 1.53 s",
+    "total 17.31 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "read_back",
+   "move_field": "goal_statement",
+   "recorded_move": null,
+   "seconds": 5.5,
+   "failed": null,
+   "answer": "You already gave the Goal in an earlier answer:\n“Our goal is to cut late closures from 38% to under 10% by 31.03.2027.”\n\nIs this right? Confirm to store it, or Change to give it again.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.43 s",
+    "input guard 1.64 s",
+    "after the answer (steps, save) 2.97 s",
+    "total 5.54 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "read_back",
+   "move_field": "target_value",
+   "recorded_move": null,
+   "seconds": 5.2,
+   "failed": null,
+   "answer": "Your goal already states the target. Here is what I read from it:\n- Target: at most 10%\n- Target date: 31.03.2027 = 31 March 2027\n\nIs this right? Confirm to store it, or Change to set it yourself.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.35 s",
+    "input guard 1.84 s",
+    "after the answer (steps, save) 2.48 s",
+    "total 5.22 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "benefits_analysis",
+   "recorded_move": null,
+   "seconds": 4.3,
+   "failed": null,
+   "answer": "Target and target date saved: at most 10% · 31 March 2027.\n\nElement 10 of 13 · Benefits analysis: What does the gap cost today? Is the saving sustainable or one-off? When will it start to show? Who in finance will validate it? Any soft benefits, and how will you see each?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.56 s",
+    "input guard 1.50 s",
+    "after the answer (steps, save) 1.71 s",
+    "total 4.26 s"
+   ]
+  },
+  {
+   "n": 5,
+   "belt": "How do I calculate the cost of the gap?",
+   "action": null,
+   "http": 200,
+   "move": "respond",
+   "move_field": "benefits_analysis",
+   "recorded_move": null,
+   "seconds": 24.9,
+   "failed": null,
+   "answer": "To calculate the cost of the gap, we multiply the number of defects (in this case, late closures) by the cost per defect. Here's how it works for your project:\n\n- You handle about 1,200 complaints a year (confirmed).\n- Each late closure costs about €45 in callbacks and rework (confirmed).\n\n1,200 complaints × 38% × €45 = €20,520 a year.\n\nThis figure represents the cost of poor quality caused by lat",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.38 s",
+    "input guard 1.59 s",
+    "planner judgment 1.59 s",
+    "coach 15.41 s",
+    "grader 3.48 s",
+    "after the answer (steps, save) 1.82 s",
+    "total 24.92 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 6,
+ "cost": {
+  "usd": 0.0345,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0337,
+   "gpt-4o-mini-2024-07-18": 0.0008
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 61.66,
+  "calls": 150,
+  "case": {
+   "seconds": 0.66,
+   "calls": 8
+  },
+  "store": {
+   "seconds": 0.84,
+   "calls": 15
+  },
+  "checkpoint": {
+   "seconds": 60.16,
+   "calls": 127
+  }
+ },
+ "started": "20261029T140707"
+}

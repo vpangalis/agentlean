@@ -4466,6 +4466,20 @@
    ],
    "escape_class": "path_test",
    "symptom": "ON AN UPLOAD TURN THE STEP LOG COUNTED THE NODE'S OWN ROUTED READ AS A COACH CALL. Found 2026-10-29 by R-C step 3, moving DEF-163's test to the one Define turn whose coach is still offered a lookup (an upload turn): the coach called the model twice and call_budget['coach'] said 3. belt_impact: none (a recorded count; the coach's limit is ModelCallLimitMiddleware's own). D4 OCCURRENCE: executor counted every AIMessage after the history — `produced[len(history):]` — and `_dispatch_routed_read`'s AIMessage (the node's load_evidence_series call) sits there too. D4 ESCAPE (path_test): DEF-163's test ran on a teaching turn, which has no routed read. D5 FIX: the count starts after `prior` (the history and the dispatched read), and a reply written in code counts 0. D6 VERIFY: DEF-163's test on an upload turn — coach 2, the evidence lookup's variant call recorded by tool. D7 PREVENT: DEF-163's test now runs on the upload turn."
+  },
+  {
+   "id": "G-346",
+   "requirement": [
+    "W3"
+   ],
+   "feature": [
+    "DEF-266"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": "path_test",
+   "symptom": "THE CARD'S SAVED NOTE SHOWED A TARGET AS THE WHOLE GOAL SENTENCE IT WAS READ FROM. Found 2026-10-29 by DEF-290's live slice on the founder's IMPR-2026-PDLWG9 values: after the target's Confirm, the benefits card said \"Target and target date saved: Our goal is to cut late closures from 38% to under 10% by 31.03.2027. · 31 March 2027\", where the read-back the founder confirmed said \"Target: at most 10%\". belt_impact: degraded (the stored value is right; its one-line summary is wrong). D4 OCCURRENCE: templates._summary read every value through plain(), which gives a MetricValue's `raw` — for a target read from the goal (ADR-0086) the whole goal sentence. D4 ESCAPE (path_test): R-C's saved-note tests fed the target as a short string (\"under 10%\"), never the MetricValue the goal chain stores; wave 2's live slices never confirmed a target read from the goal. D5 FIX: _summary shows a MetricValue by parse.metric_text, the read-back's own words. D6 VERIFY: test_g346 fails on f5b88db with the founder's exact text and passes with the fix; DEF-290's test now asserts the note \"Target and target date saved: at most 5% · 31 March 2027\" through /ask; the live slice again. D7 PREVENT: the escape class's control, the live slice per package, caught it; DEF-290's test runs the stored MetricValue path."
   }
  ],
  "escape_controls": {

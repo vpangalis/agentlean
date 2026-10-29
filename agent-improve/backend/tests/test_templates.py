@@ -218,6 +218,25 @@ def test_the_strip_names_the_element_and_its_gate_section() -> None:
     assert note == {"fields": ["target_value", "target_date"], "section": "E", "saved": True,
                     "text": "Target and target date saved: under 10% · 31 March 2027"}, note
     assert templates.strip([], {}) is None
+
+
+def test_g346_the_saved_note_shows_a_target_as_its_number_not_the_goal_it_was_read_from() -> None:
+    """G-346 (found 2026-10-29 by DEF-290's live slice on the founder's IMPR-2026-PDLWG9 values): a target read from
+    the goal (ADR-0086) is stored as a MetricValue whose `raw` is the whole goal sentence; the card's saved note
+    showed "Target and target date saved: Our goal is to cut late closures from 38% to under 10% by 31.03.2027. ·
+    31 March 2027". It shows the number as the read-back the Belt confirmed showed it."""
+    goal = "Our goal is to cut late closures from 38% to under 10% by 31.03.2027."
+    stored = {"target_value": {"value": 10.0, "unit": "%", "direction": "<=", "raw": goal, "is_estimate": False},
+              "target_date": "2027-03-31"}
+    note = templates.saved_note(["target_value", "target_date"], stored)
+    assert note is not None and note["text"] == "Target and target date saved: at most 10% · 31 March 2027", note
+    beside = templates.strip(["target_value", "target_date"], stored)
+    assert beside is not None and beside["text"] == note["text"], beside
+    # The Belt's own words stay when they are the value alone — the founder's approved card (R-C): "under 10%".
+    own = {"target_value": {"value": 10.0, "unit": "%", "direction": "<=", "raw": "under 10%", "is_estimate": False},
+           "target_date": "2027-03-31"}
+    mine = templates.saved_note(["target_value", "target_date"], own)
+    assert mine is not None and mine["text"] == "Target and target date saved: under 10% · 31 March 2027", mine
     assert [templates.section_of(f) for f in DEFINE_FIELD_ORDER] == [
         "B", "A", "D", "C", "E", "C", "C", "E", "E", "B", "E", "F", "G"]
 
