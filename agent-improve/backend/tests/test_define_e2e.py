@@ -1155,9 +1155,18 @@ def test_t70_node_limits_retries_and_recovery_use_langgraph_primitives(env, monk
     graph_mod._subgraph.cache_clear()
     graph_mod.get_graph.cache_clear()
 
+    # G-344: the proof the wall ended the coach is its cancellation; the clock only checks the turn did not wait out
+    # the stall. The turn alone takes about 4 s (2026-10-29), so the old 8 s bound failed under the hook's parallel load.
+    STALL_S = 30
+    ended: list[str] = []
+
     class Stalling:
         async def ainvoke(self, *a, **k):
-            await asyncio.sleep(10)
+            try:
+                await asyncio.sleep(STALL_S)
+            except asyncio.CancelledError:
+                ended.append("cancelled")              # G-344: the engine's wall ended the node
+                raise
             raise AssertionError("the wall did not end the node")
     monkeypatch.setattr(nodes_common, "create_agent", lambda **kw: Stalling())
 
@@ -1196,7 +1205,8 @@ def test_t70_node_limits_retries_and_recovery_use_langgraph_primitives(env, monk
         executor = [s for s in steps if s.get("node") == "executor"]
         assert executor and executor[-1]["status"] == "partial_timeout", [s.get("status") for s in executor]
         assert executor[-1]["fallback_used"] is True
-        assert elapsed < 8, f"the turn took {elapsed:.1f}s — the 1 s wall did not end the stalled coach"
+        assert ended == ["cancelled"], f"the 1 s wall did not end the stalled coach: {ended}"
+        assert elapsed < STALL_S, f"the turn took {elapsed:.1f}s — as long as the stalled coach itself"
         nodes = graph_mod._subgraph("define").builder.nodes
         assert nodes["executor"].error_handler_node is not None
         assert nodes["planner"].retry_policy is not None

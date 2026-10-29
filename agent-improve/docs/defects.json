@@ -3782,7 +3782,7 @@
     "C"
    ],
    "escape_class": null,
-   "symptom": "THE TEAM IS SHOWN THREE TIMES, ONE WITH FIELD KEYS ('name: … | role: … | time_commitment: …'). Founder test 2026-10-27 finding 23 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+   "symptom": "THE TEAM IS SHOWN THREE TIMES, ONE WITH FIELD KEYS ('name: … | role: … | time_commitment: …'). Founder test 2026-10-27 finding 23 (case IMPR-2026-PDLWG9). belt_impact: degraded. Also (founder review of wave 1, 2026-10-29, item 4: wave 3, with this finding, not post-Define): after Change on an uploaded team the reply is the file's raw lines ('name: Katharina Huber | role: Project Sponsor | department: … | time_commitment: …') — wave 1's final live slice of element 2, docs/runthrough/live_slice_team_20261028T190519.json, turn 2."
   },
   {
    "id": "G-297",
@@ -4441,6 +4441,17 @@
    ],
    "escape_class": "path_test",
    "symptom": "WAVE 0'S SPAN WORDING MADE THE PLANNER'S JUDGMENT RUN AWAY. The live slice of element 12 on f04fa52 (docs/runthrough/live_slice_process_map_sipoc_20261027T173823.json, case IMPR-2026-UPC665): the founder's complete SIPOC failed its judgment six times in a row (10 s each, the turn and its R-F retry: 70.9 s, failed). Probed through the product's own _judge: the model copies 'Process: (1) log the complaint ', reaches the em-dash and writes U+007F until the 16,384-token default — 87 s, then LengthFinishReasonError. The wording f04fa52 landed (DEF-256: 'two places: quotes joined by …') ran away 3 of 3; the wording before it 0 of 3 (424-757 tokens, 4.0-9.8 s); a plain 'SHORTEST exact words, a few words' 0 of 5 (165-284 tokens, 2.4-6.6 s), its quotes verbatim (the model still joins two places with ' … ' unasked, which verbatim_spans keeps). belt_impact: dead_end. D4 OCCURRENCE: the join instruction in criterion_spans' description, beside em-dashes in the Belt's text, under the planner's strict structured output; no output ceiling, so a runaway ran to 16,384 tokens. D4 ESCAPE (path_test): the wording changed with no live call before it landed — the tests stub the planner, and the rule that a change to what a model reads runs the live check first (testing.md 12.2, run frequency) was not applied; the live slice caught it before the founder did. D7: DEF-256's test pins the wording (no join instruction) and the planner's ceiling (core/llm.ROLE_MAX_TOKENS); the live slice re-runs before the report."
+  },
+  {
+   "id": "G-344",
+   "symptom": "DEF-078'S TEST FAILED ONCE ON TIME UNDER THE COMMIT HOOK'S PARALLEL RUN AND PASSED ALONE. Wave 1, 2026-10-28: the ratchet (rule 11b) reported 'DEF-078 passed before and its test no longer passes: test_t70_node_limits_retries_and_recovery_use_langgraph_primitives'; run again, it passed. Registered on the founder's review of wave 1 (2026-10-29, item 5). D4 OCCURRENCE: the test proved that the engine's 1 s wall ended a stalled coach by the turn's wall-clock time, 'elapsed < 8'. The turn alone takes 4.15 s (measured 2026-10-29; the graph build inside it 0.23 s), so the bound left less than twice the turn's own time, and a worker sharing the CPU with the hook's parallel run went past it. D4 ESCAPE (assumption): the bound was set on an unloaded run and held in every run checked until the hook ran the suite in parallel. D5 FIX: the proof is the node's own cancellation (the stalled coach records CancelledError and the test asserts it); the clock only checks that the turn did not wait out the 30 s stall. D6 VERIFY: the test alone, 1 passed; four copies at once, 4 passed.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "escape_class": "assumption",
+   "control": "backend/tests/test_define_e2e.py::test_t70_node_limits_retries_and_recovery_use_langgraph_primitives asserts the stalled coach's cancellation; its time bound is the stall itself (30 s), not a guess at the turn's time"
   }
  ],
  "escape_controls": {
