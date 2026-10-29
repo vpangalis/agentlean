@@ -1,9 +1,9 @@
 {
- "source_hash": "4569018e7f0c110c",
- "commit": "bd963c3",
+ "source_hash": "f98df011e2a85007",
+ "commit": "54ce501",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T16:18:24+00:00",
+ "recorded_at": "2026-10-29T16:26:45+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -477,7 +477,7 @@
   "backend/tests/test_define_e2e.py::test_def_277_the_case_number_and_a_real_copy_button_kept": "skipped",
   "backend/tests/test_define_e2e.py::test_def_278_the_phase_overview_keeps_each_step_s_explanation_why": "skipped",
   "backend/tests/test_define_e2e.py::test_def_279_the_page_shows_define_phase_1_of_5_prominently": "skipped",
-  "backend/tests/test_define_e2e.py::test_def_280_no_internal_text_field_key_placeholder_or_raw_criteria": "skipped",
+  "backend/tests/test_define_e2e.py::test_def_280_no_internal_text_field_key_placeholder_or_raw_criteria": "passed",
   "backend/tests/test_define_e2e.py::test_def_281_submit_for_gate_review_looks_disabled_while_it_is": "skipped",
   "backend/tests/test_define_e2e.py::test_def_282_no_echo_of_the_answer_above_it_is_this": "skipped",
   "backend/tests/test_define_e2e.py::test_def_283_lists_inside_the_bubble_change_styled_tables_full_width": "skipped",

@@ -11148,8 +11148,32 @@ def test_def_279_the_page_shows_define_phase_1_of_5_prominently() -> None:
 
 
 def test_def_280_no_internal_text_field_key_placeholder_or_raw_criteria() -> None:
-    """DEF-280 — No internal text, field key, placeholder or raw criteria list reaches the Belt (chat, card or Gate) (founder test 2026-10-27)"""
-    _not_written('DEF-280')
+    """DEF-280 — No internal text, field key, placeholder or raw criteria list reaches the Belt (chat, card or Gate) (founder test 2026-10-27)
+
+    Its five gaps, each checked where the Belt reads it (wave 3, 2026-10-29):
+    - G-281: the overview's notes name a place on the page, never a placeholder;
+    - G-296: Change on an uploaded table shows its rows as lines, never field keys — the executor's own Change reply
+      on the founder's file (DEF-264's test runs it through /ask);
+    - G-307: the problem statement's example is a table under one label, no stray mark, no skill label;
+    - G-326: Gate B's summary reads each value as part of its sentence;
+    - G-329: an open element on the Gate says what it still needs in its own words."""
+    import re
+
+    from backend.core.substate import CoachingPlan
+    from backend.phases import moves, nodes_common
+
+    test_g281_the_overview_card_points_to_the_history_tab_never_a_placeholder()
+    raw = "\n".join(f"name: {n} | role: {r} | department: {d} | time_commitment: {t}"
+                    for n, r, d, t in (line.split(",") for line in TEAM_FIELD_SERVICE_FOUNDER.splitlines()[1:]))
+    plan = CoachingPlan(focus_field="team", status="answered", move=moves.CHALLENGE, reason=moves.CHANGE_REASON,
+                        retrieval_strategy="single_hop", retrieval_hops=[],
+                        pending={"field": "team", "belt_words": raw, "upload": "team_field_service.csv"})
+    reply = nodes_common._change_reply(plan)
+    assert reply is not None and not re.search(r"(?m)\b(?:name|role|department|time_commitment): ", reply.message)
+    assert "Katharina Huber — Project Sponsor, Head of Field Service Austria, 2 h per month" in reply.message, reply
+    test_g307_the_problem_statement_example_is_a_table_with_no_label_or_stray_mark()
+    test_g326_gate_b_s_summary_reads_each_value_as_part_of_its_sentence()
+    test_g329_an_open_element_in_the_gate_says_what_it_still_needs_in_its_own_words()
 
 
 def test_def_281_submit_for_gate_review_looks_disabled_while_it_is() -> None:
