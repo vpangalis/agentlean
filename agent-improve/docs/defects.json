@@ -4201,8 +4201,8 @@
    "lane": [
     "C"
    ],
-   "escape_class": null,
-   "symptom": "GATE B'S SUMMARY PASTES THE BELT'S TEXT RAW ('Cost of the gap today: About €20,500 a year.'). Founder test 2026-10-27 finding 54 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+   "escape_class": "path_test",
+   "symptom": "GATE B'S SUMMARY PASTES THE BELT'S TEXT RAW ('Cost of the gap today: About €20,500 a year.'). Founder test 2026-10-27 finding 54 (case IMPR-2026-PDLWG9). belt_impact: degraded. WAVE 3, 2026-10-29 — fixed. D4 OCCURRENCE: report._summaries set each value after its label as the Belt wrote it (G-226), so 'About €20,500 a year' kept its capital mid-sentence. D4 ESCAPE (path_test): G-226's test used a value written in lower case. D5 FIX: an ordinary capitalised first word after a label reads in lower case; a name (a capitalised word followed by another), an acronym or a code stays; 'Checked by' is never changed. D6 VERIFY: test_g326 with the founder's four benefits values and with 'EUR 62,000' and 'Q3 2027'. D7 PREVENT: test_g326."
   },
   {
    "id": "G-327",
@@ -4243,8 +4243,8 @@
    "lane": [
     "C"
    ],
-   "escape_class": null,
-   "symptom": "GATE F'S OPEN HINT IS A RAW CRITERIA LIST ('…customers agree with the voc, step times and how often'). Founder test 2026-10-27 finding 57 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+   "escape_class": "path_test",
+   "symptom": "GATE F'S OPEN HINT IS A RAW CRITERIA LIST ('…customers agree with the voc, step times and how often'). Founder test 2026-10-27 finding 57 (case IMPR-2026-PDLWG9). belt_impact: degraded. WAVE 3, 2026-10-29 — fixed. D4 OCCURRENCE: the Gate's element card joined an open element's needs with commas and lower-cased them ('customers agree with the voc'). D4 ESCAPE (path_test): no test drew an open element on the Gate. D5 FIX: the page writes 'Still needed:' and each need as written, joined by ' · ' (the status is the chip in the head); the SIPOC label 'Customers agree with the VOC' is 'Customers agree with the voice of the customer'. D6 VERIFY: test_g329 draws Gate F with the SIPOC open. D7 PREVENT: test_g329."
   },
   {
    "id": "G-330",

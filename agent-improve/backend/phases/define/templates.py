@@ -366,7 +366,7 @@ TEMPLATES: dict[str, dict[str, tuple[str, Callable[[dict[str, Any]], Read]]]] = 
         define_criteria.AS_IS: ("As it runs today", _stated("The process as it runs today")),
         define_criteria.START_TO_END: ("Steps from start to end", _start_to_end),
         define_criteria.ALL_SIX: ("Suppliers, inputs, steps, outputs, customers, measures", _all_six),
-        define_criteria.CUSTOMERS_MATCH: ("Customers agree with the VOC",
+        define_criteria.CUSTOMERS_MATCH: ("Customers agree with the voice of the customer",
                                           _stated("The customers agree with the voice of the customer")),
         define_criteria.PERFORMANCE: ("Step times and how often", _performance),
     },

@@ -20,6 +20,7 @@ Module-level functions only, per CLAUDE.md.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from backend.core.substate import is_empty_capture, value_history
@@ -132,12 +133,21 @@ def _summaries(a: dict[str, Any], body: dict[int, dict[str, Any]]) -> dict[int, 
     def sentence(text: Any) -> str:
         t = str(text).strip()
         return t if t.endswith((".", "!", "?")) else f"{t}."
+
+    def after_label(text: Any) -> str:
+        # G-326 (finding 54): a value set after its label reads as part of the sentence — an ordinary first word
+        # in lower case ("Cost of the gap today: about €20,500 a year."); a name ("Martina Koller"), an acronym
+        # or a code ("Q2", "EUR") as the Belt wrote it.
+        t = sentence(text)
+        if re.match(r"[A-Z][a-z]+\b(?![ -][A-Z])", t):
+            return t[:1].lower() + t[1:]
+        return t
     b = s2.get("benefits") or {}
     # G-226: each value after its own label, as the Belt wrote it — never spliced
     # mid-sentence (a capital inside, a double stop); the expected saving apart from the cost of the gap.
     from backend.phases.calculations import expected_saving_text
     saving = expected_saving_text(s2.get("savings"))
-    two = (" ".join(f"{label}: {sentence(v)}" for label, v in (
+    two = (" ".join(f"{label}: {sentence(v) if label == 'Checked by' else after_label(v)}" for label, v in (
                ("Cost of the gap today", b.get("cost_of_gap")), ("Impact", b.get("impact_type")),
                ("Expected saving at the target", f"{saving} a year" if saving else None),
                ("When it lands", b.get("realisation_schedule")), ("Checked by", b.get("finance_contact")))

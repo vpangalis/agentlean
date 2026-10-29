@@ -11230,6 +11230,39 @@ process.stdout.write(JSON.stringify({{html: teachingCardHtml({json.dumps(card)},
     assert "*" not in html and "Show (" not in html and "illustration" not in html, html
 
 
+def test_g326_gate_b_s_summary_reads_each_value_as_part_of_its_sentence() -> None:
+    """G-326 (DEF-280; founder test 2026-10-27 finding 54, a repeat of 15 Oct #72): Gate B's summary pasted the Belt's
+    text after each label, "Cost of the gap today: About €20,500 a year." (a capital mid-sentence). An ordinary
+    first word now reads in lower case; a name, an acronym or a code stays as the Belt wrote it."""
+    from backend.phases.define.report import define_report
+    from backend.tests.test_templates import A99
+    benefits = {"cost_of_gap": "About €20,500 a year", "impact_type": "Sustainable, every year",
+                "realisation_schedule": "From the first full quarter after the change, Q2 2027",
+                "finance_contact": "Martina Koller, controller Field Service"}
+    two = define_report({**A99, "benefits_analysis": benefits}, {}, [])["sections"][1]["summary"]
+    for part in ("Cost of the gap today: about €20,500 a year.", "Impact: sustainable, every year.",
+                 "When it lands: from the first full quarter after the change, Q2 2027.",
+                 "Checked by: Martina Koller, controller Field Service."):
+        assert part in two, (part, two)
+    codes = {**benefits, "cost_of_gap": "EUR 62,000 a year", "realisation_schedule": "Q3 2027 onwards"}
+    two = define_report({**A99, "benefits_analysis": codes}, {}, [])["sections"][1]["summary"]
+    assert "Cost of the gap today: EUR 62,000 a year." in two and "When it lands: Q3 2027 onwards." in two, two
+
+
+def test_g329_an_open_element_in_the_gate_says_what_it_still_needs_in_its_own_words() -> None:
+    """G-329 (DEF-280; founder test 2026-10-27 finding 57): Gate F's open SIPOC read "open — as it runs today, …,
+    customers agree with the voc, step times and how often", a raw criteria list in lower case. The page writes
+    "Still needed:" and each need in its own words, "voice of the customer" spelled out; the status is the chip."""
+    from backend.phases.define import templates
+    card = templates.gate_card("process_map_sipoc", {}, {})
+    assert "Customers agree with the voice of the customer" in card["needs"], card["needs"]
+    _report, html = _a99_gate(drop=("process_map_sipoc",))
+    f = _html_section(html, "F")
+    line = f.split('class="el-pending"')[1].split("</div>")[0]
+    assert "Still needed: As it runs today · Steps from start to end · " in line, line
+    assert "Customers agree with the voice of the customer" in line and "voc" not in line.lower(), line
+
+
 def test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool() -> None:
     """DEF-292 — ADR-0115 (founder 2026-10-29, wave-2 decision 5): an answer turn offers read_upload, so the coach can
     quote a file the Belt names in an answer; no other tool. Through the turn tools middleware as the executor builds

@@ -4858,7 +4858,9 @@ function defineReportHtml(rep, isPassed, approvedAt) {
           (c.statement_why ? `<div class="field-why" style="font-size:9.5px;color:#8A93A0;margin:-1px 0 3px">${escapeHtml(c.statement_why)}</div>` : '') : '') +
         (c.view ? viewHtml(c.view) : elementRowsHtml(c.rows))
         // Founder ruling 2026-10-22 afternoon, item 3: no "In your answer" line on the Gate (not in the approved mockup).
-      : `<div class="el-pending" style="font-size:11px;color:#9A6B12;margin-top:4px">${escapeHtml(c.status)} — ${escapeHtml((c.needs || []).join(', ').toLowerCase())}</div>` +
+      // G-329 (finding 57): what an open element still needs, each in its own words — never a lower-cased criteria
+      // list; the status is the chip in the head.
+      : `<div class="el-pending" style="font-size:11px;color:#9A6B12;margin-top:4px">Still needed: ${(c.needs || []).map(escapeHtml).join(' · ')}</div>` +
         (c.view ? viewHtml(c.view) : '');   // DEF-176: the people on the case, while element 2 is open
     return `<div class="el-card gate-el" data-element="${c.n}" data-status="${escapeHtml(c.status)}">
       <div class="el-head"><span><span class="el-num">Element ${c.n}</span> · <strong>${escapeHtml(c.name)}</strong>${c.view && c.view.note ? ` · <span class="el-note" style="color:#5B6B7C">${escapeHtml(c.view.note)}</span>` : ''}</span>${chip(c.status)}</div>${hist}${body}</div>`;
