@@ -14,7 +14,7 @@ from langchain_core.messages import BaseMessage
 #: each checkpoint's metadata, each Store record and each case blob. Raised by one with EVERY change
 #: to `SupervisorState`, `PhaseState`, a `{Phase}Output` or a phase record, together with its
 #: migration in `core/migrations.py` and that migration's fixture test. Never lowered.
-STATE_SCHEMA_VERSION = 15
+STATE_SCHEMA_VERSION = 16
 #: What each version changed is the docstring of its migration in `core/migrations.py`
 #: (`migrate_vN_to_vN+1`); version 1 is everything written before versioning (ADR-0065).
 

@@ -1,0 +1,7 @@
+{
+ "_about": "ADR-0089 decision 2 (W20): the countries and sites a case can be located at — ISO 3166-1 alpha-2 codes, each with its sites. Each customer ships its own list as configuration (C5): no directory lookup, no network call. This is the small sample list that ships until then (founder, 2026-10-28).",
+ "countries": [
+  {"code": "AT", "name": "Austria", "sites": ["Vienna", "Linz"]},
+  {"code": "DE", "name": "Germany", "sites": ["Munich"]}
+ ]
+}

@@ -19,8 +19,8 @@ PROJECT_LEAD = "project lead"
 
 
 class PersonLocation(BaseModel):
-    """ADR-0090 decision 1: country and site, as ADR-0089 "Case location: country and site" will list them;
-    empty is "not set" (W20)."""
+    """ADR-0090 decision 1 and ADR-0089 decision 1: country (an ISO 3166 code) and site, from the configured lists
+    (`storage/sites.py`) — a person's and a case's; empty is "not set" (W20)."""
     country: str = ""
     site: str = ""
 
@@ -306,6 +306,9 @@ class CaseDocument(BaseModel):
     #: The project lead's display name — always the lead's `PersonRecord.full_name` (ADR-0090 decision 4).
     leader: str
     department: str
+    #: ADR-0089 (W20, DEF-288): where the case is — country and site; empty on a case created before it ("not set",
+    #: the lead is asked on the next open).
+    location: PersonLocation = Field(default_factory=PersonLocation)
     #: ADR-0090: everyone on the case; the lead is the one whose role is PROJECT_LEAD.
     people: list[PersonRecord] = []
     created_at: str
@@ -340,6 +343,7 @@ class CaseDocument(BaseModel):
         target_date: str,
         team: list[dict],
         people: Optional[list["PersonRecord"]] = None,
+        location: Optional[PersonLocation] = None,
     ) -> "CaseDocument":
         """Factory for creating a new case. ADR-0090: `people` (the lead first) when the form gives them;
         else the lead from `leader` and the members from `team` ({name, role})."""
@@ -352,6 +356,7 @@ class CaseDocument(BaseModel):
             belt_level=belt_level,
             leader=leader,
             department=department,
+            location=location or PersonLocation(),
             target_date=target_date,
             created_at=utc_now().isoformat(),
             people=list(people) if people is not None else [
@@ -375,6 +380,8 @@ class RegistryEntry(BaseModel):
     phase_started_at: Optional[str] = None
     days_in_phase: int = 0
     rag_status: str = "green"         # green | amber | red
+    #: ADR-0089 (DEF-288): the case's location, for the case list's filter.
+    location: PersonLocation = Field(default_factory=PersonLocation)
     status: str = "active"
     #: ADR-0076 (T65): {at, criteria} while the report is held for the project lead; None otherwise.
     escalation: Optional[dict[str, Any]] = None

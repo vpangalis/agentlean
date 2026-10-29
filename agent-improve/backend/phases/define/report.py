@@ -233,7 +233,7 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
     from backend.phases.define.parse import list_items
     a = dict(artifacts or {})
     frame = {k: (case or {}).get(k) for k in
-             ("case_id", "title", "leader", "belt_level", "department", "target_date")}
+             ("case_id", "title", "leader", "belt_level", "department", "location", "target_date")}
     registry = [m for m in (a.get("metric_definitions") or []) if isinstance(m, dict)]
     fivew = _value(a, "problem_5w2h") or {}
     sipoc = _value(a, "process_map_sipoc") or {}

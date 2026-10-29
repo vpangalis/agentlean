@@ -518,6 +518,17 @@ a{text-decoration:none;color:inherit}
             <input type="date" id="create-date">
           </div>
         </div>
+        <!-- ADR-0089 (W20, DEF-288): where the case is — the country, then the site from that country's list. -->
+        <div class="field-row">
+          <div class="field">
+            <label>Country</label>
+            <select id="create-country" onchange="fillSites('create-country','create-site')"><option value="">Choose the country</option></select>
+          </div>
+          <div class="field">
+            <label>Site (plant, office or location)</label>
+            <select id="create-site"><option value="">Choose the country first</option></select>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -603,7 +614,7 @@ a{text-decoration:none;color:inherit}
 <div class="screen" id="scr-workspace">
   <div class="topbar">
     <span class="tb-logo" onclick="showScreen('scr-landing')" style="cursor:pointer">agentlean · <span>agent improve</span></span>
-    <span class="tb-case" id="ws-case-badge"></span>
+    <span class="tb-case" id="ws-case-badge"></span><span id="ws-location" style="font-size:11px"></span>
     <div class="tb-team" id="ws-team"></div>
   </div>
   <div class="workspace">
@@ -1054,13 +1065,16 @@ async function loadRegistry(){
     // is still a failure, not an empty list.
     if(!Array.isArray(data)){throw new Error('The registry did not return a list.');}
     if(!data.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">No cases yet — create your first one.</div>';return;}
-    el.innerHTML=data.map(c=>{
+    // ADR-0089 (DEF-288): the list filtered by the case's location.
+    S.recentLocation=(document.getElementById('recent-location')||{}).value||'';
+    const shown=data.filter(c=>!S.recentLocation||((c.location||{}).label||'not set')===S.recentLocation);
+    el.innerHTML=locationFilterHtml(data)+shown.map(c=>{
       const p=PHASES[c.current_phase]||PHASES.define;
       const rag=c.rag_status==='red'?'rag-red':c.rag_status==='amber'?'rag-amber':'rag-green';
       return `<div class="recent-row" onclick="quickOpenCase('${c.case_id}')">
         <div class="rr-phase" style="background:${p.bg};color:${p.color}">${p.letter}</div>
         <div class="rr-info"><div class="rr-title">${c.case_id} · ${c.title}</div>
-        <div class="rr-meta">${c.leader} · ${p.label} phase · day ${c.days_in_phase||0}${c.escalation?` · <b style="color:var(--amber,#b45309)" title="${escapeHtml((c.escalation.criteria||[]).join('; '))}">with the project lead</b>`:''}</div></div>
+        <div class="rr-meta">${c.leader} · ${escapeHtml((c.location||{}).label||'not set')} · ${p.label} phase · day ${c.days_in_phase||0}${c.escalation?` · <b style="color:var(--amber,#b45309)" title="${escapeHtml((c.escalation.criteria||[]).join('; '))}">with the project lead</b>`:''}</div></div>
         <div class="rag-dot ${rag}"></div>
       </div>`;
     }).join('');
@@ -1172,12 +1186,15 @@ async function submitCreateCase(){
   const lead={full_name:v('create-lead-name'),email:v('create-lead-email'),function:v('create-lead-function'),
               department:v('create-lead-dept')||dept};
   if(!lead.full_name){toast('Please give your full name — you will be the project lead.');return;}
+  // ADR-0089 (DEF-288): the country and the site are both required, from the lists.
+  const location={country:v('create-country'),site:v('create-site')};
+  if(!location.country||!location.site){toast('Please choose the country and the site of the case.');return;}
   S.user=lead.full_name;
   const people=[...S.teamMembers];
   try{
     const data=await apiJSON(`${API}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({title,belt_level:S.beltLevel,department:dept||'General',
-        target_date:date||new Date().toISOString().split('T')[0],lead,people})});
+        target_date:date||new Date().toISOString().split('T')[0],lead,people,location})});
     // DEF-217 (G-218, founder finding 6): the number the server assigned stays on the form, with Copy and Continue;
     // the workspace opens only when the lead continues.
     if(data&&data.case_id){document.getElementById('new-case-id').textContent=data.case_id;S.createdCase=data.case_id;
@@ -1199,6 +1216,74 @@ async function copyCaseNumber(){
 }
 
 async function continueToCase(){if(S.createdCase)await openWorkspace(S.createdCase);}
+
+// ─── LOCATION (ADR-0089, W20, DEF-288) ────────────────────────────
+// The countries and their sites come from the server's configured list (config/sites.json); the create form, the
+// lead's location prompt and the case list's filter offer exactly those.
+async function loadSites(){
+  if(S.sites)return S.sites;
+  try{S.sites=(await apiJSON(`${API}/sites`)).countries||[];}catch(e){S.sites=[];}
+  return S.sites;
+}
+function siteOptions(code){
+  const c=(S.sites||[]).find(x=>x.code===code);
+  return c?'<option value="">Choose the site</option>'+c.sites.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')
+          :'<option value="">Choose the country first</option>';
+}
+async function fillCountries(countryId,siteId){
+  const sites=await loadSites();
+  const el=document.getElementById(countryId);
+  if(!el)return;
+  el.innerHTML='<option value="">Choose the country</option>'+sites.map(c=>`<option value="${escapeHtml(c.code)}">${escapeHtml(c.name)}</option>`).join('');
+  if(siteId)fillSites(countryId,siteId);
+}
+function fillSites(countryId,siteId){
+  const el=document.getElementById(siteId);
+  if(el)el.innerHTML=siteOptions((document.getElementById(countryId)||{}).value||'');
+}
+// The workspace header: the case's location, and for the project lead a way to set it ("not set" on a case created
+// before W20 — asked on the next open) or change it; each change is kept in the case's audit trail.
+function isCaseLead(){
+  const head=((S.case&&S.case.people)||[]).find(p=>p.role==='project lead');
+  return !!(head&&S.user&&head.full_name===S.user);
+}
+function locationBadgeHtml(c){
+  const label=(c&&c.location_label)||'not set';
+  const unset=!(c&&c.location&&c.location.site);
+  const action=isCaseLead()?` <a href="#" id="location-change" onclick="openLocationForm();return false">${unset?'Set it':'Change'}</a>`:'';
+  return `<span class="tb-location"${unset?' style="color:var(--amber,#b45309)"':''}> · <i class="ti ti-map-pin" style="font-size:11px;vertical-align:-1px"></i> ${escapeHtml(unset?'Location not set':label)}${action}</span>`;
+}
+function renderLocationBadge(){
+  const el=document.getElementById('ws-location');
+  if(el)el.innerHTML=locationBadgeHtml(S.case);
+}
+async function openLocationForm(){
+  await loadSites();
+  const el=document.getElementById('ws-location');
+  if(!el)return;
+  el.innerHTML=` · <select id="loc-country" onchange="fillSites('loc-country','loc-site')"></select>
+    <select id="loc-site"></select> <button class="btn-secondary" style="height:24px;font-size:11px" onclick="saveLocation()">Save</button>`;
+  await fillCountries('loc-country','loc-site');
+  const loc=(S.case&&S.case.location)||{};
+  if(loc.country){document.getElementById('loc-country').value=loc.country;fillSites('loc-country','loc-site');
+    document.getElementById('loc-site').value=loc.site||'';}
+}
+async function saveLocation(){
+  const country=(document.getElementById('loc-country')||{}).value||'', site=(document.getElementById('loc-site')||{}).value||'';
+  if(!country||!site){toast('Please choose the country and the site.');return;}
+  try{
+    const data=await apiJSON(`${API}/cases/${S.case.case_id}/location`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({actor:S.user,country,site})});
+    S.case.location={country:data.location.country,site:data.location.site};S.case.location_label=data.location.label;
+    renderLocationBadge();
+  }catch(e){toast('Could not save the location: '+(e.message||e),5000);}
+}
+// The case list's filter: every location a listed case has, then the list drawn with only that location's cases.
+function locationFilterHtml(rows){
+  const labels=[...new Set(rows.map(c=>(c.location||{}).label||'not set'))].sort();
+  return labels.length>1?`<select id="recent-location" onchange="loadRegistry()" style="font-size:11px;margin:0 0 6px">
+    <option value="">All locations</option>${labels.map(l=>`<option value="${escapeHtml(l)}"${l===S.recentLocation?' selected':''}>${escapeHtml(l)}</option>`).join('')}</select>`:'';
+}
 
 // ─── SEARCH ───────────────────────────────────────────────────────
 async function doSearch(){
@@ -1272,6 +1357,7 @@ async function openWorkspace(caseId){
     S.phase=caseData.current_phase||'define';
     // Build workspace
     document.getElementById('ws-case-badge').innerHTML=`<i class="ti ti-folder" style="font-size:11px;vertical-align:-1px;margin-right:4px"></i>${caseId} · ${caseData.title}`;
+    renderLocationBadge();                         // ADR-0089 (DEF-288): "not set" asks the lead to set it
     renderWorkspaceTeam();
     showScreen('scr-workspace');
     renderPhaseNav();
@@ -4917,7 +5003,7 @@ function defineReportHtml(rep, isPassed, approvedAt) {
       + `<div id="define-report-actions"></div>`,
     // DEF-176 (founder, 2026-10-22): the lead, the Champion, the belt level and the people on the case are folded
     // into element 2's one team table (its card, below); the department stays one case-level line (Desktop).
-    section(0, line('Project', p.title) + line('Department', p.department)),
+    section(0, line('Project', p.title) + line('Department', p.department) + line('Location', p.location)),
     section(1, vis.benefit_timeline ? figure('benefit_timeline', benefitTimelineHtml(vis.benefit_timeline)) : ''),
     section(2, vis.mindmap_5w2h ? figure('mindmap_5w2h', `<div id="report-mindmap"></div>`) : ''),
     section(3, ''),
@@ -7958,6 +8044,7 @@ function updateRightPanel(resp){
 // ─── INIT ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   loadRegistry();
+  fillCountries('create-country','create-site');     // ADR-0089 (DEF-288): the create form's lists
   // Auto-resize textarea
   document.getElementById('chat-input').addEventListener('input',function(){
     this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';

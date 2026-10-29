@@ -21,12 +21,14 @@ hook, `--stage`); never edited by hand. Linked from [ARCHITECTURE.md §3.9](../A
 | POST | `/cases/{case_id}/people/{who}` | `change_person` | `PeopleResponse` | ADR-0090: the lead completes a person's details; with `confirm`, confirms a proposed member — only with |
 | DELETE | `/cases/{case_id}/people/{who}` | `remove_person` | `PeopleResponse` | DEF-104 (R8b, ADR-0090): the lead removes a member — never themselves (the case keeps one lead; handing the |
 | POST | `/cases/{case_id}/lead` | `hand_over_lead` | `PeopleResponse` | DEF-105 (R8c): the lead hands the role to another registered member. The case |
+| GET | `/sites` | `get_sites` | — | ADR-0089 decision 2 (DEF-288): the countries and their sites the create form and the location panel offer. |
+| POST | `/cases/{case_id}/location` | `change_location` | — | ADR-0089 decision 4 (DEF-288): the project lead sets or changes the case's country and site, from the lists. |
 | GET | `/gate/review/{case_id}/{phase}` | `gate_review` | `GateReviewResponse` | The assembled gate document, shown to the Belt BEFORE approval. |
 | POST | `/upload` | `upload_file` | — | The external-data channel: a file the team adds to the case. |
 | DELETE | `/files/{case_id}/{file_id}` | `delete_case_file` | — | W7 (DEF-109): remove an uploaded file — its blob, its `improve_evidence_index` document (by the id the |
 | POST | `/gate/decision` | `decide_gate` | `GateDecisionResponse` | R6 — approve or reject the Define report, RESUMING the paused graph. |
 | POST | `/gate` | `submit_gate` | `GateSubmitResponse` | Submit the phase for gate review — through the same compiled graph. |
-| GET | `/registry` | `get_registry` | `list[RegistryEntryOut]` | Management dashboard — returns all cases from registry. |
+| GET | `/registry` | `get_registry` | `list[RegistryEntryOut]` | Management dashboard — returns all cases from registry. ADR-0089 decision 3 (DEF-288): each row carries |
 | GET | `/cases/{case_id}` | `get_case` | — | Load full case document. Also projects every per-phase upload |
 
 <!-- END GENERATED: api routes -->

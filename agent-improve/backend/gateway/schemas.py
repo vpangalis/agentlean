@@ -32,6 +32,9 @@ class CaseCreateRequest(BaseModel):
     #: ADR-0090: the creator, who becomes the project lead, and the other members, with their details.
     lead: Optional[PersonIn] = None
     people: list[PersonIn] = []
+    #: ADR-0089 (W20, DEF-288): {country, site} from the configured lists. The create form requires both; a
+    #: request without it (a script, an older client) creates the case "not set", as an existing case reads.
+    location: dict[str, str] = {}
 
 
 class PersonChange(BaseModel):
@@ -46,6 +49,14 @@ class PersonRemoval(BaseModel):
     """DEF-104 (R8b): the lead (`actor`) removes a member from the case."""
 
     actor: str
+
+
+class LocationChange(BaseModel):
+    """ADR-0089 decision 4 (DEF-288): the lead (`actor`) sets or changes the case's country and site."""
+
+    actor: str
+    country: str
+    site: str
 
 
 class LeadHandover(BaseModel):
@@ -284,6 +295,8 @@ class RegistryEntryOut(BaseModel):
     status: str
     escalation: Optional[dict[str, Any]] = None        # ADR-0076 (T65)
     phase_summary: dict[str, Any] = {}
+    #: ADR-0089 (DEF-288): {country, site, label} — label "Linz, Austria" or "not set".
+    location: dict[str, str] = {}
 
 
 # ── health ────────────────────────────────────────────────────────────────

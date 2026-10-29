@@ -41,7 +41,7 @@ import secrets
 from contextlib import asynccontextmanager
 import logging
 from datetime import date
-from typing import AsyncIterator, Callable, Optional
+from typing import Any, AsyncIterator, Callable, Optional
 
 from azure.core import MatchConditions
 from azure.core.exceptions import ResourceExistsError, ResourceModifiedError, ResourceNotFoundError
@@ -292,6 +292,29 @@ async def create_case(case: CaseDocument) -> None:
         raise CaseNumberTaken(case.case_id) from e
 
 
+async def set_location(case_id: str, location: Any) -> tuple[Any, Optional[CaseDocument]]:
+    """ADR-0089 decision 4 (DEF-288): the case's location written to the case record — re-read here, only
+    `location` changed, as `update_people` does — and to its registry row. (the location before, the case); the
+    case None when it does not exist."""
+    case = await load_case(case_id)
+    if case is None:
+        return None, None
+    before = case.location
+    if before == location:
+        return before, case
+    case.location = location
+    await save_case(case)
+
+    def change(registry: CaseRegistry) -> bool:
+        entry = next((e for e in registry.cases if e.case_id == case_id), None)
+        if entry is None or entry.location == location:
+            return False
+        entry.location = location
+        return True
+    await _change_registry(change)
+    return before, case
+
+
 async def update_people(case_id: str, change: Callable[[list], list]) -> Optional[CaseDocument]:
     """ADR-0090 decision 2 (T13): a change of the people on the case is written to the case record —
     the record as stored, re-read here, with only `people` changed, so unfinished work in the checkpoint never
@@ -494,6 +517,7 @@ async def register_case(case: CaseDocument) -> None:
         belt_level=case.belt_level,
         leader=case.leader,
         department=case.department,
+        location=case.location,                   # ADR-0089 (DEF-288)
         created_at=case.created_at,
         target_date=case.target_date,
         current_phase=case.current_phase,

@@ -17,6 +17,7 @@ from backend.core.request_context import current_turn, set_case_id, set_phase, s
 from backend.core.errors import CaseBusyError, StateSchemaVersionError
 from backend.core.graph import RECURSION_LIMIT
 from backend.gateway.schemas import (
+    LocationChange,
     CaseCreateRequest,
     CaseCreateResponse,
     AskRequest,
@@ -168,6 +169,7 @@ async def create_case(request: CaseCreateRequest, response: Response) -> CaseCre
         raise HTTPException(503, "Storage not configured")
     year = utc_now().year
     people = _people_from_request(request)
+    location = _location_from_request(request)
     case = None
     for _ in range(1 + CASE_NUMBER_REDRAWS):
         case = CaseDocument.new(
@@ -179,6 +181,7 @@ async def create_case(request: CaseCreateRequest, response: Response) -> CaseCre
             target_date=request.target_date,
             team=[],
             people=people,
+            location=location,
         )
         try:
             await blob.create_case(case)
@@ -209,6 +212,21 @@ def _person(p: Any, *, role: str = "", status: str = "member", by: str = "") -> 
                         location=PersonLocation(country=str(loc.get("country") or ""), site=str(loc.get("site") or "")),
                         status=status, added_by=by,
                         added_at=utc_now().isoformat(timespec="seconds"))
+
+
+def _location_from_request(request: CaseCreateRequest) -> Any:
+    """ADR-0089 decision 1 (DEF-288): the case's country and site, checked against the configured lists — refused in
+    plain words when given and not on them, nothing created; "not set" when not given."""
+    from backend.storage import sites
+    from backend.storage.models import PersonLocation
+    loc = dict(request.location or {})
+    if not any(str(v or "").strip() for v in loc.values()):
+        return PersonLocation()
+    country, site = str(loc.get("country") or "").strip().upper(), str(loc.get("site") or "").strip()
+    why = sites.check(country, site)
+    if why:
+        raise HTTPException(422, why)
+    return PersonLocation(country=country, site=site)
 
 
 def _people_from_request(request: CaseCreateRequest) -> list:
@@ -1164,6 +1182,41 @@ async def hand_over_lead(case_id: str, body: LeadHandover, http: Request) -> Peo
     return _people_out(case)
 
 
+@router.get("/sites")
+async def get_sites() -> dict[str, Any]:
+    """ADR-0089 decision 2 (DEF-288): the countries and their sites the create form and the location panel offer."""
+    from backend.storage import sites
+    return {"countries": list(sites.countries())}
+
+
+@router.post("/cases/{case_id}/location")
+async def change_location(case_id: str, body: LocationChange, http: Request) -> dict[str, Any]:
+    """ADR-0089 decision 4 (DEF-288): the project lead sets or changes the case's country and site, from the lists.
+    The case record and its registry row are written; the change is kept in the Store's cross-phase audit
+    (`step_log`, R16): from, to, by, when — as the lead handover is."""
+    import secrets
+    import time
+    from backend.core.store import get_store
+    from backend.storage import sites
+    from backend.storage.models import PersonLocation
+    _bind(case_id, None)
+    await _as_lead(case_id, body.actor, http)
+    country, site = body.country.strip().upper(), body.site.strip()
+    why = sites.check(country, site)
+    if why:
+        raise HTTPException(422, why)
+    before, case = await blob.set_location(case_id, PersonLocation(country=country, site=site))
+    if case is None:
+        raise HTTPException(404, f"Case {case_id} not found")
+    if before != case.location:
+        get_store().put(("projects", case_id, "step_log"), f"location:{int(time.time() * 1000)}:{secrets.token_hex(3)}",
+                        {"layer": "case", "event": "location_change", "from": sites.label(before),
+                         "to": sites.label(case.location), "by": body.actor.strip(),
+                         "at": utc_now().isoformat(timespec="seconds")})
+        logger.info("location of %s: %s -> %s", case_id, sites.label(before), sites.label(case.location))
+    return {"location": {**case.location.model_dump(), "label": sites.label(case.location)}}
+
+
 @router.get("/gate/review/{case_id}/{phase}", response_model=GateReviewResponse)
 async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResponse:
     """The assembled gate document, shown to the Belt BEFORE approval.
@@ -1224,6 +1277,7 @@ async def gate_review(case_id: str, phase: str, http: Request) -> GateReviewResp
             artifacts,
             case={"case_id": case.case_id, "title": case.title, "leader": case.leader,
                   "belt_level": case.belt_level, "department": case.department,
+                  "location": _location_label(case.location),                    # ADR-0089 (DEF-288)
                   "target_date": case.target_date,
                   "people": [p.model_dump() for p in case.people]},           # ADR-0090
             field_log=list(getattr(record, "field_log", []) or []),
@@ -2183,8 +2237,9 @@ async def _clear_escalation(case_id: str) -> None:
 
 
 @router.get("/registry", response_model=list[RegistryEntryOut])
-async def get_registry() -> list[RegistryEntryOut]:
-    """Management dashboard — returns all cases from registry."""
+async def get_registry(country: str = "", site: str = "") -> list[RegistryEntryOut]:
+    """Management dashboard — returns all cases from registry. ADR-0089 decision 3 (DEF-288): each row carries
+    the case's location; `country` and `site` filter the list."""
     from backend.phases.status import days_in_phase
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
@@ -2202,9 +2257,17 @@ async def get_registry() -> list[RegistryEntryOut]:
             status=e.status,
             escalation=getattr(e, "escalation", None),           # ADR-0076
             phase_summary=e.phase_summary.model_dump(),
+            location={**e.location.model_dump(), "label": _location_label(e.location)},
         )
         for e in registry.cases
+        if (not country or e.location.country == country.strip().upper())
+        and (not site or e.location.site == site.strip())
     ]
+
+
+def _location_label(location: Any) -> str:
+    from backend.storage import sites
+    return sites.label(location)
 
 
 @router.get("/cases/{case_id}")
@@ -2223,6 +2286,7 @@ async def get_case(case_id: str, http: Request):
     case = await _with_unfinished_work(case, lost=lost)   # ADR-0066: read through the graph
 
     payload = case.model_dump()
+    payload["location_label"] = _location_label(case.location)        # ADR-0089 (DEF-288): "not set" until set
     if lost:                                       # G-261: never a silent fall-back
         from backend.core.prompts import RELOAD_UNFINISHED_LOST
         payload["notice"] = RELOAD_UNFINISHED_LOST

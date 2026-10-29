@@ -851,6 +851,7 @@ def test_the_create_form_shows_no_case_id_the_server_did_not_assign(monkeypatch)
 const S={user:'Priya Shah',beltLevel:'green',teamMembers:[]};
 els['create-title']={value:'Late supplier payments'};els['create-dept']={value:'Finance'};
 els['create-date']={value:'2027-03-31'};els['create-lead-name']={value:'Priya Shah'};
+els['create-country']={value:'AT'};els['create-site']={value:'Linz'};
 """
     # 1. The form before the server answers, and the request the page builds.
     first = _run_page(create, _PAGE_STUBS + form + """
@@ -864,6 +865,7 @@ initCreate();const before=document.getElementById('new-case-id').textContent;
     assert not re.search(r"IMPR-\d{4}-[A-Z0-9]{3}", first["after"]), "no id is shown without the server's answer"
     [req] = first["posted"]
     assert req["url"] == "/cases", req
+    assert req["body"]["location"] == {"country": "AT", "site": "Linz"}, req       # DEF-288: the form's two lists
 
     # 2. That request on the real route.
     blobs: dict[str, str] = {}
@@ -1977,7 +1979,8 @@ def test_the_creator_is_the_project_lead_and_alone_manages_the_team(env) -> None
     people = json.dumps({"case_id": CASE_ID, "lead": "Priya Shah", "people": [
         {"full_name": "Priya Shah", "role": "project lead", "status": "member", "is_lead": True},
         {"full_name": "Lena Hart", "role": "Analyst", "status": "member", "is_lead": False}]})
-    got = _page_js("escapeHtml", "initials", "renderWorkspaceTeam", "loadRegistry", "showSignIn", "renderTeamPanel",
+    got = _page_js("escapeHtml", "initials", "renderWorkspaceTeam", "loadRegistry", "locationFilterHtml", "showSignIn",
+                   "renderTeamPanel",
                    script=r"""
 const els = {}; const API = '/api';
 function el(id) { return els[id] || (els[id] = {id, innerHTML: '', setAttribute() {}, remove() {}}); }
@@ -2000,6 +2003,7 @@ function toast() {}
 """)
     assert "Lead: Priya Shah" in got["header"], got["header"]
     assert "Priya Shah" in got["list"], got["list"]
+    assert "not set" in got["list"], "DEF-288: a case with no location says so in the list"
     assert "Project lead: <b>Priya Shah</b>" in got["signIn"], got["signIn"]
     assert "teamRemove(" in got["asLead"] and "teamRole(" in got["asLead"], "the lead is offered no Remove or role edit"
     assert "teamRemove(" not in got["asMember"] and "teamRole(" not in got["asMember"], "a member is offered them"
@@ -9077,6 +9081,7 @@ const S={beltLevel:'green',teamMembers:[]};
 els['create-title']={value:'Late supplier payments'};els['create-dept']={value:'Finance'};
 els['create-date']={value:'2027-03-31'};els['create-lead-name']={value:'Priya Shah'};
 els['create-lead-email']={value:'priya.shah@example.com'};
+els['create-country']={value:'AT'};els['create-site']={value:'Vienna'};
 els['new-member-name']={value:'Tom Reed'};els['new-member-role']={value:'Champion'};
 els['add-member-form']={classList:{remove(){}}};
 async function apiJSON(url,opts){posted.push({url,body:JSON.parse(opts.body)});return null}
@@ -9086,6 +9091,7 @@ addTeamMember();
     [req] = page["posted"]
     assert req["body"]["lead"]["full_name"] == "Priya Shah" and req["body"]["lead"]["email"] == "priya.shah@example.com"
     assert [m["full_name"] for m in req["body"]["people"]] == ["Tom Reed"] and "leader" not in req["body"], req
+    assert req["body"]["location"] == {"country": "AT", "site": "Vienna"}, req           # DEF-288
     data = {"case_id": CASE_ID, "lead": ACTOR, "people": [
         {"full_name": ACTOR, "role": "project lead", "status": "member", "is_lead": True, "email": "p@x.com"},
         {"full_name": "Lena", "role": "Process owner", "status": "proposed", "is_lead": False}]}
@@ -9246,6 +9252,7 @@ def test_the_new_case_number_stays_until_the_lead_continues() -> None:
 const S={{user:'Priya Shah',beltLevel:'green',teamMembers:[]}};
 els['create-title']={{value:'Late supplier payments'}};els['create-dept']={{value:'Finance'}};
 els['create-date']={{value:'2027-03-31'}};els['create-lead-name']={{value:'Priya Shah'}};
+els['create-country']={{value:'AT'}};els['create-site']={{value:'Linz'}};
 const copied=[];const navigator={{clipboard:{{writeText:async t=>{{copied.push(t)}}}}}};
 async function apiJSON(url,opts){{posted.push({{url}});return {json.dumps(answer)}}}
 initCreate();
@@ -11215,9 +11222,107 @@ def test_def_287_element_5_offers_the_metric_and_baseline_the_business() -> None
     _not_written('DEF-287')
 
 
-def test_def_288_the_case_s_country_and_site_are_chosen_on() -> None:
-    """DEF-288 — W20 (ADR-0089): the case's country and site are chosen on the create form from the configured lists (founder test 2026-10-27)"""
-    _not_written('DEF-288')
+def test_def_288_the_case_s_country_and_site_are_chosen_on(env, monkeypatch) -> None:
+    """DEF-288 — W20 (ADR-0089): the case's country and site are chosen on the create form from the configured lists (founder test 2026-10-27)
+
+    Through the real routes over the gate env's blob fakes: GET /sites serves config/sites.json (Austria: Vienna,
+    Linz; Germany: Munich); the create form's location is stored on the case and its registry row; a site not on
+    the country's list, or a country not listed, is refused in plain words and nothing is created; a request without
+    one creates the case "not set". A case created before W20 reads "not set"; its lead sets the location and changes
+    it, each change in the Store's audit trail (R16); anyone else is refused. GET /cases/{id} carries the label,
+    Define report section A names it, the registry filters by it. The page: the create form's two lists and its
+    check, the header's location with "Set it" or "Change" for the lead only, the case list's filter, section A's
+    line."""
+    import json
+
+    from backend.core import migrations
+    from backend.core.store import get_store
+    from backend.gateway import routes
+    from backend.storage.models import CaseDocument, CaseRegistry, PersonLocation
+
+    assert migrations.current() == 16 and migrations.migrate_v15_to_v16({"x": 1}) == {"x": 1}
+    countries = env.client.get("/sites").json()["countries"]
+    assert [(c["code"], c["name"], c["sites"]) for c in countries] == [
+        ("AT", "Austria", ["Vienna", "Linz"]), ("DE", "Germany", ["Munich"])], countries
+
+    created: dict = {}
+    registry = CaseRegistry()
+
+    async def create(case):
+        created[case.case_id] = case
+
+    async def change_registry(change):
+        change(registry)
+
+    async def load_registry():
+        return registry
+    monkeypatch.setattr(routes.blob, "_change_registry", change_registry)
+    monkeypatch.setattr(routes.blob, "load_registry", load_registry)
+    with monkeypatch.context() as scoped:                # the creation fakes
+        scoped.setattr(routes.blob, "create_case", create)
+        scoped.setattr(routes, "_ensure_case_record", lambda case: None)
+        form = {"title": "Late closures", "belt_level": "green", "department": "Field Service",
+                "target_date": "2027-03-31", "lead": {"full_name": "Priya Shah", "email": "priya@example.com"},
+                "location": {"country": "at", "site": "Linz"}}
+        linz = env.client.post("/cases", json=form)
+        assert linz.status_code == 200, linz.text
+        assert created[linz.json()["case_id"]].location == PersonLocation(country="AT", site="Linz")
+        for wrong, why in ((("AT", "Munich"), "Choose the site from the list for Austria."),
+                           (("FR", "Paris"), "Choose the country from the list.")):
+            refused = env.client.post("/cases", json={**form, "location": {"country": wrong[0], "site": wrong[1]}})
+            assert refused.status_code == 422 and refused.json()["detail"] == why, refused.text
+        assert len(created) == 1, "a refused location created a case"
+        bare = env.client.post("/cases", json={k: v for k, v in form.items() if k != "location"})
+        assert bare.status_code == 200 and created[bare.json()["case_id"]].location == PersonLocation()
+    rows = {r["case_id"]: r["location"] for r in env.client.get("/registry").json()}
+    assert rows[linz.json()["case_id"]] == {"country": "AT", "site": "Linz", "label": "Linz, Austria"}, rows
+    assert rows[bare.json()["case_id"]]["label"] == "not set", rows
+    only = env.client.get("/registry", params={"country": "AT", "site": "Linz"}).json()
+    assert [r["case_id"] for r in only] == [linz.json()["case_id"]], only
+
+    # A case created before W20: "not set"; its lead sets it, then changes it — each change kept; no one else can.
+    env.case.people = CaseDocument.new(case_id=CASE_ID, title="t", belt_level="green", leader=ACTOR,
+                                       department="Finance", target_date="2027-03-31", team=[]).people
+    opened = env.client.get(f"/cases/{CASE_ID}").json()
+    assert opened["location"] == {"country": "", "site": ""} and opened["location_label"] == "not set", opened
+    other = env.client.post(f"/cases/{CASE_ID}/location", json={"actor": "Lena Hart", "country": "AT", "site": "Vienna"})
+    assert other.status_code == 403, other.text
+    off_list = env.client.post(f"/cases/{CASE_ID}/location", json={"actor": ACTOR, "country": "DE", "site": "Linz"})
+    assert off_list.status_code == 422 and "Germany" in off_list.json()["detail"], off_list.text
+    for country, site, label in (("AT", "Vienna", "Vienna, Austria"), ("DE", "Munich", "Munich, Germany")):
+        done = env.client.post(f"/cases/{CASE_ID}/location", json={"actor": ACTOR, "country": country, "site": site})
+        assert done.status_code == 200 and done.json()["location"]["label"] == label, done.text
+    assert env.case.location == PersonLocation(country="DE", site="Munich"), env.case.location
+    trail = {(e["from"], e["to"], e["by"]) for e in (i.value for i in get_store().search(
+        ("projects", CASE_ID, "step_log"), limit=100)) if (e or {}).get("event") == "location_change"}
+    assert trail == {("not set", "Vienna, Austria", ACTOR), ("Vienna, Austria", "Munich, Germany", ACTOR)}, trail
+    assert env.client.get(f"/cases/{CASE_ID}").json()["location_label"] == "Munich, Germany"
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    assert "Munich, Germany" in json.dumps(report["sections"], ensure_ascii=False), "section A names no location"
+
+    # The page: the create form requires both lists; the header offers Set it / Change to the lead only; the case
+    # list filters by location; section A has the line.
+    got = _run_page(("function siteOptions", "function locationBadgeHtml", "function isCaseLead",
+                     "function locationFilterHtml"), _PAGE_STUBS + """
+const S={sites:[{code:'AT',name:'Austria',sites:['Vienna','Linz']}],user:'Priya Shah',case:{people:[
+  {full_name:'Priya Shah',role:'project lead'}]}};
+const unset=locationBadgeHtml({location:{country:'',site:''},location_label:'not set'});
+const set=locationBadgeHtml({location:{country:'AT',site:'Linz'},location_label:'Linz, Austria'});
+S.user='Lena Hart';
+const member=locationBadgeHtml({location:{country:'',site:''},location_label:'not set'});
+const filter=locationFilterHtml([{location:{label:'Linz, Austria'}},{location:{label:'not set'}}]);
+console.log(JSON.stringify({sites:siteOptions('AT'),none:siteOptions(''),unset,set,member,filter}));
+""")
+    assert "Linz" in got["sites"] and "Choose the country first" in got["none"], got
+    assert "Location not set" in got["unset"] and "Set it" in got["unset"], got["unset"]
+    assert "Linz, Austria" in got["set"] and ">Change<" in got["set"], got["set"]
+    assert "Location not set" in got["member"] and "location-change" not in got["member"], "a member may change it"
+    assert "All locations" in got["filter"] and "Linz, Austria" in got["filter"], got["filter"]
+    from pathlib import Path
+    page = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    assert 'id="create-country"' in page and 'id="create-site"' in page
+    assert "if(!location.country||!location.site)" in page and "lead,people,location})" in page
+    assert "line('Location', p.location)" in page
 
 
 def test_g281_the_overview_card_points_to_the_history_tab_never_a_placeholder() -> None:
