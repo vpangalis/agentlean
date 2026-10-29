@@ -10238,6 +10238,102 @@
    "stage": "open_case",
    "layer": "screen",
    "pilot": true
+  },
+  {
+   "id": "DEF-289",
+   "description": "R7 amendment (founder 2026-10-29): a soft-benefits criterion — each soft benefit stated with its indicator, or consciously none; 'none identified' never blocks Confirm or the gate",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-260"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_289_a_soft_benefits_criterion_stated_with_an_indicator_or",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder decisions on WAVE2_REPORT_2026-10-29 (2026-10-29)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R7",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-290",
+   "description": "W3 amendment (founder 2026-10-29, wave-2 decision 4): every Confirm's stored values are named in the card's saved note with its Gate section, the goal chain's included — never a 'Stored: X.' line",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-266"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_290_every_confirm_is_named_in_the_card_s_saved_note",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder decisions on WAVE2_REPORT_2026-10-29 (2026-10-29)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "W3",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-291",
+   "description": "C2 amendment (founder 2026-10-29): every read-back with a natural picture shows it beside the values — team table, CTQ table, 5W2H map, charts to scale, cost-of-gap and saving bars, SIPOC flow, R18 flow, the 13-element strip — drawn by the report's own code",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-286"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_291_every_read_back_with_a_natural_picture_shows_it",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder decisions on WAVE2_REPORT_2026-10-29 (2026-10-29)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "C2",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
   }
  ]
 }

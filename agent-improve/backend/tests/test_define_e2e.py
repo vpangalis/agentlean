@@ -11168,6 +11168,21 @@ def test_def_288_the_case_s_country_and_site_are_chosen_on() -> None:
     _not_written('DEF-288')
 
 
+def test_def_289_a_soft_benefits_criterion_stated_with_an_indicator_or() -> None:
+    """DEF-289 — R7 amendment (founder 2026-10-29): a soft-benefits criterion — each soft benefit stated with its indicator, or consciously none; 'none identified' never blocks Confirm or the gate"""
+    _not_written('DEF-289')
+
+
+def test_def_290_every_confirm_is_named_in_the_card_s_saved_note() -> None:
+    """DEF-290 — W3 amendment (founder 2026-10-29, wave-2 decision 4): every Confirm's stored values are named in the card's saved note with its Gate section, the goal chain's included — never a 'Stored: X.' line"""
+    _not_written('DEF-290')
+
+
+def test_def_291_every_read_back_with_a_natural_picture_shows_it() -> None:
+    """DEF-291 — C2 amendment (founder 2026-10-29): every read-back with a natural picture shows it beside the values — team table, CTQ table, 5W2H map, charts to scale, cost-of-gap and saving bars, SIPOC flow, R18 flow, the 13-element strip — drawn by the report's own code"""
+    _not_written('DEF-291')
+
+
 def test_change_under_a_refused_read_back_shows_the_answer_to_edit(env, monkeypatch, stub_planner) -> None:
     """Wave 1's final live slice (founder 2026-10-28, the founder's own element-12 messages): the founder's flawed
     SIPOC is now refused ("still needs the outputs column", DEF-259) and its card offers Change; the founder's next

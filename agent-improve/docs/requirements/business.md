@@ -65,11 +65,18 @@ laid out in visual sections, each with a heading, a short plain-language summary
 shows and what it means for the project, and the key fields presented with a one-line explanation of
 what each field is. The report is built only from confirmed values.
 
-**C2 Show it as a picture where the data allows** · ACCEPTED 2026-09-27 · MoSCoW: Should · Design: none
+**C2 Show it as a picture where the data allows** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-29 · MoSCoW: Must · Design: none
 Wherever a section's information can be shown graphically — a process, a baseline against a target,
 a breakdown of costs or causes, a timeline — the report shows it as a labelled diagram or chart with
 a sentence explaining how to read it, next to the table or text that carries the same values. A
 diagram never carries a value the text does not.
+
+*Amendment ACCEPTED 2026-10-29 as written (proposed 2026-10-16 on the founder's ruling of 2026-10-15; MoSCoW Must, as proposed):* this applies to the coaching conversation, not
+only to the phase report. Every read-back, challenge and check whose information has a natural picture shows
+it next to (never instead of) the values — team → table; CTQs → need → CTQ table; problem statement → 5W2H map
+with full text; metric, baseline, target → chart to scale; benefits → cost-of-gap / saving bars; SIPOC → the
+flow; R18 check → the flow with steps marked; progress → the 13-element strip — drawn by the report's own code
+(ADR-0070), so chat and Gate look alike. MoSCoW proposed: Must for these elements.
 
 **C3 Every request is explained, with a sample** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-13 · MoSCoW: Must · Design: ADR-0001
 Every time the coach asks the Belt or team for new information it explains, in plain words, what is
@@ -154,7 +161,7 @@ measured and how the process runs today — so that Measure starts from a shared
 
 **b Elements**
 
-**R4 Thirteen elements** · RATIFIED 2026-09-26, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0004
+**R4 Thirteen elements** · RATIFIED 2026-09-26, amended ACCEPTED 2026-10-27 and 2026-10-29 · MoSCoW: Must · Design: ADR-0004
 The current 12 + BENEFITS ANALYSIS (cost of the gap / COPQ, sustainable vs one-off impact,
 realisation schedule, finance contact; manual p. 60–63). VOC includes the CTQs (p. 82).
 The element list and field names are owned by `backend/phases/define/schema.py` — never restated.
@@ -171,7 +178,13 @@ formula and result in € with thousands separators ("1,200 complaints × 38% la
 and stored in their own fields. The model never does the arithmetic; it only explains. The same pattern holds for
 every computation in every phase (ADR-0077).
 
-**R7 Acceptance criteria and gate rubric** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27, 2026-09-29 and 2026-10-27 · MoSCoW: Must · Design: ADR-0071
+*Amendment ACCEPTED 2026-10-29 as written (proposed 2026-10-16 on the founder's ruling of 2026-10-15) — hard and soft benefits (Design: ADR-0096):* the
+benefits analysis states hard benefits (cost of the gap, sustainable or one-off, realisation schedule, finance
+contact), the expected saving at the target apart from the cost of the gap, and soft benefits — each in the
+Belt's words with how it will be seen (an indicator), never converted into money nor added to the hard figure;
+"none identified" is a conscious answer. Both are stored in structure (C6).
+
+**R7 Acceptance criteria and gate rubric** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27, 2026-09-29, 2026-10-27 and 2026-10-29 · MoSCoW: Must · Design: ADR-0071
 From the manual: business case = what, where, when, baseline size, cost, no cause or solution
 speculation (p. 49); exactly ONE primary metric, quantified, linked to a KPI (p. 58); secondary
 metrics capture side effects (p. 58); scope not too broad, map as-is not ideal (p. 80); team names
@@ -187,6 +200,9 @@ Define criterion — they have no impact in Agent Improve's DMAIC cycle and the 
 coach does not ask for them; they never block Confirm or the gate. Given by the Belt or the team file, they are
 stored in the team table's Training column; otherwise "not stated". Rubric DEF-R02 drops "states any training a
 member needs". This departs deliberately from the BB manual's Define checklist (p. 81).
+
+*Amendment ACCEPTED 2026-10-29 as written (proposed 2026-10-16 on the founder's ruling of 2026-10-15):* a criterion for soft benefits — stated, each with an
+indicator, or consciously none (manual p. 60–63). It never blocks when the answer is consciously none (founder, 2026-10-29).
 
 **R17 The as-is process with its performance** · ACCEPTED 2026-09-27, open decision 6 closed as written 2026-10-12, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0078
 The high-level process element captures not only the SIPOC and its steps but how the process
@@ -336,7 +352,7 @@ Acceptance: every figure is computed once, by the backend, from the case record 
 the overview, the navigation, the case list and the progress bar show the same figures from that one
 computation. Open elements are counted against the phase's element list.
 
-**W3 Coaching page welcome — summary so far** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0114
+**W3 Coaching page welcome — summary so far** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16, amended ACCEPTED 2026-10-27 and 2026-10-29 · MoSCoW: Must · Design: ADR-0114
 As a Belt, I want the coaching page to greet me by name and summarise what has been achieved so far,
 so that I can resume without re-reading history.
 Acceptance: the summary is assembled in code, without a model call, from confirmed values in the
@@ -354,6 +370,12 @@ let's move on…"; (3) the title and a one-line purpose; (4) YOUR TURN, the stro
 and a short hint on how much to write and whether a file can be uploaded — never a confirm prompt; (5) "What a good
 answer looks like · example, not your data", a small table in the element's own columns, one label only; (6)
 quiet help links: "Why this matters", an element-specific question, "Where do we stand?".
+
+*Amendment ACCEPTED 2026-10-29 (proposed 2026-10-16 on the founder's ruling of 2026-10-15; accepted with "confirmation strip" replaced by "the card's saved note (ADR-0114)"):* the welcome is assembled by the server, in code, on a
+fresh case and on every return — a greeting by the signed-in person's name, what Define delivers, the order of
+the 13 elements and why, what is confirmed and what is open, then the first ask; laid out in blocks, never one
+paragraph. After every Confirm the reply says, in code, what was stored (element and value in short) and that
+it is now visible under the Gate tab, as the card's saved note (ADR-0114), then the next element as its own card.
 
 **W4 Choose what to work on next** · ACCEPTED 2026-09-27, MoSCoW amended 2026-10-16 · open decision 1 · MoSCoW: Must · Design: none
 As a Belt, I want to either pick any unconfirmed element whose prerequisites are confirmed, or
