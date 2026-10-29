@@ -324,8 +324,12 @@ process.stdout.write(JSON.stringify({{with:renderTurn(t), without:renderTurn({{.
 _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
     "function renderTurn": ("function elementValueHtml", "function elementRowsHtml", "function readbackCardHtml",
                             "function completionCardHtml", "function mdHtml", "function teachingCardHtml",    # R-C
-                            "function confirmedNoteHtml"),                                                     # DEF-290
-    "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml", "function reportPrintHead"),
+                            "function confirmedNoteHtml",                                                      # DEF-290
+                            "function elementStripHtml", "function turnVisualHtml", "function baselineTargetHtml",
+                            "function benefitBarsHtml", "function benefitTimelineHtml"),                       # DEF-291
+    "function teachingCardHtml": ("function elementStripHtml",),                                               # DEF-291
+    "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml", "function reportPrintHead",
+                                  "function elementStripHtml", "function benefitBarsHtml"),                    # DEF-291
     "function renderPhaseNav": ("function gateSubmitState", "function renderGateSubmit"),
     "function renderLiveViz": ("function latestReply",),
     "async function openWorkspace": ("function serviceStatusHtml", "async function checkService"),
@@ -8227,30 +8231,37 @@ def test_the_visual_pane_follows_the_current_element(env, monkeypatch, stub_plan
     nxt = _askd(env, message="Confirm", action="confirm")
     assert nxt.get("move_field") == "baseline_estimate", nxt.get("move_field")
 
-    def run(screen: dict) -> str:
-        return _page(("render5W2HMindmap", "mindmapFromServer", "renderSipocDiagram", "liveTargetChart",
-                      "baselineTargetHtml", "latestReply", "renderLiveViz"), _DOM + f"""
+    # DEF-286 (C2 amended, founder 2026-10-29; G-308, G-312): each turn is drawn by the page's own renderTurn and the
+    # pictures by renderLiveViz into each turn's own box — what every turn shows, in order, and whether any pane
+    # floats under the chat.
+    def run(turns: list) -> dict:
+        return _page(("renderTurn", "render5W2HMindmap", "mindmapFromServer", "renderSipocDiagram", "renderLiveViz"),
+                     _DOM + f"""
 const window={{}};
-els['chat-messages']={{id:'chat-messages',appendChild(c){{els[c.id]=c}},scrollTop:0,scrollHeight:0}};
-document.createElement=()=>({{id:'',style:{{}},innerHTML:'',dataset:{{}}}});
-const S={json.dumps(screen)};
+const S={{case:{{case_id:'C1',conversation_history:[]}},phase:'define',localChat:[],user:'Ana'}};
 function getStructured(){{return {{what:'stale v1 what',where:'x'}}}} function fieldHasValue(v){{return !!v}}
+function sendMessage(){{}} function selectTab(){{}}
+const html={json.dumps(turns)}.map(t=>renderTurn(t));
+const ids=html.map(h=>(h.match(/id="(turn-viz-[0-9]+)"/)||[])[1]||'');
+ids.filter(Boolean).forEach(id=>{{els[id]={{id,innerHTML:'',dataset:{{}}}}}});
 renderLiveViz();
-process.stdout.write(JSON.stringify({{live:(els['viz-live']||{{}}).innerHTML||''}}));""")["live"]
+process.stdout.write(JSON.stringify({{boxes:ids.map(id=>id?(els[id].innerHTML||''):''),pane:(els['viz-live']||{{}}).innerHTML||''}}));""")
     ai = lambda b: {**b, "role": "ai", "text": b["answer"]}
-    base = {"case": {"case_id": CASE_ID, "conversation_history": []}, "phase": "define"}
-    assert "5W2H problem statement" in run({**base, "lastAsk": read, "localChat": [ai(read)]}), "the mind map is missing"
-    # ADR-0070: the Confirm's reply carries the element just stored, drawn from the stored values — confirmed.
-    after = run({**base, "lastAsk": nxt, "localChat": [ai(read), ai(nxt)]})
-    assert "Confirmed — 7 / 7" in after and "Draft" not in after, after[:400]
-    # A reply with no visual of its own (a teaching turn) leaves the pane empty, live and after a reload.
-    assert run({**base, "lastAsk": taught, "localChat": [ai(read), ai(taught)]}) == "", "an older turn's visual"
-    reloaded: dict[str, Any] = {**base, "case": {"case_id": CASE_ID, "conversation_history": [ai(read), ai(taught)]},
-                                "lastAsk": None,
-                "localChat": []}
-    assert run(reloaded) == "", "after a reload the pane shows a visual the last coach turn does not carry"
-    reloaded["case"]["conversation_history"] = [ai(taught), ai(read)]
-    assert "5W2H problem statement" in run(reloaded)
+    # The read-back draws its mind map in its own turn — a draft, as the server sent it.
+    live = run([ai(read)])
+    assert "5W2H problem statement" in live["boxes"][0] and not live["pane"], live
+    # ADR-0070: the Confirm's reply still carries the element just stored, confirmed — the Gate draws it. The chat
+    # draws nothing under the next element's card (G-312: the chart floated under the next element); the read-back
+    # above keeps its own picture.
+    assert (nxt.get("visualisation") or {}).get("confirmed") is True, nxt.get("visualisation")
+    after = run([ai(read), ai(nxt)])
+    assert "5W2H problem statement" in after["boxes"][0] and after["boxes"][1] == "" and not after["pane"], after
+    # A turn with no visual of its own (a teaching turn) draws none — never an older turn's, nor one rebuilt from the
+    # case's stored values; after a reload each turn of the history draws its own, in its place.
+    taught_turns = run([ai(read), ai(taught)])
+    assert taught_turns["boxes"][1] == "" and "stale v1" not in json.dumps(taught_turns), taught_turns
+    reloaded = run([ai(taught), ai(read)])
+    assert reloaded["boxes"][0] == "" and "5W2H problem statement" in reloaded["boxes"][1], reloaded
 
 
 def test_submit_is_disabled_until_every_element_is_confirmed(env) -> None:
@@ -8817,24 +8828,27 @@ def test_the_sipoc_is_taught_and_checked_with_its_flow(env, monkeypatch, stub_pl
     assert "Schedule technician visit" in two["answer"] and "Technician visit and repair" in two["answer"], two["answer"]
 
     # The page: the marks, the example badge, and a turn's drawing in the chat.
-    got = _page(("renderSipocDiagram", "renderLiveViz", "lastVizSource", "liveTargetChart", "baselineTargetHtml",
-                 "detectCurrentWorkProduct"), _DOM + f"""
+    # DEF-286 (C2 amended, founder 2026-10-29): the turn's drawing sits in the turn's own box, drawn once the turn is
+    # on the page — never in one pane under the whole chat.
+    got = _page(("renderSipocDiagram", "renderLiveViz", "turnVisualHtml", "lastVizSource", "liveTargetChart",
+                 "baselineTargetHtml", "detectCurrentWorkProduct"), _DOM + f"""
 const m={json.dumps(marks)};renderSipocDiagram(m,'s1');const table=els['s1'].innerHTML;
 els['s2']={{id:'s2',innerHTML:'',dataset:{{sipocTab:'flow'}}}};renderSipocDiagram(m,'s2');
 const ex={json.dumps(drawn)};renderSipocDiagram(ex,'s3');
-els['chat-messages']={{id:'chat-messages',appendChild(c){{els[c.id]=c}},scrollTop:0,scrollHeight:0}};
-document.createElement=()=>({{id:'',style:{{}},innerHTML:'',dataset:{{}}}});
-const S={{case:{{case_id:'C1',conversation_history:[]}},phase:'define',lastAsk:{{sipoc_diagram:ex}},localChat:[]}};
+const S={{case:{{case_id:'C1',conversation_history:[]}},phase:'define',localChat:[]}};
 function getStructured(){{return {{}}}} function fieldHasValue(v){{return !!v}}
+const box=turnVisualHtml({{role:'ai',sipoc_diagram:ex}});const id=(box.match(/id="([^"]+)"/)||[])[1];
+els[id]={{id,innerHTML:'',dataset:{{}}}};
 renderLiveViz();
 process.stdout.write(JSON.stringify({{table,flow:els['s2'].innerHTML,example:els['s3'].innerHTML,
-  live:(els['viz-live']||{{}}).innerHTML||''}}));""")
+  live:(els[id]||{{}}).innerHTML||'',pane:(els['viz-live']||{{}}).innerHTML||''}}));""")
     for view in ("table", "flow"):
         h = got[view]
         assert h.count('data-mark="located"') == 2 and h.count('data-mark="flagged"') == 3, (view, h[:1500])
         assert "1 Log complaint" in h and "5 Inform customer" in h, view
     assert "Example — not your data" in got["example"] and "Draft" not in got["example"], got["example"][:600]
-    assert "Receive order" in got["live"], "the chat did not draw the turn's SIPOC"
+    assert "Receive order" in got["live"], "the chat did not draw the turn's SIPOC in its own box"
+    assert got["pane"] == "", "a pane under the whole chat (G-312)"
 
 
 def test_the_completion_card_and_the_decision_banner(env, monkeypatch, stub_planner) -> None:
@@ -11212,9 +11226,60 @@ def test_def_285_what_does_need_answers_as_a_checklist_of_what() -> None:
     _not_written('DEF-285')
 
 
-def test_def_286_the_chat_read_back_shows_the_element_s_picture() -> None:
-    """DEF-286 — The chat read-back shows the element's picture (5W2H map, baseline and target charts) where it belongs (founder test 2026-10-27)"""
-    _not_written('DEF-286')
+def test_def_286_the_chat_read_back_shows_the_element_s_picture(env, monkeypatch, stub_planner) -> None:
+    """DEF-286 — The chat read-back shows the element's picture (5W2H map, baseline and target charts) where it belongs (founder test 2026-10-27)
+
+    Founder test 2026-10-27, findings 35, 37, 39, 43 (G-308, G-310, G-312, G-316): the Gate had the 5W2H map, the chat
+    read-back did not; the baseline and target read-backs showed no chart; a metric chart floated under the
+    conversation while the Belt worked on scope. Through POST /ask and the page's own renderTurn and renderLiveViz: the
+    problem statement's read-back draws its 5W2H map inside its own turn, before the card; the target read back from
+    the goal draws the baseline → target chart to scale inside its turn; the next element's turn after a Confirm draws
+    none, and no pane floats under the conversation."""
+    import json
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.tests.test_define_report import COMPLETE
+
+    def drawn(turns: list) -> dict:
+        return _page(("renderTurn", "render5W2HMindmap", "mindmapFromServer", "renderSipocDiagram", "renderLiveViz"),
+                     _DOM + f"""
+const window={{}};
+const S={{case:{{case_id:'C1',conversation_history:[]}},phase:'define',localChat:[],user:'Ana'}};
+function sendMessage(){{}} function selectTab(){{}}
+const html={json.dumps(turns)}.map(t=>renderTurn(t));
+const ids=html.map(h=>(h.match(/id="(turn-viz-[0-9]+)"/)||[])[1]||'');
+ids.filter(Boolean).forEach(id=>{{els[id]={{id,innerHTML:'',dataset:{{}}}}}});
+renderLiveViz();
+process.stdout.write(JSON.stringify({{html,boxes:ids.map(id=>id?(els[id].innerHTML||''):''),
+  pane:(els['viz-live']||{{}}).innerHTML||''}}));""")
+    ai = lambda b: {**b, "role": "ai", "text": b["answer"]}
+
+    # G-308: the problem statement's read-back — its 5W2H map in its own turn, before the card.
+    _at_element(env, "problem_statement")
+    _coach_saying(monkeypatch, "Next: the problem statement.")
+    _askd(env, message="Next, please.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all seven answered")
+    _coach_saying(monkeypatch, "Your problem statement, read back. Is this right?",
+                  captured=[{"field_name": "problem_statement", "value": COMPLETE["problem_statement"], "source": "belt"},
+                            {"field_name": "problem_5w2h", "value": COMPLETE["problem_5w2h"], "source": "belt"}])
+    read = _askd(env, message="what answer, where answer …")
+    _coach_saying(monkeypatch, "Next: the primary metric and its baseline.")
+    nxt = _askd(env, message="Confirm", action="confirm")
+    got = drawn([ai(read), ai(nxt)])
+    assert (read.get("visualisation") or {}).get("type") == "mindmap_5w2h", (read["move"], read.get("visualisation"))
+    assert "5W2H problem statement" in got["boxes"][0] and "Draft" in got["boxes"][0], got["boxes"][0][:300]
+    assert got["html"][0].index('class="turn-viz"') < got["html"][0].index("rb-card"), "the picture is not beside the card"
+    # G-312: the next element's turn draws no picture; nothing floats under the conversation.
+    assert got["boxes"][1] == "" and 'class="turn-viz"' not in got["html"][1] and got["pane"] == "", got["pane"][:200]
+
+    # G-316 / G-310: the target read back from the goal — its baseline → target chart, to scale, in its own turn.
+    env.holder["saver"]._container.blobs.clear()           # a fresh conversation, as DEF-271 does
+    env.restart()
+    _a8_at_goal_read_back(env, monkeypatch, "Reduce the late payment rate from 23% to under 5% by 31 March 2027.")
+    target = _askd(env, action="confirm", message="Confirm")
+    assert target["move_field"] == "target_value", target["move_field"]
+    chart = drawn([ai(target)])["html"][0]
+    assert 'class="turn-viz"' in chart and "width:23%" in chart and "width:5%" in chart, chart[:600]
 
 
 def test_def_287_element_5_offers_the_metric_and_baseline_the_business() -> None:
@@ -11524,8 +11589,58 @@ def test_def_290_every_confirm_is_named_in_the_card_s_saved_note(env, monkeypatc
 
 
 def test_def_291_every_read_back_with_a_natural_picture_shows_it() -> None:
-    """DEF-291 — C2 amendment (founder 2026-10-29): every read-back with a natural picture shows it beside the values — team table, CTQ table, 5W2H map, charts to scale, cost-of-gap and saving bars, SIPOC flow, R18 flow, the 13-element strip — drawn by the report's own code"""
-    _not_written('DEF-291')
+    """DEF-291 — C2 amendment (founder 2026-10-29): every read-back with a natural picture shows it beside the values — team table, CTQ table, 5W2H map, charts to scale, cost-of-gap and saving bars, SIPOC flow, R18 flow, the 13-element strip — drawn by the report's own code
+
+    C2's list, each checked where the Belt reads it, by the page's own functions on the server's own payloads (the
+    5W2H map, the charts and the SIPOC flow in their read-back turn: DEF-286; the R18 flow: DEF-272):
+    - team → table and CTQs → table: the read-back cards' people and CTQ rows are tables, drawn by elementRowsHtml;
+    - benefits → the cost of the gap and the expected saving as two bars on one scale, the numbers read from the texts
+      beside them (C1) — none when a figure is missing; the chat's benefits read-back and Gate section B draw the
+      same bars with the same function;
+    - progress → the thirteen elements as one strip on the element card, the current one marked, drawn by the same
+      function as the Gate's header strip."""
+    import json
+
+    from backend.phases.define import templates, visuals
+    from backend.tests.test_templates import A99
+
+    # Team and CTQs: their read-back rows are tables.
+    for field, row in (("team", "people"), ("voc_summary", "ctq")):
+        value = next(r for r in templates.card(field, A99)["rows"] if r["id"] == row)["value"]
+        assert set(value) >= {"columns", "rows"} and value["rows"], (field, value)
+
+    # Benefits: two bars on one scale, from the texts' own numbers; no saving recorded -> no bars.
+    saved = {**A99, "computation_results": [{"tool": "calculate_expected_savings",
+                                             "result": {"annual_savings": 20520.0, "currency": "EUR"}}]}
+    benefits = visuals.draw("benefit_timeline", saved, confirmed=False)
+    assert benefits and (benefits["cost_number"], benefits["saving_number"]) == (20500.0, 20520.0), benefits
+    unsaved = visuals.draw("benefit_timeline", A99, confirmed=True)
+    assert unsaved is not None and unsaved["saving_number"] is None, unsaved
+    turn = {"role": "ai", "text": "Here is your benefits analysis. Is this right?", "visualisation": benefits}
+    from backend.phases import moves
+    first_five = {f for _, fs in moves.positions("define")[:5] for f in fs}
+    card = templates.teaching_card("project_scope", {k: v for k, v in A99.items() if k in first_five},
+                                   {f: {"status": "confirmed"} for f in templates.DEFINE_FIELD_ORDER[:5]}, stored=[])
+    got = _run_page(("function renderTurn", "function teachingCardHtml", "function defineReportHtml"), _PAGE_STUBS + f"""
+const S={{case:{{case_id:'C1',conversation_history:[]}},user:'Ana',phase:'define',localChat:[]}};
+function sendMessage(){{}} function selectTab(){{}}
+const turn={json.dumps(turn)};
+process.stdout.write(JSON.stringify({{chat:renderTurn(turn),card:teachingCardHtml({json.dumps(card)},true),
+  bars:benefitBarsHtml({json.dumps(benefits)}),none:benefitBarsHtml({json.dumps({**benefits, "saving_number": None})})}}));
+""")
+    assert got["bars"].count("width:") >= 2 and "About €20,500 a year today" in got["bars"], got["bars"]
+    assert "width:100%" in got["bars"] and got["none"] == "", "two bars on one scale; none without a figure"
+    assert got["bars"] in got["chat"] and got["chat"].index("benefit-bars") < got["chat"].index("benefit-timeline")
+
+    # Progress: the thirteen on the element card — the first five confirmed, the sixth current — as the Gate draws them.
+    strip = card["trail"]["strip"]
+    assert [s["state"] for s in strip] == ["confirmed"] * 5 + ["current"] + ["open"] * 7, strip
+    assert got["card"].count('<li data-n="') == 13 and 'data-n="6" data-state="current"' in got["card"], got["card"][:800]
+    from pathlib import Path
+    page = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    report_fn = page[page.index("function defineReportHtml("):page.index("function defineReportHtml(") + 20000]
+    assert "elementStripHtml(cards.map(" in report_fn and "benefitBarsHtml(vis.benefit_timeline)" in report_fn, \
+        "the Gate does not draw the strip and the bars with the chat's functions"
 
 
 def test_change_under_a_refused_read_back_shows_the_answer_to_edit(env, monkeypatch, stub_planner) -> None:

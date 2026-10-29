@@ -1068,7 +1068,11 @@ def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str,
     return {
         "field": field, "n": n, "of": DEFINE_POSITIONS, "name": name_of(field), "section": section_of(field),
         "trail": {"previous": step(n - 1), "current": step(n), "next": step(n + 1),
-                  "confirmed": confirmed, "of": DEFINE_POSITIONS},
+                  "confirmed": confirmed, "of": DEFINE_POSITIONS,
+                  # C2 amended (founder 2026-10-29, DEF-291): the thirteen as the Gate's strip draws them.
+                  "strip": [{"n": i, "name": name_of(f), "state": "current" if f == field else
+                             "confirmed" if _status(f, artifacts, field_status) == "confirmed" else "open"}
+                            for i, f in enumerate(DEFINE_FIELD_ORDER, start=1)]},
         "saved": saved_note(list(stored or []), artifacts),
         **({"note": note} if note else {}),
         "title": name_of(field), "purpose": parts.get("purpose", ""),

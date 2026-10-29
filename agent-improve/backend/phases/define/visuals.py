@@ -14,6 +14,7 @@ report picture can never differ. No model call draws.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 from backend.core import diagrams
@@ -69,8 +70,28 @@ def _benefit_timeline(values: dict[str, Any]) -> dict[str, Any]:
             if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
     from backend.phases.calculations import expected_saving_text
     saving = expected_saving_text(rows[-1]) if rows else None     # G-226: with its currency and separators
+    # C2 amended (DEF-291): the two figures as numbers for the bars — each read from the text beside it (C1).
     return {"type": "benefit_timeline", "cost_of_gap": b.get("cost_of_gap"), "impact_type": b.get("impact_type"),
-            "expected_saving": saving, "realisation_schedule": b.get("realisation_schedule")}
+            "expected_saving": saving, "realisation_schedule": b.get("realisation_schedule"),
+            "cost_number": _money(b.get("cost_of_gap")), "saving_number": _money(saving)}
+
+
+#: A sum of money as the Belt or the calculation writes it — "€20,500", "EUR 62,000", "£68,000", "1.5 million" — never
+#: a figure stuck to a letter ("Q2 2027"); its thousands separators are commas or spaces.
+_MONEY = re.compile(r"(?<![\w.,])(\d{1,3}(?:[, ]\d{3})+|\d+(?:\.\d+)?)(?![\w,])(?:\s*(million|m|thousand|k)(?![a-z]))?",
+                    re.I)
+_SCALE = {"million": 1e6, "m": 1e6, "thousand": 1e3, "k": 1e3}
+
+
+def _money(text: Any) -> Optional[float]:
+    """The first sum in `text` as a number; None when it has none (C1: a bar is drawn only from a figure the text
+    carries). A year is no sum: a text whose only figure is a year, or a quarter's ("Q2 2027"), has none."""
+    for m in _MONEY.finditer(str(text or "")):
+        number = float(re.sub(r"[, ]", "", m.group(1)))
+        if not m.group(2) and 1900 <= number <= 2100 and "," not in m.group(1):
+            continue                                         # a year, not an amount
+        return number * _SCALE.get((m.group(2) or "").lower(), 1)
+    return None
 
 
 def _date(value: Any) -> Optional[str]:
