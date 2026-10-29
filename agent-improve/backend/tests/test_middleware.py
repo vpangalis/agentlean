@@ -1662,3 +1662,41 @@ def test_f_one_rewrite_inside_the_grader_in_enforce_mode_only(monkeypatch) -> No
     assert asyncio.run(mw.aafter_agent({"structured_response": draft, "messages": belt}, None)) == \
         {"grader_warning": G.GRADER_WARNING}
     assert "s left" in logged[-1]["rewrite_skipped"], logged[-1]
+
+
+def test_r_c_each_define_element_carries_its_card_parts_and_no_model_reads_them() -> None:
+    """R-C (ADR-0114 decision 3, DEF-266): every Define element's block carries what its card needs — a one-line
+    purpose, the question, a hint, an element-specific help question and an example in the element's own columns (the
+    read-back's rows, the Gate's team table, the 5W2H map; the SIPOC's is its structured file) — and the coach's and the
+    grader's section 2 never carries a card-only part, so no prompt grows."""
+    from backend.middleware.skills import CARD_ONLY, card_parts, script_section, worked_examples
+    from backend.phases.define import criteria as owner
+    from backend.phases.define import templates
+    for field in owner.ELEMENT_ORDER:
+        parts = card_parts("define", field)
+        for key in ("purpose", "question", "hint", "help"):
+            assert parts.get(key), (field, key)
+        assert "\n" not in parts["purpose"] and len(parts["purpose"]) <= 100, (field, parts["purpose"])
+        assert parts["help"].endswith("?"), (field, parts["help"])
+        section = script_section("define", field, False)
+        assert not any(f"**{label}" in section for label in CARD_ONLY), field
+        example = parts.get("example")
+        if field == "process_map_sipoc":
+            assert example is None          # drawn from sipoc_example.json, the element's structured example
+            continue
+        assert example and example["rows"], field
+        columns, rows = example["columns"], example["rows"]
+        assert all(len(r) == len(columns) for r in rows), field
+        if field == "team":
+            assert columns == ["Name", "Role", "Function", "Time", "Training"]   # the Gate's table, less the status
+        elif field == "problem_statement":
+            assert columns == ["Question", "Example"]
+            assert [r[0] for r in rows] == list(templates._FIVE_W_LABELS.values())  # the Gate's 5W2H map
+        else:
+            assert columns == ["Part", "Example"]
+            labels = {label for label, _read in templates.TEMPLATES[field].values()} | {"Soft benefits"}
+            assert {r[0] for r in rows} <= labels, (field, {r[0] for r in rows} - labels)
+    # A Belt copying a card's example is caught by the worked-example guard, as a Show is.
+    guarded = " ".join(worked_examples("define"))
+    assert "anna project lead green belt runs the project" in guarded
+    assert "fewer escalations to account managers" in guarded

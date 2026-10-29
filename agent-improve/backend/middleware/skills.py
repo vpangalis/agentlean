@@ -153,6 +153,8 @@ _SHOW_LINE = re.compile(r'^>\s*\*\*Show[^*]*:\*\*\s*\*"(.+?)"\*', re.M)
 _SHOW_TABLE = re.compile(
     r'^>\s*\*\*Show[^*]*table[^*]*:\*\*[ \t]*\n(?:>[ \t]*\n)?((?:>[ \t]*\|.*\n?)+)',
     re.M | re.I)
+#: R-C: an element card's example table, `> **Card example (…):**` and its rows.
+_CARD_TABLE = re.compile(r'^>\s*\*\*Card example[^*]*:\*\*[ \t]*\n((?:>[ \t]*\|.*\n?)+)', re.M)
 
 #: The worked-example guard — THE MATCHING RULE, stated once. Both texts are normalised
 #: (lower case; letters, digits, % and currency signs kept; everything else one
@@ -179,6 +181,15 @@ def _flatten(value: Any) -> str:
 
 
 @lru_cache(maxsize=len(PHASE_ORDER))
+def _card_cells(table: str) -> str:
+    """A card example table's example cells as one text: its body rows, without the row labels of a Part / Question
+    table."""
+    rows = [[c.strip() for c in ln.lstrip(">").strip().strip("|").split("|")] for ln in table.splitlines()]
+    body = [r for r in rows[1:] if not all(set(c) <= set("-: ") for c in r)]
+    first = 1 if rows and rows[0] and rows[0][0] in ("Part", "Question") else 0
+    return " ".join(c for r in body for c in r[first:])
+
+
 def worked_examples(phase: str) -> tuple[str, ...]:
     """Every worked example in `phase`'s script — the `**Show:**` quotations and
     the example table — normalised, at or above EXAMPLE_MIN_CHARS."""
@@ -190,6 +201,9 @@ def worked_examples(phase: str) -> tuple[str, ...]:
                      if "---" not in row
                      for c in row.lstrip("> ").strip("|").split("|"))
             for m in _SHOW_TABLE.finditer(body)]
+    # R-C (ADR-0114): a card's example table is a worked example too — its cells, never its row labels (a Belt's own
+    # answer uses the element's labels without copying anything).
+    raw += [_card_cells(m.group(1)) for m in _CARD_TABLE.finditer(body)]
     # DEF-211 (ADR-0070): a worked example kept as a structured file beside the script
     # (`*_example.json`, drawn by code, never shown to the model as text) is a worked example all the same.
     import json
@@ -329,7 +343,7 @@ def _script_blocks(phase: str) -> tuple[dict[str, str], str, str]:
     last: Optional[str] = None
     for i, m in enumerate(heads):
         end = heads[i + 1].start() if i + 1 < len(heads) else len(body)
-        block = body[m.start():end].split("\n---\n")[0].rstrip()
+        block = without_card(body[m.start():end].split("\n---\n")[0].rstrip())
         head = m["head"]
         parts = [p.strip() for p in head.split("·")]
         named = re.search(r"\bfield (\d+)\b", head)
@@ -464,6 +478,44 @@ def teaching_blocks(phase: str, field: str) -> dict[str, str]:
            "example": f"Illustration — not your data:{chr(10) if chr(10) in show else ' '}{show}" if show else "",
            "prompt": ask}
     return {k: v for k, v in out.items() if v}
+
+
+#: R-C (ADR-0114 decision 3): the parts of an element's block that only the element card reads — never a model. The
+#: coach's and the grader's section 2 (`script_section`) leaves them out, so no prompt grows.
+CARD_ONLY = ("Purpose", "Hint", "Help question", "Card example")
+
+
+def without_card(block: str) -> str:
+    """`block` without its card-only sections (`CARD_ONLY`), every other line kept in place."""
+    out: list[str] = []
+    skipping = False
+    for raw in block.splitlines():
+        m = _LABEL.match(raw.lstrip(">").strip())
+        if m:
+            skipping = m["label"].strip() in CARD_ONLY
+        elif not raw.startswith(">"):
+            skipping = False
+        if not skipping:
+            out.append(raw)
+    return "\n".join(out)
+
+
+def card_parts(phase: str, field: str) -> dict[str, Any]:
+    """R-C (ADR-0114 decision 3): what the element card takes from the element's block — its one-line `purpose`, the
+    `question` (the Ask), the `hint`, the `help` question and the `example` ({columns, rows}, the element's own
+    columns; absent when the block keeps none, as the SIPOC's is its structured file). {} for no block."""
+    if phase not in SKILL_DIRS:
+        return {}
+    _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
+    sections = _sections(block)
+    if not block:
+        return {}
+    cells = [[c.strip() for c in ln.lstrip(">").strip().strip("|").split("|")]
+             for ln in sections.get("Card example", []) if ln.lstrip(">").strip().startswith("|")]
+    table = [row for row in cells if not all(set(c) <= set("-: ") for c in row)]
+    return {"purpose": _section_text(sections.get("Purpose", [])), "question": _section_text(sections.get("Ask", [])),
+            "hint": _section_text(sections.get("Hint", [])), "help": _section_text(sections.get("Help question", [])),
+            **({"example": {"columns": table[0], "rows": table[1:]}} if len(table) > 1 else {})}
 
 
 def level_1_catalogue() -> str:

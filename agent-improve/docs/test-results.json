@@ -1,9 +1,9 @@
 {
- "source_hash": "b7de8715b5013289",
- "commit": "d252513",
+ "source_hash": "b9aeebe6153a138a",
+ "commit": "94858d2",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T08:53:15+00:00",
+ "recorded_at": "2026-10-29T09:11:00+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1318,6 +1318,7 @@
   "backend/tests/test_middleware.py::test_position_1_wrap_encloses_position_4_retry": "passed",
   "backend/tests/test_middleware.py::test_position_6_is_GUARDED_and_does_not_park_the_case": "passed",
   "backend/tests/test_middleware.py::test_prior_phase_values_are_injected": "passed",
+  "backend/tests/test_middleware.py::test_r_c_each_define_element_carries_its_card_parts_and_no_model_reads_them": "passed",
   "backend/tests/test_middleware.py::test_retry_kwargs_against_the_installed_classes": "passed",
   "backend/tests/test_middleware.py::test_skills_are_read_from_the_git_versioned_tree": "passed",
   "backend/tests/test_middleware.py::test_skills_catalogue_also_uses_content_blocks": "passed",

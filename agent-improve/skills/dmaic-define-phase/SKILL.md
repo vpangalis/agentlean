@@ -162,6 +162,16 @@ and only it carries the baseline and the target.
 > - `cost` — says what it costs: money, time or volume (p. 49)
 > - `no-cause-no-fix` — carries no guess at the cause and no proposed solution; the method finds those (p. 49)
 > **Read back:** their business case, in their own words — *"Is this right?"*
+> **Purpose:** Why this project deserves time and people.
+> **Hint:** Two to four sentences are enough; rough figures are fine.
+> **Help question:** What makes a good business case?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | What is wrong | 12% of invoices produced by UK billing were returned for correction |
+> | Where and since when | UK billing, January to June 2026 |
+> | How big it is today | 12%, against 3% for the rest of the group |
+> | What it costs | about €35k a month in rework and delayed payments |
 
 **[2 · team · required]**
 > **What it is:** The project team: who leads, who sponsors, who owns the process, and who does the work — each with a name, a role and what they will do.
@@ -175,6 +185,16 @@ and only it carries the baseline and the target.
 > - `training` — says what training anyone needs, or that none is needed (p. 82)
 > **Read back:** each person — name, role and function — and the training need — *"Is this right?"*
 > **Capture as:** a LIST, one entry per person, each `{name, role, function}` — never one sentence naming everybody. A training need is recorded on the person it concerns, in `function`.
+> **Purpose:** Who leads, who sponsors, who owns the process and who does the work.
+> **Hint:** One line per person: name, role and what they will do. You can upload the team as a file instead.
+> **Help question:** Who should be on the team?
+> **Card example (the element's own columns — not your data):**
+> | Name | Role | Function | Time | Training |
+> |---|---|---|---|---|
+> | Anna | Project lead | Green Belt, runs the project | 2 days a week | none |
+> | Mark | Champion | Finance Director, approves and removes blockers | 2 h a month | none |
+> | Jo | Process owner | Billing Manager, owns the process | 4 h a week | none |
+> | Sam | Team member | Billing clerk, knows the work | 4 h a week | half a day on data collection |
 
 **[3 · voc_summary · required · with the CTQs]**
 > **What it is:** The Voice of the Customer: who receives what your process produces — inside the company, outside, or both — what they need, and the Critical-to-Quality requirements (CTQs): each need turned into something you can measure.
@@ -187,6 +207,15 @@ and only it carries the baseline and the target.
 > - `ctq` — turns at least one need into a measurable requirement (a CTQ) (p. 31, p. 82)
 > **Read back:** the customers, their needs and each CTQ — *"Is this right?"*
 > **Capture as:** `voc_summary` — the customers and needs in the Belt's words; `critical_to_quality` — a LIST, one entry per CTQ, each `{customer, need, requirement}`, where `requirement` is the measurable form.
+> **Purpose:** Who receives what your process produces, what they need, and how you will measure it.
+> **Hint:** Name each customer group and its top need; for each need, one requirement you can measure.
+> **Help question:** What makes a good CTQ?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Customers | client finance teams (external); credit control (internal) |
+> | Their needs | correct invoices, on time; the top complaint is wrong amounts |
+> | CTQs (measurable) | invoice amount matches the agreed price on 100% of lines; invoice sent within 2 working days of the order |
 
 **[4 · problem_statement · required · composed from 5W2H]**
 > **What it is:** One clear statement of the problem, built from seven short questions — the 5W2H: What, Where, When, Who, Why, How and How much.
@@ -213,6 +242,19 @@ and only it carries the baseline and the target.
 > - `located` — names the process step(s) where the problem shows (R18); ask for them if the Belt has not said
 > **Read back (composed):** the 5W2H as the Belt answered it, then the statement composed from those answers only — *"does that capture it accurately?"* *(Guard: assemble only what the Belt said; invent nothing.)*
 > **Capture as:** `problem_statement` — the composed statement; `problem_5w2h` — `{what, where, when, who, why, how, how_much, steps}`, each in the Belt's words; `steps` is a list of the step(s) where the problem shows.
+> **Purpose:** One clear statement of the problem, from seven short answers.
+> **Hint:** A few words for each of the seven questions; describe the problem only, never its cause or its fix.
+> **Help question:** What makes a good problem statement?
+> **Card example (the element's own columns — not your data):**
+> | Question | Example |
+> |---|---|
+> | What | invoices returned for correction |
+> | Where | UK billing, order to invoice — at "Generate invoice" |
+> | When | January to June 2026 |
+> | Who is affected | client finance teams, credit control |
+> | Why it matters | wrong amounts delay payment and trust |
+> | How it shows up | clients return the invoice or dispute it |
+> | How much | 12% of invoices, against 3% elsewhere |
 
 **[METRIC LITERACY — field 5, where the metric gets named]**
 > **The coach teaches two different things and must not conflate them:** the **metric** (the Belt's own measure — what it counts, why it matters in Define, how to tell a usable estimate from a vague one) and the **statistic** (what an expected-savings calculation *is*, taught at step 1 of the seven-step pattern below).
@@ -236,6 +278,17 @@ and only it carries the baseline and the target.
 > - `defined` — the metric has a name, a unit and an operational meaning two people would apply the same way (p. 58)
 > **Read back:** the primary metric by name, unit, meaning, KPI and baseline with its source; then any other metric, marked secondary — *"Is this right?"*
 > **Capture as:** `baseline_estimate` — the primary metric's current value, with its period and source; `metric_definitions` — a LIST, the PRIMARY metric FIRST, one entry per metric, each `{name, unit, meaning}`. `name` is a matching key every later phase repeats verbatim: a stable, lowercase, underscored identifier, never re-phrased once set.
+> **Purpose:** The one measure that says whether the project succeeded, and where it stands today.
+> **Hint:** Name the measure, its unit and what it counts; then today's figure with its period and where it comes from.
+> **Help question:** What makes a usable baseline?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Primary metric | invoice error rate |
+> | Baseline | 12%, January to June 2026 |
+> | Business measure it feeds | days-sales-outstanding (a finance KPI) |
+> | Where the figure comes from | the collections log |
+> | Name · unit · meaning | invoice error rate · % · the share of invoices returned by clients for correction |
 
 **[6 · project_scope · required]**
 > **What it is:** The project's boundaries: where the process starts and ends, what is in, and — just as important — what is out.
@@ -248,6 +301,14 @@ and only it carries the baseline and the target.
 > - `not-too-broad` — covers one process or area where the problem sits, not everything around it (p. 80)
 > **Read back:** both what is in and what is out — *"Is this right?"*
 > **Capture as:** `{in_scope, out_scope}` — both keys, both filled.
+> **Purpose:** Where the process starts and ends, what is in and what is out.
+> **Hint:** Say where the process starts and ends, then what is in and what is deliberately out.
+> **Help question:** How do I keep the scope from growing?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Start and end point | from order received to invoice sent |
+> | In and out of scope | In: UK invoice generation. Out: payment collection, non-UK regions, the pricing database |
 
 **[7 · goal_statement · required]**
 > **What it is:** The objective statement: how much improvement the project will deliver, on the primary metric, by when.
@@ -259,6 +320,15 @@ and only it carries the baseline and the target.
 > - `how-much` — states how much improvement, from the baseline to a target (p. 52)
 > - `by-when` — carries a date (p. 52)
 > **Read back:** their goal, and that it mirrors the problem — *"Is this right?"*
+> **Purpose:** How much the primary metric will improve, and by when.
+> **Hint:** One sentence: the metric, from where to where, and by when.
+> **Help question:** What makes a good goal?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Same metric as the problem | invoice error rate |
+> | How much improvement | from 12% to under 3% |
+> | By when | 30 June next year |
 
 **[8 · target_value · required]**
 > **What it is:** The target as a number — the value of the primary metric that says "done".
@@ -269,6 +339,14 @@ and only it carries the baseline and the target.
 > - `number-and-unit` — a number in the baseline's unit (p. 58)
 > - `direction` — differs from the baseline in the direction the goal states (p. 52)
 > **Read back:** the target beside the baseline — *"Is this right?"*
+> **Purpose:** The value of the primary metric that says "done".
+> **Hint:** One number, in the same unit as the baseline.
+> **Help question:** How ambitious should the target be?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Target | under 3% |
+> | From the baseline to the target | 12% → under 3% |
 
 **[9 · target_date · required]**
 > **What it is:** The date the project plans to finish.
@@ -278,6 +356,13 @@ and only it carries the baseline and the target.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `a-date` — a calendar date, in the future (p. 52)
 > **Read back:** the date — *"Is this right?"*
+> **Purpose:** The date the project plans to finish.
+> **Hint:** A date; the month and year are enough.
+> **Help question:** What if the date slips?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Target date | 30 June next year |
 
 **[10 · benefits_analysis · required]**
 > **What it is:** Hard benefits — money finance can count: what the gap costs today (the cost of poor quality), recurring or one-off, when it shows, who in finance checks it. Soft benefits — gains not booked as money (fewer escalations, workload), each with how you will see it.
@@ -291,6 +376,17 @@ and only it carries the baseline and the target.
 > - `finance-contact` — names the finance representative who validates the figure (p. 60, p. 62)
 > **Read back:** the four parts and any soft benefits — *"Is this right?"*
 > **Capture as:** `{cost_of_gap, impact_type, realisation_schedule, finance_contact}` — all four keys, each in the Belt's words.
+> **Purpose:** What the gap costs today, and what the project is worth, in money and beyond.
+> **Hint:** The four parts of the hard benefit, then any soft benefits with how you will see each. Rough figures are fine.
+> **Help question:** How do I calculate the cost of the gap?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Cost of the gap | about €15.1k a year in rework today (12% of 4,200 invoices, about €30 each) |
+> | Sustainable or one-off | sustainable |
+> | Realisation schedule | from the first full quarter after the change, about €2.8k a quarter |
+> | Finance contact | Priya Shah, management accountant |
+> | Soft benefits | fewer escalations to account managers (seen in the monthly escalation count) |
 
 **[TOOL · calculate_expected_savings · for the benefits analysis]**
 > **Educate:** The calculation gives two annual money figures, never one for the other. The cost of the gap is what the problem costs today, at the baseline; the expected saving is what reaching the target removes.
@@ -310,6 +406,13 @@ and only it carries the baseline and the target.
 > - `side-effect` — names at least one measure of a side effect of the change (p. 58)
 > - `not-the-primary` — does not restate the primary metric (p. 58)
 > **Read back:** what they will watch, in their own words — *"Is this right?"*
+> **Purpose:** What else could change when the primary metric improves.
+> **Hint:** Two or three measures you will watch, each with what could move it.
+> **Help question:** What makes a good secondary metric?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Side effects watched | invoice cycle time (extra checks could slow it); billing team overtime; client satisfaction with invoicing |
 
 **[12 · process_map_sipoc · required · as-is, from a shown demo]**
 > **What it is:** A SIPOC — a one-page, high-level map of the process as it runs today: Suppliers give Inputs; the Process, in four to eight main steps from start to end, turns them into Outputs, which go to Customers; and what is measured on those outputs. With it, how the process performs today: for each step, how long it takes (average, shortest and longest, with the unit), how often it runs, and the problems the team sees there and who said so; for the whole process, the end-to-end lead time and how often it runs. Estimates are fine here — Measure replaces them with measured data.
@@ -325,6 +428,9 @@ and only it carries the baseline and the target.
 > - `performance` — each step has a time (average, shortest, longest, with a unit) and how often it runs, and the problems the team sees with who said them; the whole process has its lead time and how often it runs; estimates are fine (R17)
 > **Read back:** the assembled SIPOC as a table, all six keys, then each step's time, frequency and problems, then the whole process, flagging any thin column — *"Is this right?"*
 > **Capture as:** `{suppliers, inputs, process_steps, outputs, customers, process_metrics, process_performance}` — ALL SIX columns filled; `process_steps` a list, one entry per step `{name, duration {avg, min, max}, runs_per_period, problems [{note, said_by}]}`; `process_performance` `{lead_time, runs_per_period}`; each figure in the Belt's words with its unit.
+> **Purpose:** The process on one page, as it runs today, and how it performs.
+> **Hint:** Start with the main steps, each beginning with a verb; the other columns follow. You can upload a map instead.
+> **Help question:** What is a SIPOC?
 
 **[13 · issues_and_barriers · required]**
 > **What it is:** The issues and barriers: what could get in the way of the project — data, people, systems, time.
@@ -334,6 +440,13 @@ and only it carries the baseline and the target.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `specific` — names, for each roadblock, the site, system, team, person or rule of this project it concerns (a date alone is not enough), or says "none identified at this stage" as a conscious answer (p. 80, p. 82)
 > **Read back:** their list, in their own words — *"Is this right?"*
+> **Purpose:** What could get in the way of the project.
+> **Hint:** One line per roadblock: data, people, systems or time.
+> **Help question:** What are the usual barriers?
+> **Card example (the element's own columns — not your data):**
+> | Part | Example |
+> |---|---|
+> | Issues and barriers | no clean error data before January, so we may need to collect it; two team members on leave in August; the pricing database is owned by IT, so a change needs their sign-off |
 
 **[GATE READINESS — closing]**
 > All thirteen parts of Define are agreed. Next is the Define report: you and your team read it through, and approve it — or reject it, naming what needs to change, and we come back to those parts together.
