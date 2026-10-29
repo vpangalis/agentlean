@@ -390,6 +390,38 @@ class DefineOutput(BaseModel):
     uploads: list[dict] = Field(default_factory=list)
 
 
+class SipocProblemRead(BaseModel):
+    """R10 (ADR-0095): one problem the description names at a step, with who said it when it says."""
+    note: str = Field(description="the problem, in the description's own words")
+    said_by: str = Field(default="", description="who said it, when the description names them; else empty")
+
+
+class SipocStepRead(BaseModel):
+    """R10 (ADR-0095): one main step as the description gives it; a time, how often or a problem only when given."""
+    name: str = Field(description="the step, in the description's words")
+    time_avg: str = Field(default="", description="its usual time with the unit, as written; empty when not given")
+    time_min: str = Field(default="", description="its shortest time WITH the unit (a range '1 to 6 working days' gives '1 working day'); empty when not given")
+    time_max: str = Field(default="", description="its longest time WITH the unit (a range '1 to 6 working days' gives '6 working days'); empty when not given")
+    runs: str = Field(default="", description="how often the step runs, as written; empty when not given")
+    problems: list[SipocProblemRead] = Field(default_factory=list,
+                                             description="problems the description names at this step")
+
+
+class SipocReading(BaseModel):
+    """R10 (ADR-0095 decision 2): the SIPOC tool's one structured reading of a description, a file or a picture —
+    every list empty when the source does not state it; nothing completed from general knowledge."""
+    is_process: bool = Field(description="true when the source describes a process: steps that turn inputs into outputs")
+    suppliers: list[str] = Field(default_factory=list, description="who supplies what goes into the process")
+    inputs: list[str] = Field(default_factory=list, description="what goes into the process (things)")
+    process_steps: list[SipocStepRead] = Field(default_factory=list,
+                                               description="the main steps, from start to end, in order")
+    outputs: list[str] = Field(default_factory=list, description="what comes out of the process (things)")
+    customers: list[str] = Field(default_factory=list, description="who receives the outputs")
+    process_metrics: list[str] = Field(default_factory=list, description="what is measured on the outputs")
+    lead_time: str = Field(default="", description="the whole process from start to end, as written; else empty")
+    runs_per_period: str = Field(default="", description="how often the whole process runs, as written; else empty")
+
+
 from backend.phases.gate_assembly import (  # noqa: E402
     build_gate_document,
     tier_1,

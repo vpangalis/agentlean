@@ -1,9 +1,9 @@
 {
- "source_hash": "34fd6f66de8778ba",
- "commit": "8d3f2ac",
+ "source_hash": "a04d10acb39f3743",
+ "commit": "7bc0f38",
  "commit_matches_source": false,
  "full_run_hash": "34fd6f66de8778ba",
- "recorded_at": "2026-10-29T22:24:17+00:00",
+ "recorded_at": "2026-10-29T22:49:39+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -491,7 +491,7 @@
   "backend/tests/test_define_e2e.py::test_def_291_every_read_back_with_a_natural_picture_shows_it": "skipped",
   "backend/tests/test_define_e2e.py::test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool": "passed",
   "backend/tests/test_define_e2e.py::test_def_293_step_times_how_often_and_problems_are_optional_at_the": "passed",
-  "backend/tests/test_define_e2e.py::test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps": "skipped",
+  "backend/tests/test_define_e2e.py::test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps": "passed",
   "backend/tests/test_define_e2e.py::test_def_295_an_upload_at_element_12_becomes_the_sipoc_draft_read_back": "skipped",
   "backend/tests/test_define_e2e.py::test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps": "skipped",
   "backend/tests/test_define_e2e.py::test_def_297_a_process_picture_is_read_in_one_call_with_its_true_type": "skipped",

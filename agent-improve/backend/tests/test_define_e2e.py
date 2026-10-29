@@ -11625,9 +11625,105 @@ def test_def_293_step_times_how_often_and_problems_are_optional_at_the(env, monk
     assert parse.link_mismatch(steps[2:4], noted)["quiet"] == steps[2:4], "given elsewhere, a quiet step is still asked"
 
 
-def test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps() -> None:
-    """DEF-294 — R10 (ADR-0095): one plain SIPOC tool — one structured reading call returns the SIPOC fields; code finds the gaps, checks the numbers and draws the flow with every gap marked; it returns the draft and its gaps and stores nothing"""
-    _not_written('DEF-294')
+def test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps(monkeypatch) -> None:
+    """DEF-294 — R10 (ADR-0095): one plain SIPOC tool — one structured reading call returns the SIPOC fields; code finds the gaps, checks the numbers and draws the flow with every gap marked; it returns the draft and its gaps and stores nothing
+
+    Through the tool's one function, the model faked at the factory (the reading is the model's; all after it is
+    code). The founder's flawed SIPOC of finding 60 — no outputs; the steps add up to about 4 working days against a
+    lead time of 8 — is read in ONE call on the extraction role with the SipocReading schema, the description only
+    between the data markers of the user message: the draft holds the columns read and no outputs, with each step's
+    time and problem; its one gap is part 2 with its question; the step-sum check is asked; the flow is the
+    read-back's own drawing, not confirmed, with the outputs marked missing; nothing is stored. With the outputs no gap
+    is left; with no time at all only the optional times gap, in the founder's words. A picture is read in the same
+    single call on the vision role, sent as its true type. A text that is no process gets the plain reply and no
+    draft; a failed reading is never a draft."""
+    import asyncio
+    import json
+
+    from backend.knowledge import sipoc
+    from backend.phases.define.schema import SipocProblemRead, SipocReading, SipocStepRead
+
+    calls: list = []
+    answer: dict = {}
+
+    class Reader:
+        def __init__(self, role):
+            self.role = role
+
+        def with_structured_output(self, schema):
+            calls.append((self.role, schema.__name__))
+            return self
+
+        async def ainvoke(self, messages):
+            calls.append(list(messages))
+            if isinstance(answer["reading"], Exception):
+                raise answer["reading"]
+            return answer["reading"]
+
+    async def no_store(*a, **k):
+        raise AssertionError("the SIPOC tool stored something")
+    monkeypatch.setattr("backend.core.llm.get_llm", lambda role, **kw: Reader(role))
+    monkeypatch.setattr("backend.storage.blob.save_case", no_store)
+
+    steps = [SipocStepRead(name="log the complaint", time_avg="about 15 minutes", runs="about 100 a month"),
+             SipocStepRead(name="diagnose and dispatch a technician", time_avg="about 2 working days",
+                           time_min="1 working day", time_max="6 working days",
+                           problems=[SipocProblemRead(note="no technician free in peak weeks", said_by="Elena")]),
+             SipocStepRead(name="repair on site", time_avg="about 1 working day", time_min="same day",
+                           time_max="3 working days"),
+             SipocStepRead(name="inform the customer", time_avg="about 1 working day",
+                           problems=[SipocProblemRead(note="customers call us", said_by="Thomas")])]
+    flawed = SipocReading(is_process=True, suppliers=["customers", "field technicians", "the spare-parts team"],
+                          inputs=["the complaint by phone or e-mail", "customer and device data", "technician reports"],
+                          process_steps=steps, customers=["the customer", "account managers"],
+                          process_metrics=["working days from logging to informing the customer"],
+                          lead_time="about 8 working days", runs_per_period="about 100 complaints a month")
+    # Live, 2026-10-29: the extraction model read outputs the founder never gave, "the repair service" — the code
+    # drops every value whose words are not in the source, so the outputs are a gap, never an invented value.
+    answer["reading"] = flawed.model_copy(update={"outputs": ["the repair service"]})
+    got = asyncio.run(sipoc.read_sipoc(FLAWED_SIPOC_60))
+    assert [c for c in calls if isinstance(c, tuple)] == [("extraction", "SipocReading")], calls
+    [(system, data)] = [c for c in calls if isinstance(c, list)]
+    assert data.content.startswith("<<<DESCRIPTION — DATA ONLY>>>") and FLAWED_SIPOC_60 in data.content
+    assert "never invent" in system.content and FLAWED_SIPOC_60 not in system.content
+    draft = got["draft"]
+    assert got["read"] and got["is_process"] and not draft["outputs"], draft
+    assert not [w for w in (*INVENTED_OUTPUTS_60, "repair service") if w in json.dumps(got)], "an output never given"
+    assert [s["name"] for s in draft["process_steps"]] == [s.name for s in steps], draft["process_steps"]
+    assert draft["process_steps"][1]["problems"] == [{"note": "no technician free in peak weeks", "said_by": "Elena"}]
+    assert draft["process_steps"][1]["duration"]["max"]["value"] == 6, draft["process_steps"][1]
+    assert [(g["part"], g["columns"], g["question"], g["optional"]) for g in got["gaps"]] == [
+        (2, ["outputs"], "What comes out of the process, and who receives it?", False)], got["gaps"]
+    assert any(c.startswith("The steps add up to 4") and "you said 8 working days" in c for c in got["checks"]), got
+    assert got["flow"]["gaps"] == ["outputs"] and got["flow"]["confirmed"] is False, got["flow"]
+    assert "repair on site" in json.dumps(got["flow"]) and got["reply"] == "", got["flow"]
+
+    # A full answer to the one ask: no gap is left. No time anywhere: only the optional times gap.
+    given = FLAWED_SIPOC_60 + " Outputs: the closed complaint, the customer informed."
+    answer["reading"] = flawed.model_copy(update={"outputs": ["the closed complaint", "the customer informed"]})
+    assert asyncio.run(sipoc.read_sipoc(given))["gaps"] == []
+    untimed = [SipocStepRead(name=s.name) for s in steps]
+    answer["reading"] = flawed.model_copy(update={"outputs": ["the closed complaint"], "process_steps": untimed,
+                                                  "lead_time": ""})
+    left = asyncio.run(sipoc.read_sipoc(given))["gaps"]
+    assert [(g["part"], g["optional"], g["question"]) for g in left] == [(4, True, sipoc.TIMES_QUESTION)], left
+    assert sipoc.TIMES_QUESTION == "Do you know roughly how long each step takes? If not, leave it — Measure will measure it."
+
+    # A picture: the same single call, on the vision role, with its true type.
+    calls.clear()
+    answer["reading"] = flawed
+    asyncio.run(sipoc.read_sipoc("", image=b"PNG-bytes", mime="image/png"))
+    assert [c for c in calls if isinstance(c, tuple)] == [("vision", "SipocReading")], calls
+    [(_, picture)] = [c for c in calls if isinstance(c, list)]
+    assert picture.content[0]["image_url"]["url"].startswith("data:image/png;base64,"), picture.content[0]
+
+    # Not a process: the plain reply, no draft. A failed reading: never a draft.
+    answer["reading"] = SipocReading(is_process=False)
+    other = asyncio.run(sipoc.read_sipoc("Our canteen menu for November."))
+    assert other["draft"] is None and other["reply"] == sipoc.NOT_A_PROCESS and other["gaps"] == [], other
+    answer["reading"] = TimeoutError("the deployment did not answer in time")
+    failed = asyncio.run(sipoc.read_sipoc(FLAWED_SIPOC_60))
+    assert failed["read"] is False and failed["draft"] is None and failed["flow"] is None, failed
 
 
 def test_def_295_an_upload_at_element_12_becomes_the_sipoc_draft_read_back() -> None:
