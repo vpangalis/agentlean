@@ -6302,7 +6302,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-345"
+    ]
    },
    "requirement": "T69",
    "belt_impact": "none",

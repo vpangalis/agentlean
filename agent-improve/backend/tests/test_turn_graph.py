@@ -46,7 +46,7 @@ from langgraph.checkpoint.base import (
 )
 
 from backend.core import graph as graph_mod
-from backend.core.substate import CoachingResponse
+from backend.core.substate import CoachingResponse, SufficiencyJudgment
 from backend.tests.conftest import DEFAULT_REPLY
 from backend.core.state import SUPERVISOR_STATE_FIELDS
 from backend.phases.mappers_common import PHASE_ORDER
@@ -296,24 +296,35 @@ def test_a_second_turn_adds_a_distinct_history_entry(wired, stub_coach) -> None:
 
 # ── one invoke is one Belt turn ───────────────────────────────────────────
 
+#: R-C (ADR-0114): a teach move is answered with the element card, in code, and
+#: makes no coach call — so a turn that must reach the coach is the Belt's answer
+#: to the welcome's card (R-A: the element on the request, as the UI sends it),
+#: judged by the planner's model (`stub_planner`) and then coached.
+_ANSWERS_THE_CARD = {"belt_element": "business_case"}
+
+
 def test_the_executor_runs_exactly_once_per_invoke(wired, stub_coach) -> None:
     """The 4.1 predicate looped here until `GraphRecursionError`."""
     graph, _ = wired
     asyncio.run(graph.ainvoke(_seed_state(
         messages=[HumanMessage(content="hello")]
-    ), config=_config()))
+    ), config=_config(**_ANSWERS_THE_CARD)))
     assert len(stub_coach.invocations) == 1
 
 
-def test_the_conversation_is_not_duplicated_across_turns(wired, stub_coach) -> None:
+def test_the_conversation_is_not_duplicated_across_turns(wired, stub_coach, stub_planner) -> None:
     """`messages` reduces with `operator.add` — the trap this step had to avoid.
 
     Two turns, one human message each: four messages, not seven and not ten.
     """
+    # Neither message answers the business case, so each turn is a respond move whose whole reply
+    # the coach writes (a read-back of an answer this thin is refused in code, G-163).
+    stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer",
+                                                reason="it does not answer the business case")
     graph, _ = wired
     asyncio.run(graph.ainvoke(_seed_state(
         messages=[HumanMessage(content="one")]
-    ), config=_config()))
+    ), config=_config(**_ANSWERS_THE_CARD)))
     result = asyncio.run(graph.ainvoke(
         {"messages": [HumanMessage(content="two")]}, config=_config()
     ))
@@ -328,7 +339,7 @@ def test_the_coach_sees_the_prior_conversation_on_turn_two(wired, stub_coach) ->
     graph, _ = wired
     asyncio.run(graph.ainvoke(_seed_state(
         messages=[HumanMessage(content="one")]
-    ), config=_config()))
+    ), config=_config(**_ANSWERS_THE_CARD)))
     asyncio.run(graph.ainvoke(
         {"messages": [HumanMessage(content="two")]}, config=_config()
     ))

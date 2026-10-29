@@ -31,7 +31,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.memory import InMemoryStore
 
 
-from backend.core.substate import CoachingResponse
+from backend.core.substate import CoachingResponse, SufficiencyJudgment
 from backend.middleware.grader import DMAICGraderMiddleware
 from backend.validation.schemas import (
     CoachingGraderVerdict,
@@ -66,7 +66,12 @@ def _coach() -> _FakeCoach:
 
 @pytest.fixture
 def wired(monkeypatch, stub_planner):
-    """One turn through the real route and graph; returns (response, saver)."""
+    """One turn through the real route and graph; returns (response, saver).
+
+    R-C (ADR-0114): a teaching move is answered with the element card, in code,
+    and makes no coach call — so this turn is one the COACH writes: the Belt's
+    answer to the welcome's card (R-A, the element on the request, as the UI
+    sends it), judged insufficient, which makes a challenge."""
     from backend.app import app
     from backend.core import graph as graph_mod
     from backend.gateway import routes
@@ -112,9 +117,12 @@ def wired(monkeypatch, stub_planner):
             status="fail", feedback="ask how the figure was measured")])
 
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", failing)
+    stub_planner.judgment = SufficiencyJudgment(
+        verdict="insufficient", reason="it does not say how the £62,000 was measured")
 
     resp = TestClient(app).post("/ask", json={"case_id": CASE_ID, "user": "wired",
-                                              "message": BELT, "phase": "define"})
+                                              "message": BELT, "phase": "define",
+                                              "element": "business_case"})
     request_cleanup()
     assert resp.status_code == 200, resp.text
     assert saver.storage.get(CASE_ID), "the turn did not run on the in-memory saver"
@@ -285,23 +293,60 @@ def test_wired_6_61_the_move_is_decided_in_code(three_turns) -> None:
 
 
 def test_wired_6_61_the_coach_input_is_six_labelled_sections(three_turns) -> None:
-    """6.61 — every turn's coach input, as sent to the model, is the six
+    """6.61 — every coach turn's input, as sent to the model, is the six
     labelled sections in the ruled order (read from `step_log`, where the
-    innermost wrap records the headings of the message it passed on)."""
+    innermost wrap records the headings of the message it passed on).
+
+    R-C (ADR-0114): turns 1 (teach) and 3 (store and advance) are answered with
+    the element card, assembled in code — the coach is not called, so the
+    turn's coach_input entry records no sections sent; the reply carries the
+    card with the element's question and the call budget records no coach
+    call. Turn 2, the read-back, is the coach's, and its input is the six
+    sections."""
     from backend.core.prompts import COACH_INPUT_SECTIONS
-    for n, steps in enumerate(three_turns["steps"], 1):
-        entry = [e for e in steps if e.get("node") == "coach_input"]
-        assert entry, f"turn {n}: no coach_input entry"
-        assert entry[-1]["sections"] == list(COACH_INPUT_SECTIONS), (n, entry[-1]["sections"])
+    from backend.middleware.skills import card_parts
+    inputs = {n: [e for e in steps if e.get("node") == "coach_input"]
+              for n, steps in enumerate(three_turns["steps"], 1)}
+    assert inputs[2], "turn 2: no coach_input entry"
+    assert inputs[2][-1]["sections"] == list(COACH_INPUT_SECTIONS), (2, inputs[2][-1]["sections"])
+    for n, field in ((1, "business_case"), (3, "team")):
+        assert inputs[n], f"turn {n}: no coach_input entry"
+        assert inputs[n][-1]["sections"] == [], f"turn {n}: the card turn sent the coach an input"
+        executor = [e for e in three_turns["steps"][n - 1] if e.get("node") == "executor"][-1]
+        assert executor["call_budget"]["coach"] == 0, (n, executor["call_budget"])
+        card = three_turns["bodies"][n - 1]["teaching_card"]
+        assert card["field"] == field, (n, card)
+        assert card["your_turn"]["question"] == card_parts("define", field)["question"], (n, card)
 
 
 def test_wired_6_61_nothing_is_stored_before_confirmation(three_turns) -> None:
-    """6.61 — the reply of turns 1 and 2 CARRIED a capture (the fake coach
-    returns one every turn); neither was stored. The route's case record was
-    handed nothing until the Belt confirmed."""
-    for n in (0, 1):
-        executor = [e for e in three_turns["steps"][n] if e.get("node") == "executor"][-1]
-        assert executor["fields_stored"] == [], (n, executor)
-        assert "business_case" in executor["fields_captured"], "the premise: the reply carried it"
+    """6.61 — the reply of turn 2 CARRIED a capture (the fake coach returns
+    one every turn it is called); it was not stored. The route's case record
+    was handed nothing until the Belt confirmed.
+
+    R-C (ADR-0114): turn 1 teaches with the element card, assembled in code —
+    the coach is not called, so the turn carries no capture and stores nothing.
+    The coach-turn variant of turn 1's old check (a capture on a move that is
+    neither a read-back nor a Confirm) is `test_wired_6_61_a_challenge_stores_nothing`."""
+    first = [e for e in three_turns["steps"][0] if e.get("node") == "executor"][-1]
+    assert first["fields_stored"] == [], (0, first)
+    assert first["fields_captured"] == [], "a card turn makes no coach call, so it carries no capture"
+    assert first["call_budget"]["coach"] == 0, first["call_budget"]
+    executor = [e for e in three_turns["steps"][1] if e.get("node") == "executor"][-1]
+    assert executor["fields_stored"] == [], (1, executor)
+    assert "business_case" in executor["fields_captured"], "the premise: the reply carried it"
     executor = [e for e in three_turns["steps"][2] if e.get("node") == "executor"][-1]
     assert executor["fields_stored"] == ["business_case"]
+
+
+def test_wired_6_61_a_challenge_stores_nothing(wired) -> None:
+    """6.61 — a capture the coach returns on a move that is neither a
+    read-back nor a Confirm is not stored. The coach-turn variant of the
+    teach-turn check R-C (ADR-0114) retired: a teach move's card makes no coach
+    call, a challenge does."""
+    _, saver = wired
+    executor = [e for e in _step_log(saver) if e.get("node") == "executor"][-1]
+    assert executor["move"] == "challenge", executor["move"]
+    assert executor["fields_stored"] == [], executor
+    assert "business_case" in executor["fields_captured"], "the premise: the reply carried it"
+    assert "business_case" not in _artifacts(saver), "stored before confirmation"

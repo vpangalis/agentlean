@@ -546,7 +546,8 @@ class BeforeModelStateInjection(AgentMiddleware):
                  f"{(plan.statuses or {}).get(field or '', plan.status)}"]
         if judgment is not None:
             lines.append(f"The planner's judgment: {judgment.verdict} — {judgment.reason}")
-        if not any(isinstance(m, AIMessage) for m in (self._state.get("messages") or [])):
+        if self.phase != "define" and not any(isinstance(m, AIMessage) for m in (self._state.get("messages") or [])):
+            # Define's welcome is the server's (DEF-200) and flows into element 1's card (R-A): the coach never repeats it.
             lines.append(MOVE_OPENING)
         from backend.phases import calculations
         if plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE) and calculations.calculation_for(self.phase, field):

@@ -641,6 +641,13 @@ CALCULATION_TEACH = (
     "yourself: once the Belt has given both, the calculation is run in code and shown to them."
 )
 
+#: R-C (ADR-0114; ADR-0077 point 5, DEF-016): the calculation as the element CARD teaches it, before any figure exists —
+#: the Belt's words for what CALCULATION_TEACH told the coach (a teaching turn now makes no coach call).
+CALCULATION_CARD = ("How the two figures are worked out: the cost of the gap is today's rate × how many go through in a "
+                    "year × what one defect costs; the expected saving is (today's rate − the target rate) × how many go "
+                    "through in a year × what one defect costs. Give the cost of one defect, with its currency, and the "
+                    "yearly volume — the figures are then worked out for you and shown.")
+
 #: G-173 — the Belt's question asked for a figure no calculation in code gives (a calculation outside the
 #: catalogue) and the coach answered with figures no source gives. Written in code, before the move's ask.
 CALCULATION_FALLBACK = ("I can't give you that figure: the platform has no calculation for it yet, and I don't work "

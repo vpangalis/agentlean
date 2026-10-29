@@ -64,6 +64,20 @@ def _state(**overrides: Any) -> PhaseState:
     return base
 
 
+def _coach_turn_plan() -> CoachingPlan:
+    """A Define turn the COACH writes, on the same field as `_state`'s plan.
+
+    R-C (ADR-0114): a teach move is answered with the element card, assembled in
+    code, and makes no coach call — so a test of what a coach turn does (the
+    prose, the citations, the flag, the backstop, the diagram) runs on a
+    `respond` move: the Belt's "hello" is not an answer, and the coach answers
+    it and asks again."""
+    return CoachingPlan(
+        focus_field="business_case", status="asked", move="respond",
+        retrieval_strategy="single_hop", retrieval_hops=[],
+    )
+
+
 def _run(coro):
     return asyncio.run(coro)
 
@@ -206,7 +220,7 @@ def test_the_coaching_prose_stays_in_messages(stub_coach) -> None:
     executor writes from `structured_response`.
     """
     stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", message="Here is where I would start.")
-    out = _run(_c.executor("define", _state()))
+    out = _run(_c.executor("define", _state(coaching_plan=_coach_turn_plan())))
     replies = [m for m in out["messages"] if isinstance(m, AIMessage)]
     assert replies and replies[-1].content == "Here is where I would start."
 
@@ -308,7 +322,8 @@ def test_citations_accumulate_rather_than_replace(stub_coach) -> None:
         message="Noted.", citations=[{"source_file": "bb.pdf", "page": 47}],
     )
     out = _run(_c.executor("define", _state(
-        citations=[{"source_file": "earlier.pdf", "page": 3}]
+        citations=[{"source_file": "earlier.pdf", "page": 3}],
+        coaching_plan=_coach_turn_plan(),
     )))
     assert [c["source_file"] for c in out["citations"]] == [
         "earlier.pdf", "bb.pdf",
@@ -322,13 +337,13 @@ def test_the_contradiction_flag_is_carried_for_6_5(stub_coach) -> None:
             "belt_input": "actually it was 3.8"}
     stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", message="Hold on.",
                                         contradiction_flag=flag)
-    out = _run(_c.executor("define", _state()))
+    out = _run(_c.executor("define", _state(coaching_plan=_coach_turn_plan())))
     assert out["step_log"][0]["contradiction_flag"] == flag
 
 
 def test_one_invoke_is_one_turn(stub_coach) -> None:
     """`turn_count` is what the planner's placeholder predicate terminates on."""
-    out = _run(_c.executor("define", _state(turn_count=3)))
+    out = _run(_c.executor("define", _state(turn_count=3, coaching_plan=_coach_turn_plan())))
     assert out["turn_count"] == 4
     assert len(stub_coach.invocations) == 1
 
@@ -381,7 +396,7 @@ def test_recursion_limit_is_the_backstop_not_the_hop_cap(stub_coach) -> None:
     assert not hasattr(_c, "COACH_RECURSION_LIMIT"), (
         "the 11-step cap is gone, not renamed"
     )
-    _run(_c.executor("define", _state()))
+    _run(_c.executor("define", _state(coaching_plan=_coach_turn_plan())))
     assert stub_coach.invoke_configs[-1]["recursion_limit"] == 50
 
 
@@ -547,14 +562,14 @@ def test_hitting_the_backstop_gives_the_belt_a_partial_answer(
     so the planner's predicate still terminates, and the event on the trail.
     """
     stub_coach.raise_recursion = True
-    out = _run(_c.executor("define", _state()))
+    out = _run(_c.executor("define", _state(coaching_plan=_coach_turn_plan())))
 
     # 6.61 (item 1) — the backstop text is never a coaching reply: the move
     # was decided in code, so code writes its reply (containment), and the
     # use is marked a DEFECT on the trail and on the move record.
     reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
     assert "run out of room" not in str(reply.content)
-    assert "Why is your project worth doing?" in str(reply.content), "the teach move's own ask"
+    assert "Why is your project worth doing?" in str(reply.content), "the respond move's own ask"
     assert out["step_log"][0]["fallback_used"] is True
     assert reply.additional_kwargs["coaching_move"]["fallback"] is True
     assert out["turn_count"] == 1, "the turn must still close"
@@ -612,7 +627,7 @@ def test_a_proposed_diagram_rides_on_the_reply_for_the_ui(stub_coach) -> None:
                   "customers": ["Finance"], "draft": True,
                   "source": "generated"},
     )]
-    out = _run(_c.executor("define", _state()))
+    out = _run(_c.executor("define", _state(coaching_plan=_coach_turn_plan())))
     reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
     sipoc = reply.additional_kwargs["sipoc_diagram"]
     assert sipoc["process_steps"] == ["receive"]

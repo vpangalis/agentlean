@@ -4452,6 +4452,20 @@
    ],
    "escape_class": "assumption",
    "control": "backend/tests/test_define_e2e.py::test_t70_node_limits_retries_and_recovery_use_langgraph_primitives asserts the stalled coach's cancellation; its time bound is the stall itself (30 s), not a guess at the turn's time"
+  },
+  {
+   "id": "G-345",
+   "requirement": [
+    "T69"
+   ],
+   "feature": [
+    "DEF-163"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test",
+   "symptom": "ON AN UPLOAD TURN THE STEP LOG COUNTED THE NODE'S OWN ROUTED READ AS A COACH CALL. Found 2026-10-29 by R-C step 3, moving DEF-163's test to the one Define turn whose coach is still offered a lookup (an upload turn): the coach called the model twice and call_budget['coach'] said 3. belt_impact: none (a recorded count; the coach's limit is ModelCallLimitMiddleware's own). D4 OCCURRENCE: executor counted every AIMessage after the history — `produced[len(history):]` — and `_dispatch_routed_read`'s AIMessage (the node's load_evidence_series call) sits there too. D4 ESCAPE (path_test): DEF-163's test ran on a teaching turn, which has no routed read. D5 FIX: the count starts after `prior` (the history and the dispatched read), and a reply written in code counts 0. D6 VERIFY: DEF-163's test on an upload turn — coach 2, the evidence lookup's variant call recorded by tool. D7 PREVENT: DEF-163's test now runs on the upload turn."
   }
  ],
  "escape_controls": {

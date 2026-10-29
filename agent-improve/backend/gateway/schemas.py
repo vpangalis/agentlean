@@ -154,6 +154,9 @@ class AskResponse(BaseModel):
     reply_element: Optional[dict] = None
     #: DEF-212 — after Define's last Confirm: {title, steps} — read the report, submit, the team decides.
     completion_card: Optional[dict] = None
+    #: R-C (ADR-0114) — a teaching turn's element card, assembled in code: the trail, the saved note, title and
+    #: purpose, YOUR TURN, the example, the help links. The page draws it in place of the reply's text.
+    teaching_card: Optional[dict] = None
 
 
 class CaseCreateResponse(BaseModel):

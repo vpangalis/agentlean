@@ -918,6 +918,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         confirmed_strip=extra.get(conversation.STRIP_KEY),
         reply_element=extra.get(conversation.ELEMENT_KEY),
         completion_card=extra.get(conversation.COMPLETION_KEY),
+        teaching_card=extra.get(conversation.TEACHING_CARD_KEY),
         # R-F: a turn that failed after its automatic retry (T29's degraded reply) — the page puts the Belt's
         # message back in the box with Send again.
         failed="degraded" if extra.get("degraded") else None,

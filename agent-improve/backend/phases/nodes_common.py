@@ -61,6 +61,7 @@ from backend.middleware import turn_tools
 from backend.core.config import TURN_CLOSE_RESERVE_S, TURN_LIMIT_S
 from backend.core.request_context import mark_answered, turn_step   # R-F, #63
 from backend.core.conversation import CARD_KEY, COMPLETION_KEY, ELEMENT_KEY, STRIP_KEY  # ADR-0093
+from backend.core.conversation import TEACHING_CARD_KEY  # R-C (ADR-0114)
 from backend.core.llm import get_fallback_llm, get_llm
 from backend.knowledge import fusion
 from backend.core.prompts import (
@@ -1112,9 +1113,10 @@ def _build_executor(
                 # Each delivery of the phase script, for step_log.
                 on_delivery=script_log.append if script_log is not None else None,
                 # The current field's block; the opening only while the
-                # conversation holds no coach reply.
+                # conversation holds no coach reply — never in Define, whose welcome the server builds (DEF-200) and
+                # whose first element the welcome's card teaches (R-A, R-C; founder test 2026-10-27 #11).
                 focus_field=plan.focus_field if plan else None,
-                opening=not any(isinstance(m, AIMessage) for m in (state.get("messages") or [])),
+                opening=phase != "define" and not any(isinstance(m, AIMessage) for m in (state.get("messages") or [])),
             ),
             # 3 — before_model. LangChain core, used as shipped.
             SummarizationMiddleware(
@@ -1425,6 +1427,11 @@ def _previous_sample(state: Any) -> str:
             move = (kw.get(moves.MOVE_RECORD_KEY) or {}).get("move")
             if move not in (moves.TEACH, moves.CHALLENGE, moves.STORE_AND_ADVANCE):
                 return ""
+            card = (kw.get(TEACHING_CARD_KEY) or {}).get("example") or {}
+            if card.get("rows"):
+                # R-C (ADR-0114): a teaching turn's sample is its card's example — its cells, never its row labels.
+                first = 1 if (card.get("columns") or [""])[0] in ("Part", "Question") else 0
+                return " ".join(str(c) for row in card["rows"] for c in row[first:])
             return _strip_mark(str((kw.get("coaching_blocks") or {}).get("example") or ""))
     return ""
 
@@ -1741,6 +1748,61 @@ def _teach_next(phase: str, plan: Optional[CoachingPlan], reply: CoachingRespons
     if message and message != reply.message:
         update["message"] = message
     return reply.model_copy(update=update)
+
+
+def _card_note(phase: str, plan: CoachingPlan) -> str:
+    """R-C: why an element is taught again, in plain words from code — after a park, a try-again or the return to a
+    parked element; "" for a first teaching."""
+    reason = str(plan.reason or "")
+    named = re.findall(r"`(\w+)`", reason)
+    if reason.startswith(moves.PARKED_REASON.split("`")[0]) and named:
+        return f"{guard_messages.element_name(phase, named[0])} is parked — we come back to it before the report."
+    if reason.startswith(moves.TRY_AGAIN_REASON.split("`")[0]):
+        return "Let's go through this one again."
+    if reason.startswith(moves.RETURN_REASON.split("`")[0]):
+        return "Every other element is confirmed. Back to this one, which was parked."
+    return ""
+
+
+def _teaching_card(phase: str, state: PhaseState, plan: Optional[CoachingPlan]) -> Optional[dict[str, Any]]:
+    """R-C (ADR-0114 decisions 2 and 4): on a Define move that teaches an element — taught first, or taught next after
+    a Confirm — the element card, assembled in code from the skill and the state (the values this Confirm stores
+    included); the card is the whole of the teaching and the turn makes no coach model call. None otherwise."""
+    if phase != "define" or plan is None or plan.move not in TEACHING_MOVES or not plan.focus_field:
+        return None
+    from backend.phases.define import templates
+    if plan.focus_field not in templates.TEMPLATES:
+        return None
+    store = dict(plan.store or {}) if plan.move == moves.STORE_AND_ADVANCE else {}
+    stored = [f for f, fields in moves.positions(phase) if any(k in store for k in (f, *(fields or ())))]
+    return templates.teaching_card(plan.focus_field, {**dict(state.get("artifacts") or {}), **store},
+                                   dict(plan.field_status or {}), stored=stored, note=_card_note(phase, plan))
+
+
+def _written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], written: Optional[CoachingResponse],
+                   *, engine_timeout: bool, turn_type: str) -> tuple[Optional[CoachingResponse], Optional[dict]]:
+    """`executor`'s reply when code writes it, and the element card when it is one; (None, None) when the coach
+    writes the turn. A Change click, a status question, the goal's target and a value offered from an earlier answer
+    are answered in code; R-C (ADR-0114 decision 4): a teaching move's reply is the element card, assembled in code —
+    no coach call. An upload turn stays the coach's (W5, DEF-108; locked 2026-10-28: an upload starts its own turn)."""
+    written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
+                                                    or _goal_target_reply(phase, plan) or _offer_reply(phase, plan))
+    if written is not None or engine_timeout or turn_type == turn_tools.UPLOAD:
+        return written, None
+    teaching = _teaching_card(phase, state, plan)
+    if teaching is None:
+        return None, None
+    from backend.phases.define.templates import card_text
+    return CoachingResponse(message=card_text(teaching)), teaching
+
+
+def _with_teaching_card(messages: list, teaching: Optional[dict], strip: Optional[dict]) -> Optional[dict]:
+    """R-C (ADR-0114 decision 1, part 2): the card on the reply — the last AI message — and the strip the turn shows:
+    none beside a card, whose saved note replaces it. Mutates `messages` in place."""
+    if teaching is None:
+        return strip
+    next(m for m in reversed(messages) if isinstance(m, AIMessage)).additional_kwargs[TEACHING_CARD_KEY] = teaching
+    return None
 
 
 #: DEF-220 (G-221) — words that present a sample: the coach writes none of its own (G-170's is the script's,
@@ -2904,11 +2966,14 @@ def _with_mismatch(phase: str, plan: Optional[CoachingPlan], reply: CoachingResp
 
 def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], reply: CoachingResponse | None,
                   new_messages: list, turn_type: str, written: Optional[CoachingResponse], *,
-                  fell_back: bool, filtered: bool, level_4: Optional[str]
+                  fell_back: bool, filtered: bool, level_4: Optional[str], card: bool = False
                   ) -> tuple[dict[str, Any], list[dict], CoachingResponse | None, list]:
     """`executor`'s captures and citations from the coach's reply, and the reply as the turn keeps it (the
     upload check, the read-back's calculation line, the teaching blocks, the next element, the script's
-    sample). Returns `captured`, `citations`, the reply and the turn's new messages."""
+    sample). Returns `captured`, `citations`, the reply and the turn's new messages. With `card` (R-C), the reply is
+    the element card's text and the card carries the teaching: no teaching block and no sample is added."""
+    if card and reply is not None:
+        return {}, list(state.get("citations") or []), reply, _with_coaching_text(new_messages, reply)
     from backend.phases import calculations
     captured: dict[str, Any] = {}
     citations: list[dict] = list(state.get("citations") or [])
@@ -3584,12 +3649,11 @@ async def executor(
     # Containment: every use of the code-written fallback is a DEFECT (the
     # coach did not finish its move) and is logged as one; the target is zero.
     fell_back = engine_timeout
-    # A Change click, a status question, the goal's target and a value offered
-    # from an earlier answer are answered in code and the coach is not called
-    # (`_change_reply`, `_status_reply`, `_goal_target_reply`, `_offer_reply`);
-    # every other move is the model's to write.
-    written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
-                                                    or _goal_target_reply(phase, plan) or _offer_reply(phase, plan))
+    # A Change click, a status question, the goal's target, a value offered from an earlier answer and (R-C) a
+    # teaching move's element card are answered in code and the coach is not called (`_written_reply`); every other
+    # move is the model's to write.
+    written, teaching = _written_reply(phase, state, plan, written, engine_timeout=engine_timeout,
+                                       turn_type=turn_type)
     agent_started = time.monotonic()             # #63: the coach's run, the grader inside it, timed for the log
     try:
         # No time limit here (T70): the node's limit is the engine's `TimeoutPolicy`, and its
@@ -3642,7 +3706,10 @@ async def executor(
         phase, plan, result, history, coach_limit, fell_back)
     result, produced, unsourced, rejected, left_out, numbers_rejected, fell_back = _sourced_numbers(
         phase, state, plan, result, produced, history, written, fell_back)
-    coach_calls = sum(1 for m in produced[len(history):] if isinstance(m, AIMessage)) - (1 if limited else 0)
+    # A reply written in code (a Change, a status question, R-C's card) made no coach call this run; the node's own
+    # routed read (`dispatched`, an upload turn) is not the coach's either (G-345).
+    coach_calls = 0 if written is not None else (
+        sum(1 for m in produced[len(prior):] if isinstance(m, AIMessage)) - (1 if limited else 0))
     reply: CoachingResponse | None = result.get("structured_response")
     # The agent echoes the conversation it was given and appends its own turn.
     # `messages` reduces with `operator.add`, so returning more than the tail
@@ -3661,7 +3728,7 @@ async def executor(
 
     captured, citations, reply, new_messages = _shaped_reply(
         phase, state, plan, reply, new_messages, turn_type, written,
-        fell_back=fell_back, filtered=filtered, level_4=level_4)
+        fell_back=fell_back, filtered=filtered, level_4=level_4, card=teaching is not None)
 
     uploads, routed = _consumed_uploads(state, produced, citations, turn_type)
 
@@ -3747,8 +3814,10 @@ async def executor(
     # G-185: the Belt's own words are never taken for a store claim — everything the Belt wrote.
     belt_words = chr(10).join([*(m.text for m in (state.get("messages") or []) if isinstance(m, HumanMessage)),
                                str(plan.answer or "") if plan else ""])
-    new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {},
-                                belt_words)
+    if teaching is None:
+        # R-C: on a card turn the card's saved note says what the Confirm stored — never a second "Stored: …" line.
+        new_messages = _store_truth(new_messages, reply, phase, plan,
+                                    kept if move == moves.STORE_AND_ADVANCE else {}, belt_words)
     new_messages = _with_carried(new_messages, reply, phase, carried)
     new_messages = _with_define_read_back_lines(phase, move, pending, new_messages, reply)
     _attach_visual(phase, plan, move, pending, prior_artifacts, kept, new_messages)
@@ -3802,7 +3871,7 @@ async def executor(
     card, strip = _element_card(phase, record, artifacts, plan, case)
     if card is None and sample_challenge and short and plan is not None:
         card = _short_card(phase, plan.focus_field, pending, artifacts, case)
-    _attach_card(new_messages, card, strip, _reply_element(phase, record))
+    _attach_card(new_messages, card, _with_teaching_card(new_messages, teaching, strip), _reply_element(phase, record))
     if completion is not None:
         next(m for m in reversed(new_messages) if isinstance(m, AIMessage)).additional_kwargs[COMPLETION_KEY] = completion
 

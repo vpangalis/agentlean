@@ -402,6 +402,27 @@ a{text-decoration:none;color:inherit}
 .el-missing{margin-top:8px;padding:8px 10px;background:var(--amber-bg);border-radius:var(--radius-sm);font-size:12px;color:var(--amber)}
 .rb-strip{margin:0 0 8px;padding:8px 12px;border-radius:var(--radius-sm);background:var(--green-bg);color:#085041;font-weight:600;font-size:12px}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
+/* R-C (ADR-0114, mockup "progress-led, business" v2): the element card — trail, saved note, title and purpose,
+   YOUR TURN (the strongest block), the example under one label, the quiet help links. */
+.tcard{display:flex;flex-direction:column;gap:10px}
+.tc-trail{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--text2)}
+.tc-step{white-space:nowrap}.tc-cur{font-weight:700;color:var(--text)}.tc-sep{margin:0 6px;opacity:.6}
+.tc-count{font-weight:600;white-space:nowrap}
+.tc-saved{font-size:12px;color:#085041}.tc-saved a{color:inherit;font-weight:600}
+.tc-note{font-size:12px;color:var(--text2)}
+.tc-title{font-size:18px;font-weight:700;line-height:1.25}.tc-purpose{font-size:13px;color:var(--text2);margin-top:-6px}
+.tc-yourturn{padding:12px 14px;border:2px solid var(--brand);background:var(--brand-bg);border-radius:var(--radius)}
+.tc-yt-h{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--brand);margin-bottom:4px}
+.tc-q{font-size:15px;font-weight:600;line-height:1.4}.tc-hint{font-size:12px;color:var(--text2);margin-top:6px}
+.tc-calc{font-size:12.5px;padding:8px 10px;border-left:3px solid var(--brand-mid);background:var(--surface2);border-radius:var(--radius-sm)}
+.tc-ex-h{font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--text3);margin-bottom:4px}
+.tc-ex{border-collapse:collapse;width:100%;font-size:12px}
+.tc-ex th{text-align:left;font-weight:600;color:var(--text2);padding:3px 8px 3px 0;border-bottom:1px solid var(--border)}
+.tc-ex td{padding:3px 8px 3px 0;border-bottom:1px solid var(--border);vertical-align:top}
+.tc-example{overflow-x:auto}
+.tc-help{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
+.tc-link{color:var(--brand);cursor:pointer;text-decoration:none}.tc-why summary{list-style:none}
+.tc-why[open]{flex-basis:100%}.tc-why div{margin-top:4px;color:var(--text2)}
 
 /* R11 (DEF-101): an approved report prints as the report panel itself, headed as the record's copy; nothing is
    printed before approval (the page marks the body print-ok only when the review carries an approval date). */
@@ -5278,11 +5299,22 @@ function welcomeHtml(w) {
     w.confirmed.map(c => `<li>${c.n} · ${escapeHtml(c.name)} — ${escapeHtml(c.value)}</li>`).join('')}</ul>` : '';
   const open = (w.returning && (w.open || []).length) ? `<div class="wl-h">Still open</div><ul class="wl-open">${
     w.open.map(o => `<li>${o.n} · ${escapeHtml(o.name)}</li>`).join('')}</ul>` : '';
-  const next = w.next ? `<div class="wl-next">${w.returning ? 'Next' : 'First'}: <strong>${escapeHtml(w.next.name)}</strong></div>` : '';
+  // R-A (DEF-267): on a fresh case the welcome flows straight into the first element's card — no "First: …" line.
+  const next = (w.next && !w.card) ? `<div class="wl-next">${w.returning ? 'Next' : 'First'}: <strong>${escapeHtml(w.next.name)}</strong></div>` : '';
+  const card = w.card ? `<div class="msg"><div class="mav mai">AI</div><div class="bbl bbl-ai">${teachingCardHtml(w.card, true)}</div></div>` : '';
   return `<div class="msg"><div class="mav mai">AI</div><div class="bbl bbl-ai welcome">
     <div class="wl-greet" style="font-weight:600;margin-bottom:6px">Welcome${name ? ', ' + escapeHtml(name) : ''}.</div>
     <ol class="wl-phases" style="margin:0 0 8px;padding-left:18px">${phases}</ol>
-    ${w.how ? `<p class="wl-how">${escapeHtml(w.how)}</p>` : ''}${done}${open}${next}</div></div>`;
+    ${w.how ? `<p class="wl-how">${escapeHtml(w.how)}</p>` : ''}${done}${open}${next}</div></div>${card}`;
+}
+
+// R-A (DEF-267): the element whose card the welcome shows, while no coach turn exists yet — the Belt's first message
+// is sent as its answer.
+function welcomeElement(){
+  const w=(typeof S!=='undefined'&&S&&S.case)?S.case.welcome:null;
+  if(!w||!w.card||S.phase!=='define') return null;
+  const ai=t=>t&&(t.role==='ai'||t.role==='assistant');
+  return ((S.localChat||[]).some(ai)||(S.case.conversation_history||[]).some(ai))?null:w.card.field;
 }
 
 function renderChat(){
@@ -6305,6 +6337,33 @@ function completionCardHtml(card){
     <ol style="margin:0;padding-left:18px;font-size:12px;line-height:1.6">${card.steps.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol></div>`;
 }
 
+// R-C (ADR-0114): the element card of a teaching turn, drawn from the server's card in its six parts. The reply's
+// text is the transcript's (what the coach reads later), never shown beside the card. Help links send their
+// question on the latest turn only; "Why this matters" opens in place.
+function teachingCardHtml(c,latest){
+  const t=c.trail||{};
+  const step=(s,cls)=>s?`<span class="tc-step ${cls}">${s.confirmed?'✓ ':''}${s.n} · ${escapeHtml(s.name)}</span>`:'';
+  const cur=t.current||{n:c.n,name:c.name};
+  const trail=`<div class="tc-trail"><div>${step(t.previous,'tc-prev')}${t.previous?'<span class="tc-sep">›</span>':''}`
+    +`<span class="tc-step tc-cur">[${cur.n}] ${escapeHtml(cur.name)}</span>${t.next?'<span class="tc-sep">›</span>':''}`
+    +`${step(t.next,'tc-next')}</div><div class="tc-count">${t.confirmed||0} of ${t.of||c.of} confirmed</div></div>`;
+  const saved=c.saved?`<div class="tc-saved">✓ ${escapeHtml(c.saved.text)} · <a href="#" onclick="selectTab('gate');return false">view in the Gate</a></div>`:'';
+  const note=c.note?`<div class="tc-note">${escapeHtml(c.note)}</div>`:'';
+  const head=`<div><div class="tc-title">${escapeHtml(c.title||c.name)}</div></div>${c.purpose?`<div class="tc-purpose">${escapeHtml(c.purpose)}</div>`:''}`;
+  const yt=c.your_turn||{};
+  const turnBlk=`<div class="tc-yourturn"><div class="tc-yt-h">YOUR TURN</div><div class="tc-q">${escapeHtml(yt.question||'')}</div>`
+    +`${yt.hint?`<div class="tc-hint">${escapeHtml(yt.hint)}</div>`:''}</div>`;
+  // ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card.
+  const calc=c.calculation?`<div class="tc-calc">${escapeHtml(c.calculation.text)}</div>`:'';
+  const ex=c.example?`<div class="tc-example"><div class="tc-ex-h">${escapeHtml(c.example.label)}</div><table class="tc-ex"><thead><tr>`
+    +`${(c.example.columns||[]).map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>`
+    +`${(c.example.rows||[]).map(r=>`<tr>${r.map(x=>`<td>${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'';
+  const help=`<div class="tc-help">${(c.help||[]).map(h=>h.ask
+      ?(latest?`<a href="#" class="tc-link" onclick="sendPresetMessage(${escapeHtml(JSON.stringify(h.ask))});return false">${escapeHtml(h.label)}</a>`:`<span class="tc-link">${escapeHtml(h.label)}</span>`)
+      :`<details class="tc-why"><summary class="tc-link">${escapeHtml(h.label)}</summary><div>${escapeHtml(h.text||'')}</div></details>`).join('')}</div>`;
+  return `<div class="tcard">${trail}${saved}${note}${head}${turnBlk}${calc}${ex}${help}</div>`;
+}
+
 function renderTurn(turn){
   if(turn.role==='failed') return failedTurnHtml(turn);       // DEF-055 / DEF-081
   if(turn.role==='ai'){
@@ -6342,6 +6401,9 @@ function renderTurn(turn){
     // DEF-095 (C4): the next steps the server computed, under the latest reply only; choosing one sends its words.
     const steps=(latest&&(turn.suggestion_chips||[]).length)?`<div class="next-steps" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${
       turn.suggestion_chips.map(c=>`<button class="chip" onclick="sendPresetMessage(${escapeHtml(JSON.stringify(c))})">${escapeHtml(c)}</button>`).join('')}</div>`:'';
+    // R-C (ADR-0114): a teaching turn is its element card alone — no text, blocks, strip or chips beside it.
+    if(turn.teaching_card) return `<div class="msg"><div class="mav mai">AI</div>
+      <div class="bbl bbl-ai">${teachingCardHtml(turn.teaching_card,latest)}${warn}${cites}</div></div>`;
     return `<div class="msg"><div class="mav mai">AI</div>
       <div class="bbl bbl-ai">${strip}${prog}<div class="md">${mdHtml(turn.text)}</div>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${card}${acts}${steps}${warn}${cites}</div></div>`;
   }else{
@@ -6555,7 +6617,8 @@ async function sendMessage(action, element){
   };
   try{
     const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json','x-request-id':ref},
-      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null,element:element||null})});
+      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null,
+        element:element||(action?null:welcomeElement())||null})});
     // R-F: a turn that failed after the server's automatic retry, or reached the hard limit with no answer, is
     // a failed turn — its card, the message back in the box, Send again; never a reply asking to retype.
     if(resp.failed){fail(resp.answer||'');return;}
@@ -6588,6 +6651,7 @@ async function sendMessage(action, element){
         // ADR-0093 — the card, the strip and the reply's element travel with the turn too.
         readback_card:resp.readback_card||null,confirmed_strip:resp.confirmed_strip||null,reply_element:resp.reply_element||null,
         completion_card:resp.completion_card||null,       // DEF-212
+        teaching_card:resp.teaching_card||null,           // R-C (ADR-0114)
         suggestion_chips:resp.suggestion_chips||[],       // DEF-095
         // G-79 — the visual travels with the turn too, for the next redraw.
         visualisation:resp.visualisation||null,sipoc_diagram:resp.sipoc_diagram||null};
@@ -6598,6 +6662,7 @@ async function sendMessage(action, element){
       // DEF-053 — and the progress bar's step, so it moves turn by turn.
       try{const c=await apiJSON(`${API}/cases/${S.case.case_id}`);if(c&&c.define_elements)S.case.define_elements=c.define_elements;
         if(c&&c.define_progress)S.case.define_progress=c.define_progress;
+        if(c)S.case.welcome=c.welcome||null;          // R-A: the welcome's card goes once its element is taught
         if(c&&c.project_status)S.case.project_status=c.project_status;}catch(e){}   // DEF-204
       renderPhaseNav();
       renderDiagram();

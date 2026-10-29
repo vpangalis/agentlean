@@ -1013,6 +1013,12 @@ def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str,
                 "confirmed": _status(f, artifacts, field_status) == "confirmed"}
     confirmed = sum(1 for f in DEFINE_FIELD_ORDER if _status(f, artifacts, field_status) == "confirmed")
     example = parts.get("example") or (_sipoc_example() if field == "process_map_sipoc" else None)
+    from backend.phases import calculations
+    calc = None
+    if calculations.calculation_for("define", field):
+        # ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card, before any figure exists.
+        from backend.core.prompts import CALCULATION_CARD
+        calc = {"text": CALCULATION_CARD}
     return {
         "field": field, "n": n, "of": DEFINE_POSITIONS, "name": name_of(field), "section": section_of(field),
         "trail": {"previous": step(n - 1), "current": step(n), "next": step(n + 1),
@@ -1021,6 +1027,7 @@ def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str,
         **({"note": note} if note else {}),
         "title": name_of(field), "purpose": parts.get("purpose", ""),
         "your_turn": {"question": parts.get("question", ""), "hint": parts.get("hint", "")},
+        **({"calculation": calc} if calc else {}),
         **({"example": {"label": EXAMPLE_LABEL, **example}} if example else {}),
         "help": [{"label": WHY_LINK, "text": element_text("define", field, "Why it matters")},
                  *([{"label": parts["help"], "ask": parts["help"]}] if parts.get("help") else []),
@@ -1032,7 +1039,7 @@ def card_text(card: dict[str, Any]) -> str:
     """The card as the conversation keeps it for the coach's later turns and the transcript: the saved note, the
     element and its question — the page draws the card itself, never this text beside it."""
     saved = (card.get("saved") or {}).get("text")
-    lines = [f"{saved}." if saved else "", str(card.get("note") or ""),
+    lines = [f"{saved.rstrip('.')}." if saved else "", str(card.get("note") or ""),
              f"Element {card['n']} of {card['of']} · {card['name']}: {card['your_turn']['question']}"]
     return "\n\n".join(x for x in lines if x)
 

@@ -144,7 +144,7 @@ def test_only_insufficient_carries_a_criterion() -> None:
 # ── the order, in the real compiled graph: judged BEFORE the coach model ────
 
 
-def _state(field_status: dict, belt: str) -> PhaseState:
+def _state(field_status: dict, belt: str, uploads: list | None = None) -> PhaseState:
     msgs: list = [HumanMessage(content="Hi"), AIMessage(content="What is your business case?")]
     if belt:
         msgs.append(HumanMessage(content=belt))
@@ -154,7 +154,7 @@ def _state(field_status: dict, belt: str) -> PhaseState:
         "draft": {}, "artifacts": {}, "step_log": [], "field_log": [],
         "field_status": field_status, "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
-        "citations": [], "uploads": [], "asks": [], "hop_results": [],
+        "citations": [], "uploads": list(uploads or []), "asks": [], "hop_results": [],
         "synthesis_output": None,
     }
 
@@ -188,15 +188,57 @@ def order(monkeypatch, stub_planner, stub_coach) -> list[str]:
 
 @pytest.mark.parametrize("status,belt,action,expected", [
     (ASKED, ANSWER, None, ["judgment", "coach"]),       # an answer: judged, then coached
-    (PENDING, "Yes, that's right.", None, ["coach"]),   # a confirmation: no judgment
-    ({}, "Hi — ready.", None, ["coach"]),               # a field not yet taught
+    (PENDING, "Yes, that's right.", None, []),          # a confirmation: no judgment, the next card (R-C)
+    ({}, "Hi — ready.", None, []),                      # a field not yet taught: its card (R-C)
 ])
 def test_in_the_graph_the_answer_is_judged_before_the_coach_model(order, status, belt, action,
                                                                     expected) -> None:
+    """R-C (ADR-0114): a confirmation (store and advance) and a field not yet taught (teach) are
+    answered with the element card, assembled in code — neither the judgment nor the coach model
+    is called. The card turns are `test_in_the_graph_a_teaching_move_is_the_card_with_no_model_call`;
+    the same two moves coached with no judgment, on an upload turn (the coach's still), are
+    `test_in_the_graph_an_upload_turn_is_coached_with_no_judgment`."""
     graph = build_phase_subgraph("define", llm=None)
     config = {"configurable": {"thread_id": "r3", "belt_action": action}}
     asyncio.run(graph.ainvoke(_state(status, belt), config=config))  # type: ignore[arg-type]
     assert order == expected, order
+
+
+@pytest.mark.parametrize("status,belt,card_field", [
+    (PENDING, "Yes, that's right.", "team"),            # a confirmation: the next element's card
+    ({}, "Hi — ready.", "business_case"),               # a field not yet taught: its card
+])
+def test_in_the_graph_a_teaching_move_is_the_card_with_no_model_call(order, status, belt,
+                                                                      card_field) -> None:
+    """R-C (ADR-0114), in the compiled Define subgraph: a teaching move's reply is the element card,
+    assembled in code — no judgment, no coach call, the call budget records none, and the reply
+    carries the card with the element's question."""
+    from backend.middleware.skills import card_parts
+    graph = build_phase_subgraph("define", llm=None)
+    out = asyncio.run(graph.ainvoke(_state(status, belt), config={"configurable": {"thread_id": "r3c"}}))  # type: ignore[arg-type]
+    assert order == [], order
+    executor = [e for e in out["step_log"] if e.get("node") == "executor"][-1]
+    assert executor["call_budget"]["coach"] == 0, executor["call_budget"]
+    reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
+    card = reply.additional_kwargs["teaching_card"]
+    assert card["field"] == card_field, card
+    assert card["your_turn"]["question"] == card_parts("define", card_field)["question"], card
+
+
+@pytest.mark.parametrize("status,belt,move", [
+    (PENDING, "Yes, that's right.", moves.STORE_AND_ADVANCE),   # a confirmation: no judgment
+    ({}, "Hi — ready.", moves.TEACH),                            # a field not yet taught
+])
+def test_in_the_graph_an_upload_turn_is_coached_with_no_judgment(order, status, belt, move) -> None:
+    """The coach-turn variant of the two R-C cases above (ADR-0114): with an unread upload the turn
+    stays the coach's, to read the file — a confirmation and a field not yet taught still reach the
+    coach model with no judgment before it."""
+    from backend.tests.test_executor import _unread_upload
+    graph = build_phase_subgraph("define", llm=None)
+    out = asyncio.run(graph.ainvoke(_state(status, belt, uploads=[_unread_upload()]),  # type: ignore[arg-type]
+                                    config={"configurable": {"thread_id": "r3u"}}))
+    assert out["coaching_plan"].move == move, out["coaching_plan"].move
+    assert order == ["coach"], order
 
 
 def test_r3_an_answer_is_judged_before_the_coach_and_the_challenge_names_the_criterion(

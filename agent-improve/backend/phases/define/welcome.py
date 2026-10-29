@@ -44,10 +44,18 @@ def welcome(name: str, artifacts: dict[str, Any], field_status: dict[str, dict[s
     open_ = [{"n": r["n"], "name": r["name"], "status": r["status"]} for r in rows if r["status"] != "confirmed"]
     nxt = next((r for r in rows if r["status"] == "current"), None) or (open_[0] if open_ else None)
     phases, how = opening()
+    # R-A (DEF-267, founder test 2026-10-27 #9): on a fresh case the welcome flows straight into the first element's
+    # card (R-C) — the Belt answers it, never types "let's start". Once the element is taught, its card is in the chat.
+    card = None
+    if nxt is not None and not confirmed and (field_status.get(nxt["field"]) or {}).get("status") in (
+            None, moves.NOT_TAUGHT):
+        from backend.phases.define.templates import teaching_card
+        card = teaching_card(nxt["field"], artifacts, field_status)
     return {"name": name, "returning": bool(confirmed),
             "phases": [{"name": p, "line": line, "current": p.lower() == "define"} for p, line in phases],
             "how": how, "confirmed": confirmed, "open": open_,
-            "next": {"n": nxt["n"], "name": nxt["name"]} if nxt else None}
+            "next": {"n": nxt["n"], "name": nxt["name"]} if nxt else None,
+            **({"card": card} if card else {})}
 
 
 #: The skill's internal references, left out of team-facing text: "(section 6)", "(requirement R6)".

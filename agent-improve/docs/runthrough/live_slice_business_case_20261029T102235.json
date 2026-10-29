@@ -1,0 +1,130 @@
+{
+ "kind": "live_slice",
+ "element": "business_case",
+ "case_id": "IMPR-2026-6S44YV",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "rc_slice_messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "b15372689eeb41ee",
+ "seeded": [],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs ab",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "business_case",
+   "recorded_move": null,
+   "seconds": 13.7,
+   "failed": null,
+   "answer": "Welcome — I'm here to coach you and your team through your improvement project step by step, so you don't need to be an expert. We'll work through five phases together:\n• **Define** — pin down the problem and who's solving it\n• **Measure** — get the real numbers\n• **Analyse** — find the true root cause\n• **Improve** — test and apply the fix\n• **Control** — make the gains stick\nRight now we're in *",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.52 s",
+    "input guard 1.59 s",
+    "planner judgment 2.16 s",
+    "coach 5.69 s",
+    "grader 1.98 s",
+    "after the answer (steps, save) 1.13 s",
+    "total 13.67 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 4.1,
+   "failed": null,
+   "answer": "Business case saved: In Field Service Austria, 38% of customer complaints were closed later than the 5 working….\n\nElement 2 of 13 · Team: Who leads the project? Who is the champion who can approve and clear obstacles? Who owns the process? Who else is on the team — and does anyone need training to take part fully? If you already have the team in a list, you can upload it as a file instead.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.50 s",
+    "input guard 1.59 s",
+    "after the answer (steps, save) 1.56 s",
+    "total 4.11 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Who should be on the team?",
+   "action": null,
+   "http": 200,
+   "move": "respond",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 26.2,
+   "failed": null,
+   "answer": "The project team is essential for success, and it's important to assemble the right group of people with clear roles. Here's how to think about who should be on your team:\n\n1. **Leader**: This is you, as the Green Belt, responsible for running the project.\n2. **Champion**: A senior sponsor who can approve actions and clear obstacles. This is often someone with authority, such as a director or seni",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.37 s",
+    "input guard 1.50 s",
+    "planner judgment 1.55 s",
+    "coach 14.95 s",
+    "grader 4.66 s",
+    "after the answer (steps, save) 2.27 s",
+    "total 26.22 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Where do we stand?",
+   "action": null,
+   "http": 200,
+   "move": "respond",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 5.6,
+   "failed": null,
+   "answer": "You are in Define, step 2 of 13: Team.\nDone (1 of 13): Business case.\nOpen (12): Team, Voice of the customer and CTQs, Problem statement, Primary metric and baseline, Scope, Goal, Target, Target date, Benefits analysis, Secondary metrics, High-level process (SIPOC, as-is), Issues and barriers.\nNext: Team.\n\nWho leads the project? Who is the champion who can approve and clear obstacles? Who owns the",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.47 s",
+    "input guard 1.62 s",
+    "planner judgment 1.48 s",
+    "after the answer (steps, save) 1.49 s",
+    "total 5.60 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 7,
+ "cost": {
+  "usd": 0.0396,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0389,
+   "gpt-4o-mini-2024-07-18": 0.0007
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 44.24,
+  "calls": 119,
+  "case": {
+   "seconds": 0.43,
+   "calls": 5
+  },
+  "store": {
+   "seconds": 0.71,
+   "calls": 12
+  },
+  "checkpoint": {
+   "seconds": 43.09,
+   "calls": 102
+  }
+ },
+ "started": "20261029T102235"
+}

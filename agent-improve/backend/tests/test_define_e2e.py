@@ -176,8 +176,11 @@ def test_the_script_is_not_fetched_again(env, monkeypatch) -> None:
     G-106: an audit turn spent a model call on `load_skill("dmaic-define-phase")` although the script is section 2 of
     the system message. On a real Define teaching turn, through the routes and graph, a coach that asks for its own
     phase gets a pointer to section 2 and nothing is fetched; the tool's own description says so before it is called.
-    Another phase still loads in full (§19.2's level 2)."""
-    from langchain_core.messages import AIMessage, ToolMessage
+    Another phase still loads in full (§19.2's level 2).
+
+    R-C (ADR-0114): a Define teaching turn makes no coach call at all, so it cannot fetch anything — asserted through the
+    routes and graph; the tool's answer to a coach asking for its own phase is asserted on the tool itself."""
+    from langchain_core.messages import AIMessage
 
     from backend.middleware import skills
     from backend.phases import nodes_common
@@ -196,15 +199,15 @@ def test_the_script_is_not_fetched_again(env, monkeypatch) -> None:
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _Seeing(messages=iter([fetch, reply]))
                         if role == "coach" else planner(role, **kw))
 
-    _at_element(env, "secondary_metrics")                     # a teaching turn: load_skill is offered (ADR-0069)
-    _askd(env, message="Next, please.")
-    results = [m for call in seen for m in call if isinstance(m, ToolMessage) and m.name == "load_skill"]
-    assert results, "the coach's load_skill call did not reach the tool"
-    text = str(results[-1].content)          # the fetch is the script entering the conversation as the tool's result
-    assert "already in your instructions" in text and len(text) < 400, f"the Define script was fetched again: {text[:200]}"
-    assert skills.instructions("define")[:200] not in text
+    _at_element(env, "secondary_metrics")                     # a teaching turn: the element card, in code (R-C)
+    body = _askd(env, message="Next, please.")
+    assert body["teaching_card"]["field"] == "secondary_metrics"
+    assert seen == [], "a Define teaching turn called the coach, which could fetch the script"
 
     mw = skills.DMAICSkillsMiddleware("define")
+    text = str(mw.tools[0].invoke({"name": "dmaic-define-phase"}))     # what a coach asking for its own phase gets
+    assert "already in your instructions" in text and len(text) < 400, f"the Define script was fetched again: {text[:200]}"
+    assert skills.instructions("define")[:200] not in text
     assert "already in your instructions" in mw.tools[0].description
     assert "Measure" in mw.tools[0].invoke({"name": "measure"})
 
@@ -277,13 +280,14 @@ def test_define_gate_has_no_warning_path(env, monkeypatch) -> None:
 
 
 
-def test_the_four_blocks_reach_the_screen(env, monkeypatch, grader_enforced) -> None:
+def test_the_four_blocks_reach_the_screen(env, monkeypatch, grader_enforced, stub_planner) -> None:
     """DEF-052 — The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one.
 
     Through POST /ask with the grader in enforce mode and failing the reply: the response carries the four blocks
     and the warning, and the page's own renderTurn draws each under its label — "Why it matters", the example
     marked as an illustration, "Your turn", the element line ("Element n of 13 · name") — and the warning; a turn
-    with no warning draws none."""
+    with no warning draws none. R-C (ADR-0114): a teaching turn is the element card, so the blocks are a coach turn's —
+    here a challenge."""
     import json
 
     from backend.middleware.grader import DMAICGraderMiddleware
@@ -294,7 +298,7 @@ def test_the_four_blocks_reach_the_screen(env, monkeypatch, grader_enforced) -> 
             criterion="Coach must challenge weak inputs with specific follow-up questions",
             status="fail", feedback="ask how the figure was measured")])
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", failing)
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")
     _coach_saying(monkeypatch, "Next: what else might change.")
     body = _askd(env, message="Next, please.")
     for key in ("explanation", "example", "prompt", "progress", "grader_warning"):
@@ -319,12 +323,12 @@ process.stdout.write(JSON.stringify({{with:renderTurn(t), without:renderTurn({{.
 #: The page functions another one calls — brought along whenever it is run (ADR-0093: renderTurn draws the card).
 _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
     "function renderTurn": ("function elementValueHtml", "function elementRowsHtml", "function readbackCardHtml",
-                            "function completionCardHtml", "function mdHtml"),
+                            "function completionCardHtml", "function mdHtml", "function teachingCardHtml"),   # R-C
     "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml", "function reportPrintHead"),
     "function renderPhaseNav": ("function gateSubmitState", "function renderGateSubmit"),
     "function renderLiveViz": ("function latestReply",),
     "async function openWorkspace": ("function serviceStatusHtml", "async function checkService"),
-    "async function sendMessage": ("function typingText",),        # R-F (founder ruling 2026-10-27)
+    "async function sendMessage": ("function typingText", "function welcomeElement"),   # R-F; R-A (DEF-267)
 }
 
 
@@ -1466,7 +1470,7 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     async def late(self, *_a, **_k):
         raise timeout
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", late)
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")        # R-C: a coach turn (a teaching turn calls none)
     _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
     r = _askd(env, message="Next, please.")
     assert "What will you watch?" in r["answer"], r["answer"]
@@ -1477,7 +1481,7 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     # no answer produced. The route cancels the run, and the page is told it failed (`failed`: "time").
     env.holder["saver"]._container.blobs.clear()
     env.restart()
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")        # R-C: a coach turn (a teaching turn calls none)
     monkeypatch.setattr(routes, "TURN_HARD_LIMIT_S", 2.0)
     monkeypatch.setattr(routes, "TURN_CLOSE_RESERVE_S", 0.0)
     slow = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "id": "slow",
@@ -1519,7 +1523,7 @@ def test_g157_a_turn_never_runs_past_its_deadline(env, monkeypatch, stub_planner
     monkeypatch.setattr(nodes_common, "get_llm", real)
     _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
     r = _askd(env, message="Next, please.")
-    assert "What will you watch?" in r["answer"] and r["move"] == moves.TEACH, r
+    assert "What will you watch?" in r["answer"] and r["move"] == moves.CHALLENGE, r     # the element was asked
     final = env.client.get(f"/cases/{CASE_ID}").json()
     roles = [h.get("role") for h in final["conversation_history"]]
     assert roles == ["user", "user", "ai"], roles
@@ -1603,7 +1607,10 @@ def test_an_ordinary_turn_makes_at_most_four_model_calls(env, monkeypatch) -> No
 def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_coachs(env, monkeypatch) -> None:
     """DEF-163 — T69 as amended (founder, 2026-09-30): the coach's limit counts only the coach's
     own calls; model calls made inside tools (a lookup's query variants) are recorded per turn in
-    step_log, by tool, and capped by T51 (3–5 variants per lookup, one variant call per lookup)."""
+    step_log, by tool, and capped by T51 (3–5 variants per lookup, one variant call per lookup).
+
+    R-C (ADR-0114): a Define teaching turn is the element card — no coach call, no tools — so the lookup is made on the
+    Define turn whose coach is offered one: an upload turn (ADR-0069), with the evidence lookup."""
     from langchain_core.messages import AIMessage
 
     from backend.knowledge import fusion
@@ -1618,8 +1625,9 @@ def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_co
             coach_calls.append(1)
             return super()._generate(*a, **k)
 
-    lookup = AIMessage(content="", tool_calls=[{"name": "rag_lookup_methodology", "id": "l1",
-                                                "args": {"query": "what makes a good business case"}}])
+    lookup = AIMessage(content="", tool_calls=[{"name": "rag_lookup_evidence", "id": "l1",
+                                                "args": {"query": "what makes a good business case",
+                                                         "case_id": CASE_ID}}])
     reply = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": REPLY, "id": "r1"}])
     planner = nodes_common.get_llm
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: CountingCoach(messages=iter([lookup, reply]))
@@ -1645,7 +1653,7 @@ def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_co
         searched.append(q)
         return [{"id": "d1", "content": "a business case names the cost of the gap",
                  "source_file": "ebook", "page_number": 1}]
-    monkeypatch.setattr(ktools, "search_knowledge", search)
+    monkeypatch.setattr(ktools, "search_evidence", search)
     steps: list = []
     step = nodes_common._step
 
@@ -1654,8 +1662,13 @@ def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_co
         steps.append(out)
         return out
     monkeypatch.setattr(nodes_common, "_step", spy)
+    from backend.storage.models import UploadRecord
+    from backend.upload import classifier
     env.case.phases["define"].structured = {}
     env.case.phases["define"].field_status = {}
+    env.case.phases["define"].uploads = [UploadRecord(          # an unread upload: this is an upload turn
+        filename="late_fees.csv", blob_path=f"uploads/{CASE_ID}/late_fees.csv", uploaded_by="ana",
+        uploaded_at="2026-10-29T08:00:00+00:00", classification="purpose=Data file", kind=classifier.EVIDENCE)]
     r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
                                       "message": "Where do we start?"})
     assert r.status_code == 200, r.text
@@ -1666,7 +1679,7 @@ def test_model_calls_inside_tools_are_recorded_by_tool_and_not_counted_as_the_co
     assert len(coach_calls) == count["coach"] == 2 <= count["coach_limit"], (coach_calls, count)
     assert count["turn"] <= 4 and not count["limited"], count
     # (b) the call made inside the tool is recorded, by the tool's name
-    assert inside == {"rag_lookup_methodology": 1} == {"rag_lookup_methodology": len(variant_calls)}, inside
+    assert inside == {"rag_lookup_evidence": 1} == {"rag_lookup_evidence": len(variant_calls)}, inside
     # (c) T51: one variant call per lookup, at most five variants plus the original searched
     assert len(searched) == 1 + fusion.MAX_VARIANTS, searched
     with pytest.raises(ValueError):
@@ -2740,7 +2753,7 @@ def test_t28_turn_latency_p50_and_p99_are_recorded_per_phase() -> None:
 
 
 
-def test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p(env, monkeypatch) -> None:
+def test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p(env, monkeypatch, stub_planner) -> None:
     """DEF-123 — T34 (ADR-0059 decision 2, ADR-0082), through POST /ask with the real create_agent and
     middleware stack, the founder's three cases (2026-10-13) and the last level:
       a content-filter refusal never reaches gpt-4o-mini (T92's guidance reply, one premium call);
@@ -2799,8 +2812,13 @@ def test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p(
         monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: Premium(messages=iter([]))
                             if role == "coach" else planner(role, **kw))
         monkeypatch.setattr(nodes_common, "get_fallback_llm", lambda role="coach", **kw: Mini(messages=iter([answer])))
+        from backend.core.substate import SufficiencyJudgment
+        from backend.phases import moves
+        # R-C (ADR-0114): a teaching turn is the element card and calls no model — the fall-through is a coach turn's,
+        # here the challenge of an answer judged insufficient.
         env.case.phases["define"].structured = {}
-        env.case.phases["define"].field_status = {}
+        env.case.phases["define"].field_status = {"business_case": {"status": moves.ASKED}}
+        stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="names no period")
         steps.clear()
         started = time.time()
         r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
@@ -3299,7 +3317,8 @@ def test_t87_personal_data_is_masked_before_a_model_sees_it(env, monkeypatch) ->
 def test_the_coach_says_when_values_it_read_were_masked(env, monkeypatch) -> None:
     """The PII line (founder ruling 2026-10-12; T87, ADR-0062): when the coach's lookup this turn reads
     an upload's text in which personal details were masked, the reply says so, in code, in the Belt's
-    words and by count — never the values; step_log carries the same count."""
+    words and by count — never the values; step_log carries the same count. R-C (ADR-0114): a Define teaching turn is
+    the element card and offers no tools, so the lookup is made on the turn whose coach is offered it: an upload turn."""
     from langchain_core.messages import AIMessage
 
     from backend.knowledge import fusion
@@ -3331,7 +3350,12 @@ def test_the_coach_says_when_values_it_read_were_masked(env, monkeypatch) -> Non
     steps: list = []
     monkeypatch.setattr(nodes_common, "_step", _recording(nodes_common._step, steps))
 
-    _at_element(env, "secondary_metrics")                     # a teaching turn: lookups are offered (ADR-0069)
+    from backend.storage.models import UploadRecord
+    from backend.upload import classifier
+    _at_element(env, "secondary_metrics")
+    env.case.phases["define"].uploads = [UploadRecord(          # an unread upload: the evidence lookup is offered
+        filename="contacts.csv", blob_path=f"uploads/{CASE_ID}/contacts.csv", uploaded_by="ana",
+        uploaded_at="2026-10-29T08:00:00+00:00", classification="purpose=Data file", kind=classifier.EVIDENCE)]
     answer = _askd(env, message="Next, please.")["answer"]
     assert answer.rstrip().endswith("Some personal details in your files were hidden from me before I read "
                                     "them (1 e-mail address and 1 phone number), so I could not use them."), answer
@@ -3807,11 +3831,12 @@ def test_t91_fifty_benign_messages_pass_the_guard(monkeypatch) -> None:
     assert blocked == []
 
 
-def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeypatch) -> None:
+def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeypatch, stub_planner) -> None:
     """G-171 (founder ruling A2, 2026-10-13; rows 132229#12, 140839#11, 134606#9, 124425#28, 124425#30),
     through POST /ask with the real create_agent: a coach that writes its illustration and its question into
     the message as well as into the blocks is shown each once — the message keeps its own words, the
-    example and the question stay in their blocks."""
+    example and the question stay in their blocks. R-C (ADR-0114): a teaching turn is the element card and calls no
+    coach, so the coach that repeats them writes a challenge — a move that shows the example and asks (G-170)."""
     from langchain_core.messages import AIMessage
 
     from backend.phases import nodes_common
@@ -3834,8 +3859,10 @@ def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeyp
     planner = nodes_common.get_llm
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
         messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else planner(role, **kw))
+    from backend.core.substate import SufficiencyJudgment
     env.case.phases["define"].structured = {}
-    env.case.phases["define"].field_status = {}
+    env.case.phases["define"].field_status = {"business_case": {"status": "asked"}}
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no figure yet")
     r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
                                       "message": "Where do we start?"})
     assert r.status_code == 200, r.text
@@ -3846,14 +3873,15 @@ def test_g171_the_message_never_repeats_the_example_or_the_question(env, monkeyp
     assert "returned for correction" in body["example"] and "worth doing?" in body["prompt"]
 
 
-def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch, caplog) -> None:
+def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch, caplog, stub_planner) -> None:
     """G-173 (founder ruling A4, 2026-10-13; ADR-0077; rows 132229#27, 134606#26, 140839#26), through
     POST /ask with the real create_agent: a reply holding a number that neither the Belt, the case, a
     computation result nor the script gives (a cost the coach worked out) never shows it. Founder ruling
     2026-10-17 (item 2): only the sentences holding such a number are left out, the rest is kept, and one
     line written in code says so — no dangling list, no lead-in left over, no half sentence; when too little
     remains the Belt gets the move's reply written in code, and the log names G-173 as the cause. step_log
-    names the number either way; a reply that repeats the Belt's own figure is kept whole."""
+    names the number either way; a reply that repeats the Belt's own figure is kept whole. R-C (ADR-0114): a teaching
+    turn is the element card and calls no coach, so each reply here is the coach's challenge of the Belt's answer."""
     import logging
 
     from langchain_core.messages import AIMessage
@@ -3877,8 +3905,10 @@ def test_g173_a_number_the_coach_calculated_is_never_shown(env, monkeypatch, cap
         call = {"name": "CoachingResponse", "args": args, "id": "g173"}
         monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
             messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else planner(role, **kw))
+        from backend.core.substate import SufficiencyJudgment
         env.case.phases["define"].structured = {}
-        env.case.phases["define"].field_status = {}
+        env.case.phases["define"].field_status = {"business_case": {"status": "asked"}}
+        stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no period yet")
         env.holder["saver"]._container.blobs.clear()             # each turn, a fresh conversation
         env.restart()
         steps.clear()
@@ -4033,11 +4063,11 @@ def test_g211_a_calculation_outside_the_catalogue_is_answered_with_the_fallback_
     assert r["move"] == "respond", r["move"]
     assert dict(env.case.phases["define"].structured or {}) == stored, "an empty judgment stored something"
 
-def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, monkeypatch) -> None:
+def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, monkeypatch, stub_planner) -> None:
     """G-176 (live run 152256, turn 31: GET /cases answered 500), through POST /ask and GET /cases with the
     real create_agent: the coach cites a file as it writes citations — its source and a quote, not a
     CitationRecord — and the case still reloads, the citation kept as a record; one with no document at
-    all is left out."""
+    all is left out. R-C (ADR-0114): the citing reply is a coach turn, here a challenge (a teaching turn calls none)."""
     from langchain_core.messages import AIMessage
 
     from backend.phases import nodes_common
@@ -4050,8 +4080,10 @@ def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, mon
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
         AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": cited, "id": "g176"}])]))
         if role == "coach" else planner(role, **kw))
+    from backend.core.substate import SufficiencyJudgment
     env.case.phases["define"].structured = {}
-    env.case.phases["define"].field_status = {}
+    env.case.phases["define"].field_status = {"business_case": {"status": "asked"}}   # R-C: a coach turn, a challenge
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no period yet")
     r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
                                       "message": "Where do we start?"})
     assert r.status_code == 200, r.text
@@ -4065,12 +4097,13 @@ def test_g176_a_coach_citation_in_its_own_shape_never_breaks_the_reload(env, mon
 def test_no_ai_judge_rules_on_a_reply_the_grader_is_the_one_check(env, monkeypatch, stub_planner) -> None:
     """DEF-166 (founder ruling 2026-10-14: replaces the retired DEF-013; ADR-0083, the coherence judge retired),
     through the routes and graph: no coherence verdict is asked for or recorded on a coaching turn; the one
-    after-agent check is the grader, and the turn's call budget counts one after-agent call."""
+    after-agent check is the grader, and the turn's call budget counts one after-agent call. R-C (ADR-0114): on a coach turn,
+    a challenge — a teaching turn is the element card and calls no coach."""
     from backend.phases import nodes_common
 
     steps: list = []
     monkeypatch.setattr(nodes_common, "_step", _recording(nodes_common._step, steps))
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")
     _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
     _askd(env, message="Next, please.")
     assert not [s for s in steps if s.get("layer") == "coherence"], "a coherence verdict was recorded"
@@ -4082,7 +4115,8 @@ def test_no_ai_judge_rules_on_a_reply_the_grader_is_the_one_check(env, monkeypat
 def test_a_reply_is_never_asked_again_inside_its_turn(env, monkeypatch, stub_planner) -> None:
     """DEF-167 (founder ruling 2026-10-14: replaces the retired DEF-014; ADR-0083 retires ADR-0079's re-ask), through
     the routes and graph: whatever the grader says of a reply, the coach is called once for it — no
-    second reply is asked for inside the turn — and the Belt gets that reply."""
+    second reply is asked for inside the turn — and the Belt gets that reply. R-C (ADR-0114): on a coach turn,
+    a challenge — a teaching turn is the element card and calls no coach."""
     from langchain_core.messages import AIMessage
 
     from backend.middleware.grader import DMAICGraderMiddleware
@@ -4106,16 +4140,17 @@ def test_a_reply_is_never_asked_again_inside_its_turn(env, monkeypatch, stub_pla
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: Once(messages=iter([
         AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "once"}])]))
         if role == "coach" else planner(role, **kw))
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")
     told = _askd(env, message="Next, please.")
     assert len(calls) == 1, f"the coach was asked {len(calls)} times for one reply"
     assert told["answer"].startswith("Secondary metrics are what else might change."), told["answer"]
 
 
-def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance(env, monkeypatch) -> None:
+def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance(env, monkeypatch, stub_planner) -> None:
     """DEF-153 — T92, through POST /ask with the real create_agent and middleware stack: a coach
     call refused with `content_filter` is made ONCE (ModelRetryMiddleware does not retry it), the
-    Belt gets the guidance reply, and the executor's step_log status says content_filter."""
+    Belt gets the guidance reply, and the executor's step_log status says content_filter. R-C (ADR-0114): the refused
+    call is a coach turn's, here the challenge of the Belt's answer (a teaching turn calls no model)."""
     from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 
     from backend.core import guard_messages
@@ -4141,8 +4176,10 @@ def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance(e
     planner = nodes_common.get_llm
     monkeypatch.setattr(nodes_common, "get_llm",
                         lambda role, **kw: Refusing(messages=iter([])) if role == "coach" else planner(role, **kw))
+    from backend.core.substate import SufficiencyJudgment
     env.case.phases["define"].structured = {}
-    env.case.phases["define"].field_status = {}
+    env.case.phases["define"].field_status = {"business_case": {"status": "asked"}}   # R-C: a coach turn, a challenge
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no period yet")
     r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
                                       "message": "Our business case: invoice rework costs about 40k a year."})
     assert r.status_code == 200, r.text
@@ -5081,7 +5118,8 @@ function renderLiveViz(){} function showSectionToast(){} function renderGate(){}
     js = (harness + "\n" + "\n".join(consts) + "\n"
           + "\n".join(fn(n) for n in ("escapeHtml", "mdHtml", "renderTurn", "failureWords", "failedTurnHtml",
                                       "retryTurn", "appendMsgToDOM", "draftKey", "clearDraft", "typingText",
-                                      "buildNavDefineElements", "sendMessage"))
+                                      "buildNavDefineElements", "welcomeElement", "teachingCardHtml",   # R-A, R-C
+                                      "sendMessage"))
           + "\n(async()=>{\n" + script + "\n})().catch(e=>{console.error(e);process.exit(1)});")
     out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr
@@ -5154,6 +5192,7 @@ def _walk_the_benefits_analysis(env, monkeypatch, stub_planner) -> dict:
     """ADR-0077 through the real routes and graph: the benefits analysis is taught, the Belt gives the
     cost of one late invoice and the yearly volume, the judgment extracts them, code runs the
     calculation, the read-back shows the figure and how, the Belt confirms. Returns what was seen."""
+    import json
     from backend.core.substate import SufficiencyJudgment
     from backend.middleware import state_injection
     from backend.phases import moves
@@ -5184,8 +5223,10 @@ def _walk_the_benefits_analysis(env, monkeypatch, stub_planner) -> dict:
         return env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"].get("structured") or {}
 
     _coach_saying(monkeypatch, "Let's work out what the gap costs.")
-    ask(message="Next, please.")
-    seen["teaching"] = seen["moves"][-1]
+    taught = ask(message="Next, please.")
+    # R-C (ADR-0114): the teaching turn is the element card, so the calculation is taught ON the card (no coach call).
+    seen["teaching"] = json.dumps(taught["teaching_card"], ensure_ascii=False)
+    seen["teaching_moves"] = len(seen["moves"])
     inputs = {"unit_cost": "£9", "annual_volume": "42,000 invoices"}
     stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", failed_criterion="impact-type",
                                                 reason="impact type, schedule and finance contact missing",
@@ -5218,11 +5259,13 @@ def test_the_savings_calculation_is_taught_and_reads_percent_once(env, monkeypat
     (baseline rate − target rate) × yearly volume × cost of one defect and to ask for the two figures —
     then run in code once the Belt has given them; the read-back carries the figure and one line on how
     it was calculated; and "23%", "23" and "0.23" give the same saving (one percent convention)."""
-    from backend.core.prompts import CALCULATION_TEACH
+    from backend.core.prompts import CALCULATION_CARD
     from backend.knowledge.computation import calculate_expected_savings
 
     seen = _walk_the_benefits_analysis(env, monkeypatch, stub_planner)
-    assert CALCULATION_TEACH in seen["teaching"], "the teaching turn does not teach the calculation"
+    # R-C (ADR-0114): the benefits card teaches the calculation — both formulas and the two figures it needs.
+    assert CALCULATION_CARD in seen["teaching"], "the teaching turn does not teach the calculation"
+    assert "the cost of the gap is today's rate" in CALCULATION_CARD and "the expected saving is" in CALCULATION_CARD
     assert "Expected saving (reaching the target):" not in seen["teaching"], \
         "a figure appeared before the calculation was taught"
     # G-226: the figure and how it was calculated, labelled, with the currency and separators.
@@ -5408,9 +5451,13 @@ def test_e2e_a_changed_value_keeps_its_prior_value_dated(env, monkeypatch, stub_
 def test_e2e_every_element_is_taught_explain_show_ask(env, monkeypatch) -> None:
     """DEF-065 — through the routes and graph: for each of the thirteen elements, a teaching turn
     delivers that element's script to the coach — what it is, why it matters, the worked example and
-    the question — before anything is asked of the Belt."""
+    the question — before anything is asked of the Belt.
+
+    R-C (ADR-0114, founder ruling 2026-10-27): the teaching is the element card, assembled in code from the element's
+    script block, and the coach model is not called. For each element: no coach call; the card's purpose, its "Why this
+    matters" text, its question and its example are the script's own (the SIPOC's example its structured file)."""
     from backend.middleware import state_injection
-    from backend.middleware.skills import _field_blocks, _sections
+    from backend.middleware.skills import SKILLS_ROOT, _field_blocks, _sections
     from backend.phases import moves
     from backend.tests.test_define_report import COMPLETE
 
@@ -5446,15 +5493,21 @@ def test_e2e_every_element_is_taught_explain_show_ask(env, monkeypatch) -> None:
         env.restart()
         _coach_saying(monkeypatch, "Here is what this part is.")
         calls = len(seen)
-        _askd(env, message="Next, please.")
-        assert len(seen) == calls + 1, f"{field}: the coach model was not called on its teaching turn"
-        given = re.sub(r"[*_`]", "", seen[-1])
+        body = _askd(env, message="Next, please.")
+        assert len(seen) == calls, f"{field}: the coach model was called on its teaching turn (R-C: the card is given)"
+        card = body["teaching_card"]
+        assert card and card["field"] == field and body["move"] == moves.TEACH, (field, body["move"])
         sections = _sections(blocks[field][1])
-        for name in ("What it is", "Why it matters", "Ask"):
+        for name, shown in (("Purpose", card["purpose"]), ("Why it matters", card["help"][0]["text"]),
+                            ("Ask", card["your_turn"]["question"])):
             first = plain(sections[name])[:50]
-            assert first and first in given, (field, name, first)
-        show = next(k for k in sections if k.startswith("Show"))
-        assert plain(sections[show])[:30] in given, (field, "Show", plain(sections[show])[:30])
+            assert first and shown.startswith(first), (field, name, first, shown[:60])
+        example = card["example"]["rows"]
+        cells = " ".join(c for r in example for c in r)
+        script_example = (plain(sections["Card example"]) if "Card example" in sections
+                          else (SKILLS_ROOT / "dmaic-define-phase" / "sipoc_example.json").read_text(encoding="utf-8"))
+        items = [x for r in example for c in r[1:] for x in re.split(r", | → ", c)]     # a SIPOC cell lists items
+        assert example and all(x and x[:12] in script_example for x in items), (field, cells[:80])
 
 
 def test_e2e_thirteen_elements_reach_the_screen_and_the_report(env, monkeypatch) -> None:
@@ -5909,7 +5962,9 @@ def test_g175_after_a_store_the_reply_teaches_the_next_element(env, monkeypatch,
     stores an element, the reply teaches the next one — even when the coach writes its blocks about the
     element just stored and asks to confirm it again: the explanation and the question are the next
     element's script, the stored element's sample is replaced by the next one's, and the message asks
-    nothing of its own."""
+    nothing of its own. R-C (ADR-0114): the reply after a store is the next element's card, assembled in code — the coach
+    that would write about the stored element is never called; the card's question, purpose and example are the next
+    element's, and the only question the reply asks is that one."""
     from langchain_core.messages import AIMessage
 
     from backend.core.substate import SufficiencyJudgment
@@ -5936,10 +5991,13 @@ def test_g175_after_a_store_the_reply_teaches_the_next_element(env, monkeypatch,
         if role == "coach" else real(role, **kw))
     told = _askd(env, message="Confirm", action="confirm")
     assert told["move"] == moves.STORE_AND_ADVANCE, told["move"]
-    assert told["prompt"] == nxt["prompt"], told["prompt"]
-    assert told["explanation"] == nxt["explanation"], told["explanation"]
-    assert nxt["example"].split(":", 1)[1].strip()[:40] in told["example"], told["example"]
-    assert "?" not in told["answer"].split("[")[0] and "accurately reflect" not in told["answer"], told["answer"]
+    card = told["teaching_card"]
+    assert card["field"] == "team" and card["your_turn"]["question"] == nxt["prompt"], card["your_turn"]
+    assert card["help"][0]["text"] and card["help"][0]["text"] in nxt["explanation"], card["help"][0]
+    assert card["example"]["columns"][:2] == ["Name", "Role"] and "Anna" in str(card["example"]["rows"])
+    assert stored["explanation"][:40] not in str(told) and "accurately reflect" not in str(told), told["answer"]
+    assert "?" not in told["answer"].replace(card["your_turn"]["question"], ""), told["answer"]
+    assert card["saved"]["text"].startswith("Business case saved: Late supplier payments"), card["saved"]
 
 
 def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(env) -> None:
@@ -6002,9 +6060,22 @@ def _at_element(env, field: str) -> None:
     record.field_status[field] = {"status": moves.NOT_TAUGHT}
 
 
-def test_every_turn_is_graded_on_all_four_blocks(env, monkeypatch) -> None:
+def _coached_at(env, stub_planner, field: str) -> None:
+    """R-C (ADR-0114): a turn the COACH writes on `field`. A teaching turn is now the element card and calls no coach,
+    so a test of what the coach's turn carries puts `field` past its teaching — its card shown, the element asked — and
+    the fake planner judges the Belt's next message insufficient: a challenge, written by the coach."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, field)
+    env.case.phases["define"].field_status[field] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="not specific enough yet")
+
+
+def test_every_turn_is_graded_on_all_four_blocks(env, monkeypatch, stub_planner) -> None:
     """DEF-015 — through the routes and graph: a coaching turn is graded by the coaching rubric on the
-    whole reply — message, explanation, example and question — and the verdict lands in step_log."""
+    whole reply — message, explanation, example and question — and the verdict lands in step_log. R-C (ADR-0114):
+    every COACH turn — a teaching turn is the element card, given, with no coach reply to grade; here a challenge."""
     from backend.middleware.grader import DMAICGraderMiddleware
     from backend.phases import nodes_common
     from backend.tests.test_wiring import REPLY
@@ -6019,7 +6090,7 @@ def test_every_turn_is_graded_on_all_four_blocks(env, monkeypatch) -> None:
     steps: list = []
     step = nodes_common._step
     monkeypatch.setattr(nodes_common, "_step", _recording(step, steps))
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")
     _coach_saying(monkeypatch, "Here is what secondary metrics are.")
     _askd(env, message="Next, please.")
     assert graded, "the turn was not graded"
@@ -6074,7 +6145,9 @@ def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_
     request's sample reaches the Belt marked 'Sample only — …' and is the phase script's worked example,
     inserted by code — never the coach's, so never the Belt's messages or the case's values (rows 134606#14,
     #17, #20; 132229#27, 134606#26, 140839#26); and a Belt answer that copies the sample is never stored as
-    theirs."""
+    theirs. R-C (ADR-0114): a teaching turn's sample is the element card's, from the skill, with no coach call
+    (DEF-266); the coach's requests here are challenges — a move that asks and shows a sample (G-170). The Belt then
+    copies the sample the element CARD showed (a fresh thread: the card, then the copy) — refused as before."""
     from backend.core.prompts import SAMPLE_FROM_SCRIPT, SAMPLE_MARK
     from backend.core.substate import SufficiencyJudgment
     from backend.middleware import state_injection
@@ -6085,7 +6158,7 @@ def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_
     compose = state_injection.BeforeModelStateInjection._compose_move
     monkeypatch.setattr(state_injection.BeforeModelStateInjection, "_compose_move", _recording(compose, composed))
     # Early: the team — the script's example, whatever the coach wrote.
-    _at_element(env, "team")
+    _coached_at(env, stub_planner, "team")
     _coach_with(monkeypatch, "Next: the team.", example="Leader: Priya Shah. Sponsor: Tomasz Wolny.")
     early = _askd(env, message="Next, please.")
     assert SAMPLE_FROM_SCRIPT in composed[-1]
@@ -6095,7 +6168,7 @@ def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_
     # the Belt is shown the script's worked example, holding none of the Belt's or the case's values.
     env.holder["saver"]._container.blobs.clear()
     env.restart()
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")
     own = "For your invoices: the late payment rate (23%), supplier queries per week, and AP overtime hours."
     _coach_with(monkeypatch, "Next: the secondary metrics.", example=own)
     later = _askd(env, message="Next, please.")
@@ -6108,6 +6181,11 @@ def test_every_request_is_explained_with_a_marked_sample(env, monkeypatch, stub_
     sample = script.split(":", 1)[1].strip().strip('"')
     # The Belt copies the sample: it is never stored, and (G-160) never read back for a Confirm that could
     # not store it — the Belt is told why, in code, and asked for their own answer; the element stays asked.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "secondary_metrics")
+    card = _askd(env, message="Next, please.")["teaching_card"]                 # the card shows its example
+    sample = card["example"]["rows"][0][1]                                     # what the Belt copies from it
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names side effects")
     _coach_with(monkeypatch, f'Your secondary metrics: "{sample}". Is this right?',
                 captured=[{"field_name": "secondary_metrics", "value": sample, "source": "belt"}])
@@ -7724,7 +7802,11 @@ def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip(env, monk
     ADR-0093 decision 3, on the real routes and graph and the page's own renderTurn: the teaching reply, the
     read-back and the reply after the Confirm each name their element; the Confirm's reply carries the green strip
     "✓ Element 1 · Business case confirmed — the Gate document is updated (section B)." and is headed by the next
-    element, "Element 2 of 13 · Team"; a page rebuilt from the reloaded history draws them again."""
+    element, "Element 2 of 13 · Team"; a page rebuilt from the reloaded history draws them again.
+
+    R-C (ADR-0114 decision 1, part 2): the green strip, "Stored: …" and "Now let's move on…" are replaced by ONE saved
+    note in the next element's card — "Business case saved: …", its Gate section B — so the Confirm's reply carries the
+    card with that note and no strip; the teaching reply is element 1's card. Every reply still names its element."""
     from backend.core.substate import SufficiencyJudgment
     from backend.phases import moves
 
@@ -7735,6 +7817,7 @@ def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip(env, monk
     teach = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Hello"})
     assert teach.status_code == 200 and teach.json()["move"] == moves.TEACH, teach.text
     assert teach.json()["reply_element"] == {"field": "business_case", "n": 1, "of": 13, "name": "Business case"}
+    assert teach.json()["teaching_card"]["field"] == "business_case" and teach.json()["teaching_card"]["saved"] is None
 
     answer = "Since January 2026, 23% of invoices are paid late; about £62k a year in late fees."
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="complete")
@@ -7748,16 +7831,20 @@ def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip(env, monk
     done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Confirm",
                                          "action": "confirm"})
     body = done.json()
-    assert body["confirmed_strip"]["text"] == (
-        "✓ Element 1 · Business case confirmed — the Gate document is updated (section B).")
+    assert body["confirmed_strip"] is None, "the saved note replaces the green strip (R-C)"
+    assert body["teaching_card"]["saved"] == {"fields": ["business_case"], "section": "B",
+                                              "text": f"Business case saved: {answer}"}, body["teaching_card"]["saved"]
+    assert body["answer"].startswith(f"Business case saved: {answer}{chr(10)}") and "Stored:" not in body["answer"]
     assert body["reply_element"] == {"field": "team", "n": 2, "of": 13, "name": "Team"}, body["reply_element"]
     assert body["readback_card"] is None, "the next element starts in its own card, not under the strip"
+    assert body["teaching_card"]["field"] == "team"
 
     hist = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
     last = hist[-1]
     html = _draw_turn(last)
-    assert html.index("rb-strip") < html.index("Element 2 of 13 · Team"), html
-    assert "Business case confirmed — the Gate document is updated (section B)." in html
+    assert html.index("tc-trail") < html.index("tc-saved") < html.index("tc-yourturn"), html   # the card's order
+    assert f"✓ Business case saved: {escape_html(answer)} · " in html and "view in the Gate" in html
+    assert "[2] Team" in html and "rb-strip" not in html
     assert "Define · Step" not in html, "one numbering: the element, never the step label"
 
 
@@ -7826,7 +7913,9 @@ def _confirm_business_case(env, coach_says, stub_planner, answer: str, spans: di
     coach_says("Next, the team.")
     done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": "Confirm",
                                          "action": "confirm"})
-    assert done.status_code == 200 and done.json()["confirmed_strip"], done.text
+    # R-C (ADR-0114): the Confirm is said by the next element's card — one saved note naming element 1 (no strip).
+    assert done.status_code == 200 and ((done.json()["teaching_card"] or {}).get("saved") or {}).get(
+        "fields") == ["business_case"], done.text
     return read.json()["readback_card"]
 
 
@@ -8021,7 +8110,10 @@ def test_the_welcome_is_built_by_the_server(env, monkeypatch) -> None:
     open ones, and the element to start with. On a fresh case all thirteen are open and the start is the business
     case; on a return the confirmed ones are listed with their values. The page's own welcomeHtml lays it out in
     blocks — the greeting by name, the phases as a list, the summary as lists — and renderChat shows it on opening
-    without the Belt asking; the browser's own opener and the /context route are gone."""
+    without the Belt asking; the browser's own opener and the /context route are gone.
+
+    R-A (DEF-267, founder ruling 2026-10-27): on a fresh case the welcome flows straight into element 1's card (R-C) — in
+    place of the line "First: Business case"; on a return there is no card (the element's card is in the chat)."""
     import json
     import re
     from pathlib import Path
@@ -8041,6 +8133,7 @@ def test_the_welcome_is_built_by_the_server(env, monkeypatch) -> None:
     assert "thirteen" in fresh["how"] and "**" not in fresh["how"], fresh["how"]
     assert fresh["confirmed"] == [] and len(fresh["open"]) == 13 and fresh["next"]["name"] == "Business case", fresh
     assert fresh["returning"] is False
+    assert fresh["card"]["field"] == "business_case" and fresh["card"]["your_turn"]["question"], fresh.get("card")
 
     record.structured = {k: COMPLETE[k] for k in ("business_case", "team")}
     record.field_status = {f: {"status": moves.CONFIRMED} for f in ("business_case", "team")}
@@ -8048,15 +8141,17 @@ def test_the_welcome_is_built_by_the_server(env, monkeypatch) -> None:
     assert [(c["n"], c["name"]) for c in back["confirmed"]] == [(1, "Business case"), (2, "Team")], back["confirmed"]
     assert back["confirmed"][0]["value"] == COMPLETE["business_case"], back["confirmed"][0]
     assert [o["n"] for o in back["open"]] == list(range(3, 14)) and back["next"]["n"] == 3 and back["returning"]
+    assert "card" not in back, "a returning Belt's welcome repeats a card"
 
-    got = _page(("welcomeHtml",), _DOM + f"""
+    got = _page(("welcomeHtml", "teachingCardHtml"), _DOM + f"""
 const S={{user:'Ana Gruber'}};
 process.stdout.write(JSON.stringify({{fresh:welcomeHtml({json.dumps(fresh)}),back:welcomeHtml({json.dumps(back)})}}));""")
     html = got["fresh"]
     assert "Welcome, Ana Gruber." in html, html[:300]
     assert len(re.findall(r'<li class="wl-phase(?: now)?"', html)) == 5, html
     assert re.search(r'class="wl-phase now"[^>]*>.*?Define.*?you are here', html, re.S), html
-    assert "First: <strong>Business case</strong>" in html
+    assert "First:" not in html and html.index("Welcome, Ana Gruber.") < html.index('class="tcard"'), html[-400:]
+    assert "[1] Business case" in html and "YOUR TURN" in html and "Why is your project worth doing?" in html
     assert "Confirmed so far" in got["back"] and escape_html(COMPLETE["business_case"]) in got["back"]
     assert "Next: <strong>" in got["back"] and "Still open" in got["back"]
 
@@ -8619,7 +8714,8 @@ def test_the_sipoc_is_taught_and_checked_with_its_flow(env, monkeypatch, stub_pl
     assert drawn and drawn["example"] is True, drawn
     assert drawn["process_steps"] == [s["name"] for s in example["process_steps"]], drawn
     assert drawn["suppliers"] == example["suppliers"] and drawn["customers"] == example["customers"], drawn
-    assert "| Suppliers |" not in seen[-1] and "|---|" not in seen[-1], "the coach was shown the Markdown table"
+    # R-C (ADR-0114): the teaching turn is the element card — the coach is not called, so it is shown no table at all.
+    assert seen == [], "the coach was called on the SIPOC's teaching turn"
     # ... and after the element before it is confirmed (the move that stores element 11 teaches element 12).
     env.holder["saver"]._container.blobs.clear()
     env.restart()
@@ -9300,7 +9396,11 @@ def test_the_coach_writes_no_sample_of_its_own(env, monkeypatch) -> None:
     repeat filter missed the paraphrase. The founder's reply shape: one short lead-in sentence; the explanation lives
     once, in its block. Through POST /ask on the goal's teaching turn, with the coach writing all three into its
     message: the message keeps its lead-in naming the element, the sample shown is the script's, the explanation is
-    the block alone. The phase's opening turn (the welcome) is left whole."""
+    the block alone. The phase's opening turn (the welcome) is left whole.
+
+    R-C (ADR-0114): the goal's teaching turn is its element card, assembled in code — the coach that would write its own
+    sample and explanation is never called, so none of its words reach the Belt; the card's example is the script's and
+    its "Why this matters" is the script's text, once."""
     from langchain_core.messages import AIMessage
 
     from backend.middleware.skills import teaching_blocks
@@ -9321,13 +9421,15 @@ def test_the_coach_writes_no_sample_of_its_own(env, monkeypatch) -> None:
     _at_element(env, "goal_statement")
     body = _askd(env, message="Next, please.")
     assert body.get("move") == "teach" and body.get("move_field") == "goal_statement", body
-    answer = body["answer"]
-    assert answer.startswith("Now we move to the goal statement."), answer
-    for own in ("show you an example", "by the end of September", "unambiguous", "what success looks like"):
-        assert own not in answer, f"the coach's own sample or explanation reached the Belt: {own!r} in {answer!r}"
-    assert "invoice error rate from 12% to under 3%" in body["example"] and "September" not in body["example"], \
-        body["example"]
-    assert body["explanation"] == script["explanation"], body["explanation"]
+    answer, card = body["answer"], body["teaching_card"]
+    assert answer.startswith("Element 7 of 13 · Goal: ") and card["field"] == "goal_statement", answer
+    shown = str(body).replace(card["help"][0]["text"], "")      # the script's own WHY IT MATTERS, shown once
+    for own in ("Now we move", "show you an example", "by the end of September", "unambiguous",
+                "what success looks like"):
+        assert own not in shown, f"the coach's own sample or explanation reached the Belt: {own!r}"
+    example = " ".join(c for r in card["example"]["rows"] for c in r)
+    assert "from 12% to under 3%" in example and "September" not in example, example
+    assert card["help"][0]["text"] in script["explanation"] and not body["explanation"], card["help"][0]
 
 
 def test_a_strict_limit_is_kept_as_written(env, monkeypatch) -> None:
@@ -9669,7 +9771,8 @@ def test_a_search_round_with_nothing_new_ends_the_search(env, monkeypatch) -> No
     searches three times; the first round returns two documents, the second the SAME two — nothing new — so the
     search ends there: the third lookup runs no search and reads a fixed sentence written in code; the reply
     arrives; the executor's state slice carries `hop_results`, one line per hop (state.md §10.1 — never a node
-    local)."""
+    local). R-C (ADR-0114): a Define teaching turn is the element card and offers no tools, so the three searches are
+    made on the turn whose coach is offered a lookup — an upload turn, with the evidence lookup."""
     from langchain_core.messages import AIMessage
 
     from backend.core.graph import DEGRADED_REPLY
@@ -9692,7 +9795,7 @@ def test_a_search_round_with_nothing_new_ends_the_search(env, monkeypatch) -> No
     def watched_tools(tools, budget, spent, hops=None):
         out = real_tools(tools, budget, spent, hops)
         for t in out:
-            if t.name == "rag_lookup_methodology":
+            if t.name == "rag_lookup_evidence":
                 inner = t.coroutine
 
                 async def seen(*a, _inner=inner, **k):
@@ -9713,22 +9816,27 @@ def test_a_search_round_with_nothing_new_ends_the_search(env, monkeypatch) -> No
     monkeypatch.setattr(nodes_common, "executor", executor)
 
     def lookup(i: int) -> AIMessage:
-        return AIMessage(content="", tool_calls=[{"name": "rag_lookup_methodology", "id": f"hop{i}",
-                                                  "args": {"query": f"business case wording {i}", "phase": "define"}}])
+        return AIMessage(content="", tool_calls=[{"name": "rag_lookup_evidence", "id": f"hop{i}",
+                                                  "args": {"query": f"business case wording {i}", "case_id": CASE_ID}}])
     final = AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "id": "g85",
                                                "args": {**REPLY, "message": "Here is what a business case is."}}])
     planner = nodes_common.get_llm
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
         messages=iter([lookup(1), lookup(2), lookup(3), final])) if role == "coach" else planner(role, **kw))
+    from backend.storage.models import UploadRecord
+    from backend.upload import classifier
     _at_element(env, "business_case")
+    env.case.phases["define"].uploads = [UploadRecord(          # an unread upload: the evidence lookup is offered
+        filename="late_fees.csv", blob_path=f"uploads/{CASE_ID}/late_fees.csv", uploaded_by="ana",
+        uploaded_at="2026-10-29T08:00:00+00:00", classification="purpose=Data file", kind=classifier.EVIDENCE)]
     r = _askd_any(env, message="Next, please.")
 
     assert r["answer"].strip() and r["answer"] != DEGRADED_REPLY, r["answer"]
     assert len(searched) == 2, ("the third lookup searched again", searched)
     assert len(tool_results) == 3 and tool_results[-1] == SEARCH_NOTHING_NEW, tool_results
     hops = slices[-1]["hop_results"]
-    assert hops == ["rag_lookup_methodology: 2 documents, 2 new", "rag_lookup_methodology: 2 documents, 0 new",
-                    "rag_lookup_methodology: not run — the last round found nothing new"], hops
+    assert hops == ["rag_lookup_evidence: 2 documents, 2 new", "rag_lookup_evidence: 2 documents, 0 new",
+                    "rag_lookup_evidence: not run — the last round found nothing new"], hops
 
 
 
@@ -9849,7 +9957,8 @@ def test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes(env, monkeypa
     from: the conversation holds the Belt's message ONCE and no degraded reply (the founder's case held each
     cancelled message twice); (4) a failed retry is flagged `failed`, and no failure text asks the Belt to send
     or retype; (5) the page: at 45 s it says the coach is still working, and a flagged failure puts the message
-    back in the box with Send again."""
+    back in the box with Send again. R-C (ADR-0114): its turns are coach turns — challenges — as a teaching turn is now
+    the element card and calls no coach (setup only; every assertion as before)."""
     import asyncio
     import json
 
@@ -9860,12 +9969,14 @@ def test_rf_a_turn_is_never_thrown_away_and_the_belt_never_retypes(env, monkeypa
     from backend.gateway import routes
     from backend.phases import nodes_common
 
-    _at_element(env, "secondary_metrics")
+    _coached_at(env, stub_planner, "secondary_metrics")
     _coach_saying(monkeypatch, "Secondary metrics are what else might change. What will you watch?")
     # (1) 45 s is a progress threshold only: with it at 0.2 s, a turn of about a second still answers.
     monkeypatch.setattr(routes, "TURN_LIMIT_S", 0.2)
     first = _askd(env, message="Next, please.")
     assert "What will you watch?" in first["answer"] and first["failed"] is None, first
+    from backend.tests.conftest import DEFAULT_JUDGMENT
+    stub_planner.judgment = DEFAULT_JUDGMENT          # setup: the next answers are judged as before (sufficient)
 
     # (2) The answer is produced at once; every save after it is slowed past a 3 s hard limit. Not cancelled.
     monkeypatch.setattr(routes, "TURN_HARD_LIMIT_S", 3.0)
@@ -10146,7 +10257,8 @@ def test_def_263_every_ticked_row_has_its_own_words_and_the_gate_keeps_them(env,
     assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], read.get("readback_card")
     _coach_saying(monkeypatch, "Next, the team.")
     done = _askd(env, message="Confirm", action="confirm")
-    assert done["move"] == moves.STORE_AND_ADVANCE and done["confirmed_strip"], done
+    # R-C (ADR-0114): the Confirm is said by the next element's card — one saved note naming the element (no strip).
+    assert done["move"] == moves.STORE_AND_ADVANCE and done["teaching_card"]["saved"]["fields"] == ["business_case"], done
 
     report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
     case = _gate_section(report, "B")["elements"][0]
@@ -10183,7 +10295,8 @@ def test_def_262_the_gate_baseline_row_is_number_source_and_period(env, monkeypa
     assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], read.get("readback_card")
     _coach_saying(monkeypatch, "Next, the scope.")
     done = _askd(env, message="Confirm", action="confirm")
-    assert done["move"] == moves.STORE_AND_ADVANCE and done["confirmed_strip"], done
+    # R-C (ADR-0114): the Confirm is said by the next element's card — one saved note naming the element (no strip).
+    assert done["move"] == moves.STORE_AND_ADVANCE and done["teaching_card"]["saved"]["fields"] == ["baseline_estimate"], done
 
     report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
     five = next(c for c in _gate_section(report, "E")["elements"] if c["field"] == "baseline_estimate")
@@ -10563,14 +10676,107 @@ def test_def_265_the_project_lead_is_in_the_team_read_back(env, monkeypatch, stu
     assert view["note"] == TEAM_STATUS_NOTE, view
 
 
-def test_def_266_one_element_card_for_every_element_of_every_phase() -> None:
-    """DEF-266 — R-C (ADR-0114): one element card for every element of every phase, assembled in code from the skill and the state; a teaching turn makes no coach model call (founder test 2026-10-27)"""
-    _not_written('DEF-266')
+def test_def_266_one_element_card_for_every_element_of_every_phase(env, monkeypatch, stub_planner) -> None:
+    """DEF-266 — R-C (ADR-0114): one element card for every element of every phase, assembled in code from the skill and the state; a teaching turn makes no coach model call (founder test 2026-10-27)
+
+    Through POST /ask on the real routes and graph. (a) The first element, not yet taught: the reply is its card — the
+    trail, the title and purpose, YOUR TURN, the example, the help links — and the coach model is never called.
+    (b) A Confirm that stores element 11 teaches element 12 with its card: ONE saved note names what was stored, with
+    no "Stored: …" line and no green strip beside it (finding 17), and again no coach call. (c) A reload draws the
+    card from the conversation."""
+    from langchain_core.messages import AIMessage
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_define_report import COMPLETE
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    coached: list[str] = []
+
+    def coach_saying(message: str, captured: list | None = None) -> None:
+        reply = {**REPLY, "message": message, "fields_captured": captured or []}
+
+        def replies():
+            coached.append(message)                        # only when the model is actually invoked
+            yield AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "call_rc"}])
+        planner = nodes_common.get_llm
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=replies())
+                            if role == "coach" else planner(role, **kw))
+
+    # (a) element 1, taught first
+    _at_element(env, "business_case")
+    coach_saying("Welcome! Let's start with your business case.")
+    first = _askd(env, message="Hello, I'm ready to start.")
+    card = first["teaching_card"]
+    assert first["move"] == moves.TEACH and card and card["field"] == "business_case", first
+    assert card["trail"]["previous"] is None and card["trail"]["current"]["n"] == 1 and card["saved"] is None
+    assert card["your_turn"]["question"].startswith("Why is your project worth doing?")
+    assert card["example"]["rows"] and [h["label"] for h in card["help"]][0] == "Why this matters"
+    assert coached == [], f"a teaching turn called the coach model: {coached}"
+    assert not first.get("explanation") and not first.get("example") and not first.get("prompt")
+
+    # (b) a Confirm of element 11 teaches element 12 with its card — on a fresh thread seeded from the case record
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "secondary_metrics")
+    env.case.phases["define"].field_status["secondary_metrics"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names what it watches")
+    watched = COMPLETE["secondary_metrics"]
+    coach_saying("You will watch these. Is this right?",
+                 captured=[{"field_name": "secondary_metrics", "value": watched, "source": "belt"}])
+    read_back = _askd(env, message=watched)
+    assert read_back["move"] == moves.READ_BACK and coached, read_back["move"]
+    coached.clear()
+    stored = _askd(env, message="Confirm", action="confirm")
+    card = stored["teaching_card"]
+    assert stored["move"] == moves.STORE_AND_ADVANCE and card["field"] == "process_map_sipoc", stored["move"]
+    assert card["saved"]["text"].startswith("Secondary metrics saved: ") and card["saved"]["section"]
+    assert card["trail"]["previous"]["confirmed"] and card["trail"]["confirmed"] == 11
+    assert "Stored:" not in stored["answer"] and stored.get("confirmed_strip") is None, stored["answer"]
+    assert coached == [], f"the Confirm's teaching called the coach model: {coached}"
+    assert _define(env)["structured"]["secondary_metrics"] == watched
+
+    # (c) the reload draws the same card
+    history = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
+    assert history[-1].get("teaching_card", {}).get("field") == "process_map_sipoc"
 
 
-def test_def_267_the_welcome_flows_straight_into_the_first_element_s() -> None:
-    """DEF-267 — R-A: the welcome flows straight into the first element's card; the Belt never types 'let's start' (founder test 2026-10-27)"""
-    _not_written('DEF-267')
+def test_def_267_the_welcome_flows_straight_into_the_first_element_s(env, monkeypatch, stub_planner) -> None:
+    """DEF-267 — R-A: the welcome flows straight into the first element's card; the Belt never types 'let's start' (founder test 2026-10-27)
+
+    Founder test 2026-10-27 #9: the welcome ended at "First: Business case" and the Belt had to type something to be
+    taught. Through the routes and graph and the page's own functions: a fresh case's welcome carries element 1's card;
+    the page draws it after the welcome and sends the Belt's first message as that element's answer; the server judges
+    it (the planner's judgment runs) and reads it back — it is never taught again, and the coach is not asked to teach."""
+    import json
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+
+    _at_element(env, "business_case")
+    welcome = env.client.get(f"/cases/{CASE_ID}").json()["welcome"]
+    card = welcome["card"]
+    assert card["field"] == "business_case" and card["your_turn"]["question"].startswith("Why is your project")
+
+    # The page: the card follows the welcome, and the first typed message names its element.
+    got = _page(("welcomeHtml", "teachingCardHtml", "welcomeElement"), _DOM + f"""
+const S={{user:'Ana',phase:'define',localChat:[],case:{{welcome:{json.dumps(welcome)},conversation_history:[]}}}};
+const first=welcomeElement(); S.localChat.push({{role:'ai',text:'x'}});
+process.stdout.write(JSON.stringify({{html:welcomeHtml(S.case.welcome),first,later:welcomeElement()}}));""")
+    assert got["first"] == "business_case" and got["later"] is None, got
+    assert got["html"].index("Welcome") < got["html"].index('class="tcard"') and "First:" not in got["html"]
+
+    # The server: that first message is judged as element 1's answer and read back.
+    answer = "Since January 2026, 23% of invoices are paid late; about £62k a year in late fees."
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="complete")
+    judged = len(stub_planner.prompts)
+    _coach_saying(monkeypatch, f'Your business case: "{answer}" Is this right?',
+                  captured=[{"field_name": "business_case", "value": answer, "source": "belt"}])
+    read = _askd(env, message=answer, element="business_case")
+    assert read["move"] == moves.READ_BACK and read["move_field"] == "business_case", (read["move"], read["answer"])
+    assert len(stub_planner.prompts) == judged + 1, "the first message was not judged"
+    assert read.get("teaching_card") is None, "element 1 was taught again instead of read back"
+    assert env.client.get(f"/cases/{CASE_ID}").json()["welcome"].get("card") is None, "the welcome repeats the card"
 
 
 def test_def_268_training_needs_are_not_a_define_criterion_never_asked() -> None:

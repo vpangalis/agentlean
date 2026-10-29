@@ -64,12 +64,38 @@ def test_g138_a_move_that_does_not_teach_is_left_as_the_coach_wrote_it(move: str
 
 
 def test_g138_an_empty_teaching_block_never_reaches_the_belt(stub_coach) -> None:
-    """End to end through the executor: the stub coach returns all three blocks empty on a teach
-    move; the blocks the reply carries to the Belt are the script's."""
+    """End to end through the executor, on a Define teach move.
+
+    R-C (ADR-0114): the coach is not called — the reply is the element card, assembled in code; the
+    card carries the teaching, so the three blocks beside it are empty by design and the call budget
+    records no coach call. G-138's filler still runs where a teaching move is the coach's — an
+    upload turn (`test_g138_on_an_upload_turn_an_empty_teaching_block_never_reaches_the_belt`)."""
+    from backend.middleware.skills import card_parts
     from backend.tests.test_executor import _state
     plan = CoachingPlan(focus_field="team", status="untaught", move="teach",
                         retrieval_strategy="single_hop", retrieval_hops=[])
     out = asyncio.run(_c.executor("define", _state(coaching_plan=plan)))
+    assert stub_coach.invocations == [], "a Define teach move makes no coach call"
+    executor = [e for e in out["step_log"] if e.get("node") == "executor"][-1]
+    assert executor["call_budget"]["coach"] == 0, executor["call_budget"]
+    reply = next(m for m in reversed(out["messages"]) if isinstance(m, AIMessage))
+    blocks = reply.additional_kwargs["coaching_blocks"]
+    for k in ("explanation", "example", "prompt"):
+        assert blocks[k] == "", k
+    card = reply.additional_kwargs["teaching_card"]
+    assert card["field"] == "team", card
+    assert card["your_turn"]["question"] == card_parts("define", "team")["question"], card
+
+
+def test_g138_on_an_upload_turn_an_empty_teaching_block_never_reaches_the_belt(stub_coach) -> None:
+    """End to end through the executor: the stub coach returns all three blocks empty on a teach
+    move; the blocks the reply carries to the Belt are the script's. An upload turn, because there a
+    Define teaching move is still the coach's (R-C, ADR-0114: it reads the file)."""
+    from backend.tests.test_executor import _state, _unread_upload
+    plan = CoachingPlan(focus_field="team", status="untaught", move="teach",
+                        retrieval_strategy="single_hop", retrieval_hops=[])
+    out = asyncio.run(_c.executor("define", _state(coaching_plan=plan, uploads=[_unread_upload()])))
+    assert len(stub_coach.invocations) == 1, "an upload turn is the coach's"
     reply = next(m for m in reversed(out["messages"]) if isinstance(m, AIMessage))
     blocks = reply.additional_kwargs["coaching_blocks"]
     script = teaching_blocks("define", "team")

@@ -73,8 +73,10 @@ CARD_KEY, STRIP_KEY = "readback_card", "confirmed_strip"
 ELEMENT_KEY = "reply_element"
 #: DEF-212 — the completion card after Define's last Confirm: what the team does next, in order.
 COMPLETION_KEY = "completion_card"
+#: R-C (ADR-0114) — the element card a teaching turn shows, kept on the turn so a reload draws it again.
+TEACHING_CARD_KEY = "teaching_card"
 TURN_RECORD_KEYS: tuple[str, ...] = (MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY, CARD_KEY, STRIP_KEY, ELEMENT_KEY,
-                                     COMPLETION_KEY)
+                                     COMPLETION_KEY, TEACHING_CARD_KEY)
 
 
 def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
@@ -167,6 +169,7 @@ __all__ = [
     "STRIP_KEY",
     "ELEMENT_KEY",
     "COMPLETION_KEY",
+    "TEACHING_CARD_KEY",
     "TURN_RECORD_KEYS",
     "message_to_turn",
     "turn_to_message",

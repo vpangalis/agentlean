@@ -216,8 +216,8 @@ def replay(client: Any, case_id: str, plan: dict[str, Any], timing: Any = None) 
                     "failed": got.get("failed"), "answer": answer[:400],
                     "asks_to_send_again": "send" in answer.lower() and "again" in answer.lower(),
                     "steps": _timing(timing)})
-        if moved_on(out[-1]):
-            break
+        if moved_on(out[-1]) and t.get("recorded_move") is not None:
+            break                      # a recorded slice ends at its element's store; scripted messages are all sent
     return {"turns": out, "passed": any(moved_on(x) for x in out)}
 
 

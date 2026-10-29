@@ -620,6 +620,11 @@ async def decide(phase: str, artifacts: dict[str, Any],
                     reason=UPLOAD_DRAFT_REASON.format(filename=partial["filename"],
                                                       missing="; ".join(partial["missing"]) or "the open parts"))
 
+    if status == NOT_TAUGHT and element == field and action is None and str(belt or "").strip():
+        # R-A (DEF-267, founder test 2026-10-27 #9): the welcome showed this element's card, so the Belt's first message
+        # answers it — judged as an answer, never met with the same card again.
+        status, entry = ASKED, {"status": ASKED}
+        after[field] = entry
     if status == NOT_TAUGHT:
         after[field] = {"status": ASKED}
         return done(field, fields, status, TEACH)

@@ -1,0 +1,130 @@
+{
+ "kind": "live_slice",
+ "element": "business_case",
+ "case_id": "IMPR-2026-S7X46V",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "rc_slice_messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "b176a7839cfee9e0",
+ "seeded": [],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs ab",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "business_case",
+   "recorded_move": null,
+   "seconds": 10.7,
+   "failed": null,
+   "answer": "In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs about €45 in callbacks and rework, about €20,500 a year, and late cases escalate to account managers.\n\nIs this right?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.52 s",
+    "input guard 1.55 s",
+    "planner judgment 2.88 s",
+    "coach 2.43 s",
+    "grader 1.52 s",
+    "after the answer (steps, save) 1.31 s",
+    "total 10.67 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 4.3,
+   "failed": null,
+   "answer": "Business case saved: In Field Service Austria, 38% of customer complaints were closed later than the 5 working….\n\nElement 2 of 13 · Team: Who leads the project? Who is the champion who can approve and clear obstacles? Who owns the process? Who else is on the team — and does anyone need training to take part fully? If you already have the team in a list, you can upload it as a file instead.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.48 s",
+    "input guard 1.50 s",
+    "after the answer (steps, save) 1.80 s",
+    "total 4.30 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Who should be on the team?",
+   "action": null,
+   "http": 200,
+   "move": "respond",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 29.5,
+   "failed": null,
+   "answer": "The project team should include the following roles:\n\n1. **Leader**: This is the person running the project, in this case you, Vassilis, as the Green Belt.\n2. **Champion**: A senior leader who can approve decisions and remove obstacles. For example, this might be your department manager or another senior leader in Field Service Austria.\n3. **Process Owner**: The person responsible for the process ",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.31 s",
+    "input guard 1.41 s",
+    "planner judgment 1.48 s",
+    "coach 21.15 s",
+    "grader 3.12 s",
+    "after the answer (steps, save) 1.43 s",
+    "total 29.51 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Where do we stand?",
+   "action": null,
+   "http": 200,
+   "move": "respond",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 5.1,
+   "failed": null,
+   "answer": "You are in Define, step 2 of 13: Team.\nDone (1 of 13): Business case.\nOpen (12): Team, Voice of the customer and CTQs, Problem statement, Primary metric and baseline, Scope, Goal, Target, Target date, Benefits analysis, Secondary metrics, High-level process (SIPOC, as-is), Issues and barriers.\nNext: Team.\n\nWho leads the project? Who is the champion who can approve and clear obstacles? Who owns the",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.38 s",
+    "input guard 1.47 s",
+    "planner judgment 1.41 s",
+    "after the answer (steps, save) 1.16 s",
+    "total 5.12 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 7,
+ "cost": {
+  "usd": 0.037,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0363,
+   "gpt-4o-mini-2024-07-18": 0.0007
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 41.21,
+  "calls": 119,
+  "case": {
+   "seconds": 0.43,
+   "calls": 5
+  },
+  "store": {
+   "seconds": 0.67,
+   "calls": 12
+  },
+  "checkpoint": {
+   "seconds": 40.11,
+   "calls": 102
+  }
+ },
+ "started": "20261029T102711"
+}
