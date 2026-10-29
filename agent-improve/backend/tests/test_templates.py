@@ -236,3 +236,41 @@ def test_the_locked_goal_statement_keeps_its_accepted_ticks() -> None:
                                     "business_case", case)
     assert not next(r for r in templates.rows("business_case", {"business_case": case}, spans=kept)
                     if r["id"] == "cost")["met"]
+
+
+def test_r_c_the_element_card_has_its_six_parts_in_order_from_the_skill_and_the_state() -> None:
+    """R-C (ADR-0114 decision 1, DEF-266), on IMPR-2026-A99's values at element 10 after the target's Confirm stored
+    the target and the target date (finding 45): the step trail and "k of 13 confirmed", ONE saved note naming both,
+    the title and purpose, YOUR TURN with the question and a hint and no confirm prompt (finding 44), the example in the
+    element's own columns under one label (finding 12), and the three help links — the benefits' own question is the
+    founder's "How do I calculate the cost of the gap?" (finding 53)."""
+    before = {k: v for k, v in A99.items() if k not in DEFINE_FIELD_ORDER[9:]}      # elements 1-9 confirmed
+    card = templates.teaching_card("benefits_analysis", before, {}, stored=["target_value", "target_date"])
+    assert list(card)[:3] == ["field", "n", "of"] and card["n"] == 10
+    trail = card["trail"]
+    assert (trail["previous"]["name"], trail["current"]["name"], trail["next"]["name"]) == (
+        "Target date", "Benefits analysis", "Secondary metrics")
+    assert trail["previous"]["confirmed"] and trail["confirmed"] == 9 and trail["of"] == 13
+    assert card["saved"]["text"] == "Target and target date saved: under 10% · 31 March 2027"
+    assert card["saved"]["section"] == "E"
+    assert card["title"] == "Benefits analysis" and card["purpose"]
+    turn = card["your_turn"]
+    assert turn["question"].startswith("What does the gap cost today?") and turn["hint"]
+    assert "Is this right" not in turn["question"] + turn["hint"] and "Confirm" not in turn["question"] + turn["hint"]
+    assert card["example"]["label"] == templates.EXAMPLE_LABEL
+    assert card["example"]["columns"] == ["Part", "Example"]
+    assert [r[0] for r in card["example"]["rows"]][:4] == [
+        "Cost of the gap", "Sustainable or one-off", "Realisation schedule", "Finance contact"]
+    assert [h["label"] for h in card["help"]] == [
+        templates.WHY_LINK, "How do I calculate the cost of the gap?", templates.STATUS_LINK]
+    assert card["help"][0]["text"].startswith("The hard figure")
+    text = templates.card_text(card)
+    assert text.startswith("Target and target date saved") and "Element 10 of 13 · Benefits analysis: What does" in text
+    # Every element has a card, element 1 with no previous step and no saved note; the SIPOC's example from its file.
+    for field in DEFINE_FIELD_ORDER:
+        c = templates.teaching_card(field, {}, {})
+        assert c["your_turn"]["question"] and c["example"]["rows"] and len(c["help"]) == 3, field
+    first = templates.teaching_card("business_case", {}, {})
+    assert first["trail"]["previous"] is None and first["saved"] is None and first["trail"]["confirmed"] == 0
+    sipoc = templates.teaching_card("process_map_sipoc", {}, {})["example"]
+    assert [r[0] for r in sipoc["rows"]][:3] == ["Suppliers", "Inputs", "Process steps"]

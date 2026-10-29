@@ -940,6 +940,103 @@ def strip(field: str) -> dict[str, Any]:
             "text": f"✓ Element {n} · {name} confirmed — the Gate document is updated (section {section})."}
 
 
+#: R-C (ADR-0114, the approved mockup "progress-led, business" v2): the card's fixed words.
+EXAMPLE_LABEL = "What a good answer looks like · example, not your data"
+WHY_LINK, STATUS_LINK = "Why this matters", "Where do we stand?"
+_SUMMARY_CHARS = 90
+
+
+def _summary(field: str, artifacts: dict[str, Any]) -> str:
+    """A stored element in a few words, for the saved note: a list by its count, anything else as words, cut."""
+    value = artifacts.get(field)
+    if isinstance(value, list):
+        return f"{len(value)} {'people' if field == 'team' else 'listed'}"
+    if field == "process_map_sipoc" and isinstance(value, dict):
+        return f"{len(value.get('process_steps') or [])} steps"
+    text = " ".join(plain(value).split())
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        import datetime as _dt
+        day = _dt.date.fromisoformat(text)
+        text = f"{day.day} {day:%B %Y}"
+    return text if len(text) <= _SUMMARY_CHARS else text[:_SUMMARY_CHARS].rsplit(" ", 1)[0] + "…"
+
+
+def saved_note(stored: list[str], artifacts: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """R-C part 2: one line naming every element the last Confirm stored, with a short summary, and the Gate section
+    to view it in ("Target and target date saved: under 10% · 31 March 2027"). None when nothing was stored."""
+    elements = [f for f in DEFINE_FIELD_ORDER if f in stored]
+    if not elements:
+        return None
+    names = [name_of(f) for f in elements]
+    named = " and ".join([names[0], *(n[:1].lower() + n[1:] for n in names[1:])])
+    return {"fields": elements, "section": section_of(elements[0]),
+            "text": f"{named} saved: " + " · ".join(_summary(f, artifacts) for f in elements)}
+
+
+def _sipoc_example() -> dict[str, Any]:
+    """The SIPOC's card example, from its structured file (DEF-211), in the SIPOC's own columns."""
+    import json
+
+    from backend.middleware.skills import SKILLS_ROOT
+    from backend.phases.define.schema import SIPOC_KEYS
+    from backend.phases.define.visuals import SIPOC_EXAMPLE
+    example = json.loads((SKILLS_ROOT / "dmaic-define-phase" / SIPOC_EXAMPLE).read_text(encoding="utf-8"))
+    labels = {"process_steps": "Process steps", "process_metrics": "Measures"}
+
+    def words(v: Any) -> str:
+        if isinstance(v, list):
+            return (" → " if v and isinstance(v[0], dict) else ", ").join(
+                str(x.get("name") if isinstance(x, dict) else x) for x in v)
+        return str(v or "")
+    return {"columns": ["Part", "Example"],
+            "rows": [[labels.get(k, k.capitalize()), words(example.get(k))] for k in SIPOC_KEYS]}
+
+
+def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any] | None = None, *,
+                  stored: Optional[list[str]] = None, note: str = "") -> dict[str, Any]:
+    """R-C (ADR-0114 decision 1): the element card — one template for every element, assembled here from the skill's
+    element block and the phase state, no model call. Its six parts, top to bottom: the step trail ("✓ n-1 · previous
+    › [n] current › n+1 · next", "k of N confirmed"); the saved note for what the last Confirm stored; the title and
+    one-line purpose; YOUR TURN (the question and a hint — never a confirm prompt); the example in the element's own
+    columns, under one label; the quiet help links. `note` is a line from code about why the element is taught again
+    (a return to a parked element)."""
+    from backend.middleware.skills import card_parts, element_text
+    field_status = dict(field_status or {})
+    parts = card_parts("define", field)
+    n = number_of(field)
+
+    def step(i: int) -> Optional[dict[str, Any]]:
+        if not 1 <= i <= len(DEFINE_FIELD_ORDER):
+            return None
+        f = DEFINE_FIELD_ORDER[i - 1]
+        return {"n": i, "name": name_of(f), "field": f,
+                "confirmed": _status(f, artifacts, field_status) == "confirmed"}
+    confirmed = sum(1 for f in DEFINE_FIELD_ORDER if _status(f, artifacts, field_status) == "confirmed")
+    example = parts.get("example") or (_sipoc_example() if field == "process_map_sipoc" else None)
+    return {
+        "field": field, "n": n, "of": DEFINE_POSITIONS, "name": name_of(field), "section": section_of(field),
+        "trail": {"previous": step(n - 1), "current": step(n), "next": step(n + 1),
+                  "confirmed": confirmed, "of": DEFINE_POSITIONS},
+        "saved": saved_note(list(stored or []), artifacts),
+        **({"note": note} if note else {}),
+        "title": name_of(field), "purpose": parts.get("purpose", ""),
+        "your_turn": {"question": parts.get("question", ""), "hint": parts.get("hint", "")},
+        **({"example": {"label": EXAMPLE_LABEL, **example}} if example else {}),
+        "help": [{"label": WHY_LINK, "text": element_text("define", field, "Why it matters")},
+                 *([{"label": parts["help"], "ask": parts["help"]}] if parts.get("help") else []),
+                 {"label": STATUS_LINK, "ask": STATUS_LINK}],
+    }
+
+
+def card_text(card: dict[str, Any]) -> str:
+    """The card as the conversation keeps it for the coach's later turns and the transcript: the saved note, the
+    element and its question — the page draws the card itself, never this text beside it."""
+    saved = (card.get("saved") or {}).get("text")
+    lines = [f"{saved}." if saved else "", str(card.get("note") or ""),
+             f"Element {card['n']} of {card['of']} · {card['name']}: {card['your_turn']['question']}"]
+    return "\n\n".join(x for x in lines if x)
+
+
 __all__ = ["TEMPLATES", "SECTION_LETTERS", "YOUR_ANSWER", "FROM_FILE", "CALCULATED", "IN_ANSWER", "criteria",
            "verbatim_spans", "rows", "plain", "answer_text", "history", "gate_card", "gate_view", "number_of", "section_of", "name_of", "card", "open_required",
-           "strip"]
+           "strip", "EXAMPLE_LABEL", "WHY_LINK", "STATUS_LINK", "saved_note", "teaching_card", "card_text"]
