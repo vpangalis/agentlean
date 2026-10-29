@@ -1,9 +1,9 @@
 {
- "source_hash": "8877f1fbdcc1843e",
- "commit": "5d5e5d2",
+ "source_hash": "bc0cf2e1e6fe1e2b",
+ "commit": "e2b31ac",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T15:14:13+00:00",
+ "recorded_at": "2026-10-29T15:47:46+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -489,6 +489,7 @@
   "backend/tests/test_define_e2e.py::test_def_289_a_soft_benefits_criterion_stated_with_an_indicator_or": "passed",
   "backend/tests/test_define_e2e.py::test_def_290_every_confirm_is_named_in_the_card_s_saved_note": "passed",
   "backend/tests/test_define_e2e.py::test_def_291_every_read_back_with_a_natural_picture_shows_it": "skipped",
+  "backend/tests/test_define_e2e.py::test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool": "passed",
   "backend/tests/test_define_e2e.py::test_define_gate_has_no_warning_path": "passed",
   "backend/tests/test_define_e2e.py::test_e2e_a_changed_value_keeps_its_prior_value_dated": "passed",
   "backend/tests/test_define_e2e.py::test_e2e_a_code_written_reply_never_shows_a_placeholder": "passed",

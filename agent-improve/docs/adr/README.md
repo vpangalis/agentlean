@@ -112,7 +112,7 @@ Generated from each file's status line; never typed.
 | [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063; refined by 0108, 0109 |
 | [0067](0067-input-guard-scope-and-modes.md) | What the input guard screens for, how it answers, and how it runs without Content Safety | ACCEPTED | refines 0057 |
 | [0068](0068-no-lookups-on-answer-turns.md) | The coach looks up the method on teaching turns only | ACCEPTED | refines 0059; refined by 0069 |
-| [0069](0069-answer-turns-bind-no-tools.md) | Answer turns bind no tools; upload turns count as teaching turns | ACCEPTED | refines 0068; refined by 0070 |
+| [0069](0069-answer-turns-bind-no-tools.md) | Answer turns bind no tools; upload turns count as teaching turns | ACCEPTED | refines 0068; refined by 0070, 0115 |
 | [0070](0070-visuals-drawn-from-the-structured-read-back.md) | Visuals drawn from the structured read-back | ACCEPTED | refines 0069 |
 | [0071](0071-baseline-and-target-as-number-with-unit.md) | Baseline and target are stored as a number with a unit | ACCEPTED | refined by 0088 |
 | [0072](0072-park-an-element.md) | Parking an element is a coaching move decided in code | ACCEPTED | — |
@@ -157,4 +157,5 @@ Generated from each file's status line; never typed.
 | [0112](0112-mismatch-feedback-in-the-coachs-reply.md) | Mismatch feedback in the coach's reply | ACCEPTED | refines 0042 |
 | [0113](0113-a-turn-is-never-thrown-away.md) | A coaching turn is never thrown away — 45 s is a progress threshold, the hard limit is 120 s, and a failed turn is retried once from where it started | ACCEPTED | — |
 | [0114](0114-the-element-card-template.md) | One element card for every element of every phase, assembled in code from the skill and the phase state | ACCEPTED | — |
+| [0115](0115-answer-turns-offer-read-upload.md) | Answer turns offer read_upload, and no other tool | ACCEPTED | refines 0069 |
 <!-- END ADR INDEX -->

@@ -508,7 +508,8 @@ def test_the_coach_quotes_an_uploaded_document(env, monkeypatch) -> None:
     from backend.upload import classifier
 
     assert "read_upload" in [t.name for t in tools.UNIVERSAL_TOOLS]
-    for turn, offered in ((turn_tools.TEACHING, True), (turn_tools.UPLOAD, True), (turn_tools.ANSWER, False)):
+    # ADR-0115 (founder 2026-10-29): the answer turn offers read_upload too.
+    for turn, offered in ((turn_tools.TEACHING, True), (turn_tools.UPLOAD, True), (turn_tools.ANSWER, True)):
         assert ("read_upload" in [t.name for t in turn_tools.offered(turn, tools.UNIVERSAL_TOOLS)]) == offered, turn
 
     line = "Step 4: the AP clerk re-keys the invoice into SAP when the PO number is missing."
@@ -11189,6 +11190,44 @@ def test_def_287_element_5_offers_the_metric_and_baseline_the_business() -> None
 def test_def_288_the_case_s_country_and_site_are_chosen_on() -> None:
     """DEF-288 — W20 (ADR-0089): the case's country and site are chosen on the create form from the configured lists (founder test 2026-10-27)"""
     _not_written('DEF-288')
+
+
+def test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool() -> None:
+    """DEF-292 — ADR-0115 (founder 2026-10-29, wave-2 decision 5): an answer turn offers read_upload, so the coach can
+    quote a file the Belt names in an answer; no other tool. Through the turn tools middleware as the executor builds
+    it for an answer turn (the coach's share 2, T69): the first call is offered read_upload alone out of every tool
+    the phase registers; the last allowed call is offered none, so it is always the structured reply (G-131)."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from backend.knowledge import tools
+    from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
+    from backend.middleware import turn_tools
+    from backend.phases import nodes_common
+
+    registered = [*tools.UNIVERSAL_TOOLS, *COMPUTATION_TOOLS_BY_PHASE["define"], {"name": "load_skill"}]
+    share = nodes_common.TURN_MODEL_CALLS - 1 - nodes_common.AFTER_AGENT_CALLS     # judged, then the grader
+    assert share == 2, share
+    middleware = turn_tools.turn_tools_middleware(turn_tools.ANSWER, share)
+
+    def offered_on(call: int) -> list[str]:
+        seen: list[list[str]] = []
+
+        class Request(SimpleNamespace):
+            def override(self, **kw):
+                return Request(**{**self.__dict__, **kw})
+
+        async def handler(request):
+            seen.append([turn_tools._name(t) for t in request.tools])
+            return None
+        request = Request(state={"run_model_call_count": call}, tools=registered, model_settings={})
+        asyncio.run(middleware.awrap_model_call(request, handler))
+        return seen[0]
+
+    assert offered_on(0) == ["read_upload"], offered_on(0)
+    assert offered_on(1) == [], "the last allowed call is the structured reply"
+    assert not {"rag_lookup_methodology", "rag_lookup_evidence", "rag_lookup_case_history", "propose_template",
+                "load_skill", "load_evidence_series"} & turn_tools.TOOLS_BY_TURN[turn_tools.ANSWER]
 
 
 def test_def_289_a_soft_benefits_criterion_stated_with_an_indicator_or(env, monkeypatch, stub_planner) -> None:

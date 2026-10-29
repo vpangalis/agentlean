@@ -10335,6 +10335,38 @@
    "stage": "coached",
    "layer": "screen",
    "pilot": true
+  },
+  {
+   "id": "DEF-292",
+   "description": "ADR-0115 (founder 2026-10-29, wave-2 decision 5): an answer turn offers read_upload, so the coach can quote a file the Belt names in an answer; no other tool",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-057"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder decisions on WAVE2_REPORT_2026-10-29 (2026-10-29)"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "W5",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
   }
  ]
 }

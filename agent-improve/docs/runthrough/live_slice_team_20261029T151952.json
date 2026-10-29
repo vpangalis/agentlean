@@ -1,0 +1,130 @@
+{
+ "kind": "live_slice",
+ "element": "team",
+ "case_id": "IMPR-2026-2NASNZ",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "g296_slice_messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "99f7e7893eb97e59",
+ "seeded": [
+  "business_case"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "📎 team_field_service.csv",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 19.6,
+   "failed": null,
+   "answer": "I've read your file team_field_service.csv. For Team it shows: names a champion (sponsor) by name; names the process owner by name; each person has a name, a role and a function. It covers everything Team asks for.\n\nHere is the team information you provided. Please confirm if this is correct:\n\n- Katharina Huber: Project Sponsor, Head of Field Service Austria, time commitment: 2 hours per month\n- M",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.24 s",
+    "input guard 1.23 s",
+    "coach 14.20 s",
+    "grader 2.00 s",
+    "after the answer (steps, save) 1.30 s",
+    "total 19.55 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Change",
+   "action": "change",
+   "http": 200,
+   "move": "challenge",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 4.3,
+   "failed": null,
+   "answer": "Katharina Huber — Project Sponsor, Head of Field Service Austria, 2 h per month\nMarkus Steiner — Process Owner, Service Desk Lead Vienna, 4 h per week\nElena Gruber — Team Member, Field Technician Coordinator, 4 h per week\nThomas Wagner — Team Member, Customer Care Analyst, 4 h per week\nSabine Hofer — Team Member, Quality and Complaints Manager, 3 h per week\n\nWhat would you like to change?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.35 s",
+    "input guard 1.25 s",
+    "after the answer (steps, save) 2.19 s",
+    "total 4.33 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Training: Elena Gruber and Thomas Wagner need a half-day on data collection; nobody else.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 21.9,
+   "failed": null,
+   "answer": "Here is the updated team information, including the training details you provided. Please confirm if this is correct:\n\n- Katharina Huber: Project Sponsor, Head of Field Service Austria, time commitment: 2 hours per month\n- Markus Steiner: Process Owner, Service Desk Lead Vienna, time commitment: 4 hours per week\n- Elena Gruber: Team Member, Field Technician Coordinator, time commitment: 4 hours pe",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.35 s",
+    "input guard 1.20 s",
+    "planner judgment 2.42 s",
+    "coach 11.72 s",
+    "grader 3.73 s",
+    "after the answer (steps, save) 1.93 s",
+    "total 21.91 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "voc_summary",
+   "recorded_move": null,
+   "seconds": 4.8,
+   "failed": null,
+   "answer": "Team saved: 5 people.\n\nElement 3 of 13 · Voice of the customer and CTQs: Who are the customers of your process, and what do they need or complain about most? For each need, how would you measure that it is met?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.44 s",
+    "input guard 1.41 s",
+    "after the answer (steps, save) 2.11 s",
+    "total 4.75 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 6,
+ "cost": {
+  "usd": 0.0353,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0342,
+   "gpt-4o-mini-2024-07-18": 0.0011
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 45.66,
+  "calls": 126,
+  "case": {
+   "seconds": 0.67,
+   "calls": 9
+  },
+  "checkpoint": {
+   "seconds": 44.24,
+   "calls": 103
+  },
+  "store": {
+   "seconds": 0.75,
+   "calls": 14
+  }
+ },
+ "started": "20261029T151952"
+}

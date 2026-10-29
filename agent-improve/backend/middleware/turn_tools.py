@@ -8,7 +8,8 @@ files that may hold one.
 
     teaching   lookups, `propose_template`, `load_skill`, `read_upload`
     upload     `rag_lookup_evidence`, `load_evidence_series`, `read_upload`
-    answer     none — the structured reply only (the response format is not a tool in `request.tools`)
+    answer     `read_upload` only (ADR-0115, founder 2026-10-29) — else the structured reply (the response format
+               is not a tool in `request.tools`)
 
 The turn type is decided in code by the executor from the move and the phase state, never by a model,
 and recorded in `step_log` (`phases/nodes_common.py::turn_type_of`).
@@ -24,7 +25,7 @@ TOOLS_BY_TURN: dict[str, frozenset[str]] = {
     TEACHING: frozenset({"rag_lookup_methodology", "rag_lookup_evidence", "rag_lookup_case_history",
                          "propose_template", "load_skill", "read_upload"}),          # ADR-0106: read_upload
     UPLOAD: frozenset({"rag_lookup_evidence", "load_evidence_series", "read_upload"}),
-    ANSWER: frozenset(),
+    ANSWER: frozenset({"read_upload"}),                                             # ADR-0115: no lookup
 }
 
 

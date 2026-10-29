@@ -496,9 +496,9 @@ What each role reads, part by part in order, with each part's owner: ADR-0111's 
 
   | Turn type | When | Coach tools |
   |---|---|---|
-  | teaching | teach, or store and advance | lookups, `propose_template`, `load_skill` |
-  | upload | a new upload, or an unread one the Belt refers to | `rag_lookup_evidence`, `load_evidence_series` |
-  | answer | anything else | none — a structured reply only |
+  | teaching | teach, or store and advance | lookups, `propose_template`, `load_skill`, `read_upload` (ADR-0106) |
+  | upload | a new upload, or an unread one the Belt refers to | `rag_lookup_evidence`, `load_evidence_series`, `read_upload` |
+  | answer | anything else | `read_upload` only (ADR-0115), else a structured reply |
 
   Visuals (ADR-0070): each read-back's visual is drawn in code from the coach's structured values,
   marked not yet confirmed; after Confirm the same function draws it from the stored values into

@@ -1255,7 +1255,8 @@ def test_adr_0068_an_answer_turn_binds_no_lookup(move: str, stub_coach) -> None:
     from backend.middleware import turn_tools
     declared = [type(m).__name__ for m in stub_coach.calls[-1]["middleware"]]
     assert "TurnTools[answer]" in declared, declared
-    assert turn_tools.offered("answer", list(stub_coach.calls[-1]["tools"])) == []
+    # ADR-0115 (founder 2026-10-29): read_upload only — still no lookup.
+    assert [t.name for t in turn_tools.offered("answer", list(stub_coach.calls[-1]["tools"]))] == ["read_upload"]
     entry = next(e for e in out["step_log"] if e.get("turn_type"))
     assert entry["turn_type"] == "answer"
 
