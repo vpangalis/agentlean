@@ -11207,6 +11207,29 @@ def test_g281_the_overview_card_points_to_the_history_tab_never_a_placeholder() 
     assert re.search(r'id="vt-history"[^>]*>History<', src), "the History tab the note names"
 
 
+def test_g307_the_problem_statement_example_is_a_table_with_no_label_or_stray_mark() -> None:
+    """G-307 (DEF-280; founder test 2026-10-27 finding 34): the problem statement's teaching card ran the example's
+    columns together ("the placeUK billing", "How muchthe size"), showed a stray "*" and the skill's internal label
+    "Show (the statement composed from it — illustration):". Since R-C (e596485, 9ff0446) the card is built in code:
+    drawn by the page, each question and its example sit in their own cells, under the one example label, with no
+    mark and no skill label."""
+    import json
+    from html import escape
+
+    from backend.phases.define import templates
+    card = templates.teaching_card("problem_statement", {}, {}, stored=[], note="")
+    rows = card["example"]["rows"]
+    assert [r[0] for r in rows] == ["What", "Where", "When", "Who is affected", "Why it matters", "How it shows up",
+                                    "How much"], rows
+    html = _page(("teachingCardHtml",), _DOM + f"""
+const S={{user:'Ana'}};
+process.stdout.write(JSON.stringify({{html: teachingCardHtml({json.dumps(card)}, true)}}));""")["html"]
+    for question, example in rows:
+        assert f"<td>{escape(question, quote=False)}</td><td>{escape(example, quote=False)}</td>" in html             or f"<td>{escape(question)}</td><td>{escape(example)}</td>" in html, (question, html[-900:])
+    assert html.count(templates.EXAMPLE_LABEL) == 1, "one example label"
+    assert "*" not in html and "Show (" not in html and "illustration" not in html, html
+
+
 def test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool() -> None:
     """DEF-292 — ADR-0115 (founder 2026-10-29, wave-2 decision 5): an answer turn offers read_upload, so the coach can
     quote a file the Belt names in an answer; no other tool. Through the turn tools middleware as the executor builds

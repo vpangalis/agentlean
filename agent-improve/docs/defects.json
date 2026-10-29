@@ -3935,8 +3935,8 @@
    "lane": [
     "C"
    ],
-   "escape_class": null,
-   "symptom": "THE PROBLEM STATEMENT EXAMPLE TABLE RUNS COLUMNS TOGETHER; a stray '*' and an internal skill label are shown. Founder test 2026-10-27 finding 34 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+   "escape_class": "path_test",
+   "symptom": "THE PROBLEM STATEMENT EXAMPLE TABLE RUNS COLUMNS TOGETHER; a stray '*' and an internal skill label are shown. Founder test 2026-10-27 finding 34 (case IMPR-2026-PDLWG9). belt_impact: degraded. WAVE 3, 2026-10-29 — fixed by R-C (e596485, 9ff0446): the teaching card is built in code from the skill's card parts, the example a table in the element's own columns (Question | Example) drawn by the page, under one label. D4 OCCURRENCE: the coach model wrote the card's example as Markdown from the script, labels included. D4 ESCAPE (path_test): no test drew the coach's example on the page. D6 VERIFY: test_g307 draws the problem statement card with the page's teachingCardHtml — each question and example in its own cells, one example label, no '*', no skill label. D7 PREVENT: test_g307; the card's example never passes through a model (ADR-0114)."
   },
   {
    "id": "G-308",
