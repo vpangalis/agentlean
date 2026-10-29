@@ -1,9 +1,9 @@
 {
- "source_hash": "55af0da71af14e46",
- "commit": "9ff0446",
+ "source_hash": "ebff706a195d4d2a",
+ "commit": "21e74c1",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T11:13:52+00:00",
+ "recorded_at": "2026-10-29T11:32:09+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -466,7 +466,7 @@
   "backend/tests/test_define_e2e.py::test_def_266_one_element_card_for_every_element_of_every_phase": "passed",
   "backend/tests/test_define_e2e.py::test_def_267_the_welcome_flows_straight_into_the_first_element_s": "passed",
   "backend/tests/test_define_e2e.py::test_def_268_training_needs_are_not_a_define_criterion_never_asked": "passed",
-  "backend/tests/test_define_e2e.py::test_def_269_scope_is_taught_read_back_and_shown_as_in": "skipped",
+  "backend/tests/test_define_e2e.py::test_def_269_scope_is_taught_read_back_and_shown_as_in": "passed",
   "backend/tests/test_define_e2e.py::test_def_270_calculations_by_code_shown_with_formula_and_result_offered": "skipped",
   "backend/tests/test_define_e2e.py::test_def_271_the_sipoc_is_collected_in_four_guided_parts_a": "skipped",
   "backend/tests/test_define_e2e.py::test_def_272_the_r18_link_check_is_a_flow_with_the": "skipped",

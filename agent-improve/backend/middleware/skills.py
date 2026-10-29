@@ -186,7 +186,7 @@ def _card_cells(table: str) -> str:
     table."""
     rows = [[c.strip() for c in ln.lstrip(">").strip().strip("|").split("|")] for ln in table.splitlines()]
     body = [r for r in rows[1:] if not all(set(c) <= set("-: ") for c in r)]
-    first = 1 if rows and rows[0] and rows[0][0] in ("Part", "Question") else 0
+    first = 1 if rows and rows[0] and rows[0][0] in ("Part", "Question", "Dimension") else 0
     return " ".join(c for r in body for c in r[first:])
 
 

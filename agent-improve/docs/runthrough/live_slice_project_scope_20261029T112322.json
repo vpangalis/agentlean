@@ -1,0 +1,97 @@
+{
+ "kind": "live_slice",
+ "element": "project_scope",
+ "case_id": "IMPR-2026-3PJFEG",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "rd_slice_messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "6238b33068ba1e22",
+ "seeded": [
+  "baseline_estimate",
+  "business_case",
+  "critical_to_quality",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "In: customer complaints logged at the Vienna service desk for Field Service Austria, from logging to informing the customer. Out: warranty claims, spare-parts logistics, the CRM system itself, other c",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "project_scope",
+   "recorded_move": null,
+   "seconds": 13.4,
+   "failed": null,
+   "answer": "Here’s the scope you provided. Let’s confirm it together:\n\n- **Out of scope:** Warranty claims, spare-parts logistics, the CRM system itself, other countries.\n\nIs this right?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.52 s",
+    "input guard 1.33 s",
+    "planner judgment 2.16 s",
+    "coach 3.06 s",
+    "grader 4.66 s",
+    "after the answer (steps, save) 1.13 s",
+    "total 13.42 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "read_back",
+   "move_field": "goal_statement",
+   "recorded_move": null,
+   "seconds": 4.1,
+   "failed": null,
+   "answer": "Stored: Scope.\n\nYou already gave the Goal in an earlier answer:\n“Our goal is to cut late closures from 38% to under 10% by 31.03.2027.”\n\nIs this right? Confirm to store it, or Change to give it again.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.33 s",
+    "input guard 1.30 s",
+    "after the answer (steps, save) 1.75 s",
+    "total 4.14 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 3,
+ "cost": {
+  "usd": 0.0161,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0158,
+   "gpt-4o-mini-2024-07-18": 0.0003
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 19.54,
+  "calls": 63,
+  "case": {
+   "seconds": 0.43,
+   "calls": 5
+  },
+  "store": {
+   "seconds": 0.34,
+   "calls": 6
+  },
+  "checkpoint": {
+   "seconds": 18.77,
+   "calls": 52
+  }
+ },
+ "started": "20261029T112322"
+}

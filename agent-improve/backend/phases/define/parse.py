@@ -325,6 +325,41 @@ _NEEDS = re.compile(r"(?i)^(?:(?:and|,|&)\s*)*(?:each\s+|both\s+)?(?:needs?|requ
 _TRAINING_CUE = re.compile(r"(?i)\bhalf an? (?:day|hour)\b|\b\d+\s*(?:days?|hours?)\s+(?:of|on)\b")
 
 
+#: R-D (founder ruling 2026-10-27, R4's amendment): the scope's dimensions, in the order the card asks for them, and the
+#: labels that name each in the Belt's or the read-back's words.
+SCOPE_DIMENSIONS: tuple[tuple[str, str], ...] = (
+    ("Process", r"process(?:es)?"),
+    ("Places", r"places?|sites?|departments?|countr(?:y|ies)|locations?|regions?"),
+    ("Products or services", r"products?(?:\s+or\s+services?)?|services?"),
+    ("Customers", r"customers?|segments?|clients?"),
+    ("Systems", r"systems?"),
+)
+_SCOPE_LABEL = re.compile(r"(?i)(?:^|(?<=[;\n.])\s*|(?<=,)\s+)(" + "|".join(p for _, p in SCOPE_DIMENSIONS)
+                          + r")\s*:\s*")
+
+
+def _scope_parts(text: Any) -> dict[str, str]:
+    """{dimension: its words} for each labelled part of one half of the scope ("Process: …; Places: …")."""
+    said = str(text or "")
+    found = list(_SCOPE_LABEL.finditer(said))
+    out: dict[str, str] = {}
+    for i, m in enumerate(found):
+        end = found[i + 1].start() if i + 1 < len(found) else len(said)
+        dim = next(name for name, pattern in SCOPE_DIMENSIONS if re.fullmatch(pattern, m.group(1), re.I))
+        piece = said[m.end():end].strip(" ;.\n")
+        out[dim] = f"{out[dim]}; {piece}" if dim in out and piece else piece or out.get(dim, "")
+    return out
+
+
+def scope_rows(in_scope: Any, out_scope: Any) -> list[list[str]]:
+    """R-D: the scope as one row per dimension, [dimension, in, out], in the card's order — from the labelled parts the
+    read-back stores ("Process: from complaint logged to closed; Places: Vienna, Linz"); "—" for a half a line leaves
+    empty; [] when neither half names a dimension (an answer from before R-D shows as one line)."""
+    inside, outside = _scope_parts(in_scope), _scope_parts(out_scope)
+    return [[name, inside.get(name) or "—", outside.get(name) or "—"] for name, _ in SCOPE_DIMENSIONS
+            if name in inside or name in outside]
+
+
 def uploaded_team(words: Any, proposed: Any) -> list[dict[str, str]]:
     """G-236 (DEF-229): an uploaded team as a Confirm stores it — the file's rows, read in code from its labelled lines
     (every column, training included), never the coach's re-typing of them; G-301 (DEF-264): a training line the Belt
@@ -1025,7 +1060,7 @@ def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
     return {"unmatched": where["unmatched"], "ends": where["ends"], "quiet": quiet, "ignored": ignored}
 
 
-__all__ = ["uploaded_team", "unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
+__all__ = ["SCOPE_DIMENSIONS", "scope_rows", "uploaded_team", "unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
            "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit",
            "STEP_KEYS", "DURATION_KEYS", "PROCESS_PERFORMANCE_KEYS", "period_value", "duration_value",
            "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch",

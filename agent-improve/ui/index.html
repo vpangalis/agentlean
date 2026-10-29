@@ -4804,7 +4804,10 @@ function defineReportHtml(rep, isPassed, approvedAt) {
   const viewHtml = v => {
     // DEF-265 (founder 2026-10-28): the team table's statuses explained in one line under it.
     if (v.kind === 'table') { const ctq = v.columns && v.columns[0] === 'Customer';
-      return viewTable(v, ctq ? 'gate-ctq' : 'gate-team') + viewWhy(v.why) + (ctq ? '' : viewWhy(v.note)); }
+      // R-D (founder ruling 2026-10-27): the scope's In / Out table by dimension.
+      const scope = v.columns && v.columns[0] === 'Dimension';
+      return viewTable(v, ctq ? 'gate-ctq' : scope ? 'gate-scope' : 'gate-team') + viewWhy(v.why)
+        + (ctq ? '' : viewWhy(v.note)); }
     if (v.kind === 'kv') return `<dl class="kv" style="display:grid;grid-template-columns:minmax(110px,170px) 1fr;gap:4px 12px;margin:6px 0;font-size:11px">${
       kvItems(v.figures, 'figure')}${kvItems(v.items, '')}</dl>` + (v.chart ? figure('baseline_target', chartHtml(v.chart)) : '');
     if (v.kind === 'boxes') return `<div class="scope-boxes" style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0">${

@@ -34,6 +34,8 @@ YOUR_ANSWER, FROM_FILE, CALCULATED, IN_ANSWER = "your answer", "from your file",
 #: The Gate's section letters, R5's seven in order (gate_view_mockup.html).
 SECTION_LETTERS: tuple[str, ...] = ("A", "B", "C", "D", "E", "F", "G")
 
+#: R-D: the scope table's columns, in the card's example, the read-back and the Gate.
+SCOPE_COLUMNS: tuple[str, ...] = ("Dimension", "In scope", "Out of scope")
 #: A row's value: text, a list of items, or a table {"columns": [...], "rows": [[...]]}; None when there is none.
 Value = Any
 #: (value, met) — `met` is the code check's answer, or None when the criterion is the judgment's to meet.
@@ -163,7 +165,9 @@ def _scope(values: dict[str, Any]) -> Read:
     if not isinstance(s, dict):
         return None, None
     inside, outside = plain(s.get("in_scope")), plain(s.get("out_scope"))
-    return {"boxes": [["In scope", inside or "—"], ["Out of scope", outside or "—"]]}, bool(inside and outside)
+    # R-D (founder ruling 2026-10-27): one line per dimension, In and Out — the read-back's and the Gate's table.
+    rows = parse.scope_rows(inside, outside) or [["Scope", inside or "—", outside or "—"]]
+    return {"columns": list(SCOPE_COLUMNS), "rows": rows}, bool(inside and outside)
 
 
 def _benefit(key: str) -> Callable[[dict[str, Any]], Read]:
@@ -885,8 +889,8 @@ def _view(field: str, artifacts: dict[str, Any], card: dict[str, Any], case: dic
             ["Baseline", _baseline_line(artifacts, by_id), FIELD_EXPLAIN["baseline_target"]]],
             **({"chart": chart} if (chart := _chart(artifacts)) else {})}
     if field == "project_scope":
-        boxes, _met = _scope(artifacts)
-        return {"kind": "boxes", "boxes": boxes["boxes"], "why": FIELD_EXPLAIN["scope"]} if boxes else None
+        table, _met = _scope(artifacts)
+        return {"kind": "table", **table, "why": FIELD_EXPLAIN["scope"]} if table else None
     return None
 
 

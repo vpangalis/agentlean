@@ -147,24 +147,36 @@
 > | Name · unit · meaning | invoice error rate · % · the share of invoices returned by clients for correction |
 
 **[6 · project_scope · required]**
-> **What it is:** The project's boundaries: where the process starts and ends, what is in, and — just as important — what is out.
+> **What it is:** The project's boundaries, line by line — the process (where it starts and ends), the places (sites, departments, countries), the products or services, the customers (segments) and the systems (which may be changed): for each, what is in and, just as important, what is out.
 > **Why it matters:** A project scoped too broadly is one of the commonest reasons projects stall. Saying what you are not doing protects the team from ballooning work.
-> **Show (illustration — not your data):** *"In: UK invoice generation, from order received to invoice sent. Out: payment collection, non-UK regions, the pricing database."*
-> **Ask:** Where does your process start and end? What is deliberately out of scope?
+> **Show (the In / Out table — illustration, not your data):**
+>
+> | Dimension | In scope | Out of scope |
+> |---|---|---|
+> | Process | from order received to invoice sent | payment collection |
+> | Places | UK billing | non-UK regions |
+> | Products or services | invoices for orders | — |
+> | Customers | — | — |
+> | Systems | the billing system | the pricing database |
+>
+> **Ask:** For each line — the process (where it starts and ends), the places, the products or services, the customers and the systems — what is in and what is out? Leave a line empty if it does not apply.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `in-and-out` — states both what is in and what is out (p. 51)
 > - `start-end` — the in-scope part has a start point and an end point (p. 26)
 > - `not-too-broad` — covers one process or area where the problem sits, not everything around it (p. 80)
-> **Read back:** both what is in and what is out — *"Is this right?"*
-> **Capture as:** `{in_scope, out_scope}` — both keys, both filled.
-> **Purpose:** Where the process starts and ends, what is in and what is out.
-> **Hint:** Say where the process starts and ends, then what is in and what is deliberately out.
+> **Read back:** the In / Out table, one line per dimension the Belt named — *"Is this right?"*
+> **Capture as:** `{in_scope, out_scope}` — both keys, both filled; each as one labelled part per dimension the Belt named, in their words: "Process: …; Places: …; Products or services: …; Customers: …; Systems: …".
+> **Purpose:** What is in and what is out, line by line.
+> **Hint:** One line per dimension; leave a line empty if it does not apply. No special format is needed.
 > **Help question:** How do I keep the scope from growing?
 > **Card example (the element's own columns — not your data):**
-> | Part | Example |
-> |---|---|
-> | Start and end point | from order received to invoice sent |
-> | In and out of scope | In: UK invoice generation. Out: payment collection, non-UK regions, the pricing database |
+> | Dimension | In scope | Out of scope |
+> |---|---|---|
+> | Process | from order received to invoice sent | payment collection |
+> | Places | UK billing | non-UK regions |
+> | Products or services | invoices for orders | — |
+> | Customers | — | — |
+> | Systems | the billing system | the pricing database |
 
 **[7 · goal_statement · required]**
 > **What it is:** The objective statement: how much improvement the project will deliver, on the primary metric, by when.

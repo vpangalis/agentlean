@@ -1430,7 +1430,7 @@ def _previous_sample(state: Any) -> str:
             card = (kw.get(TEACHING_CARD_KEY) or {}).get("example") or {}
             if card.get("rows"):
                 # R-C (ADR-0114): a teaching turn's sample is its card's example — its cells, never its row labels.
-                first = 1 if (card.get("columns") or [""])[0] in ("Part", "Question") else 0
+                first = 1 if (card.get("columns") or [""])[0] in ("Part", "Question", "Dimension") else 0
                 return " ".join(str(c) for row in card["rows"] for c in row[first:])
             return _strip_mark(str((kw.get("coaching_blocks") or {}).get("example") or ""))
     return ""

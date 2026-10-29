@@ -1692,6 +1692,11 @@ def test_r_c_each_define_element_carries_its_card_parts_and_no_model_reads_them(
         elif field == "problem_statement":
             assert columns == ["Question", "Example"]
             assert [r[0] for r in rows] == list(templates._FIVE_W_LABELS.values())  # the Gate's 5W2H map
+        elif field == "project_scope":
+            # R-D (founder ruling 2026-10-27): the In / Out table by dimension, as the read-back and the Gate show it.
+            from backend.phases.define.parse import SCOPE_DIMENSIONS
+            assert columns == list(templates.SCOPE_COLUMNS)
+            assert [r[0] for r in rows] == [name for name, _ in SCOPE_DIMENSIONS]
         else:
             assert columns == ["Part", "Example"]
             labels = {label for label, _read in templates.TEMPLATES[field].values()} | {"Soft benefits"}

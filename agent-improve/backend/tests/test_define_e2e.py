@@ -1417,9 +1417,9 @@ def test_the_define_report_has_the_visual_of_every_section(env) -> None:
     assert "<td>Project lead</td>" in card[1] and "<td>Champion</td>" in card[1], card[1][:1500]
     # 2 — the cost of the gap and the benefit, with its realisation timeline
     assert "benefit_timeline" in report["visuals"] and 'class="benefit-timeline"' in card[2], "section 2: the timeline"
-    # 3 — the 5W2H mind map; in and out of scope side by side
+    # 3 — the 5W2H mind map; in and out of scope side by side — R-D (founder ruling 2026-10-27): as the In / Out table
     assert 'id="report-mindmap"' in card[3] and "mindmap_5w2h" in report["visuals"], "section 3: the 5W2H mind map"
-    assert ">In scope</span>" in card[3] and ">Out of scope</span>" in card[3] and "display:flex" in card[3]  # DEF-178
+    assert 'class="gate-scope"' in card[3] and ">In scope</th>" in card[3] and ">Out of scope</th>" in card[3]  # DEF-178
     # 4 — customer need → CTQ
     assert ">Need</th>" in card[4] and ">CTQ (measurable)</th>" in card[4], "section 4: the CTQ table"
     # 5 — the baseline → target chart; the secondaries listed
@@ -6844,8 +6844,10 @@ def test_gate_view_section_c_follows_the_mockup() -> None:
         ["What", fw["what"]], ["Where", fw["where"]], ["When", fw["when"]], ["Who is affected", fw["who"]],
         ["Why it matters", fw["why"]], ["How it shows up", fw["how"]], ["How much", fw["how_much"]]]}, problem["view"]
     assert goal["statement"] == A99["goal_statement"] and goal["view"]["kind"] == "statement", goal.get("view")
-    assert scope["view"]["kind"] == "boxes" and scope["view"]["boxes"] == [
-        ["In scope", A99["project_scope"]["in_scope"]], ["Out of scope", A99["project_scope"]["out_scope"]]]
+    # R-D (founder ruling 2026-10-27): the scope is the In / Out table — an answer naming no dimension is one line.
+    assert scope["view"]["kind"] == "table" and scope["view"]["columns"] == ["Dimension", "In scope", "Out of scope"]
+    assert scope["view"]["rows"] == [
+        ["Scope", A99["project_scope"]["in_scope"], A99["project_scope"]["out_scope"]]], scope["view"]
     # The page.
     sec = _html_section(html, "C")
     four = sec.split('data-element="4"')[1].split('class="el-card gate-el"')[0]
@@ -6858,10 +6860,11 @@ def test_gate_view_section_c_follows_the_mockup() -> None:
     seven = sec.split('data-element="7"')[1].split('class="el-card gate-el"')[0]
     assert 'class="statement"' in seven and "from 38% to under 10%" in seven, seven[:600]
     six = sec.split('data-element="6"')[1].split('class="el-card gate-el"')[0]
-    assert six.count('class="scope-box"') == 2, six[:800]
-    labels = [part.split(">", 1)[1].split("</span>")[0] for part in six.split('<span class="lbl"')[1:]]
-    assert labels == ["In scope", "Out of scope"], (labels, six[:800])
-    assert "Warranty claims" in six.split(">Out of scope</span>")[1]
+    # R-D: the scope is drawn as its In / Out table — the Dimension, In scope and Out of scope columns.
+    assert six.count('class="gate-scope"') == 1, six[:800]
+    heads = [part.split(">", 1)[1].split("</th>")[0] for part in six.split("<th")[1:]]
+    assert heads == ["Dimension", "In scope", "Out of scope"], (heads, six[:800])
+    assert "Warranty claims" in six.split(">Out of scope</th>")[1]
     assert "In your answer" not in six and "In your answer" not in seven, "the boxes and the goal said twice"
 
 
@@ -7798,7 +7801,7 @@ def test_the_read_back_is_the_exact_value_a_confirm_stores(env, monkeypatch, stu
     assert "not stored" in said and "in and out of scope" in said, refused.json()["answer"]
     again = refused.json()["readback_card"]
     assert again["confirm"] is False and again["missing"] == ["In and out of scope"], again
-    assert again["rows"][0]["value"]["boxes"][0] == ["In scope", "PO invoices from receipt to payment"], again["rows"][0]
+    assert again["rows"][0]["value"]["rows"][0][:2] == ["Scope", "PO invoices from receipt to payment"], again["rows"][0]
 
 
 def test_every_reply_names_its_element_and_a_confirm_has_its_own_strip(env, monkeypatch, stub_planner) -> None:
@@ -10841,9 +10844,51 @@ def test_def_268_training_needs_are_not_a_define_criterion_never_asked(env, monk
     assert verdict is not None and verdict.status == "pass", verdict
 
 
-def test_def_269_scope_is_taught_read_back_and_shown_as_in() -> None:
-    """DEF-269 — R-D: scope is taught, read back and shown as In / Out per dimension (founder test 2026-10-27)"""
-    _not_written('DEF-269')
+def test_def_269_scope_is_taught_read_back_and_shown_as_in(env, monkeypatch, stub_planner) -> None:
+    """DEF-269 — R-D: scope is taught, read back and shown as In / Out per dimension (founder test 2026-10-27)
+
+    Founder test 2026-10-27 #40, #42: the scope summary listed only "Out of scope", and the card did not say that scope
+    means In / Out nor along which dimensions. Ruling R-D: taught as In / Out per dimension — process (start → end),
+    places, products or services, customers, systems — with an In / Out example table; the question asks for each
+    line, a line left empty when it does not apply; the read-back and the Gate show the same table. Through the routes
+    and graph: the card teaches it; the Belt's answer, read back as labelled parts, is one row per dimension it named
+    in the card, the read-back and Gate C, stored with one Confirm."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.phases.define import templates
+
+    _at_element(env, "project_scope")
+    card = _askd(env, message="Next, please.")["teaching_card"]
+    assert card["example"]["columns"] == ["Dimension", "In scope", "Out of scope"], card["example"]
+    assert [r[0] for r in card["example"]["rows"]] == ["Process", "Places", "Products or services", "Customers",
+                                                       "Systems"]
+    question = card["your_turn"]["question"]
+    assert "For each line" in question and "Leave a line empty" in question, question
+
+    scope = {"in_scope": "Process: from complaint logged to complaint closed; Places: the Vienna service desk, Field "
+                         "Service Austria; Customers: business customers",
+             "out_scope": "Places: Germany and Switzerland; Products or services: warranty claims, spare parts; "
+                          "Systems: the ticket system (no change)"}
+    words = ("In: complaints from business customers logged at the Vienna service desk for Field Service Austria, from "
+             "logging to closure. Out: Germany and Switzerland, warranty claims and spare parts; the ticket system stays.")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="in and out per dimension")
+    _coach_saying(monkeypatch, "Here is your scope, line by line. Is this right?",
+                  captured=[{"field_name": "project_scope", "value": scope, "source": "belt"}])
+    read = _askd(env, message=words)
+    assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], read["readback_card"]
+    table = next(r for r in read["readback_card"]["rows"] if r["id"] == "in-and-out")["value"]
+    expected = [["Process", "from complaint logged to complaint closed", "—"],
+                ["Places", "the Vienna service desk, Field Service Austria", "Germany and Switzerland"],
+                ["Products or services", "—", "warranty claims, spare parts"],
+                ["Customers", "business customers", "—"],
+                ["Systems", "—", "the ticket system (no change)"]]
+    assert table == {"columns": list(templates.SCOPE_COLUMNS), "rows": expected}, table
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE and _define(env)["structured"]["project_scope"] == scope
+
+    gate = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]["gate"]
+    view = next(c for sec in gate["sections"] for c in sec["elements"] if c["field"] == "project_scope")["view"]
+    assert view["kind"] == "table" and view["rows"] == expected, view
 
 
 def test_def_270_calculations_by_code_shown_with_formula_and_result_offered() -> None:
