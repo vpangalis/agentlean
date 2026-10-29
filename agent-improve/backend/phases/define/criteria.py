@@ -60,7 +60,7 @@ NO_CAUSE_NO_FIX = "no-cause-no-fix"          # also the problem statement's
 CHAMPION = "champion"
 PROCESS_OWNER = "process-owner"
 PEOPLE = "people"
-TRAINING = "training"
+TRAINING = "training"                          # R-B (2026-10-27): no longer a criterion; the Training column's key
 # 3 voice of the customer and CTQs
 CUSTOMERS = "customers"
 NEEDS = "needs"
@@ -124,7 +124,6 @@ CRITERIA: dict[str, tuple[tuple[str, str], ...]] = {
         (CHAMPION, "names a champion (sponsor) by name (p. 82)"),
         (PROCESS_OWNER, "names the process owner by name (p. 82)"),
         (PEOPLE, "each person has a name, a role and a function (p. 82)"),
-        (TRAINING, "says what training anyone needs, or that none is needed (p. 82)"),
     ),
     "voc_summary": (
         (CUSTOMERS, "names the customers, internal and/or external (p. 82)"),

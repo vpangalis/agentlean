@@ -779,7 +779,7 @@ not_an_answer.
 
 DEFINE_RUBRIC = """\
 - DEF-R01 business_case: states what is wrong, where and when, the baseline size and what it costs, and speculates about no cause and no solution (p. 49)
-- DEF-R02 team: names a champion and a process owner, and states any training a member needs (or that none is needed) (p. 82)
+- DEF-R02 team: names a champion and a process owner (p. 82)
 - DEF-R03 voc_summary: names the customers and their needs, with at least one CTQ stated as a measurable requirement (p. 29, 31, 82)
 - DEF-R04 problem_statement: describes the defect from the 5W2H answers with its size, and names no cause, no solution and no one to blame (p. 49, 51)
 - DEF-R05 baseline_estimate: exactly ONE primary metric (the first registered), quantified, linked to a KPI, from real data rather than a best guess (p. 58, 80)

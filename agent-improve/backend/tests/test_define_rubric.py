@@ -60,8 +60,10 @@ def test_r7s_criteria_are_the_ones_graded() -> None:
     text = DEFINE_RUBRIC.lower()
     for phrase in ("no cause and no solution", "exactly one primary metric", "linked to a kpi",
                    "side effect", "not too broad", "as-is", "champion and a process owner",
-                   "training", "real data rather than a best guess"):
+                   "real data rather than a best guess"):
         assert phrase in text, phrase
+    # R-B (founder ruling 2026-10-27): training needs are not a Define criterion — DEF-R02 names none.
+    assert "training" not in next(ln for ln in text.splitlines() if "def-r02" in ln)
 
 
 def test_the_g40_draft_is_superseded_and_archived() -> None:
@@ -179,7 +181,11 @@ def test_g129_the_grader_sees_each_elements_acceptance_criteria(monkeypatch) -> 
 def test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check() -> None:
     """G-133 (DEF-159): a team whose training is written in other words ("needs a half-day on data
     collection") is not failed by a word check; DEF-R02 then goes to the grader, which sees the
-    element's own criteria (G-129). A missing champion still fails in code."""
+    element's own criteria (G-129). A missing champion still fails in code.
+
+    R-B (founder ruling 2026-10-27): training needs are not a Define criterion, so DEF-R02 is the champion and the
+    process owner, both read in code — the team passes in code whatever it says of training, the grader is never
+    asked, and a missing champion still fails in code."""
     import asyncio
 
     from backend.validation import rubric
@@ -187,7 +193,8 @@ def test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check() -> N
     team = [{"name": "Tom", "role": "Champion", "function": "Finance Director"},
             {"name": "Lena", "role": "Process Owner", "function": "AP Manager"},
             {"name": "Dev", "role": "Team Member", "function": "AP clerk; needs a half-day on data collection"}]
-    assert rubric._code_half("DEF-R02", {"team": team}, __import__("datetime").date(2026, 9, 29)) is None
+    passed = rubric._code_half("DEF-R02", {"team": team}, __import__("datetime").date(2026, 9, 29))
+    assert passed is not None and passed.status == "pass" and "DEF-R02" in rubric.CODE_ONLY, passed
     asked: list = []
 
     async def judge(criteria, document):
@@ -195,7 +202,7 @@ def test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check() -> N
         return rubric.GraderVerdict(verdicts=[rubric.CriterionVerdict(criterion=c, status="pass")
                                               for c, _, _ in criteria])
     got = asyncio.run(rubric.grade_define({**COMPLETE, "team": team}, judge))
-    assert "DEF-R02" in asked and {v.criterion: v.status for v in got.verdicts}["DEF-R02"] == "pass"
+    assert "DEF-R02" not in asked and {v.criterion: v.status for v in got.verdicts}["DEF-R02"] == "pass"
     no_champion = [e for e in team if e["role"] != "Champion"]
     verdict = rubric._code_half("DEF-R02", {"team": no_champion}, __import__("datetime").date(2026, 9, 29))
     assert verdict is not None and verdict.status == "fail"

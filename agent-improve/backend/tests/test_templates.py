@@ -122,7 +122,12 @@ def test_the_structured_elements_show_the_values_that_go_into_the_gate() -> None
     # DEF-264 (G-297): the read-back's table has the Gate's Time and Training columns.
     assert team["people"]["value"]["rows"][2][:3] == ["Markus Steiner", "Process owner", "Service Desk Lead Vienna"]
     assert team["people"]["value"]["columns"] == ["Name", "Role", "Function", "Time", "Training"]
-    assert "Elena Gruber: half-day data collection" in team["training"]["value"]
+    # R-B (founder ruling 2026-10-27): training is no criterion — no row of its own; the table's Training column keeps
+    # what was given, and says "not stated" where nothing was.
+    assert "training" not in team
+    training = {row[0]: row[4] for row in team["people"]["value"]["rows"]}
+    assert training["Elena Gruber"] == "half-day data collection" and training["Katharina Huber"] == "none"
+    assert training["Vassilis Pangalis"] == templates.NOT_STATED, training
     voc = {r["id"]: r for r in templates.rows("voc_summary", A99)}
     assert voc["ctq"]["value"]["rows"][0][2].startswith("Closed within 5 working days")
     problem = {r["id"]: r for r in templates.rows("problem_statement", A99)}
@@ -188,11 +193,15 @@ def test_a_value_read_from_a_file_and_a_calculated_one_name_their_source() -> No
 def test_a_required_criterion_a_code_check_finds_open_closes_confirm() -> None:
     """ADR-0093 decision 2: the code checks are the ones a Confirm is refused on (ADR-0088's parts, a number, a
     date, the SIPOC's columns) and both scope halves; anything else is the judgment's to meet."""
+    # R-B (founder ruling 2026-10-27): a team stating no training confirms; one with no process owner does not.
     no_training = [{k: v for k, v in m.items() if k != "training"} for m in A99["team"]]
-    card = templates.card("team", {**A99, "team": no_training})
-    assert not card["confirm"] and card["missing"] == ["Training needed"], card["missing"]
-    assert card["ask"] == "Still needed before you can confirm: training needed."
-    assert templates.open_required("team", {**A99, "team": no_training}) == ["training"]
+    assert templates.card("team", {**A99, "team": no_training})["confirm"]
+    assert templates.open_required("team", {**A99, "team": no_training}) == []
+    no_owner = [m for m in A99["team"] if m["role"] != "Process owner"]
+    card = templates.card("team", {**A99, "team": no_owner})
+    assert not card["confirm"] and card["missing"] == ["Process owner"], card["missing"]
+    assert card["ask"] == "Still needed before you can confirm: process owner."
+    assert templates.open_required("team", {**A99, "team": no_owner}) == ["process-owner"]
     assert templates.open_required("project_scope", {**A99, "project_scope": {"in_scope": "Austria"}}) == ["in-and-out"]
     assert templates.open_required("target_date", {**A99, "target_date": "next spring"}) == ["a-date"]
     assert templates.open_required("process_map_sipoc", {**A99, "process_map_sipoc": {

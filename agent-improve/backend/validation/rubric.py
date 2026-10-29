@@ -47,14 +47,14 @@ DEFINE_CRITERIA: tuple[tuple[str, str, str], ...] = tuple(
 
 #: The criteria decided entirely in code; the rest reach the model when their
 #: code half (if any) does not settle them.
-#: DEF-R02 (G-133) is not code-only: code settles the parts it can read — the champion, the process owner, and the
-#: training when it is written in so many words — and the grader judges the rest (the training said in other words)
-#: against the element's own criteria, so the element check and the gate cannot disagree.
+#: DEF-R02 is code-only since R-B (founder ruling 2026-10-27): training needs are not a Define criterion, so the team's
+#: criterion is the champion and the process owner, both read in code (parse.missing_parts) — the element check and
+#: the gate cannot disagree.
 #: DEF-R13 (G-263, founder ruling 2026-10-27, item 1's fallback): whether the barriers belong to THIS project is
 #: read in code — the model's verdict flipped with the layout of its prompt on the same barriers.
 #: DEF-R10 (founder ruling 2026-10-27, item 2, E19): no question about working — code computes the saving with the
 #: ratified formula and the read-back shows the working line; the four parts are code's to check.
-CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09", "DEF-R10", "DEF-R13"})
+CODE_ONLY: frozenset[str] = frozenset({"DEF-R02", "DEF-R08", "DEF-R09", "DEF-R10", "DEF-R13"})
 
 Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
@@ -102,9 +102,7 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
         missing = missing_parts("team", team)
         if not team or missing:
             return _fail(cid, "The team does not state " + ("; ".join(missing) or "its members") + ".")
-        # Training written as "train…" settles it; said in other words ("needs a half-day on data
-        # collection"), it is the grader's to judge against the element's criteria (G-133).
-        return _pass(cid) if any("train" in _text(e).lower() for e in team) else None
+        return _pass(cid)
     if cid == "DEF-R03":
         ctqs = [c for c in (a.get("critical_to_quality") or []) if isinstance(c, dict)]
         missing = missing_parts("critical_to_quality", ctqs)

@@ -814,7 +814,7 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
             # G-236 (DEF-229): a read-back of an uploaded table stores the file's rows, read in code from its
             # labelled lines (every column, training included) — never the coach's re-typing of them. G-301
             # (DEF-264): a training line the Belt typed to complete the file goes to each named member's own column.
-            value = parse.with_typed_training(parse.team_rows(words), words)
+            value = parse.uploaded_team(words, value)
         if phase == "define" and f == "critical_to_quality" and isinstance(value, list):
             # ADR-0088 decision 2: the rows as the Belt stated them, never a cross product.
             value = parse.ctq_rows(value)

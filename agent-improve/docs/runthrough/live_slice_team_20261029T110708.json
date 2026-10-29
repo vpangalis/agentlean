@@ -1,0 +1,89 @@
+{
+ "kind": "live_slice",
+ "element": "team",
+ "case_id": "IMPR-2026-SSJ2PY",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "rb_slice_messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "2745c8fc0604a0b4",
+ "seeded": [
+  "business_case"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "📎 team_field_service.csv",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 12.4,
+   "failed": null,
+   "answer": "I've read your file team_field_service.csv. For Team it shows: names a champion (sponsor) by name; names the process owner by name; each person has a name, a role and a function. It covers everything Team asks for.\n\nHere is the team structure you provided. Please confirm if this is correct:\n\n- Katharina Huber: Project Sponsor, Head of Field Service Austria, 2 hours per month\n- Markus Steiner: Proc",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.29 s",
+    "input guard 1.31 s",
+    "coach 6.95 s",
+    "grader 1.89 s",
+    "after the answer (steps, save) 1.33 s",
+    "total 12.37 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "voc_summary",
+   "recorded_move": null,
+   "seconds": 4.2,
+   "failed": null,
+   "answer": "Team saved: 5 people.\n\nElement 3 of 13 · Voice of the customer and CTQs: Who are the customers of your process, and what do they need or complain about most? For each need, how would you measure that it is met?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.35 s",
+    "input guard 1.28 s",
+    "after the answer (steps, save) 2.01 s",
+    "total 4.17 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 3,
+ "cost": {
+  "usd": 0.0157,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0149,
+   "gpt-4o-mini-2024-07-18": 0.0008
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 20.38,
+  "calls": 68,
+  "case": {
+   "seconds": 0.5,
+   "calls": 7
+  },
+  "checkpoint": {
+   "seconds": 19.47,
+   "calls": 53
+  },
+  "store": {
+   "seconds": 0.41,
+   "calls": 8
+  }
+ },
+ "started": "20261029T110708"
+}

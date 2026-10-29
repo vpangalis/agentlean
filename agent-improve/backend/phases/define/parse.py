@@ -325,6 +325,20 @@ _NEEDS = re.compile(r"(?i)^(?:(?:and|,|&)\s*)*(?:each\s+|both\s+)?(?:needs?|requ
 _TRAINING_CUE = re.compile(r"(?i)\bhalf an? (?:day|hour)\b|\b\d+\s*(?:days?|hours?)\s+(?:of|on)\b")
 
 
+def uploaded_team(words: Any, proposed: Any) -> list[dict[str, str]]:
+    """G-236 (DEF-229): an uploaded team as a Confirm stores it — the file's rows, read in code from its labelled lines
+    (every column, training included), never the coach's re-typing of them; G-301 (DEF-264): a training line the Belt
+    typed goes to each named member's own column. R-B (DEF-268): a person the Belt typed to complete the file — its
+    draft lacked a champion or a process owner — is added from the read-back's own value (`proposed`), but only one
+    whose name the Belt's words carry: the file's rows stay as the file states them."""
+    rows = with_typed_training(team_rows(words), words)
+    named = {str(r.get("name") or "").strip().lower() for r in rows}
+    said = str(words or "")
+    typed = [m for m in (proposed if isinstance(proposed, list) else []) if isinstance(m, dict)
+             and (name := str(m.get("name") or "").strip()) and name.lower() not in named and name in said]
+    return rows + typed
+
+
 def with_typed_training(rows: list[dict[str, str]], words: Any) -> list[dict[str, str]]:
     """G-301 (DEF-264, founder test 2026-10-27 #28): the team rows with a typed training line read into each named
     member's own `training` — the clause that names them, without their names ("a half-day on data collection");
@@ -369,7 +383,8 @@ def with_typed_training(rows: list[dict[str, str]], words: Any) -> list[dict[str
 
 def missing_parts(field: str, value: Any) -> list[str]:
     """ADR-0088 decision 6: the required parts of an element R7 names that `value` lacks, in the Belt's words —
-    the seven 5W2H answers (DEF-R04); a champion, a process owner and training stated (DEF-R02); customers, needs
+    the seven 5W2H answers (DEF-R04); a champion and a process owner (DEF-R02; R-B, 2026-10-27: training is not a Define
+    criterion); customers, needs
     and at least one measurable CTQ (DEF-R03); a calendar target date (decision 5); when the saving shows (G-255).
     Empty when complete, or for an element with no parts to check."""
     def text(v: Any) -> str:
@@ -379,11 +394,8 @@ def missing_parts(field: str, value: Any) -> list[str]:
         return [f"the 5W2H answer{'s' if len(blank) > 1 else ''} to {' and '.join(blank)}"] if blank else []
     if field == "team" and isinstance(value, list):
         everyone = " ".join(text(e) for e in value)
-        # G-236: a member's own `training` entry states it, in whatever words ("none" included).
-        trained = any(isinstance(e, dict) and str(e.get("training") or "").strip() for e in value)
-        return [part for part, pattern in (("a champion", _CHAMPION), ("a process owner", _OWNER),
-                                           ("the training anyone needs, or that none is needed", _TRAINING))
-                if not pattern.search(everyone) and not (pattern is _TRAINING and trained)]
+        return [part for part, pattern in (("a champion", _CHAMPION), ("a process owner", _OWNER))
+                if not pattern.search(everyone)]
     if field == "critical_to_quality" and isinstance(value, list):
         rows = [r for r in value if isinstance(r, dict)]
         out = [part for part, key in (("the customer of each CTQ", "customer"), ("the need behind each CTQ", "need"))
@@ -1013,7 +1025,7 @@ def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
     return {"unmatched": where["unmatched"], "ends": where["ends"], "quiet": quiet, "ignored": ignored}
 
 
-__all__ = ["unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
+__all__ = ["uploaded_team", "unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
            "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit",
            "STEP_KEYS", "DURATION_KEYS", "PROCESS_PERFORMANCE_KEYS", "period_value", "duration_value",
            "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch",

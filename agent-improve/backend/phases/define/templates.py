@@ -53,7 +53,7 @@ def _named(values: dict[str, Any], pattern: Any) -> Read:
 def _people(values: dict[str, Any]) -> Read:
     # G-297 (DEF-264, founder test 2026-10-27 #24): the read-back's table has the Gate's Time and Training columns —
     # a file's time commitment was in the coach's bullet list but not in the table.
-    rows = [[str(m.get(k) or "—") for k in TEAM_MEMBER_KEYS] + [_time_of(m), _member_training(m) or "—"]
+    rows = [[str(m.get(k) or "—") for k in TEAM_MEMBER_KEYS] + [_time_of(m), _member_training(m) or NOT_STATED]
             for m in _team(values)]
     return ({"columns": ["Name", "Role", "Function", "Time", "Training"], "rows": rows} if rows else None), None
 
@@ -68,15 +68,6 @@ def _member_training(m: dict[str, Any]) -> Optional[str]:
         # Training stated inside the name, role or function: the clause that states it, not the whole entry.
         hit = next((c.strip() for c in re.split(r"[;,.]", plain(m)) if parse._TRAINING.search(c)), None)
     return hit or None
-
-
-def _training(values: dict[str, Any]) -> Read:
-    said = []
-    for m in _team(values):
-        hit = _member_training(m)
-        if hit:
-            said.append(f"{m.get('name') or m.get('role') or '—'}: {hit}")
-    return ("; ".join(said) or None), not parse.missing_parts("team", _team(values)) or bool(said)
 
 
 def _ctqs(values: dict[str, Any]) -> list[dict[str, Any]]:
@@ -310,7 +301,6 @@ TEMPLATES: dict[str, dict[str, tuple[str, Callable[[dict[str, Any]], Read]]]] = 
         define_criteria.CHAMPION: ("Champion (sponsor)", lambda v: _named(v, parse._CHAMPION)),
         define_criteria.PROCESS_OWNER: ("Process owner", lambda v: _named(v, parse._OWNER)),
         define_criteria.PEOPLE: ("Each person: name, role, function", _people),
-        define_criteria.TRAINING: ("Training needed", _training),
     },
     "voc_summary": {
         define_criteria.CUSTOMERS: ("Customers", _ctq_part("customer", "customer")),
@@ -670,6 +660,9 @@ def gate_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any
 
 
 #: DEF-176: a team entry's column for the time on the project, whatever the file called it (DEF-229 keeps them all).
+#: R-B (founder ruling 2026-10-27): training needs are not a criterion — a team member's Training cell says so when
+#: neither the Belt nor the team file gave one.
+NOT_STATED = "not stated"
 _TIME = re.compile(r"time|hours|commitment|availab|capacity", re.I)
 _LEAD = re.compile(r"\blead(?:er)?\b", re.I)
 _DASH = "—"
@@ -730,7 +723,7 @@ def _team_table(artifacts: dict[str, Any], case: dict[str, Any], *, before_confi
         rows.append([lead or str(e.get("name") or _DASH), "Project lead",
                      str(e.get("function") or (record or {}).get("function") or "").strip()
                      or (f"{belt.capitalize()} Belt" if belt else _DASH),
-                     _time_of(e) if e else _DASH, (_member_training(e) if e else None) or _DASH, LEAD_STATUS])
+                     _time_of(e) if e else _DASH, (_member_training(e) if e else None) or NOT_STATED, LEAD_STATUS])
     rest = [m for m in team if m is not entry]
     champions = [m for m in rest if parse._CHAMPION.search(str(m.get("role") or ""))]
     order = champions + [m for m in rest if parse._OWNER.search(str(m.get("role") or ""))
@@ -744,7 +737,7 @@ def _team_table(artifacts: dict[str, Any], case: dict[str, Any], *, before_confi
             role = f"{role} (Champion)" if role else "Champion"        # DEF-100: the report names the Champion
         rows.append([str(m.get("name") or "").strip() or _DASH, role or _DASH,
                      str(m.get("function") or "").strip() or _DASH, _time_of(m),
-                     _member_training(m) or _DASH, status(p)])
+                     _member_training(m) or NOT_STATED, status(p)])
     for p in people:                                   # on the case, not named in element 2
         if any(p is q for q in shown):
             continue

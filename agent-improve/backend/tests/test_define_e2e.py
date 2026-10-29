@@ -2383,8 +2383,11 @@ def test_g236_an_uploaded_team_list_keeps_its_training_column_and_confirm_opens(
     assert seen["move"] == "read_back" and seen["move_field"] == "team", (seen["move"], seen["move_field"],
                                                                           seen["answer"])
     card = seen["readback_card"]
-    training = next(row for row in card["rows"] if row["id"] == "training")
-    assert training["met"], ("the parts check refused the file's training column", card["rows"])
+    # R-B (founder ruling 2026-10-27): no training row; the file's Training column is kept in the people table.
+    assert "training" not in [row["id"] for row in card["rows"]], card["rows"]
+    table = next(row for row in card["rows"] if row["id"] == "people")["value"]
+    cells = {r[0]: r[table["columns"].index("Training")] for r in table["rows"]}
+    assert cells["Elena Gruber"] == "half a day on data collection before Measure" and cells["Sabine Hofer"] == "none"
     assert card["confirm"], ("Confirm is closed", card["missing"])
 
     used = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
@@ -6751,7 +6754,7 @@ def test_gate_view_section_a_follows_the_mockup() -> None:
     # DEF-265 (founder test 2026-10-27 #21, #29; the words ruled 2026-10-28): the lead's status matches the role, the
     # others' are plain words, and one line under the table explains them.
     assert view["rows"] == [
-        ["Vassilis Pangalis", "Project lead", "Green Belt", "—", "—", "Leads the project"],
+        ["Vassilis Pangalis", "Project lead", "Green Belt", "—", "not stated", "Leads the project"],   # R-B
         ["Katharina Huber", "Project Sponsor (Champion)", "Head of Field Service Austria", "2 h per month", "none",
          "On the case"],
         ["Markus Steiner", "Process owner", "Service Desk Lead Vienna", "4 h per week", "none", "—"],
@@ -7313,8 +7316,9 @@ def test_an_element_is_read_back_and_stored_only_with_all_its_required_parts(env
     # The badge counts what is stored; the team's and the CTQs' parts are named as R7 states them.
     html = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
     assert "Confirmed — 7 / 7" not in html and "${captured} / ${total}" in html
+    # R-B (founder ruling 2026-10-27): training is not a Define criterion — the team's parts are its champion and owner.
     assert parse.missing_parts("team", [{"name": "Priya", "role": "Belt", "function": "lead"}]) == [
-        "a champion", "a process owner", "the training anyone needs, or that none is needed"]
+        "a champion", "a process owner"]
     assert parse.missing_parts("team", COMPLETE["team"]) == []
     assert parse.missing_parts("critical_to_quality", [{"customer": "suppliers", "need": "on time",
                                                         "requirement": "paid on time"}]) == [
@@ -7741,9 +7745,10 @@ def test_the_read_back_is_the_exact_value_a_confirm_stores(env, monkeypatch, stu
     pending = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["field_status"]["team"]["pending"]
     stored_team = pending["store"]["team"]
     rows = {r["id"]: r for r in card["rows"]}
-    assert [r["id"] for r in card["rows"]] == ["champion", "process-owner", "people", "training"]
+    # R-B (founder ruling 2026-10-27): no training row — training is not a Define criterion.
+    assert [r["id"] for r in card["rows"]] == ["champion", "process-owner", "people"]
     assert (card["n"], card["of"], card["name"], card["met"], card["total"], card["confirm"]) == (
-        2, 13, "Team", 4, 4, True), card
+        2, 13, "Team", 3, 3, True), card
     # DEF-264 (G-297) and DEF-265 (G-295): the read-back's table is the Gate's — the lead first, then each person
     # with their Time, Training and Status.
     people_rows = rows["people"]["value"]["rows"]
@@ -7753,7 +7758,7 @@ def test_the_read_back_is_the_exact_value_a_confirm_stores(env, monkeypatch, stu
     assert rows["champion"]["value"] == "Katharina Huber" and rows["process-owner"]["value"] == "Markus Steiner"
     html = _draw_turn({"role": "ai", "text": "Here is your team. Is this right?", "move": "read_back",
                        "readback_card": card})
-    assert "Element 2 of 13" in html and "4 of 4 criteria met" in html and "Katharina Huber" in html
+    assert "Element 2 of 13" in html and "3 of 3 criteria met" in html and "Katharina Huber" in html
     assert 'id="rb-confirm"' in html and "disabled" not in html.split('id="rb-confirm"')[1].split(">")[0]
 
     coach_says("Stored.")
@@ -8432,7 +8437,10 @@ def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps(env, monkeypatch) 
     covers an element only partly is read back as a DRAFT table with its gaps marked. Through the routes and graph:
     the team file has no training column; the upload turn reads the five people back as a draft — the card marks
     training as missing and Confirm is closed, nothing is stored; a Confirm is refused; the Belt adds the training
-    in a message; the read-back is made again with it, Confirm opens, and the team is stored with the training."""
+    in a message; the read-back is made again with it, Confirm opens, and the team is stored with the training.
+
+    R-B (founder ruling 2026-10-27): training is no longer a Define criterion, so a file without it is complete; the
+    draft's gap here is the process owner the file does not name — the Belt adds him in a message."""
     from backend.core import prompts as P
     from backend.gateway import routes
     from backend.middleware.skills import acceptance_criteria
@@ -8440,8 +8448,8 @@ def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps(env, monkeypatch) 
     from backend.storage.models import ElementCheck, UploadInterpretation
     from backend.upload import agent as upload_agent
 
-    filename = "team_no_training.csv"
-    csv = chr(10).join(TEAM_FIELD_SERVICE.splitlines()[i].rsplit(",", 1)[0] for i in range(6)) + chr(10)
+    filename = "team_no_owner.csv"
+    csv = chr(10).join(line for line in TEAM_FIELD_SERVICE.splitlines() if not line.startswith("Markus")) + chr(10)
     people = [line.split(",")[:3] for line in csv.splitlines()[1:]]
 
     async def upload_file(*a, **k):
@@ -8451,10 +8459,10 @@ def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps(env, monkeypatch) 
         return "idx-team-2"
 
     async def interpret(filename_, parsed, case_meta, phase, element=None):
-        return UploadInterpretation(summary="The project team, without training.", element_check=ElementCheck(
+        return UploadInterpretation(summary="The project team, without its process owner.", element_check=ElementCheck(
             element=element, value=chr(10).join(f"{n} — {r}, {f}" for n, r, f in people),
-            missing=["the training needed"],
-            criteria=[{"criterion": cid, "result": "not_covered" if cid == "training" else "supported"}
+            missing=["the process owner"],
+            criteria=[{"criterion": cid, "result": "not_covered" if cid == "process-owner" else "supported"}
                       for cid, _ in acceptance_criteria("define", element)]))
 
     monkeypatch.setattr(routes.blob, "upload_file", upload_file)
@@ -8474,8 +8482,9 @@ def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps(env, monkeypatch) 
                                           "message": f"📎 {filename}"}).json()
     assert draft["move"] == "read_back" and draft["move_field"] == "team", (draft["move"], draft.get("move_field"))
     card = draft["readback_card"]
-    training = next(row for row in card["rows"] if row["id"] == "training")
-    assert training["required"] and not training["met"], card["rows"]
+    owner = next(row for row in card["rows"] if row["id"] == "process-owner")
+    assert owner["required"] and not owner["met"], card["rows"]
+    assert "training" not in [row["id"] for row in card["rows"]], card["rows"]          # R-B: never a gap
     assert not card["confirm"], "Confirm is open on a draft with a gap"
     assert P.UPLOAD_DRAFT_ASK in draft["answer"] or P.UPLOAD_DRAFT_ASK in (draft.get("prompt") or ""), draft["answer"]
     stored = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]
@@ -8486,27 +8495,27 @@ def test_a_partial_file_is_read_back_as_a_draft_with_its_gaps(env, monkeypatch) 
     assert refused["move"] != "store_and_advance", refused["move"]
     assert "team" not in env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]
 
-    words = "Elena Gruber and Thomas Wagner need half a day on data collection before Measure; the others none."
-    _coach_saying(monkeypatch, "Here is your team with the training added. Is this right?", captured=[
+    words = "Markus Steiner, Service Desk Lead Vienna, is our process owner."
+    _coach_saying(monkeypatch, "Here is your team with the process owner added. Is this right?", captured=[
         {"field_name": "team", "source": "belt",
-         "value": [{"name": n, "role": r, "function": f,
-                    "training": "half a day on data collection before Measure" if n in ("Elena Gruber", "Thomas Wagner")
-                    else "none"} for n, r, f in people]}])
+         "value": [*({"name": n, "role": r, "function": f} for n, r, f in people),
+                   {"name": "Markus Steiner", "role": "Process Owner", "function": "Service Desk Lead Vienna"}]}])
     added = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": words}).json()
-    assert added["move"] == "read_back", added["move"]
-    assert next(row for row in added["readback_card"]["rows"] if row["id"] == "training")["met"], added["readback_card"]
+    assert added["move"] == "read_back", (added["move"], added["answer"])
+    owner_met = next(row for row in added["readback_card"]["rows"] if row["id"] == "process-owner")["met"]
+    assert owner_met, added["readback_card"]
     done = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
                                          "message": "Confirm", "action": "confirm"}).json()
     assert done["move"] == "store_and_advance", done["move"]
     team = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["structured"]["team"]
-    assert {m["name"]: m.get("training") for m in team}["Elena Gruber"].startswith("half a day"), team
+    assert {m["name"]: m["role"] for m in team}["Markus Steiner"] == "Process Owner", team
 
     # the rule itself
     up: dict[str, Any] = {"filename": filename, "element_check": {"element": "team", "value": "Katharina Huber — Sponsor",
-          "missing": ["the training needed"], "criteria": [{"criterion": "training", "result": "not_covered"}]}}
+          "missing": ["the process owner"], "criteria": [{"criterion": "process-owner", "result": "not_covered"}]}}
     assert moves.covering_upload("team", up) is None
     assert moves.partial_upload("team", up) == {"filename": filename, "value": "Katharina Huber — Sponsor",
-                                                 "missing": ["the training needed"]}
+                                                 "missing": ["the process owner"]}
     assert moves.partial_upload("business_case", up) is None                       # another element
     assert moves.partial_upload("team", {**up, "element_check": {**up["element_check"], "value": ""}}) is None
 
@@ -10373,7 +10382,8 @@ def _founder_1027_at_benefits(env, monkeypatch, stub_planner) -> None:
 
 def test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns(env, monkeypatch) -> None:
     """DEF-264 — founder test 2026-10-27 (IMPR-2026-PDLWG9), findings #28 and #24: the Belt uploads the four-column
-    team file (no training column), the draft read-back names training as missing, the Belt presses Change and
+    team file (no training column) — R-B (founder ruling 2026-10-27, DEF-268): training is no longer a criterion, so
+    the file's read-back opens Confirm with training "not stated" — the Belt presses Change and
     types "Training: Elena Gruber and Thomas Wagner need a half-day on data collection; nobody else.", then
     confirms. Through the routes and graph, with the coach capturing as it did live ({name, role, function}, the
     time and the training packed into `function`): each stored entry keeps the file's time commitment under its own
@@ -10397,12 +10407,11 @@ def test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns(env, 
         return "idx-team-1027"
 
     async def interpret(filename_, parsed, case_meta, phase, element=None):
-        # As live: the file covers the team except its training.
+        # R-B: the team's criteria name no training, so the file covers every one of them.
         return UploadInterpretation(summary="The project team for Field Service Austria.", element_check=ElementCheck(
             element=element, value="\n".join(f"{n} — {r}, {d}, {t}" for n, r, d, t in people),
-            missing=["details on training needs for team members"],
-            criteria=[{"criterion": cid, "result": "not_covered" if cid == "training" else "supported"}
-                      for cid, _ in acceptance_criteria("define", element)]))
+            missing=[], criteria=[{"criterion": cid, "result": "supported"}
+                                  for cid, _ in acceptance_criteria("define", element)]))
 
     monkeypatch.setattr(routes.blob, "upload_file", upload_file)
     monkeypatch.setattr(routes, "_index_upload", index)
@@ -10420,7 +10429,8 @@ def test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns(env, 
     assert r.status_code == 200, r.text
     draft = _askd(env, message=f"📎 {filename}")
     assert draft["move"] == "read_back" and draft["move_field"] == "team", (draft["move"], draft.get("move_field"))
-    assert not draft["readback_card"]["confirm"], draft["readback_card"]           # the draft: training missing
+    assert draft["readback_card"]["confirm"], draft["readback_card"]       # R-B: training never blocks a Confirm
+    assert "training" not in [r["id"] for r in draft["readback_card"]["rows"]], draft["readback_card"]["rows"]
 
     _coach_saying(monkeypatch, "What would you like to change?")
     changed = _askd(env, message="Change", action="change")
@@ -10779,9 +10789,56 @@ process.stdout.write(JSON.stringify({{html:welcomeHtml(S.case.welcome),first,lat
     assert env.client.get(f"/cases/{CASE_ID}").json()["welcome"].get("card") is None, "the welcome repeats the card"
 
 
-def test_def_268_training_needs_are_not_a_define_criterion_never_asked() -> None:
-    """DEF-268 — R-B: training needs are not a Define criterion — never asked, never blocking; stored in Training when given (founder test 2026-10-27)"""
-    _not_written('DEF-268')
+def test_def_268_training_needs_are_not_a_define_criterion_never_asked(env, monkeypatch, stub_planner) -> None:
+    """DEF-268 — R-B: training needs are not a Define criterion — never asked, never blocking; stored in Training when given (founder test 2026-10-27)
+
+    Founder test 2026-10-27 #26: "Training needed" was asked and blocked Confirm with no explanation why. Ruling R-B:
+    the coach does not ask for training; it never blocks Confirm or the gate; given, it is stored in the team table's
+    Training column, otherwise "not stated". Checked at every owner — the element's criteria, the skill's question,
+    card and read-back, the parts check, the gate rubric — and through the routes and graph: a team naming its lead,
+    champion, process owner and members and no training is read back with Confirm open, stored with one Confirm, the
+    Gate's team table says "not stated", and gate criterion DEF-R02 passes in code."""
+    from backend.core.prompts import DEFINE_RUBRIC
+    from backend.core.substate import SufficiencyJudgment
+    from backend.middleware.skills import card_parts, element_text
+    from backend.phases import moves
+    from backend.phases.define import criteria, parse, templates
+    from backend.validation import rubric
+
+    assert criteria.TRAINING not in [cid for cid, _ in criteria.criteria("team")]
+    assert "training" not in element_text("define", "team", "Ask").lower()
+    assert "training" not in element_text("define", "team", "Read back").lower()
+    assert "training" not in card_parts("define", "team")["question"].lower()
+    rule = next(ln for ln in DEFINE_RUBRIC.splitlines() if "DEF-R02" in ln)
+    assert "training" not in rule.lower() and "DEF-R02" in rubric.CODE_ONLY, rule
+
+    team = [{"name": "Priya Shah", "role": "Project lead", "function": "Green Belt"},
+            {"name": "Tom Okafor", "role": "Champion", "function": "Finance Director"},
+            {"name": "Lena Hart", "role": "Process owner", "function": "AP manager"}]
+    assert parse.missing_parts("team", team) == []
+
+    _coached_at(env, stub_planner, "team")
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="champion, owner and members named")
+    words = "Priya Shah leads it as Green Belt; Tom Okafor, Finance Director, is our champion; Lena Hart owns the AP process."
+    _coach_saying(monkeypatch, "Here is your team. Is this right?",
+                  captured=[{"field_name": "team", "value": team, "source": "belt"}])
+    read = _askd(env, message=words)
+    card = read["readback_card"]
+    assert read["move"] == moves.READ_BACK and card["confirm"], (read["move"], card)
+    assert not [r for r in card["rows"] if "training" in (r["id"] + r["label"]).lower()], card["rows"]
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE and done["teaching_card"]["saved"]["fields"] == ["team"], done
+    stored = _define(env)["structured"]["team"]
+    assert [m["name"] for m in stored] == ["Priya Shah", "Tom Okafor", "Lena Hart"], stored
+
+    gate = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]["gate"]
+    cards = {c["field"]: c for sec in gate["sections"] for c in sec["elements"]}
+    table = next(r["value"] for r in cards["team"]["rows"] if isinstance(r.get("value"), dict)
+                 and r["value"].get("columns"))
+    col = table["columns"].index("Training")
+    assert {row[0]: row[col] for row in table["rows"]}["Tom Okafor"] == templates.NOT_STATED, table
+    verdict = rubric._code_half("DEF-R02", {"team": stored}, __import__("datetime").date.today())
+    assert verdict is not None and verdict.status == "pass", verdict
 
 
 def test_def_269_scope_is_taught_read_back_and_shown_as_in() -> None:
