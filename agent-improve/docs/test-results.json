@@ -1,9 +1,9 @@
 {
- "source_hash": "f98df011e2a85007",
- "commit": "54ce501",
+ "source_hash": "55a70e7d89f5b993",
+ "commit": "b2d304c",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T16:26:45+00:00",
+ "recorded_at": "2026-10-29T20:34:27+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1680,6 +1680,8 @@
   "backend/tests/test_size_budget.py::test_the_guard_passes_a_staged_document_inside_its_bound": "passed",
   "backend/tests/test_size_budget.py::test_the_guard_refuses_a_staged_document_over_its_bound": "passed",
   "backend/tests/test_size_budget.py::test_the_section_index_gives_each_heading_its_range_and_skips_code": "passed",
+  "backend/tests/test_source_bytes.py::test_g347_no_control_character_in_the_product_source": "passed",
+  "backend/tests/test_source_bytes.py::test_g347_the_captured_fields_label_regex_is_a_word_boundary": "passed",
   "backend/tests/test_staged_tree.py::test_a_later_sync_follows_the_index_and_drops_what_it_no_longer_carries": "passed",
   "backend/tests/test_staged_tree.py::test_item_9_a_commit_runs_the_fast_tests_and_the_package_the_full_suite": "passed",
   "backend/tests/test_staged_tree.py::test_item_9_a_fast_run_carries_the_unreached_outcomes_forward": "passed",

@@ -4480,6 +4480,17 @@
    ],
    "escape_class": "path_test",
    "symptom": "THE CARD'S SAVED NOTE SHOWED A TARGET AS THE WHOLE GOAL SENTENCE IT WAS READ FROM. Found 2026-10-29 by DEF-290's live slice on the founder's IMPR-2026-PDLWG9 values: after the target's Confirm, the benefits card said \"Target and target date saved: Our goal is to cut late closures from 38% to under 10% by 31.03.2027. · 31 March 2027\", where the read-back the founder confirmed said \"Target: at most 10%\". belt_impact: degraded (the stored value is right; its one-line summary is wrong). D4 OCCURRENCE: templates._summary read every value through plain(), which gives a MetricValue's `raw` — for a target read from the goal (ADR-0086) the whole goal sentence. D4 ESCAPE (path_test): R-C's saved-note tests fed the target as a short string (\"under 10%\"), never the MetricValue the goal chain stores; wave 2's live slices never confirmed a target read from the goal. D5 FIX: _summary shows a MetricValue by parse.metric_text, the read-back's own words. D6 VERIFY: test_g346 fails on f5b88db with the founder's exact text and passes with the fix; DEF-290's test now asserts the note \"Target and target date saved: at most 5% · 31 March 2027\" through /ask; the live slice again. D7 PREVENT: the escape class's control, the live slice per package, caught it; DEF-290's test runs the stored MetricValue path."
+  },
+  {
+   "id": "G-347",
+   "symptom": "A BACKSPACE BYTE SAT IN THE PAGE'S CAPTURED-FIELDS LABEL REGEX FROM 2026-05-26 (fcd915a) TO 2026-10-29. Found 2026-10-29 while fixing G-326, where a shell heredoc put the same byte into report.py's new regex (caught before that commit); registered and fixed on the founder's ruling on the wave-3 report (item 5). ui/index.html line 7839 read `.replace(/<chr 8>\\w/g, ...)`, so a field key such as 'problem_statement' would never be title-cased. belt_impact: none — renderRightPanel and updateRightPanel have no caller and the page has no rp-title or rp-content element, so the Belt never saw the panel. D4 OCCURRENCE: fcd915a's line was written through a shell heredoc that turned `\\b` into chr 8. D4 ESCAPE (path_test): no test ran the panel (it is unreachable) and no check read the source for control characters; the byte is invisible in an editor and a diff. D5 FIX: the regex is `/\\b\\w/g`, as fcd915a meant. D6 VERIFY: test_source_bytes.py's two tests fail on b2d304c and pass. D7 PREVENT: test_g347_no_control_character_in_the_product_source refuses any control character other than tab and line ends in backend, ui, scripts, skills, config and tools.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "escape_class": "path_test",
+   "control": "backend/tests/test_source_bytes.py::test_g347_no_control_character_in_the_product_source refuses any control character in the product source, so a heredoc's backspace fails the commit"
   }
  ],
  "escape_controls": {

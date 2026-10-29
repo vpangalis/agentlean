@@ -7836,7 +7836,7 @@ function renderRightPanel(){
     const fakeResp={
       captured_fields:Object.entries(structured)
         .filter(([k,v])=>!k.startsWith('_')&&v!==null&&v!==undefined&&v!=='')
-        .map(([k,v])=>({label:k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase()),value:formatFieldValue(v),ai_suggested:false,required_for_gate:true})),
+        .map(([k,v])=>({label:k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()),value:formatFieldValue(v),ai_suggested:false,required_for_gate:true})),
       gate_status:{phase:S.phase,passed:false,attempts:0,missing_fields:[]},
       citations:[]
     };
