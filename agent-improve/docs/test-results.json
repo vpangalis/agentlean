@@ -1,9 +1,9 @@
 {
- "source_hash": "9c35e5811afeb05c",
- "commit": "ea29fdd",
+ "source_hash": "0e57f6b9d2ae4dce",
+ "commit": "3852c26",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T21:15:00+00:00",
+ "recorded_at": "2026-10-29T21:56:55+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1668,6 +1668,8 @@
   "backend/tests/test_run_records.py::test_the_judge_evaluation_scores_false_rejects_and_false_accepts_against_the_labels": "passed",
   "backend/tests/test_run_records.py::test_the_latest_run_keeps_the_coach_input_per_call_within_its_ratchet": "passed",
   "backend/tests/test_run_records.py::test_the_run_lowers_the_coach_ratchet_when_it_falls_and_never_raises_it": "passed",
+  "backend/tests/test_runthrough_inputs.py::test_g349_the_walk_s_benefits_answer_states_its_soft_benefits": "passed",
+  "backend/tests/test_runthrough_inputs.py::test_g350_scenario_c_puts_its_deadline_on_an_answer_turn": "passed",
   "backend/tests/test_runthrough_report.py::test_the_grader_findings_section_reads_each_turns_step_log": "passed",
   "backend/tests/test_runthrough_tokens.py::test_each_call_records_its_tokens_and_the_run_totals_them": "passed",
   "backend/tests/test_runthrough_tokens.py::test_the_cached_input_is_read_where_langchain_openai_puts_the_providers_cached_tokens": "passed",

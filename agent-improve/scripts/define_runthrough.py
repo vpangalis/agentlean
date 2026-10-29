@@ -80,7 +80,8 @@ GOOD: dict[str, str] = {
                           "discounts, from the savings calculation. It is sustainable — "
                           "every year, not one-off. It would start in Q2 2027 at about "
                           "£17,000 a quarter. Our finance contact is Sam Reid, management "
-                          "accountant, who will validate it."),
+                          "accountant, who will validate it. Soft benefits: fewer supplier "
+                          "payment queries for the AP team, seen in the monthly query count."),
     "secondary_metrics": ("Two things must not get worse: the number of supplier payment "
                           "queries the AP team handles each month, and AP staff overtime "
                           "hours. Both should stay at or below today's levels."),

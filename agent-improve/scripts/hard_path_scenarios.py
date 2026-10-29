@@ -27,6 +27,9 @@ from scripts.move_proof_661 import CALLS, token_totals
 
 USER = "define-runthrough-scenarios"
 OPENING = "Hi — I'm ready to start Define on our project."
+#: Scenario (c)'s answer: a business case the planner judges and the coach answers (G-350).
+DEADLINE_ANSWER = ("Supplier invoices are paid about 12 days late on average, which costs us late-payment interest "
+                   "and lost early-payment discounts, and strains our supplier relationships.")
 
 
 def _case(client: Any, title: str) -> str:
@@ -109,25 +112,31 @@ def scenario_c_deadline(client: Any) -> dict[str, Any]:
     from backend.gateway import routes
     c0 = len(CALLS)
     case_id = _case(client, "SCENARIO (c) — a turn stopped at its deadline")
+    # G-350 (2026-10-29): since R-C (ADR-0114) the opening's teaching card is written in code (~3 s), so the 5 s
+    # window is put on an answer turn — the planner's judgment, the coach and the grader (~10 s) — not on the opening.
+    h0, b0, s0 = _ask(client, case_id, OPENING)
     limit, reserve = routes.TURN_HARD_LIMIT_S, routes.TURN_CLOSE_RESERVE_S
-    routes.TURN_HARD_LIMIT_S, routes.TURN_CLOSE_RESERVE_S = 6.0, 1.0  # a 5 s window: a teaching turn runs ~20 s
+    routes.TURN_HARD_LIMIT_S, routes.TURN_CLOSE_RESERVE_S = 6.0, 1.0  # a 5 s window: an answer turn runs ~10 s
     try:
-        h1, b1, s1 = _ask(client, case_id, OPENING)
+        h1, b1, s1 = _ask(client, case_id, DEADLINE_ANSWER)
     finally:
         routes.TURN_HARD_LIMIT_S, routes.TURN_CLOSE_RESERVE_S = limit, reserve
     time.sleep(2.0)
-    h2, b2, s2 = _ask(client, case_id, OPENING)
+    h2, b2, s2 = _ask(client, case_id, DEADLINE_ANSWER)
     st = _case_state(client, case_id)
     replies = [t for t in st["history"] if t.get("role") == "ai"]
-    checks = {"the turn was stopped at its hard limit": h1 == 200 and b1.get("answer") == routes.TURN_DEADLINE_REPLY
+    checks = {"the opening is taught (teach business_case)": h0 == 200 and b0.get("move") == "teach",
+              "the turn was stopped at its hard limit": h1 == 200 and b1.get("answer") == routes.TURN_DEADLINE_REPLY
               and b1.get("failed") == "time",
               "within the limit as the client measures it": s1 <= 6.5,
               "no Confirm offered on the stopped turn": b1.get("move") is None,
-              "the resend is coached (teach business_case)": h2 == 200 and b2.get("move") == "teach"
-              and b2.get("move_field") == "business_case",
+              "the resend is coached (business_case judged)": h2 == 200
+              and b2.get("move") in ("read_back", "challenge") and b2.get("move_field") == "business_case",
               "nothing stored": not st["structured"],
-              "one reply in the history (the stopped turn left none)": len(replies) == 1}
-    return _record("c", c0, [_turn(1, "deadline", h1, b1, s1), _turn(2, "resend", h2, b2, s2)], checks)
+              "two replies in the history: the opening's and the resend's (the stopped turn left none)":
+              len(replies) == 2}
+    return _record("c", c0, [_turn(0, "opening", h0, b0, s0), _turn(1, "deadline", h1, b1, s1),
+                             _turn(2, "resend", h2, b2, s2)], checks)
 
 
 def scenario_d_park(client: Any, good: dict[str, str]) -> dict[str, Any]:

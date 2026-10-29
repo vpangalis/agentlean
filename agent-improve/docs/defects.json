@@ -4502,6 +4502,28 @@
    ],
    "escape_class": "assumption",
    "control": "scripts/live_slice.py writes the record inside `with TestClient(app)`, before the app's shutdown, so a shutdown that hangs cannot lose it"
+  },
+  {
+   "id": "G-349",
+   "symptom": "THE RUN-THROUGH'S SCRIPTED BELT PARKED AT ELEMENT 10: its benefits answer stated no soft benefit. Run-through of 2026-10-29 21:18 (on 3852c26): turns 22-27 read the benefits back 'sufficient', each Confirm was refused and the third offered the park, so elements 11-13 were never reached and the record could not be used. D4 OCCURRENCE: DEF-289 (e2b31ac, R7 amended) made the soft-benefits row required; scripts/define_runthrough.py's good benefits answer predates it. D4 ESCAPE (path_test): DEF-289 was proven through /ask on the founder's values and live slices; no run-through ran between e2b31ac and this one, and nothing checked the walk's scripted answers against the criteria. D5 FIX: the walk's benefits answer states one soft benefit with how it is seen ('fewer supplier payment queries for the AP team, seen in the monthly query count'). D6 VERIFY: test_g349 (new); the re-run reached all thirteen elements.",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "escape_class": "path_test",
+   "control": "backend/tests/test_runthrough_inputs.py::test_g349_the_walk_s_benefits_answer_states_its_soft_benefits reads the walk's benefits answer through the product's own soft-benefits check"
+  },
+  {
+   "id": "G-350",
+   "symptom": "RUN-THROUGH SCENARIO (c) — A TURN STOPPED AT ITS HARD LIMIT — STOPPED NOTHING. Run-through of 2026-10-29 21:18: all four checks failed. D4 OCCURRENCE: the scenario narrowed the hard limit to a 5 s window on the opening message, 'a teaching turn runs ~20 s'; since R-C (ADR-0114) the opening's teaching card is written in code, and the turn took 2.9 s, inside the window. D4 ESCAPE (assumption): the scenario assumed the opening makes a model call; R-C landed with no run-through after it until this one. D5 FIX: the window is put on an answer to the business case (judgment, coach, grader, ~10 s); the opening is checked as taught; the history holds the opening's reply and the resend's. D6 VERIFY: test_g350 (new); the re-run's scenario (c).",
+   "requirement": [],
+   "feature": [],
+   "lane": [
+    "tooling"
+   ],
+   "escape_class": "assumption",
+   "control": "backend/tests/test_runthrough_inputs.py::test_g350_scenario_c_puts_its_deadline_on_an_answer_turn; scenario (c) checks the opening was taught before it narrows the limit"
   }
  ],
  "escape_controls": {
