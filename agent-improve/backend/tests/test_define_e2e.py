@@ -5504,16 +5504,22 @@ def test_e2e_every_element_is_taught_explain_show_ask(env, monkeypatch) -> None:
         card = body["teaching_card"]
         assert card and card["field"] == field and body["move"] == moves.TEACH, (field, body["move"])
         sections = _sections(blocks[field][1])
-        for name, shown in (("Purpose", card["purpose"]), ("Why it matters", card["help"][0]["text"]),
-                            ("Ask", card["your_turn"]["question"])):
+        why, ask = card["help"][0]["text"], card["your_turn"]["question"]
+        # R-G (founder ruling 2026-10-27): the SIPOC is taught by its part 1 card; its long explanation (what it is
+        # and why it matters) sits behind "What is a SIPOC?".
+        guided = field == "process_map_sipoc"
+        for name, shown in (("Purpose", card["purpose"]), ("What it is" if guided else "Why it matters", why),
+                            ("Part 1" if guided else "Ask", ask)):
             first = plain(sections[name])[:50]
             assert first and shown.startswith(first), (field, name, first, shown[:60])
-        example = card["example"]["rows"]
-        cells = " ".join(c for r in example for c in r)
-        script_example = (plain(sections["Card example"]) if "Card example" in sections
-                          else (SKILLS_ROOT / "dmaic-define-phase" / "sipoc_example.json").read_text(encoding="utf-8"))
-        items = [x for r in example for c in r[1:] for x in re.split(r", | → ", c)]     # a SIPOC cell lists items
-        assert example and all(x and x[:12] in script_example for x in items), (field, cells[:80])
+        if guided:
+            assert plain(sections["Why it matters"])[:50] in why, why
+            items, script_example = card["example"]["flow"], plain(sections["Part 1"])
+        else:
+            rows = card["example"]["rows"]
+            items = [x for r in rows for c in r[1:] for x in re.split(r", | → ", c)]
+            script_example = plain(sections["Card example"])
+        assert items and all(x and x[:12] in script_example for x in items), (field, items[:4])
 
 
 def test_e2e_thirteen_elements_reach_the_screen_and_the_report(env, monkeypatch) -> None:
@@ -6326,9 +6332,11 @@ def test_sipoc_is_shown_as_a_table_and_as_a_process_diagram(env, monkeypatch, st
     sipoc = {"suppliers": "Suppliers", "inputs": "Supplier invoices", "outputs": "Payments",
              "customers": "Suppliers", "process_metrics": "days to pay",
              "process_steps": "Receive invoice; Approve invoice; Pay supplier"}
+    from backend.phases import moves
     _at_element(env, "process_map_sipoc")
-    _coach_saying(monkeypatch, "Next: the high-level process.")
-    _askd(env, message="Next, please.")
+    # R-G (founder ruling 2026-10-27): the SIPOC is collected in four parts; this read-back is the one after them —
+    # the element asked and past its parts, so the Belt's answer is judged and read back.
+    env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.ASKED}
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all six columns")
     _coach_saying(monkeypatch, "Your process, read back. Is this right?",
                   captured=[{"field_name": "process_map_sipoc", "value": sipoc, "source": "belt"}])
@@ -8664,6 +8672,12 @@ def test_a_how_to_question_is_answered_and_the_element_resumes(env, monkeypatch,
         stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no figure yet")
         _coach_saying(monkeypatch, "Thanks — what is missing is the figure itself.")
         resumed = _askd(env, message="We think it is fairly high.")
+        if field == "process_map_sipoc":
+            # R-G (founder ruling 2026-10-27): the SIPOC resumes where it was — the answer is part 1's, collected, and
+            # the next part is asked by its card; it is judged once, after its fourth part.
+            assert resumed["move"] == moves.TEACH and resumed["move_field"] == field, (field, resumed["move"])
+            assert resumed["teaching_card"]["part"]["n"] == 2, resumed["teaching_card"].get("part")
+            continue
         assert resumed["move"] == moves.CHALLENGE and resumed["move_field"] == field, (field, resumed["move"])
 
 
@@ -10950,9 +10964,74 @@ def test_def_270_calculations_by_code_shown_with_formula_and_result_offered(env,
     assert rows and rows[-1]["result"]["annual_savings"] in ("15120.00", "15120", 15120, 15120.0), rows[-1:]
 
 
-def test_def_271_the_sipoc_is_collected_in_four_guided_parts_a() -> None:
-    """DEF-271 — R-G: the SIPOC is collected in four guided parts, a skeleton visible, one read-back and one Confirm at the end (founder test 2026-10-27)"""
-    _not_written('DEF-271')
+def test_def_271_the_sipoc_is_collected_in_four_guided_parts_a(env, monkeypatch, stub_planner) -> None:
+    """DEF-271 — R-G: the SIPOC is collected in four guided parts, a skeleton visible, one read-back and one Confirm at the end (founder test 2026-10-27)
+
+    Founder test 2026-10-27 #58 and ruling R-G: four short parts in the BB manual's order — the main steps; outputs and
+    customers; inputs and suppliers; for each step how long and what goes wrong (the steps from part 1 listed), how
+    often once — an S-I-P-O-C skeleton with the current column lit, the example drawn as boxes, "What is a SIPOC?"
+    behind a link; one read-back and one Confirm at the end. Through the routes and graph: each part is its card, in
+    code — no judgment and no coach call while collecting; the fourth answer makes the one judgment, the one read-back
+    and the one Confirm. A whole SIPOC pasted at once (the founder's, missing its outputs) is asked only the part it
+    lacks."""
+    from langchain_core.messages import AIMessage
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    coached: list[str] = []
+
+    def coach_saying(message: str, captured: list | None = None) -> None:
+        reply = {**REPLY, "message": message, "fields_captured": captured or []}
+
+        def replies():
+            coached.append(message)
+            yield AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "call_rg"}])
+        planner = nodes_common.get_llm
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=replies())
+                            if role == "coach" else planner(role, **kw))
+
+    steps = [s["name"] for s in SIPOC_A99["process_steps"]]
+    _at_the_sipoc(env, steps)
+    env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.NOT_TAUGHT}
+    coach_saying("(never called while the parts are collected)")
+    p1 = _askd(env, message="Next, please.")["teaching_card"]
+    assert p1["part"] == {"n": 1, "of": 4} and p1["skeleton"]["lit"] == ["P"], p1
+    assert p1["example"]["flow"][:2] == ["Receive order", "Look up prices"] and "rows" not in p1["example"]
+    assert p1["help"][0]["label"] == "What is a SIPOC?" and "SIPOC" in p1["help"][0]["text"]
+    judged = len(stub_planner.prompts)
+    p2 = _askd(env, message=" -> ".join(steps))["teaching_card"]
+    assert p2["part"]["n"] == 2 and p2["skeleton"]["lit"] == ["O", "C"], p2
+    p3 = _askd(env, message="A closed complaint and a closure confirmation, for business customers and account "
+                            "managers.")["teaching_card"]
+    assert p3["part"]["n"] == 3 and p3["skeleton"]["lit"] == ["S", "I"], p3
+    p4 = _askd(env, message="The complaint, customer and contract data and the visit report, from business customers, "
+                            "the service desk and the field technicians.")["teaching_card"]
+    assert p4["part"]["n"] == 4 and p4["steps"] == steps, p4
+    assert len(stub_planner.prompts) == judged and coached == [], "a model was called while the parts were collected"
+
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all six columns and the step times")
+    coach_saying("Your process as it runs today, read back. Is this right?",
+                 captured=[{"field_name": "process_map_sipoc", "value": SIPOC_A99, "source": "belt"}])
+    read = _askd(env, message="Log 15 min, schedule 2 days, repair 1 day, close 4 days, inform 1 day; the problems as "
+                              "the team noted them; about 100 a month.")
+    assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], (read["move"], read["answer"])
+    assert len(stub_planner.prompts) == judged + 1 and len(coached) == 1, "one judgment and one read-back at the end"
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE and done["teaching_card"]["saved"]["fields"] == ["process_map_sipoc"]
+    assert [s["name"] for s in _define(env)["structured"]["process_map_sipoc"]["process_steps"]] == steps
+
+    # The founder's SIPOC pasted whole at part 1 — suppliers, inputs, the steps with their times, customers, but no
+    # outputs: only part 2 is asked.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_the_sipoc(env, steps)
+    env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.NOT_TAUGHT}
+    _askd(env, message="Next, please.")
+    flawed = _askd(env, message=FLAWED_SIPOC_60)
+    assert flawed["move"] == moves.TEACH and flawed["teaching_card"]["part"]["n"] == 2, (flawed["move"],
+                                                                                         flawed["answer"])
 
 
 def test_def_272_the_r18_link_check_is_a_flow_with_the() -> None:

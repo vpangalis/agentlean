@@ -278,8 +278,13 @@ def test_r_c_the_element_card_has_its_six_parts_in_order_from_the_skill_and_the_
     # Every element has a card, element 1 with no previous step and no saved note; the SIPOC's example from its file.
     for field in DEFINE_FIELD_ORDER:
         c = templates.teaching_card(field, {}, {})
-        assert c["your_turn"]["question"] and c["example"]["rows"] and len(c["help"]) == 3, field
+        assert c["your_turn"]["question"] and (c["example"].get("rows") or c["example"].get("flow")) \
+            and len(c["help"]) == 3, field
     first = templates.teaching_card("business_case", {}, {})
     assert first["trail"]["previous"] is None and first["saved"] is None and first["trail"]["confirmed"] == 0
-    sipoc = templates.teaching_card("process_map_sipoc", {}, {})["example"]
-    assert [r[0] for r in sipoc["rows"]][:3] == ["Suppliers", "Inputs", "Process steps"]
+    # R-G (founder ruling 2026-10-27): the SIPOC is taught by its part 1 card — the skeleton with P lit, the steps
+    # drawn as a flow of boxes.
+    sipoc = templates.teaching_card("process_map_sipoc", {}, {})
+    assert sipoc["skeleton"]["lit"] == ["P"] and sipoc["part"] == {"n": 1, "of": 4}
+    assert sipoc["example"]["flow"] == ["Receive order", "Look up prices", "Generate invoice", "Review and approve",
+                                        "Send to client"]

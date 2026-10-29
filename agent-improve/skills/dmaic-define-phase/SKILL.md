@@ -440,8 +440,12 @@ and only it carries the baseline and the target.
 > **Read back:** the assembled SIPOC as a table, all six keys, then each step's time, frequency and problems, then the whole process, flagging any thin column — *"Is this right?"*
 > **Capture as:** `{suppliers, inputs, process_steps, outputs, customers, process_metrics, process_performance}` — ALL SIX columns filled; `process_steps` a list, one entry per step `{name, duration {avg, min, max}, runs_per_period, problems [{note, said_by}]}`; `process_performance` `{lead_time, runs_per_period}`; each figure in the Belt's words with its unit.
 > **Purpose:** The process on one page, as it runs today, and how it performs.
-> **Hint:** Start with the main steps, each beginning with a verb; the other columns follow. You can upload a map instead.
-> **Help question:** What is a SIPOC?
+> **Hint:** Four short parts; estimates are fine. You can upload a map instead.
+> **Help question:** How detailed should the steps be?
+> **Part 1:** What are the main steps of your process, from start to end, as it runs today? Four to eight steps, each starting with a verb. || Receive order → Look up prices → Generate invoice → Review and approve → Send to client
+> **Part 2:** What comes out of the process, and who receives it? || Invoice (PDF), payment request → client finance team, credit control
+> **Part 3:** What goes into the process, and who supplies it? || Signed order, price list, client details ← sales team, pricing database, client
+> **Part 4:** For each step: roughly how long does it take, and what goes wrong — and who said so? And how often does the whole process run? || Receive order — about 10 min (5–30 min); orders arrive without a PO number (Anna). The process runs about 600 times a week.
 
 **[13 · issues_and_barriers · required]**
 > **What it is:** The issues and barriers: what could get in the way of the project — data, people, systems, time.

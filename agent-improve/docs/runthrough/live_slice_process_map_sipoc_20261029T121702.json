@@ -1,0 +1,141 @@
+{
+ "kind": "live_slice",
+ "element": "process_map_sipoc",
+ "case_id": "IMPR-2026-RGPLBH",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "rg_slice_messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "77e20ae41ffe1855",
+ "seeded": [
+  "baseline_estimate",
+  "benefits_analysis",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "secondary_metrics",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "Work on: Process map (SIPOC)",
+   "action": "revise",
+   "http": 200,
+   "move": "teach",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 4.4,
+   "failed": null,
+   "answer": "Element 12 of 13 · High-level process (SIPOC, as-is): What are the main steps of your process, from start to end, as it runs today? Four to eight steps, each starting with a verb.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.59 s",
+    "input guard 1.53 s",
+    "after the answer (steps, save) 1.67 s",
+    "total 4.39 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Suppliers: customers, field technicians, the spare-parts team. Inputs: the complaint by phone or e-mail, customer and device data, technician reports. Process: (1) log the complaint — about 15 minutes",
+   "action": null,
+   "http": 200,
+   "move": "teach",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 4.0,
+   "failed": null,
+   "answer": "Element 12 of 13 · High-level process (SIPOC, as-is): What comes out of the process, and who receives it?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.28 s",
+    "input guard 1.36 s",
+    "after the answer (steps, save) 1.78 s",
+    "total 3.99 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Outputs: the closed complaint, the customer informed.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 34.9,
+   "failed": null,
+   "answer": "Here is the high-level process (SIPOC) for your project, based on what you've provided. Please review it and confirm if it's correct:\n\n- **Suppliers:** customers, field technicians, the spare-parts team\n- **Inputs:** the complaint by phone or e-mail, customer and device data, technician reports\n- **Process Steps:**\n  1. Log the complaint — about 15 minutes, about 100 a month\n  2. Diagnose and disp",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.38 s",
+    "input guard 1.61 s",
+    "planner judgment 3.78 s",
+    "coach 23.88 s",
+    "grader 2.42 s",
+    "after the answer (steps, save) 1.87 s",
+    "total 34.94 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "issues_and_barriers",
+   "recorded_move": null,
+   "seconds": 4.2,
+   "failed": null,
+   "answer": "High-level process (SIPOC, as-is) saved: 4 steps.\n\nElement 13 of 13 · Issues and barriers: What could get in the way — data, people, systems, time? If genuinely none, \"none identified at this stage\" is a fine answer, but have a think first.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.36 s",
+    "input guard 1.27 s",
+    "after the answer (steps, save) 2.10 s",
+    "total 4.19 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 3,
+ "cost": {
+  "usd": 0.0254,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.025,
+   "gpt-4o-mini-2024-07-18": 0.0004
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 48.82,
+  "calls": 121,
+  "case": {
+   "seconds": 0.52,
+   "calls": 7
+  },
+  "store": {
+   "seconds": 0.64,
+   "calls": 12
+  },
+  "checkpoint": {
+   "seconds": 47.65,
+   "calls": 102
+  }
+ },
+ "started": "20261029T121702"
+}

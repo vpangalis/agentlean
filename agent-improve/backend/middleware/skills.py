@@ -482,7 +482,7 @@ def teaching_blocks(phase: str, field: str) -> dict[str, str]:
 
 #: R-C (ADR-0114 decision 3): the parts of an element's block that only the element card reads — never a model. The
 #: coach's and the grader's section 2 (`script_section`) leaves them out, so no prompt grows.
-CARD_ONLY = ("Purpose", "Hint", "Help question", "Card example")
+CARD_ONLY = ("Purpose", "Hint", "Help question", "Card example", "Part 1", "Part 2", "Part 3", "Part 4")
 
 
 def without_card(block: str) -> str:
@@ -513,9 +513,14 @@ def card_parts(phase: str, field: str) -> dict[str, Any]:
     cells = [[c.strip() for c in ln.lstrip(">").strip().strip("|").split("|")]
              for ln in sections.get("Card example", []) if ln.lstrip(">").strip().startswith("|")]
     table = [row for row in cells if not all(set(c) <= set("-: ") for c in row)]
+    # R-G (founder ruling 2026-10-27): an element collected in guided parts carries each part's question and example
+    # line ("question || example").
+    parts = [dict(zip(("question", "example"), (x.strip() for x in _section_text(sections[f"Part {n}"]).split("||"))))
+             for n in range(1, 5) if f"Part {n}" in sections]
     return {"purpose": _section_text(sections.get("Purpose", [])), "question": _section_text(sections.get("Ask", [])),
             "hint": _section_text(sections.get("Hint", [])), "help": _section_text(sections.get("Help question", [])),
-            **({"example": {"columns": table[0], "rows": table[1:]}} if len(table) > 1 else {})}
+            **({"example": {"columns": table[0], "rows": table[1:]}} if len(table) > 1 else {}),
+            **({"parts": parts} if parts else {})}
 
 
 def level_1_catalogue() -> str:

@@ -414,6 +414,11 @@ a{text-decoration:none;color:inherit}
 .tc-yourturn{padding:12px 14px;border:2px solid var(--brand);background:var(--brand-bg);border-radius:var(--radius)}
 .tc-yt-h{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--brand);margin-bottom:4px}
 .tc-q{font-size:15px;font-weight:600;line-height:1.4}.tc-hint{font-size:12px;color:var(--text2);margin-top:6px}
+.tc-skel{display:flex;gap:4px}.tc-skel span{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:700;color:var(--text3)}
+.tc-skel span.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.tc-steps{margin:0 0 6px;padding-left:20px;font-size:12.5px}
+.tc-flow{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:12px}.tc-box{padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2)}
+.tc-arrow{color:var(--text3)}.tc-line{font-size:12px}
 .tc-calc{font-size:12.5px;padding:8px 10px;border-left:3px solid var(--brand-mid);background:var(--surface2);border-radius:var(--radius-sm)}
 .tc-ex-h{font-size:10.5px;font-weight:600;letter-spacing:.04em;color:var(--text3);margin-bottom:4px}
 .tc-ex{border-collapse:collapse;width:100%;font-size:12px}
@@ -6354,20 +6359,28 @@ function teachingCardHtml(c,latest){
   const note=c.note?`<div class="tc-note">${escapeHtml(c.note)}</div>`:'';
   const head=`<div><div class="tc-title">${escapeHtml(c.title||c.name)}</div></div>${c.purpose?`<div class="tc-purpose">${escapeHtml(c.purpose)}</div>`:''}`;
   const yt=c.your_turn||{};
-  const turnBlk=`<div class="tc-yourturn"><div class="tc-yt-h">YOUR TURN</div><div class="tc-q">${escapeHtml(yt.question||'')}</div>`
+  // R-G (founder ruling 2026-10-27): the S-I-P-O-C skeleton with the part's letters lit, and on part 4 the Belt's own
+  // steps listed above the question.
+  const sk=c.skeleton?`<div class="tc-skel">${(c.skeleton.letters||[]).map(l=>`<span class="${(c.skeleton.lit||[]).includes(l)?'on':''}">${escapeHtml(l)}</span>`).join('')}</div>`:'';
+  const steps=(c.steps||[]).length?`<ol class="tc-steps">${c.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol>`:'';
+  const turnBlk=`<div class="tc-yourturn"><div class="tc-yt-h">YOUR TURN</div>${steps}<div class="tc-q">${escapeHtml(yt.question||'')}</div>`
     +`${yt.hint?`<div class="tc-hint">${escapeHtml(yt.hint)}</div>`:''}</div>`;
   // ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card; R-E: once its inputs are
   // confirmed, both figures as formula and result, worked out in code, and the elements they come from.
   const calc=!c.calculation?'':c.calculation.lines
     ?`<div class="tc-calc">${c.calculation.lines.map(l=>`<div>${escapeHtml(l)}</div>`).join('')}</div>`
     :`<div class="tc-calc">${escapeHtml(c.calculation.text)}</div>`;
-  const ex=c.example?`<div class="tc-example"><div class="tc-ex-h">${escapeHtml(c.example.label)}</div><table class="tc-ex"><thead><tr>`
-    +`${(c.example.columns||[]).map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>`
-    +`${(c.example.rows||[]).map(r=>`<tr>${r.map(x=>`<td>${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'';
+  // The example: a table in the element's own columns; R-G — the SIPOC's steps drawn as a flow of boxes, or one line.
+  const exBody=!c.example?'':c.example.flow
+    ?`<div class="tc-flow">${c.example.flow.map(s=>`<span class="tc-box">${escapeHtml(s)}</span>`).join('<span class="tc-arrow">→</span>')}</div>`
+    :c.example.line?`<div class="tc-line">${escapeHtml(c.example.line)}</div>`
+    :`<table class="tc-ex"><thead><tr>${(c.example.columns||[]).map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>`
+      +`${(c.example.rows||[]).map(r=>`<tr>${r.map(x=>`<td>${escapeHtml(x)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const ex=c.example?`<div class="tc-example"><div class="tc-ex-h">${escapeHtml(c.example.label)}</div>${exBody}</div>`:'';
   const help=`<div class="tc-help">${(c.help||[]).map(h=>h.ask
       ?(latest?`<a href="#" class="tc-link" onclick="sendPresetMessage(${escapeHtml(JSON.stringify(h.ask))});return false">${escapeHtml(h.label)}</a>`:`<span class="tc-link">${escapeHtml(h.label)}</span>`)
       :`<details class="tc-why"><summary class="tc-link">${escapeHtml(h.label)}</summary><div>${escapeHtml(h.text||'')}</div></details>`).join('')}</div>`;
-  return `<div class="tcard">${trail}${saved}${note}${head}${turnBlk}${calc}${ex}${help}</div>`;
+  return `<div class="tcard">${trail}${saved}${note}${head}${sk}${turnBlk}${calc}${ex}${help}</div>`;
 }
 
 function renderTurn(turn){

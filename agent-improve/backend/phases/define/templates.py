@@ -989,6 +989,39 @@ def _sipoc_example() -> dict[str, Any]:
             "rows": [[labels.get(k, k.capitalize()), words(example.get(k))] for k in SIPOC_KEYS]}
 
 
+#: R-G (founder ruling 2026-10-27): the S-I-P-O-C skeleton, and the letters each part lights.
+SIPOC_LETTERS: tuple[str, ...] = ("S", "I", "P", "O", "C")
+SIPOC_LIT: dict[int, list[str]] = {1: ["P"], 2: ["O", "C"], 3: ["S", "I"], 4: ["P"]}
+SIPOC_WHAT = "What is a SIPOC?"
+
+
+def _sipoc_part(parts: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
+    """R-G: the SIPOC card for the part being asked (its entry's `part`, 1 at first) — the skeleton with its letters lit,
+    the part's question and its one example line (the steps drawn as boxes), the Belt's own steps listed on part 4, and
+    the long explanation behind "What is a SIPOC?"."""
+    from backend.middleware.skills import element_text
+    guided = parts["parts"]
+    k = min(max(int(entry.get("part") or 1), 1), len(guided))
+    part = guided[k - 1]
+    example: dict[str, Any] = ({"flow": [s.strip() for s in part.get("example", "").split("→") if s.strip()]} if k == 1
+                               else {"line": part.get("example", "")})
+    steps = parse.sipoc_steps((entry.get("parts_text") or {}).get("1") or "") if k == 4 else []
+    what = " ".join(x for x in (element_text("define", SIPOC_FIELD, "What it is"),
+                                element_text("define", SIPOC_FIELD, "Why it matters")) if x)
+    return {"part": {"n": k, "of": len(guided)},
+            "skeleton": {"letters": list(SIPOC_LETTERS), "lit": SIPOC_LIT.get(k, [])},
+            "your_turn": {"question": part.get("question", ""),
+                          "hint": f"Part {k} of {len(guided)}." + (f" {parts.get('hint')}" if k == 1 else "")},
+            "example": {"label": EXAMPLE_LABEL, **example},
+            **({"steps": steps} if steps else {}),
+            "help": [{"label": SIPOC_WHAT, "text": what},
+                     *([{"label": parts["help"], "ask": parts["help"]}] if parts.get("help") else []),
+                     {"label": STATUS_LINK, "ask": STATUS_LINK}]}
+
+
+SIPOC_FIELD = "process_map_sipoc"
+
+
 def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any] | None = None, *,
                   stored: Optional[list[str]] = None, note: str = "") -> dict[str, Any]:
     """R-C (ADR-0114 decision 1): the element card — one template for every element, assembled here from the skill's
@@ -1031,6 +1064,8 @@ def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str,
         "help": [{"label": WHY_LINK, "text": element_text("define", field, "Why it matters")},
                  *([{"label": parts["help"], "ask": parts["help"]}] if parts.get("help") else []),
                  {"label": STATUS_LINK, "ask": STATUS_LINK}],
+        # R-G: an element collected in guided parts shows the part being asked.
+        **(_sipoc_part(parts, dict(field_status.get(field) or {})) if parts.get("parts") else {}),
     }
 
 

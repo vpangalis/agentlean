@@ -583,6 +583,26 @@ def parse_sipoc(text: str) -> dict[str, str]:
     return {k: out[k] for k in SIPOC_KEYS if k in out}
 
 
+#: R-G: a step time as a Belt writes it — "10 min", "2 h", "4 working days", "1.5 hours".
+_STEP_TIME = re.compile(r"(?i)\d+(?:[.,]\d+)?\s*(?:min(?:ute)?s?|h(?:ou)?rs?|h\b|(?:working |business )?days?|weeks?)\b")
+
+
+def has_step_times(text: Any) -> bool:
+    """R-G: whether an answer gives step times — at least two — so the SIPOC's fourth part need not be asked."""
+    return len(_STEP_TIME.findall(str(text or ""))) >= 2
+
+
+def sipoc_steps(text: Any) -> list[str]:
+    """R-G: the main steps the Belt gave in the SIPOC's first part — one per line, numbered item, arrow or semicolon (a
+    comma list when nothing else separates them) — for the fourth part's card to list."""
+    said = str(text or "").strip()
+    parts = re.split(r"\s*(?:→|->|=>|;|\n)\s*|\s*(?:^|\s)\d+[.)]\s+", said)
+    steps = [p.strip(" .,") for p in parts if p and p.strip(" .,")]
+    if len(steps) < 2:
+        steps = [p.strip(" .") for p in said.split(",") if p.strip(" .")]
+    return steps[:12]
+
+
 def missing_columns(value: Any) -> list[str]:
     """The SIPOC columns `value` lacks (all six when it is not a mapping)."""
     if not isinstance(value, dict):
@@ -1060,7 +1080,7 @@ def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
     return {"unmatched": where["unmatched"], "ends": where["ends"], "quiet": quiet, "ignored": ignored}
 
 
-__all__ = ["SCOPE_DIMENSIONS", "scope_rows", "uploaded_team", "unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
+__all__ = ["has_step_times", "sipoc_steps", "SCOPE_DIMENSIONS", "scope_rows", "uploaded_team", "unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
            "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit",
            "STEP_KEYS", "DURATION_KEYS", "PROCESS_PERFORMANCE_KEYS", "period_value", "duration_value",
            "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch",
