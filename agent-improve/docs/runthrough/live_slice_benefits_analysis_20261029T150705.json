@@ -1,0 +1,123 @@
+{
+ "kind": "live_slice",
+ "element": "benefits_analysis",
+ "case_id": "IMPR-2026-LWZ6C8",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "def289_b.json",
+ "recorded_product_hash": null,
+ "product_hash": "20c949d637c3de5e",
+ "seeded": [
+  "baseline_estimate",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "Cost of the gap about €20,500 a year. Sustainable, every year. From the first full quarter after the change, Q2 2027. Checked by Martina Koller, controller Field Service.",
+   "action": null,
+   "http": 200,
+   "move": "challenge",
+   "move_field": "benefits_analysis",
+   "recorded_move": null,
+   "seconds": 24.0,
+   "failed": null,
+   "answer": "Your benefits analysis is missing one required part: the soft benefits. These are gains from the project that finance does not count as money, such as fewer escalations or reduced workload. For each soft benefit, describe how you will see it (for example, in reduced escalation counts or survey feedback). If there are no soft benefits, confirm that explicitly.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.50 s",
+    "input guard 1.22 s",
+    "planner judgment 1.88 s",
+    "coach 15.14 s",
+    "grader 2.84 s",
+    "after the answer (steps, save) 1.63 s",
+    "total 23.99 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Soft benefits: none",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "benefits_analysis",
+   "recorded_move": null,
+   "seconds": 11.8,
+   "failed": null,
+   "answer": "Let me read back your benefits analysis to confirm:\n\n- Cost of the gap: about €20,500 a year.\n- Impact type: sustainable, every year.\n- Realisation schedule: from the first full quarter after the change, Q2 2027.\n- Finance contact: Martina Koller, controller Field Service.\n- Soft benefits: none.\n\nIs this right?\n\nCost of the gap today (calculated): 1,200 complaints × 38% × €45 = €20,520 a year\nExpe",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.36 s",
+    "input guard 1.25 s",
+    "planner judgment 2.12 s",
+    "coach 4.71 s",
+    "grader 1.48 s",
+    "after the answer (steps, save) 1.38 s",
+    "total 11.77 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "secondary_metrics",
+   "recorded_move": null,
+   "seconds": 3.7,
+   "failed": null,
+   "answer": "Benefits analysis saved: Cost of gap: about €20,500 a year; Impact type: sustainable, every year; Realisation….\n\nElement 11 of 13 · Secondary metrics: If your fix works, what else might it affect? What will you watch to be sure you haven't traded one problem for another?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.42 s",
+    "input guard 1.27 s",
+    "after the answer (steps, save) 1.56 s",
+    "total 3.70 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 6,
+ "cost": {
+  "usd": 0.0358,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0349,
+   "gpt-4o-mini-2024-07-18": 0.0009
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 30.51,
+  "calls": 92,
+  "case": {
+   "seconds": 0.48,
+   "calls": 6
+  },
+  "store": {
+   "seconds": 0.47,
+   "calls": 9
+  },
+  "checkpoint": {
+   "seconds": 29.55,
+   "calls": 77
+  }
+ },
+ "started": "20261029T150705"
+}

@@ -5247,8 +5247,9 @@ def _walk_the_benefits_analysis(env, monkeypatch, stub_planner) -> dict:
     _coach_saying(monkeypatch, "Here is your benefits analysis: about £68,000 a year, sustainable, from Q2 "
                                "2027, Sam Reid validates it. Is this right?",
                   captured=[{"field_name": "benefits_analysis", "value": benefits, "source": "belt"}])
+    # DEF-289 (R7's amendment, 2026-10-29): the soft benefits stated or, as here, consciously none.
     seen["read_back"] = ask(message="Sustainable, from Q2 2027 at about £17,000 a quarter; Sam Reid in finance "
-                                    "validates it.")["answer"]
+                                    "validates it.\nSoft benefits: none.")["answer"]
     seen["rows_before_confirm"] = stored().get("computation_results") or []
     _coach_saying(monkeypatch, "Thank you.")
     ask(action="confirm", message="Confirm")
@@ -6828,7 +6829,13 @@ def test_gate_view_section_b_follows_the_mockup() -> None:
     # DEF-260 (ADR-0096 decisions 4 and 6): the soft benefits apart from the money — "not stated" when none was given.
     assert [i[0] for i in fig["items"]] == ["Sustainable or one-off", "When it lands", "Finance contact",
                                             "Soft benefits"], fig["items"]
-    assert fig["items"][-1][1] == "not stated", fig["items"]
+    # DEF-289: A99 carries the founder's soft benefit of 27 October; a case confirmed before it reads "not stated".
+    assert fig["items"][-1][1] == "fewer escalations to account managers (seen in the monthly escalation count)", fig
+    from backend.tests.test_templates import A99
+    before = {k: v for k, v in A99["benefits_analysis"].items() if k != "soft_benefits"}
+    older = _gate_section(_a99_gate(extra={"benefits_analysis": before})[0], "B")["elements"][1]["view"]
+    assert older["items"][-1] == ["Soft benefits", "not stated"] or tuple(older["items"][-1]) == ("Soft benefits",
+                                                                                                  "not stated"), older
     # The page.
     sec = _html_section(html, "B")
     one = sec.split('data-element="1"')[1].split('data-element="10"')[0]
@@ -9737,7 +9744,8 @@ def test_cost_of_the_gap_and_expected_saving_are_two_labelled_figures(env, monke
     realisation = dict(acceptance_criteria("define", "benefits_analysis"))["realisation"]
     assert "start date" in realisation and "sustained" in realisation, realisation
     e19 = {"cost_of_gap": "about EUR 62,000 a year", "impact_type": "sustainable",
-           "realisation_schedule": "about EUR 50,000 a year from April 2027", "finance_contact": "Maria Lopez, finance"}
+           "realisation_schedule": "about EUR 50,000 a year from April 2027", "finance_contact": "Maria Lopez, finance",
+           "soft_benefits": [{"benefit": parse.SOFT_NONE, "indicator": ""}]}          # DEF-289: consciously none
     assert parse.missing_parts("benefits_analysis", e19) == []
     card_rows = {r["id"]: r for r in templates.rows("benefits_analysis", {"benefits_analysis": e19}, judged=False)}
     assert card_rows["realisation"]["met"], card_rows["realisation"]
@@ -11183,9 +11191,58 @@ def test_def_288_the_case_s_country_and_site_are_chosen_on() -> None:
     _not_written('DEF-288')
 
 
-def test_def_289_a_soft_benefits_criterion_stated_with_an_indicator_or() -> None:
-    """DEF-289 — R7 amendment (founder 2026-10-29): a soft-benefits criterion — each soft benefit stated with its indicator, or consciously none; 'none identified' never blocks Confirm or the gate"""
-    _not_written('DEF-289')
+def test_def_289_a_soft_benefits_criterion_stated_with_an_indicator_or(env, monkeypatch, stub_planner) -> None:
+    """DEF-289 — R7 amendment (founder 2026-10-29): a soft-benefits criterion — each soft benefit stated with its indicator, or consciously none; 'none identified' never blocks Confirm or the gate
+
+    Through POST /ask on the founder's IMPR-2026-PDLWG9 values at element 10, the coach capturing the four hard keys
+    as it did live: the founder's benefits answer without its soft-benefit sentence reads back with the soft benefits
+    open and Confirm closed; "Soft benefits: none" opens Confirm; the Confirm stores the conscious none, and the gate
+    passes DEF-R10 and shows "None identified". A soft benefit with no indicator is not met; with one, it is."""
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.phases.define import parse
+
+    hard = FOUNDER_1027_BENEFITS.split(" Soft benefit:")[0]
+    _at_element(env, "benefits_analysis")
+    record = env.case.phases["define"]
+    record.structured.pop("computation_results", None)
+    record.structured.update(FOUNDER_1027_CONFIRMED)
+    record.field_status["benefits_analysis"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="the four hard parts are stated",
+                                                calculation_inputs={})
+    four = {"cost_of_gap": "About €20,500 a year", "impact_type": "Sustainable, every year",
+            "realisation_schedule": "From the first full quarter after the change, Q2 2027",
+            "finance_contact": "Martina Koller, Controller Field Service"}
+    _coach_saying(monkeypatch, "Here is your benefits analysis. Is this right?",
+                  captured=[{"field_name": "benefits_analysis", "source": "belt", "value": four}])
+    read = _askd(env, message=hard)
+    soft = next(r for r in read["readback_card"]["rows"] if r["id"] == "soft-benefits")
+    assert soft["required"] and not soft["met"] and not read["readback_card"]["confirm"], read["readback_card"]
+
+    _coach_saying(monkeypatch, "Here is your benefits analysis. Is this right?",
+                  captured=[{"field_name": "benefits_analysis", "source": "belt", "value": four}])
+    none = _askd(env, message="Soft benefits: none")
+    soft = next(r for r in none["readback_card"]["rows"] if r["id"] == "soft-benefits")
+    assert soft["met"] and soft["value"] == parse.SOFT_NONE and none["readback_card"]["confirm"], none["readback_card"]
+
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == "store_and_advance", (done["move"], done["answer"])
+    stored = _define(env)["structured"]["benefits_analysis"]
+    assert stored["soft_benefits"] == [{"benefit": parse.SOFT_NONE, "indicator": ""}], stored
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    view = next(e for e in _gate_section(report, "B")["elements"] if e["field"] == "benefits_analysis")["view"]
+    assert {i[0]: i[1] for i in view["items"]}["Soft benefits"] == parse.SOFT_NONE, view["items"]
+    import datetime as dt
+
+    from backend.validation import rubric
+    verdict = rubric._code_half("DEF-R10", {**FOUNDER_1027_CONFIRMED, "benefits_analysis": stored}, dt.date.today())
+    assert verdict is not None and verdict.status == "pass", verdict                 # the conscious none never blocks
+
+    # The code check alone: each soft benefit with how it will be seen, or the conscious none.
+    seen = [{"benefit": "fewer escalations to account managers", "indicator": "the monthly escalation count"}]
+    assert parse.soft_benefits_stated({"soft_benefits": seen})
+    assert not parse.soft_benefits_stated({"soft_benefits": [{"benefit": "happier customers", "indicator": ""}]})
+    assert not parse.soft_benefits_stated({"soft_benefits": []}) and not parse.soft_benefits_stated(four)
 
 
 def test_def_290_every_confirm_is_named_in_the_card_s_saved_note(env, monkeypatch) -> None:

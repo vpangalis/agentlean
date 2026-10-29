@@ -481,6 +481,19 @@ _SEEN = re.compile(r"(?i)\s*(?:\(|,|;|—|-)?\s*\b(?:seen|visible|shown|measured
 _NONE_SOFT = re.compile(r"(?i)^\s*(?:none|none identified|no soft benefits?)\b")
 
 
+#: ADR-0096 decision 1: the conscious answer that there are no soft benefits, kept as one entry.
+SOFT_NONE = "None identified"
+
+
+def soft_benefits_stated(benefits: Any) -> bool:
+    """DEF-289 (R7's amendment ACCEPTED 2026-10-29, ADR-0096 decision 3): the soft benefits are stated, each with how
+    it will be seen, or the Belt said consciously that there are none — that answer never blocks (founder,
+    2026-10-29)."""
+    b = benefits if isinstance(benefits, dict) else {}
+    items = [s for s in b.get("soft_benefits") or [] if isinstance(s, dict) and str(s.get("benefit") or "").strip()]
+    return bool(items) and all(s["benefit"] == SOFT_NONE or str(s.get("indicator") or "").strip() for s in items)
+
+
 def soft_benefits(words: Any) -> list[dict[str, str]]:
     """ADR-0096 decision 1 (DEF-260, founder test 2026-10-27 #52): `[{benefit, indicator}]` from the Belt's labelled
     soft benefits, in the Belt's words — never converted into money. "None identified" is a conscious answer, kept as
@@ -492,7 +505,7 @@ def soft_benefits(words: Any) -> list[dict[str, str]]:
         stop = _NEXT_LABEL.search(rest)
         part = rest[:stop.start()] if stop else rest
         if _NONE_SOFT.match(part):
-            out.append({"benefit": "None identified", "indicator": ""})
+            out.append({"benefit": SOFT_NONE, "indicator": ""})
             continue
         for item in list_items(part) or [part]:
             item = item.strip().rstrip(".").strip()

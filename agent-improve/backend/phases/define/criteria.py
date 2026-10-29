@@ -94,6 +94,7 @@ COST_OF_GAP = "cost-of-gap"
 IMPACT_TYPE = "impact-type"
 REALISATION = "realisation"
 FINANCE_CONTACT = "finance-contact"
+SOFT_BENEFITS = "soft-benefits"            # DEF-289 (R7's amendment, ADR-0096 decision 3)
 # 11 secondary metrics
 SIDE_EFFECT = "side-effect"
 NOT_THE_PRIMARY = "not-the-primary"
@@ -169,6 +170,7 @@ CRITERIA: dict[str, tuple[tuple[str, str], ...]] = {
         (IMPACT_TYPE, "says whether the impact is sustainable or one-off (p. 60)"),
         (REALISATION, "when the saving shows: by period, or a start date and sustained (p. 60)"),
         (FINANCE_CONTACT, "names the finance representative who validates the figure (p. 60, p. 62)"),
+        (SOFT_BENEFITS, "states the soft benefits, each with how it will be seen, or says there are none (p. 60-63)"),
     ),
     "secondary_metrics": (
         (SIDE_EFFECT, "names at least one measure of a side effect of the change (p. 58)"),

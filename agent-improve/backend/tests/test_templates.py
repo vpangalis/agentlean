@@ -63,7 +63,10 @@ A99: dict = {
     "target_date": "2027-03-31",
     "benefits_analysis": {"cost_of_gap": "About €20,500 a year today", "impact_type": "Sustainable, every year",
                           "realisation_schedule": "about €3,800 per quarter, from the first full quarter after the change",
-                          "finance_contact": "Martina Koller, controller Field Service"},
+                          "finance_contact": "Martina Koller, controller Field Service",
+                          # DEF-289 (R7's amendment, 2026-10-29): the founder's soft benefit of 27 October.
+                          "soft_benefits": [{"benefit": "fewer escalations to account managers",
+                                             "indicator": "the monthly escalation count"}]},
     "secondary_metrics": "1. Customer satisfaction score 2. First-time fix rate",
     "process_map_sipoc": {
         "suppliers": "Business customers; Service desk; Field technicians",
@@ -187,7 +190,9 @@ def test_a_value_read_from_a_file_and_a_calculated_one_name_their_source() -> No
     assert cost["source"] == templates.CALCULATED and cost["value"] == "€20,520 per year", cost
     assert "1,200" in cost["formula"] and "€45" in cost["formula"], cost["formula"]
     others = templates.rows("benefits_analysis", calc)[1:]
-    assert [r["source"] for r in others] == [templates.YOUR_ANSWER] * 3
+    # DEF-289: the soft benefits are a criterion row too, in the Belt's words.
+    assert [(r["id"], r["source"]) for r in others] == [
+        (cid, templates.YOUR_ANSWER) for cid in ("impact-type", "realisation", "finance-contact", "soft-benefits")]
 
 
 def test_a_required_criterion_a_code_check_finds_open_closes_confirm() -> None:

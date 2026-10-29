@@ -385,6 +385,7 @@ and only it carries the baseline and the target.
 > - `impact-type` — says whether the impact is sustainable or one-off (p. 60)
 > - `realisation` — when the saving shows: by period, or a start date and sustained (p. 60)
 > - `finance-contact` — names the finance representative who validates the figure (p. 60, p. 62)
+> - `soft-benefits` — states the soft benefits, each with how it will be seen, or says there are none (p. 60-63)
 > **Read back:** the four parts and any soft benefits — *"Is this right?"*
 > **Capture as:** `{cost_of_gap, impact_type, realisation_schedule, finance_contact}` — all four keys, each in the Belt's words.
 > **Purpose:** What the gap costs today, and what the project is worth, in money and beyond.

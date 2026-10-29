@@ -1,0 +1,101 @@
+{
+ "kind": "live_slice",
+ "element": "benefits_analysis",
+ "case_id": "IMPR-2026-9X7WMD",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "def289_a.json",
+ "recorded_product_hash": null,
+ "product_hash": "20c949d637c3de5e",
+ "seeded": [
+  "baseline_estimate",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "Cost of the gap about €20,500 a year. Sustainable, every year. From the first full quarter after the change, Q2 2027. Checked by Martina Koller, controller Field Service. Soft benefit: fewer escalatio",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "benefits_analysis",
+   "recorded_move": null,
+   "seconds": 15.3,
+   "failed": null,
+   "answer": "Here is what I captured for the benefits analysis based on your input:\n\n1. Cost of the gap: About €20,500 a year.\n2. Impact type: Sustainable, every year.\n3. Realisation schedule: From the first full quarter after the change, Q2 2027.\n4. Finance contact: Martina Koller, controller Field Service.\n5. Soft benefit: Fewer escalations to account managers, seen in the monthly escalation count.\n\nIs this ",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.53 s",
+    "input guard 1.41 s",
+    "planner judgment 2.70 s",
+    "coach 6.65 s",
+    "grader 1.94 s",
+    "after the answer (steps, save) 1.42 s",
+    "total 15.28 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "secondary_metrics",
+   "recorded_move": null,
+   "seconds": 3.8,
+   "failed": null,
+   "answer": "Benefits analysis saved: Cost of gap: About €20,500 a year; Impact type: Sustainable, every year; Realisation….\n\nElement 11 of 13 · Secondary metrics: If your fix works, what else might it affect? What will you watch to be sure you haven't traded one problem for another?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.32 s",
+    "input guard 1.30 s",
+    "after the answer (steps, save) 1.64 s",
+    "total 3.81 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 3,
+ "cost": {
+  "usd": 0.0186,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0182,
+   "gpt-4o-mini-2024-07-18": 0.0004
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 21.53,
+  "calls": 63,
+  "case": {
+   "seconds": 0.43,
+   "calls": 5
+  },
+  "store": {
+   "seconds": 0.31,
+   "calls": 6
+  },
+  "checkpoint": {
+   "seconds": 20.78,
+   "calls": 52
+  }
+ },
+ "started": "20261029T150610"
+}

@@ -186,6 +186,13 @@ def soft_text(benefits: Any) -> Optional[str]:
                      else str(s["benefit"]) for s in items) or None
 
 
+def _soft(values: dict[str, Any]) -> Read:
+    """DEF-289: the soft benefits as words (a conscious none as "None identified"), met by the code check — each with
+    how it will be seen, or consciously none."""
+    b = values.get("benefits_analysis")
+    return soft_text(b), parse.soft_benefits_stated(b)
+
+
 def _realisation(values: dict[str, Any]) -> Read:
     """G-255: when the saving shows, met by the code check the Confirm and the gate share (`parse.realisation_stated`,
     which `parse.missing_parts` applies)."""
@@ -349,6 +356,7 @@ TEMPLATES: dict[str, dict[str, tuple[str, Callable[[dict[str, Any]], Read]]]] = 
         define_criteria.IMPACT_TYPE: ("Sustainable or one-off", _benefit("impact_type")),
         define_criteria.REALISATION: ("Realisation schedule", _realisation),
         define_criteria.FINANCE_CONTACT: ("Finance contact", _benefit("finance_contact")),
+        define_criteria.SOFT_BENEFITS: ("Soft benefits", _soft),
     },
     "secondary_metrics": {
         define_criteria.SIDE_EFFECT: ("Side effects watched", _items("secondary_metrics", "Secondary metrics")),
@@ -477,12 +485,6 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
         out.append({"id": cid, "label": label, "required": True, "met": bool(met),
                     "value": None if is_empty_capture(value) else value, "source": source,
                     **({"formula": formula} if formula else {})})
-    soft = soft_text(values.get("benefits_analysis")) if field == "benefits_analysis" else None
-    if soft:
-        # DEF-260 (ADR-0096 decision 4): the soft benefits on the card and in the Gate, apart from the hard figures —
-        # shown, not a criterion (decision 3's criterion waits on its requirement).
-        out.append({"id": "soft-benefits", "label": "Soft benefits", "required": False, "met": True,
-                    "value": soft, "source": FROM_FILE if upload else YOUR_ANSWER})
     return out
 
 
