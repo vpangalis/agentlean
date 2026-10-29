@@ -10696,9 +10696,13 @@ def _def_259_unit_checks() -> None:
                                                       {"name": "close the case in the system"}]}
     never_often = {**CAPTURED_SIPOC_60, "process_steps": CAPTURED_SIPOC_60["process_steps"][1:],
                    "process_performance": {"lead_time": "about 8 working days"}}
+    # R17 amended (founder 2026-10-29, DEF-293): still a code check — open while a step has no time or no how often
+    # is given at all — but optional: shown open, never required for Confirm.
     for sipoc in (untimed, never_often):
-        assert "performance" in templates.open_required(
-            "process_map_sipoc", {"process_map_sipoc": parse.sipoc_with_performance(sipoc)}, judged=True), sipoc
+        values = {"process_map_sipoc": parse.sipoc_with_performance(sipoc)}
+        row = next(r for r in templates.rows("process_map_sipoc", values, judged=True) if r["id"] == "performance")
+        assert row["met"] is False and row["required"] is False, (sipoc, row)
+        assert "performance" not in templates.open_required("process_map_sipoc", values, judged=True), sipoc
 
 
 def test_def_265_the_project_lead_is_in_the_team_read_back(env, monkeypatch, stub_planner) -> None:
@@ -11446,3 +11450,71 @@ def test_change_under_a_refused_read_back_shows_the_answer_to_edit(env, monkeypa
     assert "mentioned 'Change'" not in change["answer"], change["answer"]
     assert len(stub_planner.prompts) == judged, "the Change click was judged as an answer"
     assert "process_map_sipoc" not in (_define(env).get("structured") or {})
+
+
+def test_def_293_step_times_how_often_and_problems_are_optional_at_the(env, monkeypatch, stub_planner) -> None:
+    """DEF-293 — R17 amendment (founder 2026-10-29, ruling on the wave-3 report item 1): step times, how often and problems are optional at the SIPOC — they never block Confirm or the gate; part 4 asks 'Do you know roughly how long each step takes? If not, leave it — Measure will measure it.', and 'leave it' counts as answered
+
+    Through POST /ask on the founder's A99 process with no time, frequency or problem anywhere: parts 1 to 3 typed,
+    part 4's card asks the founder's question; "Leave it." is the fourth answer, so the one judgment and the one
+    read-back follow; the card's step-times row is shown, open and optional with its note, and Confirm opens; the
+    Confirm stores the six columns; Gate F shows the same row, the gate's SIPOC check passes, and an open SIPOC never
+    names step times as still needed."""
+    import datetime as dt
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves
+    from backend.phases.define import templates
+    from backend.validation import rubric
+
+    steps = [s["name"] for s in SIPOC_A99["process_steps"]]
+    untimed = {**SIPOC_A99, "process_steps": [{"name": n} for n in steps]}
+    _at_the_sipoc(env, steps)
+    env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.NOT_TAUGHT}
+    _coach_saying(monkeypatch, "(never called while the parts are collected)")
+    _askd(env, message="Next, please.")
+    _askd(env, message=" -> ".join(steps))
+    _askd(env, message="A closed complaint and a closure confirmation, for business customers and account managers.")
+    p4 = _askd(env, message="The complaint, customer and contract data and the visit report, from business customers, "
+                            "the service desk and the field technicians.")["teaching_card"]
+    assert p4["part"]["n"] == 4 and p4["steps"] == steps, p4
+    assert p4["your_turn"]["question"] == ("Do you know roughly how long each step takes? If not, leave it — Measure "
+                                           "will measure it."), p4["your_turn"]
+
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="the six columns; no step times, optional")
+    _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                  captured=[{"field_name": "process_map_sipoc", "value": untimed, "source": "belt"}])
+    read = _askd(env, message="Leave it.")
+    assert read["move"] == moves.READ_BACK, (read["move"], read["answer"])
+    card = read["readback_card"]
+    performance = next(r for r in card["rows"] if r["id"] == "performance")
+    assert performance["required"] is False and performance["met"] is False, performance
+    assert performance["why"] == templates.OPTIONAL_NOTE, performance
+    assert card["confirm"] is True and card["missing"] == [] and card["ask"] == "", card
+    assert card["met"] == card["total"] == 4, card
+
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE, (done["move"], done["answer"])
+    stored = _define(env)["structured"]["process_map_sipoc"]
+    assert [s["name"] for s in stored["process_steps"]] == steps, stored
+    assert not any(s.get("duration") or s.get("runs_per_period") or s.get("problems")
+                   for s in stored["process_steps"]), stored
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    element = next(e for e in _gate_section(report, "F")["elements"] if e["field"] == "process_map_sipoc")
+    assert element["status"] == "confirmed", element
+    gate_row = next(r for r in element["rows"] if r["id"] == "performance")
+    assert gate_row["required"] is False and gate_row["why"] == templates.OPTIONAL_NOTE, gate_row
+    assert rubric._code_half("DEF-R12", {"process_map_sipoc": stored}, dt.date.today()) is None   # nothing blank
+    assert "performance" not in templates.open_required("process_map_sipoc", {"process_map_sipoc": stored})
+
+    # An open SIPOC in the Gate: step times are never named as still needed.
+    open_card = templates.gate_card("process_map_sipoc", {}, {"process_map_sipoc": {"status": moves.ASKED}})
+    assert "Step times and how often" not in open_card["needs"], open_card["needs"]
+    assert "Steps from start to end" in open_card["needs"], open_card["needs"]
+
+    # R18 asks for problem notes at the located steps only when the Belt gave problems somewhere: none given, none asked.
+    from backend.phases.define import parse
+    assert parse.link_mismatch(steps[2:4], stored)["quiet"] == [], "problems left out were asked for"
+    noted = {**stored, "process_steps": [{**s, "problems": [{"note": "late", "said_by": "Anna"}] if i == 0 else []}
+                                         for i, s in enumerate(stored["process_steps"])]}
+    assert parse.link_mismatch(steps[2:4], noted)["quiet"] == steps[2:4], "given elsewhere, a quiet step is still asked"

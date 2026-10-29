@@ -204,7 +204,7 @@ member needs". This departs deliberately from the BB manual's Define checklist (
 *Amendment ACCEPTED 2026-10-29 as written (proposed 2026-10-16 on the founder's ruling of 2026-10-15):* a criterion for soft benefits — stated, each with an
 indicator, or consciously none (manual p. 60–63). It never blocks when the answer is consciously none (founder, 2026-10-29).
 
-**R17 The as-is process with its performance** · ACCEPTED 2026-09-27, open decision 6 closed as written 2026-10-12, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0078
+**R17 The as-is process with its performance** · ACCEPTED 2026-09-27, open decision 6 closed as written 2026-10-12, amended ACCEPTED 2026-10-27 and 2026-10-29 · MoSCoW: Must · Design: ADR-0078
 The high-level process element captures not only the SIPOC and its steps but how the process
 performs today. For each step: average, minimum and maximum duration with a unit; how often it runs
 per period; and where the team sees the key problems, in the Belt's and team's own words, with who
@@ -219,6 +219,10 @@ and what goes wrong — one question, one example line, the steps from part 1 li
 once, for the whole process. A simple S-I-P-O-C skeleton stays visible with the current column lit; the example is
 drawn as a flow of boxes, not described; the long explanation moves behind a "What is a SIPOC?" link. One
 read-back and one Confirm at the end. No grid and no people per step for now.
+
+*Amendment ACCEPTED 2026-10-29 (founder ruling on the wave-3 report, item 1):* step times, how often the process runs
+and the problems are optional: they never block Confirm or the gate. Part 4 asks "Do you know roughly how long
+each step takes? If not, leave it — Measure will measure it." "Leave it" counts as answered.
 
 **R18 The problem is located in the process** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0078
 The problem statement and the process map are linked: the problem statement names the step(s) where

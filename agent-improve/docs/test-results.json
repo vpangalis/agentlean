@@ -1,9 +1,9 @@
 {
- "source_hash": "55a70e7d89f5b993",
- "commit": "b2d304c",
+ "source_hash": "9c35e5811afeb05c",
+ "commit": "ea29fdd",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T20:34:27+00:00",
+ "recorded_at": "2026-10-29T21:15:00+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -490,6 +490,7 @@
   "backend/tests/test_define_e2e.py::test_def_290_every_confirm_is_named_in_the_card_s_saved_note": "passed",
   "backend/tests/test_define_e2e.py::test_def_291_every_read_back_with_a_natural_picture_shows_it": "skipped",
   "backend/tests/test_define_e2e.py::test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool": "passed",
+  "backend/tests/test_define_e2e.py::test_def_293_step_times_how_often_and_problems_are_optional_at_the": "passed",
   "backend/tests/test_define_e2e.py::test_define_gate_has_no_warning_path": "passed",
   "backend/tests/test_define_e2e.py::test_e2e_a_changed_value_keeps_its_prior_value_dated": "passed",
   "backend/tests/test_define_e2e.py::test_e2e_a_code_written_reply_never_shows_a_placeholder": "passed",

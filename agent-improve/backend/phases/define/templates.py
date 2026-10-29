@@ -291,6 +291,10 @@ _ABSENCES = frozenset({define_criteria.NO_CAUSE_NO_FIX})
 #: quote of its own, two rows never sharing one passage — do not reach the goal statement's rows: they are met on
 #: the judgment's verdict, as accepted.
 _LOCKED_ELEMENTS = frozenset({"goal_statement"})
+#: R17 amended (founder ruling 2026-10-29, DEF-293): the rows that are optional — shown on the card and in the Gate,
+#: never required for Confirm or the gate, and never named as still needed. Unmet, the row says why it may stay so.
+OPTIONAL = frozenset({define_criteria.PERFORMANCE})
+OPTIONAL_NOTE = "Optional — if you don't know, leave it: Measure will measure it."
 #: G-288 (DEF-263): the rows that state a size — when their span repeats another row's, the size is the figure in it.
 _SIZE_ROWS = frozenset({define_criteria.BASELINE})
 #: A figure as the Belt wrote it: a share, else a number with the word or two after it ("1,200 complaints").
@@ -482,9 +486,10 @@ def rows(field: str, values: dict[str, Any], *, spans: Optional[dict[str, str]] 
             # DEF-263 (founder test 2026-10-27 #14, #19): a free-text row is met only with words of its own; a
             # whole-answer check and a file's row on the judgment's verdict.
             met = bool(judged) and (kind != "span_read" or not quoted or bool(upload) or not is_empty_capture(value))
-        out.append({"id": cid, "label": label, "required": True, "met": bool(met),
+        out.append({"id": cid, "label": label, "required": cid not in OPTIONAL, "met": bool(met),
                     "value": None if is_empty_capture(value) else value, "source": source,
-                    **({"formula": formula} if formula else {})})
+                    **({"formula": formula} if formula else {}),
+                    **({"why": OPTIONAL_NOTE} if cid in OPTIONAL and not met else {})})
     return out
 
 
@@ -651,7 +656,7 @@ def gate_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any
     out: dict[str, Any] = {"field": field, "n": number_of(field), "name": name_of(field), "status": status,
                            "history": history(field, field_log)}
     if status != "confirmed":
-        out["needs"] = [label for cid, (label, _read) in TEMPLATES[field].items()]
+        out["needs"] = [label for cid, (label, _read) in TEMPLATES[field].items() if cid not in OPTIONAL]
         return out
     rs = rows(field, artifacts, spans=entry.get("spans"), upload=entry.get("upload"), case=case)
     why = _WHY.get(field, {})

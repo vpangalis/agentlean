@@ -181,9 +181,10 @@ CRITERIA: dict[str, tuple[tuple[str, str], ...]] = {
         (START_TO_END, "four to eight high-level steps from a start point to an end point (p. 26, p. 112)"),
         (ALL_SIX, "suppliers, inputs, steps, outputs, customers and the measures are all filled (p. 112)"),
         (CUSTOMERS_MATCH, "the customers agree with the Voice of the Customer (p. 112)"),
-        (PERFORMANCE, "each step has a time (average, shortest, longest, with a unit) and how often it runs, and the "
-                      "problems the team sees with who said them; the whole process has its lead time and how often "
-                      "it runs; estimates are fine (R17)"),
+        # R17 amended (founder ruling 2026-10-29): optional — shown, never blocking Confirm or the gate.
+        (PERFORMANCE, "optional, never required: each step's rough time, how often the process runs, and the problems "
+                      "the team sees with who said them; estimates are fine; \"leave it\" is a full answer — Measure "
+                      "will measure it (R17)"),
     ),
     "issues_and_barriers": (
         # G-263 (the founder's review, 2026-10-27 11:25): the rule rubric.barrier_names checks, said as it is taught.

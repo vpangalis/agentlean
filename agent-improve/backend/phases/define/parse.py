@@ -1098,11 +1098,15 @@ def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
     """R18, both directions (ADR-0078 point 5): `unmatched` — a step the problem names that matches
     no step; `ends` — an end of a "from → to" location that matches no step or more than one; `quiet` — a
     located step with no problem notes; `ignored` — a step with problem notes outside the located steps.
-    Empty lists when the two agree. The matching is `located_steps`'."""
+    Empty lists when the two agree. The matching is `located_steps`'. DEF-293 (R17 amended, founder 2026-10-29: the
+    problems are optional): a SIPOC with no problem notes at all has no `quiet` step — none were given, so none is
+    asked for."""
     steps = process_steps(sipoc.get("process_steps") if isinstance(sipoc, dict) else None)
     where = located_steps(problem_steps, sipoc)
     hit = set(where["located"])
-    if where["range"]:
+    if not any(s["problems"] for s in steps):
+        quiet: list[str] = []
+    elif where["range"]:
         inside = [s for s in steps if s["id"] in hit]
         quiet = [s["name"] for s in inside] if inside and not any(s["problems"] for s in inside) else []
     else:

@@ -10367,6 +10367,39 @@
    "stage": "coached",
    "layer": "coaching",
    "pilot": true
+  },
+  {
+   "id": "DEF-293",
+   "description": "R17 amendment (founder 2026-10-29, ruling on the wave-3 report item 1): step times, how often and problems are optional at the SIPOC and never block Confirm or the gate; part 4 asks 'Do you know roughly how long each step takes? If not, leave it — Measure will measure it.', and 'leave it' counts as answered",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-259",
+    "DEF-271"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_293_step_times_how_often_and_problems_are_optional_at_the",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder rulings on the wave-3 report (2026-10-29), item 1"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R17",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
   }
  ]
 }
