@@ -1,9 +1,9 @@
 {
- "source_hash": "3ab9f684933d849c",
- "commit": "f5b88db",
+ "source_hash": "24dec8fc3ec783ad",
+ "commit": "32de255",
  "commit_matches_source": false,
  "full_run_hash": "10d5f6d244372de6",
- "recorded_at": "2026-10-29T14:30:34+00:00",
+ "recorded_at": "2026-10-29T14:46:50+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1821,6 +1821,7 @@
   "backend/tests/test_templates.py::test_each_a99_element_reads_back_complete_with_no_json[voc_summary]": "passed",
   "backend/tests/test_templates.py::test_every_element_has_a_template_for_each_script_criterion_in_the_scripts_order": "passed",
   "backend/tests/test_templates.py::test_free_text_is_read_from_verbatim_spans_and_otherwise_shown_once_in_the_answer": "passed",
+  "backend/tests/test_templates.py::test_g296_a_file_s_labelled_rows_read_as_lines_and_other_lines_stay": "passed",
   "backend/tests/test_templates.py::test_g346_the_saved_note_shows_a_target_as_its_number_not_the_goal_it_was_read_from": "passed",
   "backend/tests/test_templates.py::test_r_c_the_element_card_has_its_six_parts_in_order_from_the_skill_and_the_state": "passed",
   "backend/tests/test_templates.py::test_the_judgment_carries_the_spans_in_its_one_call": "passed",

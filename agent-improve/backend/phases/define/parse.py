@@ -296,6 +296,25 @@ def table_lines(text: Any) -> str:
     return "\n".join(x for x in lines[1:] if ": " in x)
 
 
+def readable_rows(text: Any) -> str:
+    """G-296 (DEF-280): a file's labelled rows ("name: Katharina Huber | role: Project Sponsor | …") as the Belt reads
+    them, one line each: the first column's value, a dash, the others in the file's order ("Katharina Huber — Project
+    Sponsor, Head of Field Service Austria, 2 h per month"). Every other line stays as it is."""
+    out = []
+    for line in str(text or "").splitlines():
+        parts = [_LABELLED.match(part) for part in line.split(" | ")]
+        values = [v for v in ((m.group(1) or "").strip() for m in parts if m) if v]
+        if len(parts) > 1 and values and all(parts):
+            out.append(values[0] + (" — " + ", ".join(values[1:]) if values[1:] else ""))
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
+#: G-296: one labelled cell of a file's row, its value possibly empty ("department:").
+_LABELLED = re.compile(r"^\s*[A-Za-z_][\w ]*:(?:\s(.*)|\s*)$")
+
+
 def team_rows(text: Any) -> list[dict[str, str]]:
     """G-236: the team from an uploaded table's labelled lines ("name: … | role: … | training: …"), read in code —
     every column kept under its own key (lower case, spaces as underscores); a department or job title is the

@@ -311,3 +311,14 @@ def test_r_c_the_element_card_has_its_six_parts_in_order_from_the_skill_and_the_
     assert sipoc["skeleton"]["lit"] == ["P"] and sipoc["part"] == {"n": 1, "of": 4}
     assert sipoc["example"]["flow"] == ["Receive order", "Look up prices", "Generate invoice", "Review and approve",
                                         "Send to client"]
+
+
+def test_g296_a_file_s_labelled_rows_read_as_lines_and_other_lines_stay() -> None:
+    """G-296 (DEF-280): the Change reply on an uploaded table shows its rows as the Belt reads them, never its keys."""
+    from backend.phases.define import parse
+    rows = ("name: Katharina Huber | role: Project Sponsor | department: Head of Field Service Austria | "
+            "time_commitment: 2 h per month\nname: Sabine Hofer | role: Team Member | department: | time_commitment: 3 h")
+    assert parse.readable_rows(rows) == ("Katharina Huber — Project Sponsor, Head of Field Service Austria, 2 h per month"
+                                         "\nSabine Hofer — Team Member, 3 h")
+    typed = "Training: Elena Gruber needs a half-day.\nThe sponsor is Katharina Huber | 10%"
+    assert parse.readable_rows(typed) == typed

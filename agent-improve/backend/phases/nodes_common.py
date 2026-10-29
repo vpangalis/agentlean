@@ -2423,7 +2423,8 @@ def _change_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
     `None` for every other move."""
     if plan is None or plan.move != moves.CHALLENGE or plan.reason != moves.CHANGE_REASON:
         return None
-    words = str((plan.pending or {}).get("belt_words") or plan.answer or "").strip()
+    from backend.phases.define.parse import readable_rows                 # G-296: a file's rows, never its keys
+    words = readable_rows(str((plan.pending or {}).get("belt_words") or plan.answer or "").strip())
     return CoachingResponse(message=words + chr(10) * 2 + CHANGE_QUESTION,
                             prompt=CHANGE_QUESTION)
 

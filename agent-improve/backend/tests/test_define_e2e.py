@@ -10427,6 +10427,8 @@ def test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns(env, 
     time and the training packed into `function`): each stored entry keeps the file's time commitment under its own
     key and the typed training under `training`, the function holds neither, and Gate A's Time and Training
     columns show them."""
+    import re
+
     from backend.gateway import routes
     from backend.middleware.skills import acceptance_criteria
     from backend.phases import moves
@@ -10473,6 +10475,10 @@ def test_def_264_an_uploaded_team_keeps_time_and_training_in_their_columns(env, 
     _coach_saying(monkeypatch, "What would you like to change?")
     changed = _askd(env, message="Change", action="change")
     assert changed["move"] == "challenge", changed["move"]
+    # G-296 (founder review of wave 1, item 4; DEF-280): Change shows the file's people as lines to edit, never its
+    # field keys ("name: Katharina Huber | role: Project Sponsor | …", wave 1's live slice of element 2, turn 2).
+    assert not re.search(r"(?m)\b(?:name|role|department|time_commitment): ", changed["answer"]), changed["answer"]
+    assert all(f"{n} — {r}, {d}, {t}" in changed["answer"] for n, r, d, t in people), changed["answer"]
     # The coach as live after the typed training: the training packed into `function` too.
     _coach_saying(monkeypatch, "Here is the updated team structure based on your input. Is this right?", captured=[
         {"field_name": "team", "source": "belt",
