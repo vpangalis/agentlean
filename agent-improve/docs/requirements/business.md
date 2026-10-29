@@ -237,12 +237,20 @@ problems the statement does not mention marked in amber with the problem and who
 to the problem statement" and "Keep as it is — not part of this problem". The same picture is the SIPOC read-back
 and Gate section F.
 
-**R10 As-is process document → SIPOC** · DRAFT 2026-09-26 · open decision 3 · MoSCoW: Won't-now · Design: none
+**R10 As-is process document → SIPOC** · ACCEPTED 2026-10-29 (drafted 2026-09-26) · open decision 3 closed · MoSCoW: Must · Design: ADR-0095
 As a Belt, I want to upload our as-is process description and have the coach turn it into a SIPOC
 draft, so that the high-level process map builds on what we already have.
 Acceptance: the coach proposes a SIPOC from the document, checks it for completeness and asks for
 missing parts; it recommends adding the performance data of R17; the Belt confirms or edits the
 SIPOC before it is stored; the confirmed SIPOC appears in the Define report (R5).
+
+*Amendment ACCEPTED 2026-10-29 (proposed 2026-10-16 on the founder's ruling of 2026-10-15; revised by the
+founder's rulings of 2026-10-29), MoSCoW Must, open decision 3 closed (Design: ADR-0095):* one ask at element 12 —
+upload any process file or picture, or describe the process. Word, PDF, plain text, Excel or CSV and pictures
+(PNG, JPG, WebP: a whiteboard photo, a diagram screenshot) are read; for Visio, BPMN and PowerPoint the reply asks
+for a PDF or a picture of the map. One SIPOC tool reads it in one structured call; code finds the gaps, checks the
+numbers and draws the SIPOC flow with every gap marked; only the gaps are asked, and step times, how often and
+problems are optional (R17). The Belt completes and confirms it; nothing is stored before Confirm (W5).
 
 **c Coaching specifics**
 

@@ -11518,3 +11518,28 @@ def test_def_293_step_times_how_often_and_problems_are_optional_at_the(env, monk
     noted = {**stored, "process_steps": [{**s, "problems": [{"note": "late", "said_by": "Anna"}] if i == 0 else []}
                                          for i, s in enumerate(stored["process_steps"])]}
     assert parse.link_mismatch(steps[2:4], noted)["quiet"] == steps[2:4], "given elsewhere, a quiet step is still asked"
+
+
+def test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps() -> None:
+    """DEF-294 — R10 (ADR-0095): one plain SIPOC tool — one structured reading call returns the SIPOC fields; code finds the gaps, checks the numbers and draws the flow with every gap marked; it returns the draft and its gaps and stores nothing"""
+    _not_written('DEF-294')
+
+
+def test_def_295_an_upload_at_element_12_becomes_the_sipoc_draft_read_back() -> None:
+    """DEF-295 — R10 (ADR-0095): an upload at element 12 becomes the SIPOC draft — code calls the SIPOC tool as the upload's one reading; the draft is read back as the card and the flow with every gap marked; Confirm stores that same value, which Gate F draws"""
+    _not_written('DEF-295')
+
+
+def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps() -> None:
+    """DEF-296 — R10 (ADR-0095): a typed description or a gap's answer at element 12 — the coach is offered the SIPOC tool there only; a full answer to the one ask gets no further question; only the gaps are asked"""
+    _not_written('DEF-296')
+
+
+def test_def_297_a_process_picture_is_read_in_one_call_with_its_true_type() -> None:
+    """DEF-297 — R10 (ADR-0095): a picture of the process (a whiteboard photo, a diagram screenshot) is read in the same single call, sent as its true type"""
+    _not_written('DEF-297')
+
+
+def test_def_298_a_file_at_element_12_gets_its_plain_reply() -> None:
+    """DEF-298 — R10 (ADR-0095): the file replies at element 12 — Word and PDF keep their prose; Visio, BPMN and PowerPoint are asked for a PDF or a picture; a file that is not a process gets a plain reply; an as-is map is evidence; read_upload opens pictures"""
+    _not_written('DEF-298')

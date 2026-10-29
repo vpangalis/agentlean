@@ -10400,6 +10400,168 @@
    "stage": "coached",
    "layer": "coaching",
    "pilot": true
+  },
+  {
+   "id": "DEF-294",
+   "description": "R10 (ADR-0095): one plain SIPOC tool — one structured reading call returns the SIPOC fields; code finds the gaps, checks the numbers and draws the flow with every gap marked; it returns the draft and its gaps and stores nothing",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-259",
+    "DEF-211"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder rulings on the wave-3 report (2026-10-29, item 1) and the 22:00 follow-up"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R10",
+   "belt_impact": "dead_end",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-295",
+   "description": "R10 (ADR-0095): an upload at element 12 becomes the SIPOC draft — code calls the SIPOC tool as the upload's one reading; the draft is read back as the card and the flow with every gap marked; Confirm stores that same value, which Gate F draws",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-294"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_295_an_upload_at_element_12_becomes_the_sipoc_draft_read_back",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder rulings on the wave-3 report (2026-10-29, item 1) and the 22:00 follow-up"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R10",
+   "belt_impact": "dead_end",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-296",
+   "description": "R10 (ADR-0095): a typed description or a gap's answer at element 12 — the coach is offered the SIPOC tool there only; a full answer to the one ask gets no further question; only the gaps are asked",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-294",
+    "DEF-293"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder rulings on the wave-3 report (2026-10-29, item 1) and the 22:00 follow-up"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R10",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching",
+   "pilot": true
+  },
+  {
+   "id": "DEF-297",
+   "description": "R10 (ADR-0095): a picture of the process (a whiteboard photo, a diagram screenshot) is read in the same single call, sent as its true type",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-295"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_297_a_process_picture_is_read_in_one_call_with_its_true_type",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder rulings on the wave-3 report (2026-10-29, item 1) and the 22:00 follow-up"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R10",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
+  },
+  {
+   "id": "DEF-298",
+   "description": "R10 (ADR-0095): the file replies at element 12 — Word and PDF keep their prose; Visio, BPMN and PowerPoint are asked for a PDF or a picture; a file that is not a process gets a plain reply; an as-is map is evidence; read_upload opens pictures",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-295"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_298_a_file_at_element_12_gets_its_plain_reply",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "founder rulings on the wave-3 report (2026-10-29, item 1) and the 22:00 follow-up"
+    ],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R10",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen",
+   "pilot": true
   }
  ]
 }

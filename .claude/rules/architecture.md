@@ -73,6 +73,10 @@ longer a tool call.
 **Level 1 (supervisor) has no LLM planner.** Phase sequencing is a
 deterministic gate-check on `gate_passed` plus static edges.
 
+**New capability comes as tools or skills — never new graph nodes,
+subgraphs or subagents** (founder, 2026-10-29). A tool is a plain
+function with no prompt loop of its own.
+
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §3 (terminology), §13, §17.*
 
 ### 1.4 — Async by Default
