@@ -11192,6 +11192,21 @@ def test_def_288_the_case_s_country_and_site_are_chosen_on() -> None:
     _not_written('DEF-288')
 
 
+def test_g281_the_overview_card_points_to_the_history_tab_never_a_placeholder() -> None:
+    """G-281 (DEF-280; founder test 2026-10-27 finding 8): the Phase overview's "Session history" card showed "(under
+    ···)", read as an unfilled placeholder. It names the History tab the page shows, in every phase's overview; no
+    card note is a placeholder."""
+    import re
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    overview = re.search(r"^function renderOverview\(.*?^\}", src, re.M | re.S)
+    assert overview, "renderOverview not found"
+    notes = re.findall(r"name:'Session history',\s*note:'([^']*)'", overview.group(0))
+    assert len(notes) == 5 and set(notes) == {"the History tab"}, notes          # one card per phase
+    assert not re.search(r"note:'[^']*(?:···|\.\.\.|–|\?)[^']*'", overview.group(0)), "a placeholder note"
+    assert re.search(r'id="vt-history"[^>]*>History<', src), "the History tab the note names"
+
+
 def test_def_292_an_answer_turn_offers_read_upload_and_no_other_tool() -> None:
     """DEF-292 — ADR-0115 (founder 2026-10-29, wave-2 decision 5): an answer turn offers read_upload, so the coach can
     quote a file the Belt names in an answer; no other tool. Through the turn tools middleware as the executor builds

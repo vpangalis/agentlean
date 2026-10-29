@@ -3571,8 +3571,8 @@
    "lane": [
     "C"
    ],
-   "escape_class": null,
-   "symptom": "THE SESSION HISTORY CARD SHOWS '(under –)', an unfilled placeholder. Founder test 2026-10-27 finding 8 (case IMPR-2026-PDLWG9). belt_impact: degraded."
+   "escape_class": "path_test",
+   "symptom": "THE SESSION HISTORY CARD SHOWS '(under –)', an unfilled placeholder. Founder test 2026-10-27 finding 8 (case IMPR-2026-PDLWG9). belt_impact: degraded. WAVE 3, 2026-10-29 — fixed. D4 OCCURRENCE: renderOverview's five 'Session history' cards carried note 'under ···', meant as 'under the ··· menu'; the page has no such menu — session history is the History tab. D4 ESCAPE (path_test): no test read the overview cards' notes; the founder's walk found it. D5 FIX: the note names the History tab. D6 VERIFY: test_g281 fails on 7598d4b and passes; it also refuses any placeholder note in the overview. D7 PREVENT: test_g281."
   },
   {
    "id": "G-282",
