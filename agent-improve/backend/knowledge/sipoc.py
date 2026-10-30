@@ -268,8 +268,8 @@ def merged(prior: dict[str, Any], added: dict[str, Any]) -> dict[str, Any]:
 async def coach_reading(description: str) -> tuple[str, dict[str, Any]]:
     """The SIPOC tool as the coach calls it — the same one reading (`_reading`) and the same code (`sipoc_draft`). With
     a SIPOC read so far, the new words are an addition (the answer to a gap): what they give is merged over it, and the
-    gaps are those of the whole. Returns what the coach reads — the SIPOC as read, the gaps to ask (the times question
-    optional), the number checks, or the plain reply — and the result, also left for the executor."""
+    gaps are those of the whole. Returns what the coach reads — the SIPOC as read and the gaps to ask (the times
+    question optional), or the plain reply — and the result, also left for the executor."""
     prior = TURN_PRIOR.get()
     reading = await _reading(description, None, "")
     result = sipoc_draft(reading, prior, source=description)
@@ -289,7 +289,8 @@ async def coach_reading(description: str) -> tuple[str, dict[str, Any]]:
              as_text(result["draft"])]
     lines += ["Still missing — ask only this:", *needed] if needed else ["Nothing required is missing."]
     lines += [f"Optional: {g['question']}" for g in result["gaps"] if g["optional"]]
-    lines += result["checks"]
+    # The number checks are not the coach's: code asks them under every SIPOC read-back (live 2026-10-30: the coach
+    # repeated the one the tool gave it, and the reply asked it twice).
     return "\n".join(lines), kept(result)
 
 

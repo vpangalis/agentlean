@@ -540,6 +540,11 @@ class BeforeModelStateInjection(AgentMiddleware):
             body = f"{plan.reason}\n\n{body}"
         if plan.move == moves.READ_BACK:
             body = f"{body}\n\n{CAPTURE_RULES}"
+        if (self.phase == "define" and field == moves.SIPOC_FIELD and plan.move in (moves.READ_BACK, moves.CHALLENGE)
+                and not str(plan.reason or "").startswith(moves.SIPOC_UPLOAD_REASON.split("{")[0])):
+            # R10 (ADR-0095 decision 4, DEF-296): the SIPOC tool first — offered on this turn only (turn_tools).
+            from backend.core.prompts import SIPOC_TOOL_FIRST
+            body = f"{SIPOC_TOOL_FIRST}\n\n{body}"
         lines = [SECTION_MOVE, MOVE_PREAMBLE, "",
                  # The status AFTER this turn, as section 3 shows it:
                  # on a store-and-advance the field is the NEXT one, and the

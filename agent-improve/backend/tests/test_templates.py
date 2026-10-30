@@ -310,12 +310,14 @@ def test_r_c_the_element_card_has_its_six_parts_in_order_from_the_skill_and_the_
             and len(c["help"]) == 3, field
     first = templates.teaching_card("business_case", {}, {})
     assert first["trail"]["previous"] is None and first["saved"] is None and first["trail"]["confirmed"] == 0
-    # R-G (founder ruling 2026-10-27): the SIPOC is taught by its part 1 card — the skeleton with P lit, the steps
-    # drawn as a flow of boxes.
+    # R-G as amended by R10 (ADR-0095 decision 1): the SIPOC's card asks the one ask under the skeleton, no part
+    # numbered, the steps drawn as a flow of boxes, "What is a SIPOC?" first among the help links.
     sipoc = templates.teaching_card("process_map_sipoc", {}, {})
-    assert sipoc["skeleton"]["lit"] == ["P"] and sipoc["part"] == {"n": 1, "of": 4}
+    assert sipoc["skeleton"] == {"letters": ["S", "I", "P", "O", "C"], "lit": []} and "part" not in sipoc
+    assert sipoc["your_turn"]["question"] == "Upload any process file or picture, or describe the process."
     assert sipoc["example"]["flow"] == ["Receive order", "Look up prices", "Generate invoice", "Review and approve",
                                         "Send to client"]
+    assert sipoc["help"][0]["label"] == templates.SIPOC_WHAT and len(sipoc["help"]) == 3, sipoc["help"]
 
 
 def test_g296_a_file_s_labelled_rows_read_as_lines_and_other_lines_stay() -> None:

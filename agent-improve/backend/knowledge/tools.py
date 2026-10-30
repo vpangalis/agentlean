@@ -740,14 +740,23 @@ async def read_upload(blob_path: str) -> tuple[str, dict]:
         logger.warning("read_upload: cannot read %s: %s", blob_path, exc)
         return (f"That file could not be opened ({filename}). Ask the Belt to upload it again.",
                 {"ok": False, "reason": "unreadable"})
-    parsed = parse_upload(filename, raw, _content_type_for(filename))
-    if not parsed.get("parsed"):
-        return (f"That file could not be read: {parsed.get('refusal_reason')}", {"ok": False, "reason": "unparseable"})
     case = await blob_store.load_case(case_id)
     record = next((u for ph in (case.phases.values() if case else []) for u in (ph.uploads or [])
                    if u.blob_path == blob_path), None)
     kind = str(getattr(record, "kind", "") or classifier.EVIDENCE)
-    body = str(parsed.get("text") or "")
+    if classifier.is_image(_content_type_for(filename)):
+        # ADR-0115 as extended by the founder (2026-10-29, R10 step E): a picture opens as the text read from it — kept
+        # with its upload when the SIPOC tool read it, else read now by the vision role, the image's one parse.
+        body = await _picture_text(record, raw)
+        if not body:
+            return (f"No text could be read from that picture ({filename}). Ask the Belt what it shows.",
+                    {"ok": False, "reason": "unreadable picture"})
+    else:
+        parsed = parse_upload(filename, raw, _content_type_for(filename))
+        if not parsed.get("parsed"):
+            return (f"That file could not be read: {parsed.get('refusal_reason')}",
+                    {"ok": False, "reason": "unparseable"})
+        body = str(parsed.get("text") or "")
     truncated = len(body) > READ_UPLOAD_MAX_CHARS
     shown = body[:READ_UPLOAD_MAX_CHARS]
     head = (f"file: {filename} · kind: {kind}" + (" (what the team designed — not a fact about today)"
@@ -771,6 +780,18 @@ async def read_sipoc(description: str) -> tuple[str, dict]:
 
 #: R10 (ADR-0095 decision 4): Define's own tool — registered on Define's executor, offered at element 12 only.
 DEFINE_TOOLS: list[BaseTool] = [read_sipoc]
+
+
+async def _picture_text(record: object, raw: bytes) -> str:
+    """The text of an uploaded picture: what the SIPOC tool read from it at upload, else the vision role's read now."""
+    interpretation = getattr(record, "interpretation", None)
+    kept = str(((getattr(interpretation, "sipoc", None) or {}).get("picture_text")) or "").strip()
+    if kept:
+        return kept
+    from backend.core.request_context import get_phase
+    from backend.upload.agent import _extract_from_image
+    read = await _extract_from_image(raw, {}, get_phase() or "define")
+    return str(read.get("text") or "").strip() if read.get("parsed") else ""
 
 
 def _content_type_for(filename: str) -> str:

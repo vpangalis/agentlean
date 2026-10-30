@@ -288,22 +288,18 @@
 > **Why it matters:** It puts the whole process on one page, so the team agrees where it starts and ends and who it serves. It maps the process as it IS, not as it should be — an ideal map hides the problem. The step times and problems show where the problem statement's pain sits, and give Measure its first figures to check.
 > **Show (the completed SIPOC and how it performs today — illustration, not your data):** the worked example is drawn below: an invoicing process in five steps, from receiving the order to sending the invoice, with each step's time, how often it runs and the problems the team sees there.
 > How each part is formulated: suppliers are who provides; inputs and outputs are things (nouns); each process step starts with a verb; customers are who receives the outputs.
-> **Ask:** Let's build yours as it runs today: the main steps from start to end, then who supplies what goes in, what comes out, and who receives it. What do you measure on those outputs? Then, if you know them: for each step, roughly how long it takes, how often the process runs, and what problems the team sees there, and who said so — if not, leave it: Measure will measure it. You can also upload a map if you have one.
+> **Ask:** Upload any process file or picture, or describe the process.
 > **Acceptance criteria** *(BB manual, the founder's page numbers)*:
 > - `as-is` — maps the process as it runs today, not the ideal (p. 80)
 > - `start-to-end` — four to eight high-level steps from a start point to an end point (p. 26, p. 112)
 > - `all-six` — suppliers, inputs, steps, outputs, customers and the measures are all filled (p. 112)
 > - `customers-match` — the customers agree with the Voice of the Customer (p. 112)
 > - `performance` — optional, never required: each step's rough time, how often the process runs, and the problems the team sees with who said them; estimates are fine; "leave it" is a full answer — Measure will measure it (R17)
-> **Read back:** the assembled SIPOC as a table, all six keys, then any step times, frequency and problems the Belt gave (optional — none given is fine), flagging any thin column of the six — *"Is this right?"*
-> **Capture as:** `{suppliers, inputs, process_steps, outputs, customers, process_metrics, process_performance}` — ALL SIX columns filled; `process_steps` a list, one entry per step `{name, duration {avg, min, max}, runs_per_period, problems [{note, said_by}]}`; `process_performance` `{lead_time, runs_per_period}`; each figure in the Belt's words with its unit.
+> **Read back:** Call the SIPOC tool with what the Belt gave you. Ask only the gaps it returns. For times ask: "Do you know roughly how long each step takes? If not, leave it — Measure will measure it."
+> **Capture as:** the SIPOC tool's draft, as it returns it — `{suppliers, inputs, process_steps, outputs, customers, process_metrics, process_performance}`.
 > **Purpose:** The process on one page, as it runs today, and how it performs.
-> **Hint:** Four short parts; estimates are fine. You can upload a map instead.
+> **Hint:** One ask: a file, a picture or a few lines. Estimates are fine.
 > **Help question:** How detailed should the steps be?
-> **Part 1:** What are the main steps of your process, from start to end, as it runs today? Four to eight steps, each starting with a verb. || Receive order → Look up prices → Generate invoice → Review and approve → Send to client
-> **Part 2:** What comes out of the process, and who receives it? || Invoice (PDF), payment request → client finance team, credit control
-> **Part 3:** What goes into the process, and who supplies it? || Signed order, price list, client details ← sales team, pricing database, client
-> **Part 4:** Do you know roughly how long each step takes? If not, leave it — Measure will measure it. || Receive order — about 10 min (5–30 min); orders arrive without a PO number (Anna). The process runs about 600 times a week.
 
 **[13 · issues_and_barriers · required]**
 > **What it is:** The issues and barriers: what could get in the way of the project — data, people, systems, time.

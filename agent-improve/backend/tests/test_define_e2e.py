@@ -5516,16 +5516,20 @@ def test_e2e_every_element_is_taught_explain_show_ask(env, monkeypatch) -> None:
         assert card and card["field"] == field and body["move"] == moves.TEACH, (field, body["move"])
         sections = _sections(blocks[field][1])
         why, ask = card["help"][0]["text"], card["your_turn"]["question"]
-        # R-G (founder ruling 2026-10-27): the SIPOC is taught by its part 1 card; its long explanation (what it is
-        # and why it matters) sits behind "What is a SIPOC?".
+        # R-G as amended by R10 (ADR-0095 decision 1): the SIPOC's card asks the one ask, the skill's Ask, under its
+        # skeleton; its long explanation (what it is and why it matters) sits behind "What is a SIPOC?"; its example's
+        # steps, drawn as boxes, are the first gap question's example (`knowledge/sipoc.GAP_PARTS`).
         guided = field == "process_map_sipoc"
         for name, shown in (("Purpose", card["purpose"]), ("What it is" if guided else "Why it matters", why),
-                            ("Part 1" if guided else "Ask", ask)):
+                            ("Ask", ask)):
             first = plain(sections[name])[:50]
             assert first and shown.startswith(first), (field, name, first, shown[:60])
         if guided:
+            from backend.knowledge.sipoc import GAP_PARTS
             assert plain(sections["Why it matters"])[:50] in why, why
-            items, script_example = card["example"]["flow"], plain(sections["Part 1"])
+            assert ask == "Upload any process file or picture, or describe the process.", ask
+            assert card["skeleton"]["letters"] == ["S", "I", "P", "O", "C"] and "part" not in card, card
+            items, script_example = card["example"]["flow"], str(GAP_PARTS[0]["example"])
         else:
             rows = card["example"]["rows"]
             items = [x for r in rows for c in r[1:] for x in re.split(r", | → ", c)]
@@ -8702,12 +8706,8 @@ def test_a_how_to_question_is_answered_and_the_element_resumes(env, monkeypatch,
         stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no figure yet")
         _coach_saying(monkeypatch, "Thanks — what is missing is the figure itself.")
         resumed = _askd(env, message="We think it is fairly high.")
-        if field == "process_map_sipoc":
-            # R-G (founder ruling 2026-10-27): the SIPOC resumes where it was — the answer is part 1's, collected, and
-            # the next part is asked by its card; it is judged once, after its fourth part.
-            assert resumed["move"] == moves.TEACH and resumed["move_field"] == field, (field, resumed["move"])
-            assert resumed["teaching_card"]["part"]["n"] == 2, resumed["teaching_card"].get("part")
-            continue
+        # R10 (ADR-0095): the SIPOC too — after the one ask its answer is judged, as every element's is; R-G's parts
+        # are the gap questions now, never cards collected before the judgment.
         assert resumed["move"] == moves.CHALLENGE and resumed["move_field"] == field, (field, resumed["move"])
 
 
@@ -11014,18 +11014,18 @@ def test_def_270_calculations_by_code_shown_with_formula_and_result_offered(env,
 
 
 def test_def_271_the_sipoc_is_collected_in_four_guided_parts_a(env, monkeypatch, stub_planner) -> None:
-    """DEF-271 — R-G: the SIPOC is collected in four guided parts, a skeleton visible, one read-back and one Confirm at the end (founder test 2026-10-27)
+    """DEF-271 — R-G as amended by R10 (founder 2026-10-29, ADR-0095 decision 1): the SIPOC's card asks the one ask under its skeleton; R-G's four parts are the gap questions, asked only when missing; one read-back and one Confirm at the end
 
-    Founder test 2026-10-27 #58 and ruling R-G: four short parts in the BB manual's order — the main steps; outputs and
-    customers; inputs and suppliers; for each step how long and what goes wrong (the steps from part 1 listed), how
-    often once — an S-I-P-O-C skeleton with the current column lit, the example drawn as boxes, "What is a SIPOC?"
-    behind a link; one read-back and one Confirm at the end. Through the routes and graph: each part is its card, in
-    code — no judgment and no coach call while collecting; the fourth answer makes the one judgment, the one read-back
-    and the one Confirm. A whole SIPOC pasted at once (the founder's, missing its outputs) is asked only the part it
-    lacks."""
+    Founder test 2026-10-27 #58 and ruling R-G, amended by R10 (ACCEPTED 2026-10-29): the card at element 12 asks the
+    one ask — "Upload any process file or picture, or describe the process." — under the S-I-P-O-C skeleton, the
+    example's steps drawn as boxes, "What is a SIPOC?" behind a link, and no part number. Through the routes and graph:
+    the card is given in code (no judgment, no coach call); a full answer to the one ask is judged once, read back
+    once and confirmed once — no further question; the founder's SIPOC pasted at the one ask, missing its outputs, is
+    asked only the outputs, never a part card."""
     from langchain_core.messages import AIMessage
 
     from backend.core.substate import SufficiencyJudgment
+    from backend.knowledge.sipoc import GAP_PARTS
     from backend.phases import moves, nodes_common
     from backend.tests.test_wiring import REPLY, _FakeCoach
 
@@ -11044,43 +11044,42 @@ def test_def_271_the_sipoc_is_collected_in_four_guided_parts_a(env, monkeypatch,
     steps = [s["name"] for s in SIPOC_A99["process_steps"]]
     _at_the_sipoc(env, steps)
     env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.NOT_TAUGHT}
-    coach_saying("(never called while the parts are collected)")
-    p1 = _askd(env, message="Next, please.")["teaching_card"]
-    assert p1["part"] == {"n": 1, "of": 4} and p1["skeleton"]["lit"] == ["P"], p1
-    assert p1["example"]["flow"][:2] == ["Receive order", "Look up prices"] and "rows" not in p1["example"]
-    assert p1["help"][0]["label"] == "What is a SIPOC?" and "SIPOC" in p1["help"][0]["text"]
+    coach_saying("(never called for the card)")
     judged = len(stub_planner.prompts)
-    p2 = _askd(env, message=" -> ".join(steps))["teaching_card"]
-    assert p2["part"]["n"] == 2 and p2["skeleton"]["lit"] == ["O", "C"], p2
-    p3 = _askd(env, message="A closed complaint and a closure confirmation, for business customers and account "
-                            "managers.")["teaching_card"]
-    assert p3["part"]["n"] == 3 and p3["skeleton"]["lit"] == ["S", "I"], p3
-    p4 = _askd(env, message="The complaint, customer and contract data and the visit report, from business customers, "
-                            "the service desk and the field technicians.")["teaching_card"]
-    assert p4["part"]["n"] == 4 and p4["steps"] == steps, p4
-    assert len(stub_planner.prompts) == judged and coached == [], "a model was called while the parts were collected"
+    card = _askd(env, message="Next, please.")["teaching_card"]
+    assert card["your_turn"]["question"] == "Upload any process file or picture, or describe the process.", card
+    assert card["skeleton"] == {"letters": ["S", "I", "P", "O", "C"], "lit": []} and "part" not in card, card
+    assert card["example"]["flow"] == [x.strip() for x in str(GAP_PARTS[0]["example"]).split("→")], card["example"]
+    assert card["help"][0]["label"] == "What is a SIPOC?" and "SIPOC" in card["help"][0]["text"]
+    assert len(stub_planner.prompts) == judged and coached == [], "a model was called for the card"
 
+    # A full answer to the one ask: one judgment, one read-back, one Confirm — no further question.
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all six columns and the step times")
     coach_saying("Your process as it runs today, read back. Is this right?",
                  captured=[{"field_name": "process_map_sipoc", "value": SIPOC_A99, "source": "belt"}])
-    read = _askd(env, message="Log 15 min, schedule 2 days, repair 1 day, close 4 days, inform 1 day; the problems as "
-                              "the team noted them; about 100 a month.")
+    full = (f"Suppliers: {SIPOC_A99['suppliers']}. Inputs: {SIPOC_A99['inputs']}. Process: {' -> '.join(steps)}. "
+            f"Outputs: {SIPOC_A99['outputs']}. Customers: {SIPOC_A99['customers']}. "
+            f"Process metrics: {SIPOC_A99['process_metrics']}.")
+    read = _askd(env, message=full)
     assert read["move"] == moves.READ_BACK and read["readback_card"]["confirm"], (read["move"], read["answer"])
-    assert len(stub_planner.prompts) == judged + 1 and len(coached) == 1, "one judgment and one read-back at the end"
+    assert len(stub_planner.prompts) == judged + 1 and len(coached) == 1, "one judgment and one read-back"
     done = _askd(env, message="Confirm", action="confirm")
     assert done["move"] == moves.STORE_AND_ADVANCE and done["teaching_card"]["saved"]["fields"] == ["process_map_sipoc"]
     assert [s["name"] for s in _define(env)["structured"]["process_map_sipoc"]["process_steps"]] == steps
 
-    # The founder's SIPOC pasted whole at part 1 — suppliers, inputs, the steps with their times, customers, but no
-    # outputs: only part 2 is asked.
+    # The founder's SIPOC pasted at the one ask, missing its outputs: only the outputs are asked, never a part card.
     env.holder["saver"]._container.blobs.clear()
     env.restart()
     _at_the_sipoc(env, steps)
     env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.NOT_TAUGHT}
     _askd(env, message="Next, please.")
+    coach_saying("Your process, read back. Is this right?",
+                 captured=[{"field_name": "process_map_sipoc", "value": CAPTURED_SIPOC_60, "source": "belt"}])
     flawed = _askd(env, message=FLAWED_SIPOC_60)
-    assert flawed["move"] == moves.TEACH and flawed["teaching_card"]["part"]["n"] == 2, (flawed["move"],
-                                                                                         flawed["answer"])
+    assert flawed["move"] != moves.TEACH and not flawed.get("teaching_card"), (flawed["move"], flawed["answer"])
+    assert "outputs column" in flawed["answer"], flawed["answer"]
+    for other in ("suppliers column", "inputs column", "customers column", "steps column"):
+        assert other not in flawed["answer"], (other, flawed["answer"])
 
 
 def test_def_272_the_r18_link_check_is_a_flow_with_the(env, monkeypatch, stub_planner) -> None:
@@ -11676,37 +11675,43 @@ def test_change_under_a_refused_read_back_shows_the_answer_to_edit(env, monkeypa
 def test_def_293_step_times_how_often_and_problems_are_optional_at_the(env, monkeypatch, stub_planner) -> None:
     """DEF-293 — R17 amendment (founder 2026-10-29, ruling on the wave-3 report item 1): step times, how often and problems are optional at the SIPOC — they never block Confirm or the gate; part 4 asks 'Do you know roughly how long each step takes? If not, leave it — Measure will measure it.', and 'leave it' counts as answered
 
-    Through POST /ask on the founder's A99 process with no time, frequency or problem anywhere: parts 1 to 3 typed,
-    part 4's card asks the founder's question; "Leave it." is the fourth answer, so the one judgment and the one
-    read-back follow; the card's step-times row is shown, open and optional with its note, and Confirm opens; the
+    Through POST /ask on the founder's A99 process with no time, frequency or problem anywhere. R10 (ADR-0095) moved R-G's
+    part 4 to the times question asked after the one ask, in the founder's words: the SIPOC tool asks it as optional,
+    and the skill's read-back says so. The one ask answered with the columns and no time is judged and read back; the
+    card's step-times row is shown, open and optional with its note, and Confirm opens; "Leave it." keeps it so; the
     Confirm stores the six columns; Gate F shows the same row, the gate's SIPOC check passes, and an open SIPOC never
     names step times as still needed."""
     import datetime as dt
 
     from backend.core.substate import SufficiencyJudgment
     from backend.phases import moves
-    from backend.phases.define import templates
+    from backend.phases.define import parse, templates
     from backend.validation import rubric
 
     steps = [s["name"] for s in SIPOC_A99["process_steps"]]
     untimed = {**SIPOC_A99, "process_steps": [{"name": n} for n in steps]}
+    from backend.knowledge import sipoc
+    from backend.middleware.skills import element_text
+    founders = "Do you know roughly how long each step takes? If not, leave it — Measure will measure it."
+    assert sipoc.TIMES_QUESTION == founders and founders in element_text("define", "process_map_sipoc", "Read back")
+    assert [g for g in sipoc.gaps(parse.sipoc_with_performance(untimed)) if g["optional"]] == [
+        {"part": 4, "columns": [], "question": founders, "example": sipoc.TIMES_EXAMPLE, "optional": True}]
     _at_the_sipoc(env, steps)
     env.case.phases["define"].field_status["process_map_sipoc"] = {"status": moves.NOT_TAUGHT}
-    _coach_saying(monkeypatch, "(never called while the parts are collected)")
-    _askd(env, message="Next, please.")
-    _askd(env, message=" -> ".join(steps))
-    _askd(env, message="A closed complaint and a closure confirmation, for business customers and account managers.")
-    p4 = _askd(env, message="The complaint, customer and contract data and the visit report, from business customers, "
-                            "the service desk and the field technicians.")["teaching_card"]
-    assert p4["part"]["n"] == 4 and p4["steps"] == steps, p4
-    assert p4["your_turn"]["question"] == ("Do you know roughly how long each step takes? If not, leave it — Measure "
-                                           "will measure it."), p4["your_turn"]
+    _coach_saying(monkeypatch, "(the card asks the one ask; no coach call)")
+    card = _askd(env, message="Next, please.")["teaching_card"]
+    assert card["your_turn"]["question"] == "Upload any process file or picture, or describe the process.", card
 
     stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="the six columns; no step times, optional")
-    _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
-                  captured=[{"field_name": "process_map_sipoc", "value": untimed, "source": "belt"}])
-    read = _askd(env, message="Leave it.")
-    assert read["move"] == moves.READ_BACK, (read["move"], read["answer"])
+    labelled = (f"Suppliers: {untimed['suppliers']}. Inputs: {untimed['inputs']}. Process: {' -> '.join(steps)}. "
+                f"Outputs: {untimed['outputs']}. Customers: {untimed['customers']}. "
+                f"Process metrics: {untimed['process_metrics']}.")
+    for said in (labelled, "Leave it."):
+        _coach_saying(monkeypatch, "Your process as it runs today, read back. Is this right?",
+                      captured=[{"field_name": "process_map_sipoc", "value": untimed, "source": "belt"}])
+        read = _askd(env, message=said)
+        assert read["move"] == moves.READ_BACK, (said, read["move"], read["answer"])
+        assert read["readback_card"]["confirm"] is True, (said, read["readback_card"]["missing"])
     card = read["readback_card"]
     performance = next(r for r in card["rows"] if r["id"] == "performance")
     assert performance["required"] is False and performance["met"] is False, performance
@@ -11734,7 +11739,6 @@ def test_def_293_step_times_how_often_and_problems_are_optional_at_the(env, monk
     assert "Steps from start to end" in open_card["needs"], open_card["needs"]
 
     # R18 asks for problem notes at the located steps only when the Belt gave problems somewhere: none given, none asked.
-    from backend.phases.define import parse
     assert parse.link_mismatch(steps[2:4], stored)["quiet"] == [], "problems left out were asked for"
     noted = {**stored, "process_steps": [{**s, "problems": [{"note": "late", "said_by": "Anna"}] if i == 0 else []}
                                          for i, s in enumerate(stored["process_steps"])]}
@@ -12074,6 +12078,8 @@ def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps(env, m
     assert not [w for w in INVENTED_OUTPUTS_60 if w.lower() in seen.lower()], "the coach's invented outputs are held"
     assert [s["name"] for s in held["process_steps"]][:2] == ["log the complaint", "diagnose and dispatch a technician"]
     assert read["readback_card"]["confirm"] is False, read["readback_card"]
+    # Live 2026-10-30: the coach read the draft back and left the gap unasked — the tool's gaps are asked in code.
+    assert "Still needed:\n- What comes out of the process, and who receives it?" in read["answer"], read["answer"]
 
     # What the tool told the coach: the SIPOC as read and ONLY the missing part.
     sipoc.TURN_PRIOR.set(None)
@@ -12081,6 +12087,7 @@ def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps(env, m
     told, _ = asyncio.run(sipoc.coach_reading(FLAWED_SIPOC_60))
     assert "Still missing — ask only this:\nWhat comes out of the process, and who receives it?" in told, told
     assert "What are the main steps" not in told and "What goes into the process" not in told, told
+    assert "The steps add up to" not in told, "the number checks are code's, asked under the read-back — not the coach's"
 
     # The answer to the gap: merged over the draft held; nothing required missing; Confirm stores that value.
     readings.append(SipocReading(is_process=False, outputs=["the closed complaint", "the customer informed"]))
@@ -12101,6 +12108,20 @@ def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps(env, m
                                                                  for s in untimed.process_steps], "lead_time": ""}))
     told, _ = asyncio.run(sipoc.coach_reading(FLAWED_SIPOC_60 + " Outputs: the closed complaint."))
     assert "Nothing required is missing." in told and f"Optional: {sipoc.TIMES_QUESTION}" in told, told
+
+    # The coach asked the gap itself (live 2026-10-30, the second run): it is not asked twice.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+    readings.append(_sipoc_reading_60())
+    asked = "What comes out of the process, and who receives it?"
+    coach_calling(FLAWED_SIPOC_60, f"Here is your process. {asked}")
+    again = _askd(env, message=FLAWED_SIPOC_60)
+    assert again["move"] == "read_back" and again["answer"].count(asked) == 1, again["answer"]
 
     # Offered at element 12 only.
     registered = [*tools.UNIVERSAL_TOOLS, *COMPUTATION_TOOLS_BY_PHASE["define"], *tools.DEFINE_TOOLS]
@@ -12192,6 +12213,137 @@ def test_def_297_a_process_picture_is_read_in_one_call_with_its_true_type(env, m
     assert len(record.uploads) == before
 
 
-def test_def_298_a_file_at_element_12_gets_its_plain_reply() -> None:
-    """DEF-298 — R10 (ADR-0095): the file replies at element 12 — Word and PDF keep their prose; Visio, BPMN and PowerPoint are asked for a PDF or a picture; a file that is not a process gets a plain reply; an as-is map is evidence; read_upload opens pictures"""
-    _not_written('DEF-298')
+def test_def_298_a_file_at_element_12_gets_its_plain_reply(env, monkeypatch, stub_planner) -> None:
+    """DEF-298 — R10 (ADR-0095): the file replies at element 12 — Word and PDF keep their prose; Visio, BPMN and PowerPoint are asked for a PDF or a picture; a file that is not a process gets a plain reply; an as-is map is evidence; read_upload opens pictures
+
+    Through POST /upload and POST /ask, the reading faked at the model factory.
+    - A Word description at element 12 is read from its prose: the reading's data block carries its paragraphs.
+    - A file named as a process map there is the process as it IS: filed as evidence and indexed — named so elsewhere,
+      it is still an artefact (a design).
+    - Visio, BPMN and PowerPoint are refused with the ask for a PDF or a picture; nothing is stored.
+    - A file that describes no process, the Belt's message only pointing at it: the plain reply, in code, the file
+      named once, no coach call.
+    - read_upload opens a picture: the text the SIPOC tool kept with it, else the vision role's read of it."""
+    import io
+
+    import docx
+
+    from backend.core import request_context
+    from backend.gateway import routes
+    from backend.knowledge import tools
+    from backend.phases import moves, nodes_common
+    from backend.phases.define.schema import SipocReading
+    from backend.storage import blob
+    from backend.storage.models import UploadInterpretation, UploadRecord
+    from backend.upload import agent as upload_agent
+    from backend.upload import classifier, parsers
+
+    data: list = []
+    readings: list = []
+
+    class Reader:
+        def __init__(self, role):
+            self.role = role
+
+        def with_structured_output(self, schema):
+            return self
+
+        async def ainvoke(self, messages):
+            data.append(messages[-1].content)
+            return readings.pop(0)
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/{a[1] if len(a) > 1 else k.get('filename')}"
+    indexed: list = []
+
+    async def index(case_id, record, **k):
+        indexed.append(record["filename"])
+        return f"idx-{len(indexed)}"
+    monkeypatch.setattr("backend.core.llm.get_llm", lambda role, **kw: Reader(role))
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    _shields(monkeypatch)
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+
+    def upload(name: str, body: bytes, mime: str) -> Any:
+        return env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                               files={"file": (name, body, mime)})
+
+    # Word keeps its prose; a process map at element 12 is evidence.
+    document = docx.Document()
+    for line in FLAWED_SIPOC_60.split(". "):
+        document.add_paragraph(line)
+    buffer = io.BytesIO()
+    document.save(buffer)
+    readings.append(_sipoc_reading_60())
+    r = upload("complaints process map.docx", buffer.getvalue(),
+               "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    assert r.status_code == 200, r.text
+    assert "diagnose and dispatch a technician" in data[-1] and "<<<DESCRIPTION" in data[-1], data[-1][:300]
+    assert record.uploads[-1].kind == classifier.EVIDENCE and indexed == ["complaints process map.docx"], \
+        (record.uploads[-1].kind, indexed)
+    assert classifier.classify_kind(routes.auto_detect_purpose("complaints process map.docx")) == (
+        classifier.ARTEFACT, False), "elsewhere a process map stays a design"
+    word = _askd(env, message="📎 complaints process map.docx")          # its own upload turn reads it back
+    assert word["move"] == moves.READ_BACK and "complaints process map.docx" in word["answer"], word["answer"]
+
+    # Visio, BPMN and PowerPoint: asked for a PDF or a picture; nothing stored.
+    before = len(record.uploads)
+    for name in ("process.vsdx", "process.bpmn", "process.pptx"):
+        refused = upload(name, b"PK-binary", "application/octet-stream")
+        assert refused.status_code == 422 and refused.json()["detail"] == parsers.MAP_FORMAT_ASK, (name, refused.text)
+    assert len(record.uploads) == before
+
+    # A file that describes no process: the plain reply, in code, no coach call.
+    readings.append(SipocReading(is_process=False))
+    assert upload("canteen_menu.txt", b"Monday: soup. Tuesday: pasta. Wednesday: fish.", "text/plain").status_code == 200
+    coached: list = []
+    real = nodes_common.get_llm
+
+    def counted(role, **kw):
+        if role == "coach":
+            coached.append(role)
+        return real(role, **kw)
+    _coach_saying(monkeypatch, "COACH")
+    monkeypatch.setattr(nodes_common, "get_llm", counted)
+    plain = _askd(env, message="📎 canteen_menu.txt")
+    from backend.core.prompts import SIPOC_NOT_PROCESS
+    assert plain["move"] == moves.RESPOND and plain["answer"].strip() == SIPOC_NOT_PROCESS.format(
+        filename="canteen_menu.txt"), plain["answer"]
+    assert "COACH" not in plain["answer"] and plain["answer"].count("canteen_menu.txt") == 1, plain["answer"]
+
+    # read_upload opens a picture: the text the SIPOC tool kept, else the vision role's read.
+    case = env.case
+    kept = UploadRecord(filename="board.png", blob_path=f"uploads/{CASE_ID}/board.png", uploaded_by="ana",
+                        uploaded_at="2026-10-30T08:00:00+00:00", classification="purpose=Process map",
+                        interpretation=UploadInterpretation(summary="A process map of 4 steps.",
+                                                            sipoc={"picture_text": "Log -> Diagnose -> Repair"}))
+    fresh = UploadRecord(filename="sketch.jpg", blob_path=f"uploads/{CASE_ID}/sketch.jpg", uploaded_by="ana",
+                         uploaded_at="2026-10-30T08:00:00+00:00", classification="purpose=Process map")
+    case.phases["define"].uploads += [kept, fresh]
+    read_images: list = []
+
+    async def download_bytes(p):
+        return b"JPEG-bytes"
+
+    async def load_case(cid):
+        return case
+
+    async def image_read(raw, meta, phase):
+        read_images.append(phase)
+        return {"parsed": True, "text": "Customer request -> waiting -> delivered"}
+    monkeypatch.setattr(blob, "download_bytes", download_bytes)
+    monkeypatch.setattr(blob, "load_case", load_case)
+    monkeypatch.setattr(upload_agent, "_extract_from_image", image_read)
+    request_context.set_case_id(CASE_ID)
+    try:
+        board, art = asyncio.run(cast(Any, tools.read_upload).coroutine(blob_path=kept.blob_path))
+        assert "Log -> Diagnose -> Repair" in board and art["ok"] and read_images == [], board
+        sketch, art = asyncio.run(cast(Any, tools.read_upload).coroutine(blob_path=fresh.blob_path))
+        assert "Customer request -> waiting -> delivered" in sketch and art["ok"] and len(read_images) == 1, sketch
+    finally:
+        request_context.set_case_id(None)

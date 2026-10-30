@@ -114,6 +114,10 @@ UPLOAD_READ_BACK_REASON = ("Decided in code (ADR-0085): the Belt's file {filenam
 #: R10 (ADR-0095, DEF-295) — the read-back an upload turn makes at element 12 of the draft the SIPOC tool read.
 SIPOC_UPLOAD_REASON = ("Decided in code (ADR-0095): the SIPOC tool read the Belt's file {filename} as the upload's one "
                        "reading. Its draft is read back in code — the card and the flow — with only its gaps asked.")
+#: R10 (ADR-0095 decision 7, DEF-298) — a file at element 12 the SIPOC tool read as no process, the Belt's message only
+#: pointing at it: the plain reply, in code.
+SIPOC_NOT_PROCESS_REASON = ("Decided in code (ADR-0095): the SIPOC tool read the Belt's file {filename} as no process. "
+                            "The plain reply asks for a description or a map.")
 #: ADR-0094 decision 2 (DEF-208) — the read-back an upload turn makes of a file that covers the element only partly.
 UPLOAD_DRAFT_REASON = ("Decided in code (ADR-0094): the Belt's file {filename} answers this element only partly — "
                        "still missing: {missing}. Read back what the file gives as a DRAFT, name what is missing, and "
@@ -274,6 +278,15 @@ def sipoc_upload(phase: str, field: Optional[str], upload: Optional[dict[str, An
         return None
     return {"filename": str((upload or {}).get("filename") or "the file"), "draft": reading["draft"],
             "gaps": list(reading.get("gaps") or [])}
+
+
+def sipoc_not_a_process(phase: str, field: Optional[str], upload: Optional[dict[str, Any]]) -> Optional[str]:
+    """R10 (ADR-0095 decision 7, DEF-298): the file's name when the upload this turn reads is one the SIPOC tool read at
+    Define's element 12 and found no process in; None otherwise."""
+    reading = (upload or {}).get("sipoc") or {}
+    if phase != "define" or field != SIPOC_FIELD or not reading.get("read") or reading.get("is_process"):
+        return None
+    return str((upload or {}).get("filename") or "the file")
 
 
 def partial_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
@@ -527,25 +540,9 @@ def _join(*parts: str) -> str:
     return chr(10).join(p for p in (s.strip() for s in parts) if p)
 
 
-#: R-G (founder ruling 2026-10-27): the SIPOC is collected in four short guided parts, in the BB manual's order — the
-#: main steps; outputs and customers; inputs and suppliers; each step's time and problems, and how often the process
-#: runs — each asked by its own card, in code; one read-back and one Confirm at the end.
-SIPOC_FIELD, SIPOC_PARTS = "process_map_sipoc", 4
-SIPOC_PART_REASON = "R-G: the SIPOC's part {part} of 4 is asked by its card, in code."
-
-
-def sipoc_parts_covered(words: str, answered: list[int]) -> set[int]:
-    """The SIPOC parts `words` gives: each part the Belt answered, and each part its labelled columns cover (a whole
-    SIPOC pasted at once) — the steps; outputs and customers; inputs and suppliers; the step times."""
-    from backend.phases.define.parse import has_step_times, parse_sipoc
-    cols = set(parse_sipoc(words))
-    covered = set(answered)
-    for part, needs in ((1, {"process_steps"}), (2, {"outputs", "customers"}), (3, {"inputs", "suppliers"})):
-        if needs <= cols:
-            covered.add(part)
-    if has_step_times(words):
-        covered.add(4)
-    return covered
+#: Define's element 12. R-G's four parts (founder ruling 2026-10-27) are, since R10's amendment (2026-10-29, ADR-0095),
+#: the gap questions after the one ask — asked only when missing (`knowledge/sipoc.GAP_PARTS`).
+SIPOC_FIELD = "process_map_sipoc"
 
 
 def _link_added(phase: str, field: str, entry: dict[str, Any],
@@ -569,23 +566,6 @@ def _link_added(phase: str, field: str, entry: dict[str, Any],
     pending = {**challenged, "fields": [*(challenged.get("fields") or [field]), "problem_5w2h"],
                "store": {**store, "problem_5w2h": changed}}
     return {"pending": pending, "steps": list(flagged)}
-
-
-def _sipoc_part(phase: str, field: str, entry: dict[str, Any], belt: str) -> Optional[dict[str, Any]]:
-    """R-G: while the SIPOC is being collected (its entry names the part asked), the entry after the Belt's answer when
-    a part is still to be asked — the answer joined, the part answered recorded, the next part named — else None: all
-    four are given and the whole answer is judged as one."""
-    if phase != "define" or field != SIPOC_FIELD or not entry.get("part") or belt.strip().endswith("?"):
-        return None                     # a question is never a part's answer: the judgment decides it (a respond)
-    answered = [*(entry.get("parts_answered") or []), int(entry["part"])]
-    words = _join(str(entry.get("answer") or ""), belt)
-    covered = sipoc_parts_covered(words, answered)
-    nxt = next((p for p in range(1, SIPOC_PARTS + 1) if p not in covered), None)
-    if nxt is None:
-        return None
-    texts = {**dict(entry.get("parts_text") or {}), str(entry["part"]): belt}
-    return {**entry, "status": ASKED, "answer": words, "messages": int(entry.get("messages") or 0) + 1, "part": nxt,
-            "parts_answered": answered, "parts_text": texts}
 
 
 def _upload_kw(*sources: Optional[dict[str, Any]]) -> dict[str, Any]:
@@ -636,10 +616,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
             after[element] = {"status": ASKED, "returned": True, "picked": True}
             return done(element, fields, status, TEACH, reason=RETURN_REASON.format(field=element))
         after[element] = {**entry, "status": entry.get("status") if entry.get("status") in (ASKED, ANSWERED)
-                          else ASKED, "picked": True,
-                          # R-G: a SIPOC picked before any answer is collected from its part 1 card.
-                          **({"part": 1} if phase == "define" and element == SIPOC_FIELD
-                             and not entry.get("answer") and not entry.get("part") else {})}
+                          else ASKED, "picked": True}
         return done(element, fields, status, TEACH)
 
     at = current(phase, artifacts, after)
@@ -695,6 +672,10 @@ async def decide(phase: str, artifacts: dict[str, Any],
                         **_attempts(entry)}
         return done(field, fields, status, READ_BACK, answer=words, messages=1, pending=new_pending,
                     reason=SIPOC_UPLOAD_REASON.format(filename=read["filename"]))
+    # R10 (ADR-0095 decision 7) — a file that is no process, the Belt's message only pointing at it: the plain reply.
+    other = sipoc_not_a_process(phase, field, upload) if action is None and points_at_file(belt) else None
+    if other is not None:
+        return done(field, fields, status, RESPOND, reason=SIPOC_NOT_PROCESS_REASON.format(filename=other))
     # ADR-0085 (G-169) — the upload turn of a file that covers this element reads the file's values back,
     # decided in code (no judgment call); a Confirm, or "use the file", stores them on the path below.
     covered = covering_upload(field, upload) if action is None else None
@@ -726,8 +707,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
         status, entry = ASKED, {"status": ASKED}
         after[field] = entry
     if status == NOT_TAUGHT:
-        # R-G: the SIPOC is taught by its part 1 card; its answers are collected part by part.
-        after[field] = {"status": ASKED, **({"part": 1} if phase == "define" and field == SIPOC_FIELD else {})}
+        after[field] = {"status": ASKED}
         return done(field, fields, status, TEACH)
 
     added = _link_added(phase, field, entry, artifacts) if action == LINK_ADD_CLICK else None
@@ -808,11 +788,6 @@ async def decide(phase: str, artifacts: dict[str, Any],
         return done(field, fields, status, CHALLENGE, answer=words,
                     messages=int(entry.get("messages") or 1), reason=CHANGE_REASON)
 
-    collecting = _sipoc_part(phase, field, entry, belt) if action is None and not pending else None
-    if collecting is not None:
-        # R-G: the next SIPOC part is asked by its card — no judgment until all four are given.
-        after[field] = collecting
-        return done(field, fields, status, TEACH, reason=SIPOC_PART_REASON.format(part=collecting["part"]))
     previous = str((pending or {}).get("belt_words") or entry.get("answer") or "")
     so_far = int((pending or entry).get("messages") or 0)
     answer = _join(previous, belt)

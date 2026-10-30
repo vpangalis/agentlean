@@ -430,6 +430,12 @@ PARSERS = {
 }
 
 
+#: R10 (ADR-0095 decision 1): Visio, BPMN and PowerPoint — no reader now; the Belt is asked for a PDF or a picture.
+MAP_FORMATS: tuple[str, ...] = (".vsd", ".vsdx", ".vsdm", ".bpmn", ".ppt", ".pptx")
+MAP_FORMAT_ASK = ("I can't read Visio, BPMN or PowerPoint files yet. Save the map as a PDF, or upload a picture of it "
+                  "(PNG, JPG or WebP), and I'll read it from that.")
+
+
 def parse_upload(
     filename: str, file_bytes: bytes, content_type: str
 ) -> dict[str, Any]:
@@ -448,6 +454,9 @@ def parse_upload(
         return parse_csv(file_bytes) if name.endswith(".csv") \
             else parse_xlsx(file_bytes)
 
+    if name.endswith(MAP_FORMATS):
+        # R10 (ADR-0095 decision 1, DEF-298): no reader for these now — the map is asked for as a PDF or a picture.
+        return refusal(MAP_FORMAT_ASK)
     parser = PARSERS.get(content_type)
     if parser is None:
         return refusal(

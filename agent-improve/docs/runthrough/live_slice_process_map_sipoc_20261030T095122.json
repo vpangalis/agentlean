@@ -1,0 +1,125 @@
+{
+ "kind": "live_slice",
+ "element": "process_map_sipoc",
+ "case_id": "IMPR-2026-5AQ2P5",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "typed.json",
+ "recorded_product_hash": null,
+ "product_hash": "11ccd6fd0e0c8ab3",
+ "seeded": [
+  "baseline_estimate",
+  "benefits_analysis",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "secondary_metrics",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "Suppliers: customers, field technicians, the spare-parts team. Inputs: the complaint by phone or e-mail, customer and device data, technician reports. Process: (1) log the complaint — about 15 minutes",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 27.8,
+   "failed": null,
+   "answer": "Here's the SIPOC map based on what you've provided so far:\n\n- **Suppliers**: customers; field technicians; the spare-parts team\n- **Inputs**: the complaint by phone or e-mail; customer and device data; technician reports\n- **Process steps**:\n  1. log the complaint (about 15 minutes)\n  2. diagnose and dispatch a technician (about 2 working days, 1 working day, 6 working days)\n  3. repair on site (a",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.53 s",
+    "input guard 1.31 s",
+    "planner judgment 4.20 s",
+    "coach 16.40 s",
+    "grader 2.58 s",
+    "after the answer (steps, save) 1.84 s",
+    "total 27.73 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Outputs: the repair report and the bill we send to the customer.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 26.4,
+   "failed": null,
+   "answer": "Here is the SIPOC map based on your input. Please confirm if this is correct:\n\n- **Suppliers**: customers; field technicians; the spare-parts team\n- **Inputs**: the complaint by phone or e-mail; customer and device data; technician reports\n- **Process steps**: \n  1. log the complaint (about 15 minutes)\n  2. diagnose and dispatch a technician (about 2 working days, 1 working day, 6 working days)\n  ",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.38 s",
+    "input guard 1.55 s",
+    "planner judgment 3.91 s",
+    "coach 16.31 s",
+    "grader 1.38 s",
+    "after the answer (steps, save) 1.95 s",
+    "total 26.35 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "issues_and_barriers",
+   "recorded_move": null,
+   "seconds": 5.2,
+   "failed": null,
+   "answer": "High-level process (SIPOC, as-is) saved: 4 steps.\n\nElement 13 of 13 · Issues and barriers: What could get in the way — data, people, systems, time? If genuinely none, \"none identified at this stage\" is a fine answer, but have a think first.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.44 s",
+    "input guard 1.66 s",
+    "after the answer (steps, save) 2.54 s",
+    "total 5.22 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 10,
+ "cost": {
+  "usd": 0.08,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0785,
+   "gpt-4o-mini-2024-07-18": 0.0015
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 40.14,
+  "calls": 92,
+  "case": {
+   "seconds": 0.49,
+   "calls": 6
+  },
+  "store": {
+   "seconds": 0.52,
+   "calls": 9
+  },
+  "checkpoint": {
+   "seconds": 39.13,
+   "calls": 77
+  }
+ },
+ "started": "20261030T095122"
+}

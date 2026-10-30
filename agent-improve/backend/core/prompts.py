@@ -445,6 +445,11 @@ MOVE_PREAMBLE = (
     "conversation. Write the words for THIS move, on THIS field, and nothing else."
 )
 
+#: R10 (ADR-0095 decision 4, DEF-296): section 5's first line on an answer turn at Define's element 12 — the SIPOC
+#: tool, offered there only, is the coach's first call (live 2026-10-30: offered in the skill alone, it was not called).
+SIPOC_TOOL_FIRST = ("First call `read_sipoc` with what the Belt gave for their process, in their words. Read back what "
+                    "it returns, as it is, and ask only what it says is missing.")
+
 #: Section 5's body, per move. `{field}` is the field name, `{reason}` the
 #: planner's judgment, `{words}` the Belt's own words for the field.
 MOVE_INSTRUCTIONS: dict[str, str] = {
@@ -570,6 +575,9 @@ SIPOC_UPLOAD_HEAD = ("I've read your file {filename} as your process. Here it is
 SIPOC_UPLOAD_NEEDED = "Still needed:"
 SIPOC_UPLOAD_EXAMPLE = "For example: {example}"
 SIPOC_UPLOAD_COMPLETE = "Is this right? Confirm to save it, or Change to correct it."
+#: R10 (ADR-0095 decision 7, DEF-298) — a file at element 12 that describes no process.
+SIPOC_NOT_PROCESS = ("I've read your file {filename}: it does not describe a process I can map. Describe the main steps "
+                     "in a few lines, or upload a process map, a picture of one or a process description.")
 #: ADR-0086 — after the goal's Confirm, the target it states, read back in code for one Confirm.
 GOAL_TARGET_HEAD = "Your goal already states the target. Here is what I read from it:"
 GOAL_TARGET_NEXT = "The target date comes next."

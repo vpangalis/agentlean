@@ -34,6 +34,7 @@ from backend.core.prompts import (UPLOAD_ELEMENT_CHECK, cut_at, UPLOAD_INTERPRET
                                   VISION_EXTRACT_PROMPT)
 from backend.storage.models import ElementCheck, ImageRead, UploadInterpretation
 from backend.upload.classifier import (
+    EVIDENCE,
     classify_content_type,
     classify_kind,
     is_image,
@@ -77,6 +78,9 @@ async def process_upload(
     """
     content_type = classify_content_type(filename, mime_type)
     kind, kind_declared = classify_kind(purpose, declared_kind)
+    if phase == "define" and element == _SIPOC_ELEMENT and not kind_declared:
+        # R10 (ADR-0095, DEF-298): a map at element 12 is the process as it IS — evidence, never a design.
+        kind = EVIDENCE
 
     sipoc_read: dict | None = None
     if is_image(content_type) and phase == "define" and element == _SIPOC_ELEMENT:

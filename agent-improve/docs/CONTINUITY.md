@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 192 of 248 Define features pass, 33 more proven on earlier code (core 189 of 239) — A 68/102 · B 37/40 · C 71/81 · integrator 16/25 · M1: 71 proven · 22 awaiting fresh run · 8 open |
+| **Headline** | 193 of 248 Define features pass, 33 more proven on earlier code (core 190 of 239) — A 68/102 · B 37/40 · C 72/81 · integrator 16/25 · M1: 71 proven · 22 awaiting fresh run · 8 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-274 — The create form: the lead's typed name replaces 'You'; the lead's country and site are asked (R8b's amendment) |

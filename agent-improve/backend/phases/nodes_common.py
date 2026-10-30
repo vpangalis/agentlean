@@ -1821,10 +1821,14 @@ def _sipoc_upload_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingRespon
     named, the draft shown by the card and the flow (drawn from what a Confirm stores), and only its gaps asked: R-G's
     parts that are missing, each with its example, then the optional times question; the number checks follow, as on
     every SIPOC read-back (`duration_questions`). With nothing required missing, the ask for a Confirm. No coach call."""
+    from backend.core import prompts as P
+    if plan is not None and plan.move == moves.RESPOND and _sipoc_written(plan):
+        # R10 (ADR-0095 decision 7, DEF-298): a file that describes no process gets the plain reply, in code.
+        name = str(plan.reason).split("file ", 1)[-1].split(" as no process", 1)[0]
+        return CoachingResponse(message=P.SIPOC_NOT_PROCESS.format(filename=name))
     head = moves.SIPOC_UPLOAD_REASON.split("{")[0]
     if plan is None or plan.move != moves.READ_BACK or not str(plan.reason or "").startswith(head):
         return None
-    from backend.core import prompts as P
     pending = dict(plan.pending or {})
     gaps = list(pending.get("sipoc_gaps") or [])
     needed = [g for g in gaps if not g.get("optional")]
@@ -1871,6 +1875,13 @@ def _with_sipoc_read(move: Optional[str], kept: dict[str, Any], pending: Optiona
     needed = [str(g.get("question") or "") for g in read.get("gaps") or [] if not g.get("optional")]
     return {**kept, moves.SIPOC_FIELD: read["draft"]}, (
         {**pending, "draft": True, "missing": needed} if needed else pending)
+
+
+def _sipoc_written(plan: Optional[CoachingPlan]) -> bool:
+    """R10: a turn whose reply about the uploaded file is written in code at element 12 — the read-back of the SIPOC
+    tool's draft, or the plain reply to a file that is no process. It names the file itself (no ADR-0074 file part)."""
+    reason = str(getattr(plan, "reason", "") or "")
+    return any(reason.startswith(r.split("{")[0]) for r in (moves.SIPOC_UPLOAD_REASON, moves.SIPOC_NOT_PROCESS_REASON))
 
 
 def _link_check(phase: str, pending: Optional[dict], prior: dict[str, Any]) -> Optional[dict[str, Any]]:
@@ -1974,8 +1985,7 @@ def upload_check_text(phase: str, upload: Optional[dict], focus: Optional[str]) 
     on since the file arrived, it says which element the file was checked against (point 4). With no
     check (a fallback interpretation, a phase without criteria, a record from before schema 4):
     the file named and its interpretation."""
-    if not upload or not upload.get("filename") or moves.sipoc_upload(phase, focus, upload) is not None:
-        # R10 (DEF-295): a file the SIPOC tool read at element 12 is named by its own read-back, written in code.
+    if not upload or not upload.get("filename"):
         return ""
     from backend.core import guard_messages
     from backend.core import prompts as P
@@ -3112,7 +3122,7 @@ def _shaped_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], r
         captured = _captured_fields(phase, reply)
         citations.extend(_anchored([c.model_dump() if isinstance(c, BaseModel) else c for c in reply.citations or []],
                                    state))
-        if turn_type == turn_tools.UPLOAD:
+        if turn_type == turn_tools.UPLOAD and not _sipoc_written(plan):
             reply = _with_upload_check(phase, reply, _unread_upload(state), plan.focus_field if plan else None)
         reply = _with_calculation_lines(phase, state, plan, reply)
         reply = _with_mismatch(phase, plan, reply)                 # ADR-0112: told in the reply, never a pause
@@ -3563,7 +3573,13 @@ def _code_written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPl
         new_messages = _with_code_line(new_messages, reply, LINK_KEPT.format(details=link))
     elif move == moves.READ_BACK and pending and pending.get("draft") and not refused:
         # ADR-0094 decision 2 (DEF-208): a file read back as a draft — the ask, written in code.
-        from backend.core.prompts import UPLOAD_DRAFT_ASK
+        from backend.core.prompts import SIPOC_UPLOAD_NEEDED, UPLOAD_DRAFT_ASK
+        unasked = [q for q in pending.get("missing") or [] if q not in str(getattr(reply, "message", "") or "")]
+        if pending.get("field") == moves.SIPOC_FIELD and unasked and not _sipoc_written(plan):
+            # R10 (DEF-296, live 2026-10-30): the SIPOC tool's gaps on the coach's read-back are asked in code when the
+            # coach left them unasked (it did once, and asked them itself the next time — never twice).
+            new_messages = _with_code_line(new_messages, reply, "\n".join(
+                [SIPOC_UPLOAD_NEEDED, *(f"- {q}" for q in unasked)]))
         new_messages = _with_code_line(new_messages, reply, UPLOAD_DRAFT_ASK)
     if (plan is not None and move == moves.RESPOND and plan.reason == moves.POINTS_AT_FILE_REASON and plan.focus_field
             and not (state.get("uploads") or []) and not resend and not refused):

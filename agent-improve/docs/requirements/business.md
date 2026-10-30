@@ -218,11 +218,12 @@ as the process runs today); (2) outputs and customers; (3) inputs and suppliers;
 and what goes wrong — one question, one example line, the steps from part 1 listed above it. How often is asked
 once, for the whole process. A simple S-I-P-O-C skeleton stays visible with the current column lit; the example is
 drawn as a flow of boxes, not described; the long explanation moves behind a "What is a SIPOC?" link. One
-read-back and one Confirm at the end. No grid and no people per step for now.
+read-back and one Confirm at the end. No grid and no people per step for now. Since R10's amendment (2026-10-29): one
+ask first, and these four parts are the gap questions, asked only when missing; the skeleton and the boxes stay.
 
 *Amendment ACCEPTED 2026-10-29 (founder ruling on the wave-3 report, item 1):* step times, how often the process runs
-and the problems are optional: they never block Confirm or the gate. Part 4 asks "Do you know roughly how long
-each step takes? If not, leave it — Measure will measure it." "Leave it" counts as answered.
+and the problems are optional: they never block Confirm or the gate. The times question asks "Do you know roughly how
+long each step takes? If not, leave it — Measure will measure it." "Leave it" counts as answered.
 
 **R18 The problem is located in the process** · ACCEPTED 2026-09-27, amended ACCEPTED 2026-10-27 · MoSCoW: Must · Design: ADR-0078
 The problem statement and the process map are linked: the problem statement names the step(s) where

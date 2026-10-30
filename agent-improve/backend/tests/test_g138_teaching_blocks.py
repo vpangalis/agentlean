@@ -25,7 +25,10 @@ def test_g138_every_element_has_three_teaching_blocks_in_its_script(field: str) 
     assert set(blocks) == {"explanation", "example", "prompt"}, (field, blocks)
     assert blocks["example"].startswith("Illustration — not your data:"), field
     assert "{" not in "".join(blocks.values()), field
-    assert "?" in blocks["prompt"], field
+    # R10 (ADR-0095 decision 1, ACCEPTED 2026-10-30): the SIPOC's ask is the founder's one ask, word for word — an
+    # imperative; every other element's ask is a question.
+    one_ask = "Upload any process file or picture, or describe the process."
+    assert ("?" in blocks["prompt"]) if field != "process_map_sipoc" else blocks["prompt"] == one_ask, field
 
 
 def test_g138_a_table_example_keeps_its_rows() -> None:

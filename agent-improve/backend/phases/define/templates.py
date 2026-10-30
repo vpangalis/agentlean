@@ -1003,37 +1003,24 @@ def _sipoc_example() -> dict[str, Any]:
             "rows": [[labels.get(k, k.capitalize()), words(example.get(k))] for k in SIPOC_KEYS]}
 
 
-#: R-G (founder ruling 2026-10-27): the S-I-P-O-C skeleton, and the letters each part lights.
+#: R-G as amended by R10 (founder 2026-10-29, ADR-0095 decision 1): the S-I-P-O-C skeleton on the card of the one ask.
 SIPOC_LETTERS: tuple[str, ...] = ("S", "I", "P", "O", "C")
-SIPOC_LIT: dict[int, list[str]] = {1: ["P"], 2: ["O", "C"], 3: ["S", "I"], 4: ["P"]}
 SIPOC_WHAT = "What is a SIPOC?"
+SIPOC_FIELD = "process_map_sipoc"
 
 
-def _sipoc_part(parts: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
-    """R-G: the SIPOC card for the part being asked (its entry's `part`, 1 at first) — the skeleton with its letters lit,
-    the part's question and its one example line (the steps drawn as boxes), the Belt's own steps listed on part 4, and
-    the long explanation behind "What is a SIPOC?"."""
+def _sipoc_card(help_links: list[dict[str, Any]]) -> dict[str, Any]:
+    """The SIPOC's card (R10, ADR-0095 decision 1): the one ask — the skill's Ask — under the S-I-P-O-C skeleton, the
+    example's steps drawn as boxes, and the long explanation behind "What is a SIPOC?" in place of the "why" link.
+    R-G's four parts are the gap questions now (`knowledge/sipoc.GAP_PARTS`), asked only when missing."""
+    from backend.knowledge.sipoc import GAP_PARTS
     from backend.middleware.skills import element_text
-    guided = parts["parts"]
-    k = min(max(int(entry.get("part") or 1), 1), len(guided))
-    part = guided[k - 1]
-    example: dict[str, Any] = ({"flow": [s.strip() for s in part.get("example", "").split("→") if s.strip()]} if k == 1
-                               else {"line": part.get("example", "")})
-    steps = parse.sipoc_steps((entry.get("parts_text") or {}).get("1") or "") if k == 4 else []
     what = " ".join(x for x in (element_text("define", SIPOC_FIELD, "What it is"),
                                 element_text("define", SIPOC_FIELD, "Why it matters")) if x)
-    return {"part": {"n": k, "of": len(guided)},
-            "skeleton": {"letters": list(SIPOC_LETTERS), "lit": SIPOC_LIT.get(k, [])},
-            "your_turn": {"question": part.get("question", ""),
-                          "hint": f"Part {k} of {len(guided)}." + (f" {parts.get('hint')}" if k == 1 else "")},
-            "example": {"label": EXAMPLE_LABEL, **example},
-            **({"steps": steps} if steps else {}),
-            "help": [{"label": SIPOC_WHAT, "text": what},
-                     *([{"label": parts["help"], "ask": parts["help"]}] if parts.get("help") else []),
-                     {"label": STATUS_LINK, "ask": STATUS_LINK}]}
-
-
-SIPOC_FIELD = "process_map_sipoc"
+    return {"skeleton": {"letters": list(SIPOC_LETTERS), "lit": []},
+            "example": {"label": EXAMPLE_LABEL,
+                        "flow": [x.strip() for x in str(GAP_PARTS[0]["example"]).split("→") if x.strip()]},
+            "help": [{"label": SIPOC_WHAT, "text": what}, *help_links[1:]]}
 
 
 def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str, Any] | None = None, *,
@@ -1065,6 +1052,9 @@ def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str,
         from backend.core.prompts import CALCULATION_CARD
         worked = calculations.how_it_was_calculated(calculations.current(artifacts, "define", field), artifacts)
         calc = {"lines": worked.splitlines()} if worked else {"text": CALCULATION_CARD}
+    help_links = [{"label": WHY_LINK, "text": element_text("define", field, "Why it matters")},
+                  *([{"label": parts["help"], "ask": parts["help"]}] if parts.get("help") else []),
+                  {"label": STATUS_LINK, "ask": STATUS_LINK}]
     return {
         "field": field, "n": n, "of": DEFINE_POSITIONS, "name": name_of(field), "section": section_of(field),
         "trail": {"previous": step(n - 1), "current": step(n), "next": step(n + 1),
@@ -1079,11 +1069,9 @@ def teaching_card(field: str, artifacts: dict[str, Any], field_status: dict[str,
         "your_turn": {"question": parts.get("question", ""), "hint": parts.get("hint", "")},
         **({"calculation": calc} if calc else {}),
         **({"example": {"label": EXAMPLE_LABEL, **example}} if example else {}),
-        "help": [{"label": WHY_LINK, "text": element_text("define", field, "Why it matters")},
-                 *([{"label": parts["help"], "ask": parts["help"]}] if parts.get("help") else []),
-                 {"label": STATUS_LINK, "ask": STATUS_LINK}],
-        # R-G: an element collected in guided parts shows the part being asked.
-        **(_sipoc_part(parts, dict(field_status.get(field) or {})) if parts.get("parts") else {}),
+        "help": help_links,
+        # R10 (ADR-0095 decision 1): the SIPOC's card asks the one ask under its skeleton.
+        **(_sipoc_card(help_links) if field == SIPOC_FIELD else {}),
     }
 
 
