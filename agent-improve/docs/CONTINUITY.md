@@ -10,7 +10,7 @@
 | **Headline** | 188 of 248 Define features pass, 34 more proven on earlier code (core 185 of 239) — A 66/102 · B 37/40 · C 69/81 · integrator 16/25 · M1: 68 proven · 23 awaiting fresh run · 10 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
-| **Next — lane C** | DEF-274 — The create form: the lead's typed name replaces 'You'; the lead's country and site are asked (R8b's amendment) |
+| **Next — lane C** | DEF-295 — R10 (ADR-0095): an upload at element 12 becomes the SIPOC draft — code calls the SIPOC tool as the upload's one reading; the draft is read b |
 | **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |

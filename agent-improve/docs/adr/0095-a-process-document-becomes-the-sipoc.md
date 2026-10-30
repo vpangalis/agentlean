@@ -1,6 +1,6 @@
 # ADR-0095: A process description, file or picture becomes the SIPOC draft — one plain SIPOC tool, called by code on an upload and offered to the coach at element 12
 
-Status: PROPOSED (Claude Code, 2026-10-16; revised 2026-10-29 from the founder's rulings on the wave-3 report, item 1, and the 22:00 follow-up; for ruling)
+Status: ACCEPTED (founder, 2026-10-30, ruling 1 on the wave-3 rulings report: "ADR-0095 revised: ACCEPTED. Proceed with steps C–F." With two conditions for step D: for a picture, the tool's check that a value's words are in the Belt's source uses the text read from the picture; and the coach's tool call keeps the 40 s stop-and-ask. Proposed by Claude Code 2026-10-16, revised 2026-10-29 from the founder's rulings on the wave-3 report, item 1, and the 22:00 follow-up)
 Requirements: R10 (amendment ACCEPTED 2026-10-29), R17 (amended 2026-10-29), R18, W5
 Extends: ADR-0074, ADR-0085 and ADR-0094 (to a structured SIPOC value and to pictures); ADR-0069 and ADR-0115 (tools per turn)
 Depends on: ADR-0078 (steps with performance), ADR-0088 (durations), ADR-0104 (the upload interpretation binds structured output)

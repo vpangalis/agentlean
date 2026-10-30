@@ -138,7 +138,7 @@ Generated from each file's status line; never typed.
 | [0092](0092-unique-case-numbers-and-a-safe-case-list.md) | A case number is reserved by a create-only-if-absent write and retried on conflict; the case list is updated by a conditional write | ACCEPTED | — |
 | [0093](0093-element-templates-and-the-gate-view.md) | Element templates and the Gate view — each element read back and shown in the Gate as its criteria, one row each, with the value and its source; drawn in code | ACCEPTED | — |
 | [0094](0094-a-partial-file-is-read-back-as-a-draft.md) | An upload that covers an element only partly is read back as a draft with its gaps; a message pointing at the file is never judged as a typed answer; an upload starts its own turn | ACCEPTED | — |
-| [0095](0095-a-process-document-becomes-the-sipoc.md) | A process description, file or picture becomes the SIPOC draft — one plain SIPOC tool, called by code on an upload and offered to the coach at element 12 | PROPOSED | — |
+| [0095](0095-a-process-document-becomes-the-sipoc.md) | A process description, file or picture becomes the SIPOC draft — one plain SIPOC tool, called by code on an upload and offered to the coach at element 12 | ACCEPTED | — |
 | [0096](0096-hard-and-soft-benefits.md) | The benefits analysis stores hard benefits, the expected saving apart from the cost of the gap, and soft benefits each with its indicator | ACCEPTED | — |
 | [0097](0097-progress-shown-while-a-turn-runs.md) | Progress while a turn runs — the graph's nodes emit plain-words steps through LangGraph's custom stream; the route streams them to the browser | PROPOSED | — |
 | [0098](0098-a-fourth-index-industry-practice.md) | A fourth index: industry practice | ACCEPTED | — |
