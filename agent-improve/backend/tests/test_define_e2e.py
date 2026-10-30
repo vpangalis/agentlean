@@ -2211,12 +2211,21 @@ def test_an_upload_strengthens_the_current_answer(env, monkeypatch) -> None:
     assert up["summary"] and "INTERPRETATION UNAVAILABLE" not in up["summary"], up["summary"]
     review = json.dumps(next(e for e in record if e.get("kind") == "gate_review")["body"], ensure_ascii=False)
     assert up["filename"] in review and up["summary"][:60] in review, "the upload's interpretation is not in the report"
-    live = (up.get("interpretation") or {}).get("element_check")
-    assert live and live.get("criteria"), f"the interpretation judged no element: {up.get('interpretation')}"
+    interpretation = up.get("interpretation") or {}
     after = next(e for e in record[at + 1:] if e.get("kind") == "turn")
-    assert live["element"] == after.get("field"), (live["element"], after.get("field"))
     said = json.dumps(after.get("reply"), ensure_ascii=False)
-    assert up["filename"] in said and ("It does not cover yet:" in said or "It covers everything" in said), said[:400]
+    if after.get("field") == "process_map_sipoc":
+        # ADR-0095 decision 4 (ACCEPTED 2026-10-30): at element 12 the upload's one interpretation is the SIPOC tool's
+        # reading — the file judged as a process or not, its gaps found in code — in place of ADR-0074's criteria.
+        sipoc = interpretation.get("sipoc") or {}
+        assert sipoc.get("read") and "is_process" in sipoc, f"the SIPOC tool did not read the file: {interpretation}"
+        assert up["filename"] in said, said[:400]
+    else:
+        live = interpretation.get("element_check")
+        assert live and live.get("criteria"), f"the interpretation judged no element: {interpretation}"
+        assert live["element"] == after.get("field"), (live["element"], after.get("field"))
+        assert up["filename"] in said and ("It does not cover yet:" in said or "It covers everything" in said), \
+            said[:400]
 
 
 def test_an_upload_that_covers_the_element_is_read_back_and_use_the_file_confirms(env, monkeypatch) -> None:
@@ -12352,3 +12361,123 @@ def test_def_298_a_file_at_element_12_gets_its_plain_reply(env, monkeypatch, stu
         assert "Customer request -> waiting -> delivered" in sketch and art["ok"] and len(read_images) == 1, sketch
     finally:
         request_context.set_case_id(None)
+
+
+def test_r10_element_12_end_to_end_a_file_that_is_no_process_word_typed_gap_leave_it_confirm(
+        env, monkeypatch, stub_planner) -> None:
+    """R10 step F (founder ruling 2026-10-29: "end-to-end tests (Word, image, typed description, non-process file,
+    Confirm with 'leave it' for times)"), one walk of element 12 through the routes and graph, the models faked.
+
+    A file that describes no process gets the plain reply. The founder's flawed SIPOC as a Word file, with no step
+    times, is read back as a draft in code: the outputs asked with their example, the times question optional in the
+    founder's words, Confirm closed. The outputs typed: the coach calls the SIPOC tool, its reading is merged over
+    the draft, Confirm opens. "Leave it." for the times keeps it open. Confirm stores exactly the value read back, with
+    no time, and Gate F's step-times row is optional. (A picture is DEF-297's walk; a typed description DEF-296's.)"""
+    import io
+
+    import docx
+    from langchain_core.messages import AIMessage
+
+    from backend.core.prompts import SIPOC_NOT_PROCESS
+    from backend.core.substate import SufficiencyJudgment
+    from backend.gateway import routes
+    from backend.knowledge import sipoc
+    from backend.phases import moves, nodes_common
+    from backend.phases.define import templates
+    from backend.phases.define.schema import SipocReading
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    readings: list = []
+
+    class Reader:
+        def __init__(self, role):
+            self.role = role
+
+        def with_structured_output(self, schema):
+            return self
+
+        async def ainvoke(self, messages):
+            return readings.pop(0)
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/{a[1] if len(a) > 1 else k.get('filename')}"
+
+    async def index(*a, **k):
+        return "idx-e2e"
+    monkeypatch.setattr("backend.core.llm.get_llm", lambda role, **kw: Reader(role))
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    _shields(monkeypatch)
+
+    def coach_calling(description: str) -> None:
+        reply = {**REPLY, "message": "Here is your process as read. Is this right?", "fields_captured": []}
+        script = iter([AIMessage(content="", tool_calls=[{"name": "read_sipoc", "args": {"description": description},
+                                                          "id": "call_sipoc"}]),
+                       AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply,
+                                                          "id": "call_reply"}])])
+        real = nodes_common.get_llm
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=script)
+                            if role == "coach" else real(role, **kw))
+
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+
+    def upload(name: str, body: bytes, mime: str) -> None:
+        r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                            files={"file": (name, body, mime)})
+        assert r.status_code == 200, r.text
+
+    # A file that describes no process: the plain reply.
+    readings.append(SipocReading(is_process=False))
+    upload("team_lunch.txt", b"Friday: pizza for the team at 12:30.", "text/plain")
+    plain = _askd(env, message="📎 team_lunch.txt")
+    assert plain["answer"].strip() == SIPOC_NOT_PROCESS.format(filename="team_lunch.txt"), plain["answer"]
+
+    # The founder's flawed SIPOC as a Word file, no step times: a draft read back in code.
+    untimed = _sipoc_reading_60()
+    untimed = untimed.model_copy(update={"process_steps": [s.model_copy(update={"time_avg": "", "time_min": "",
+                                                                                "time_max": "", "runs": ""})
+                                                           for s in untimed.process_steps], "lead_time": ""})
+    words = FLAWED_SIPOC_60.split(" Whole process:")[0]
+    document = docx.Document()
+    document.add_paragraph(words)
+    buffer = io.BytesIO()
+    document.save(buffer)
+    readings.append(untimed)
+    upload("complaints.docx", buffer.getvalue(),
+           "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    draft = _askd(env, message="📎 complaints.docx")
+    assert draft["move"] == moves.READ_BACK and draft["readback_card"]["confirm"] is False, draft["answer"]
+    assert "- What comes out of the process, and who receives it? For example:" in draft["answer"], draft["answer"]
+    assert sipoc.TIMES_QUESTION in draft["answer"], draft["answer"]
+
+    # The outputs typed: the coach calls the tool; merged over the draft; Confirm opens.
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="the outputs given")
+    readings.append(SipocReading(is_process=False, outputs=["the closed complaint", "the customer informed"]))
+    coach_calling("Outputs: the closed complaint, the customer informed.")
+    typed = _askd(env, message="Outputs: the closed complaint, the customer informed.")
+    assert typed["move"] == moves.READ_BACK and typed["readback_card"]["confirm"] is True, typed["readback_card"]
+
+    # "Leave it." for the times: still open for a Confirm.
+    readings.append(SipocReading(is_process=False))
+    coach_calling("Leave it.")
+    left = _askd(env, message="Leave it.")
+    assert left["move"] == moves.READ_BACK and left["readback_card"]["confirm"] is True, left["readback_card"]
+    held = _define(env)["field_status"]["process_map_sipoc"]["pending"]["store"]["process_map_sipoc"]
+    performance = next(r for r in left["readback_card"]["rows"] if r["id"] == "performance")
+    assert performance["required"] is False and performance["why"] == templates.OPTIONAL_NOTE, performance
+
+    # Confirm stores exactly that, with no time; Gate F's step-times row is optional.
+    _coach_saying(monkeypatch, "Thank you.")
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == moves.STORE_AND_ADVANCE, (done["move"], done["answer"])
+    stored = _define(env)["structured"]["process_map_sipoc"]
+    assert stored == held and stored["outputs"] == "the closed complaint; the customer informed", stored
+    assert not any(s.get("duration") for s in stored["process_steps"]), stored["process_steps"]
+    report = env.client.get(f"/gate/review/{CASE_ID}/define").json()["report"]
+    element = next(e for e in _gate_section(report, "F")["elements"] if e["field"] == "process_map_sipoc")
+    gate_row = next(r for r in element["rows"] if r["id"] == "performance")
+    assert element["status"] == "confirmed" and gate_row["required"] is False, (element["status"], gate_row)
