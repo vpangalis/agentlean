@@ -1790,6 +1790,26 @@ def _teaching_card(phase: str, state: PhaseState, plan: Optional[CoachingPlan]) 
                                    dict(plan.field_status or {}), stored=stored, note=_card_note(phase, plan))
 
 
+def _challenge_card(phase: str, state: PhaseState, plan: Optional[CoachingPlan],
+                    reply: Optional[CoachingResponse]) -> Optional[dict[str, Any]]:
+    """R-C for a challenge (founder 2026-10-30, the batch after G-353): the reply on an answer the judgment found
+    insufficient, in the one card template — the element card from the skill and the state, with the coach's words
+    (what is missing, then its question) in YOUR TURN; the skill's example table and "Why this matters" link in place
+    of the coach's "Why it matters" and example blocks. The coach still writes the words. None on any other move."""
+    if (phase != "define" or plan is None or plan.move != moves.CHALLENGE or plan.judgment is None
+            or not plan.focus_field or reply is None):
+        return None
+    from backend.phases.define import templates
+    if plan.focus_field not in templates.TEMPLATES:
+        return None
+    card = templates.teaching_card(plan.focus_field, dict(state.get("artifacts") or {}), dict(plan.field_status or {}))
+    question = str(reply.prompt or "").strip()
+    card["your_turn"] = {**card["your_turn"], "said": str(reply.message or "").strip(),
+                         **({"question": question} if question else {})}
+    card["challenge"] = True
+    return card
+
+
 def _written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], written: Optional[CoachingResponse],
                    *, engine_timeout: bool, turn_type: str) -> tuple[Optional[CoachingResponse], Optional[dict]]:
     """`executor`'s reply when code writes it, and the element card when it is one; (None, None) when the coach
@@ -4041,6 +4061,8 @@ async def executor(
     card, strip = _element_card(phase, record, artifacts, plan, case, kept if move == moves.STORE_AND_ADVANCE else {})
     if card is None and sample_challenge and short and plan is not None:
         card = _short_card(phase, plan.focus_field, pending, artifacts, case)
+    if teaching is None and card is None and not link_challenge and not level_4 and not resend:
+        teaching = _challenge_card(phase, state, plan, reply)                                     # R-C, a challenge
     _attach_card(new_messages, card, _with_teaching_card(new_messages, teaching, strip), _reply_element(phase, record))
     _with_link_check(new_messages, phase, pending, prior_artifacts, link_challenge)          # R-H
     if completion is not None:

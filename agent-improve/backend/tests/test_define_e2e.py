@@ -286,10 +286,11 @@ def test_the_four_blocks_reach_the_screen(env, monkeypatch, grader_enforced, stu
     Through POST /ask with the grader in enforce mode and failing the reply: the response carries the four blocks
     and the warning, and the page's own renderTurn draws each under its label — "Why it matters", the example
     marked as an illustration, "Your turn", the element line ("Element n of 13 · name") — and the warning; a turn
-    with no warning draws none. R-C (ADR-0114): a teaching turn is the element card, so the blocks are a coach turn's —
-    here a challenge."""
+    with no warning draws none. R-C (ADR-0114): a teaching turn is the element card, and since 2026-10-30 (founder) a
+    challenge is too, so the blocks are another coach turn's — here the answer to the Belt's question."""
     import json
 
+    from backend.core.substate import SufficiencyJudgment
     from backend.middleware.grader import DMAICGraderMiddleware
     from backend.validation.schemas import CoachingGraderVerdict, CriterionResult
 
@@ -299,8 +300,10 @@ def test_the_four_blocks_reach_the_screen(env, monkeypatch, grader_enforced, stu
             status="fail", feedback="ask how the figure was measured")])
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", failing)
     _coached_at(env, stub_planner, "secondary_metrics")
+    stub_planner.judgment = SufficiencyJudgment(verdict="not_an_answer", reason="a question about the element")
     _coach_saying(monkeypatch, "Next: what else might change.")
-    body = _askd(env, message="Next, please.")
+    body = _askd(env, message="What counts as a secondary metric?")
+    assert body["move"] == "respond" and not body.get("teaching_card"), body["move"]
     for key in ("explanation", "example", "prompt", "progress", "grader_warning"):
         assert body.get(key), (key, body.get(key))
     turn = {**body, "role": "ai", "text": body["answer"]}
@@ -327,7 +330,7 @@ _PAGE_NEEDS: dict[str, tuple[str, ...]] = {
                             "function confirmedNoteHtml",                                                      # DEF-290
                             "function elementStripHtml", "function turnVisualHtml", "function baselineTargetHtml",
                             "function benefitBarsHtml", "function benefitTimelineHtml"),                       # DEF-291
-    "function teachingCardHtml": ("function elementStripHtml",),                                               # DEF-291
+    "function teachingCardHtml": ("function elementStripHtml", "function mdHtml"),                    # DEF-291; R-C challenge
     "function defineReportHtml": ("function elementValueHtml", "function elementRowsHtml", "function reportPrintHead",
                                   "function elementStripHtml", "function benefitBarsHtml"),                    # DEF-291
     "function renderPhaseNav": ("function gateSubmitState", "function renderGateSubmit"),
@@ -10780,7 +10783,10 @@ def test_def_266_one_element_card_for_every_element_of_every_phase(env, monkeypa
     trail, the title and purpose, YOUR TURN, the example, the help links — and the coach model is never called.
     (b) A Confirm that stores element 11 teaches element 12 with its card: ONE saved note names what was stored, with
     no "Stored: …" line and no green strip beside it (finding 17), and again no coach call. (c) A reload draws the
-    card from the conversation."""
+    card from the conversation. (d) Founder 2026-10-30: the coach's challenge on an insufficient answer is the same
+    card, the coach's words in YOUR TURN, and the page draws no "Why it matters" or yellow example block."""
+    import json
+
     from langchain_core.messages import AIMessage
 
     from backend.core.substate import SufficiencyJudgment
@@ -10836,6 +10842,28 @@ def test_def_266_one_element_card_for_every_element_of_every_phase(env, monkeypa
     # (c) the reload draws the same card
     history = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
     assert history[-1].get("teaching_card", {}).get("field") == "process_map_sipoc"
+
+    # (d) founder 2026-10-30: the coach's challenge on an insufficient answer is the same card — the coach's words in
+    # YOUR TURN, the skill's example table and help — never the old "Why it matters" and yellow example blocks.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "business_case")
+    env.case.phases["define"].field_status["business_case"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="no cost of the problem")
+    said = "Your answer says suppliers are paid late, but not what that costs the business."
+    coach_saying(said)
+    challenged = _askd(env, message="The problem is basically that paying suppliers is slow and messy.")
+    card = challenged["teaching_card"]
+    assert challenged["move"] == moves.CHALLENGE and card and card["challenge"] is True, challenged["move"]
+    assert card["your_turn"]["said"] == said and card["your_turn"]["question"] == REPLY["prompt"], card["your_turn"]
+    assert card["example"]["rows"] and card["trail"]["current"]["n"] == 1 and coached == [said], card
+    turn = {**challenged, "role": "ai", "text": challenged["answer"]}
+    html = _run_page(("function renderTurn",), _DOM + f"""
+const S={{localChat:[],user:'Ana'}};
+process.stdout.write(JSON.stringify({{html:renderTurn({json.dumps(turn)})}}));""")["html"]
+    assert 'class="tcard"' in html and "YOUR TURN" in html and escape_html(said) in html, html
+    for old in ("Why it matters</div>", "Example — an illustration, not your data", 'class="blk blk-example"'):
+        assert old not in html, old
 
 
 def test_def_267_the_welcome_flows_straight_into_the_first_element_s(env, monkeypatch, stub_planner) -> None:

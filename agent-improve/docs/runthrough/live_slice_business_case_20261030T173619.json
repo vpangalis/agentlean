@@ -1,0 +1,91 @@
+{
+ "kind": "live_slice",
+ "element": "business_case",
+ "case_id": "IMPR-2026-FSACAX",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "ad4332280a49ddc1",
+ "seeded": [],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "The problem is basically that paying suppliers is slow and messy.",
+   "action": null,
+   "http": 200,
+   "move": "challenge",
+   "move_field": "business_case",
+   "recorded_move": null,
+   "seconds": 13.2,
+   "failed": null,
+   "answer": "To complete the business case, you'll need to provide more detail about where and since when the problem occurs. For example, is this issue happening in a specific department, region, or process? And how long has it been a problem? These details help clarify the scope and context of the issue.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.51 s",
+    "input guard 1.48 s",
+    "planner judgment 1.56 s",
+    "coach 5.30 s",
+    "grader 2.75 s",
+    "after the answer (steps, save) 1.02 s",
+    "total 13.15 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs ab",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "business_case",
+   "recorded_move": null,
+   "seconds": 11.9,
+   "failed": null,
+   "answer": "Let me read back what you've provided for the business case to confirm it's accurate:\n\nThe problem is basically that paying suppliers is slow and messy. In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we promise, from March to September 2026. We handle about 1,200 complaints a year; each late one costs about €45 in callbacks and rework — about €20,500",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.45 s",
+    "input guard 1.33 s",
+    "planner judgment 2.28 s",
+    "coach 4.32 s",
+    "grader 2.23 s",
+    "after the answer (steps, save) 0.77 s",
+    "total 11.91 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 6,
+ "cost": {
+  "usd": 0.0313,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0307,
+   "gpt-4o-mini-2024-07-18": 0.0006
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 15.61,
+  "calls": 61,
+  "case": {
+   "seconds": 0.38,
+   "calls": 3
+  },
+  "store": {
+   "seconds": 0.29,
+   "calls": 6
+  },
+  "checkpoint": {
+   "seconds": 14.94,
+   "calls": 52
+  }
+ },
+ "started": "20261030T173619"
+}

@@ -413,6 +413,7 @@ a{text-decoration:none;color:inherit}
 .tc-title{font-size:18px;font-weight:700;line-height:1.25}.tc-purpose{font-size:13px;color:var(--text2);margin-top:-6px}
 .tc-yourturn{padding:12px 14px;border:2px solid var(--brand);background:var(--brand-bg);border-radius:var(--radius)}
 .tc-yt-h{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--brand);margin-bottom:4px}
+.tc-said{font-size:13px;line-height:1.5;margin-bottom:8px}
 .tc-q{font-size:15px;font-weight:600;line-height:1.4}.tc-hint{font-size:12px;color:var(--text2);margin-top:6px}
 .tc-skel{display:flex;gap:4px}.tc-skel span{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:700;color:var(--text3)}
 .tc-skel span.on{background:var(--brand);border-color:var(--brand);color:#fff}
@@ -6487,7 +6488,9 @@ function teachingCardHtml(c,latest){
   // steps listed above the question.
   const sk=c.skeleton?`<div class="tc-skel">${(c.skeleton.letters||[]).map(l=>`<span class="${(c.skeleton.lit||[]).includes(l)?'on':''}">${escapeHtml(l)}</span>`).join('')}</div>`:'';
   const steps=(c.steps||[]).length?`<ol class="tc-steps">${c.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol>`:'';
-  const turnBlk=`<div class="tc-yourturn"><div class="tc-yt-h">YOUR TURN</div>${steps}<div class="tc-q">${escapeHtml(yt.question||'')}</div>`
+  // R-C for a challenge (founder 2026-10-30): the coach's words — what is missing — above its question.
+  const said=yt.said?`<div class="tc-said md">${mdHtml(yt.said)}</div>`:'';
+  const turnBlk=`<div class="tc-yourturn"><div class="tc-yt-h">YOUR TURN</div>${steps}${said}<div class="tc-q">${escapeHtml(yt.question||'')}</div>`
     +`${yt.hint?`<div class="tc-hint">${escapeHtml(yt.hint)}</div>`:''}</div>`;
   // ADR-0077 point 5 (DEF-016): an element with a calculation teaches it on its card; R-E: once its inputs are
   // confirmed, both figures as formula and result, worked out in code, and the elements they come from.
@@ -6558,8 +6561,10 @@ function renderTurn(turn){
       <button id="lc-add" class="btn btn-primary" onclick="sendMessage('link_add','process_map_sipoc')">${escapeHtml(lc.add)}</button>
       <button id="lc-keep" class="btn" onclick="sendPresetMessage(${escapeHtml(JSON.stringify(lc.keep))})">${escapeHtml(lc.keep)}</button></div>`:'';
     // R-C (ADR-0114): a teaching turn is its element card alone — no text, blocks, strip or chips beside it.
+    // A challenge in the card keeps the SIPOC drawn so far and the next steps under it.
+    const ch=turn.teaching_card&&turn.teaching_card.challenge;
     if(turn.teaching_card) return `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai">${teachingCardHtml(turn.teaching_card,latest)}${warn}${cites}</div></div>`;
+      <div class="bbl bbl-ai">${teachingCardHtml(turn.teaching_card,latest)}${ch&&(turn.visualisation||turn.sipoc_diagram)?turnVisualHtml(turn):''}${ch?steps:''}${warn}${cites}</div></div>`;
     return `<div class="msg"><div class="mav mai">AI</div>
       <div class="bbl bbl-ai">${strip}${prog}<div class="md">${mdHtml(turn.text)}</div>${turn.completion_card?completionCardHtml(turn.completion_card):''}${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${(turn.visualisation||turn.sipoc_diagram)?turnVisualHtml(turn):''}${card}${acts}${linkBtns}${steps}${warn}${cites}</div></div>`;
   }else{
