@@ -4552,6 +4552,20 @@
     "A"
    ],
    "escape_class": "path_test"
+  },
+  {
+   "id": "G-353",
+   "symptom": "A CHANGE TYPED BY CHAT CORRUPTED THE TEAM. The founder's walk, 2026-10-30, IMPR-2026-DVTZ38 (on 753ae19), element 2 from the founder's team file: 'chainge the name of the team Member Thomas Wagner to Tomi Wagner' gave a 7th row 'Tomi Wagner' with no time, Thomas kept; after Change, 'Remove Tomi Wagner and rename Thomas Wagner to Tomin Wagner' was judged 'function missing' (3 of 3 met a turn earlier) and challenged in the old layout with no Confirm; the same file uploaded again kept the changes; 'Yes, only rename Thomas Wagner to Tomin Wagner. Nothing else.' gave a 7th row 'Tomin Wagner'; 'Keep the team exactly as in the file. Remove Tomin Wagner.' was judged incomplete; the card said 'from your file' throughout. The case stays as evidence. D4 OCCURRENCE: no path made a change — each typed change went to the planner's judgment as a new answer (the file's lines plus every typed line), and a read-back rebuilt the team from the file's rows plus each name the coach captured that the Belt's words carry (R-B's rule in parse.uploaded_team), so a rename added a person; a byte-identical upload is never read again (its read is kept, DEF-108); the card labelled every row 'from your file' while the read-back named an upload; and 'Yes, only rename …' read as a plain yes (is_confirmation). D4 ESCAPE (path_test): every upload test confirmed the file or typed an addition (training, a missing champion); none typed a rename, a removal or the same file twice. D5 FIX: a typed change — rename, remove, add, the file again — is made in code to the value on screen (moves.chat_edit) and read back in code with the card and Confirm, ahead of the Confirm check and the judgment; the edited rows are held as they are; the file's own words travel with the element, so the file again starts from it and 'from your file' shows only while the value matches it; rename/remove/delete make a yes a change. D6 VERIFY: DEF-299's test through /upload and /ask with the founder's file and sentences; a live slice with the founder's sentences. D7 PREVENT: DEF-299's test drives each change the walk typed, counts the people and their fields, and fails on any model call.",
+   "requirement": [
+    "W9"
+   ],
+   "feature": [
+    "DEF-299"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {

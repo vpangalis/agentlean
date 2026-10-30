@@ -239,7 +239,7 @@ _AFFIRM = re.compile(
 #: an addition. Such a reply is judged as an answer again, never taken as a yes.
 _QUALIFIER = re.compile(
     r"\b(but|except|however|although|though|actually|change|changed|instead|not|no|"
-    r"wrong|missing|add|also|should|rather|correction|correct it|update|replace)\b")
+    r"wrong|missing|add|also|should|rather|correction|correct it|update|replace|rename|remove|delete)\b")
 _NOTHING_TO_CHANGE = re.compile(r"\b(no changes?|nothing to change|no corrections?|not a thing)\b")
 
 
@@ -287,6 +287,61 @@ def sipoc_not_a_process(phase: str, field: Optional[str], upload: Optional[dict[
     if phase != "define" or field != SIPOC_FIELD or not reading.get("read") or reading.get("is_process"):
         return None
     return str((upload or {}).get("filename") or "the file")
+
+
+#: G-353 (W9, founder walk 2026-10-30) — a change typed to the value on screen, made in code and read back.
+CHAT_EDIT_REASON = ("Decided in code (G-353): the Belt's typed change was made to the value on screen — {done} It is "
+                    "read back in code for one Confirm; nothing is judged again.")
+
+
+def chat_edit(phase: str, field: Optional[str], entry: dict[str, Any], artifacts: dict[str, Any], belt: str,
+              upload: Optional[dict[str, Any]] = None) -> Optional[dict[str, Any]]:
+    """G-353 (W9): the element's value after the Belt's typed changes — {value, words, done, missing} — or None when the
+    message is no change (an answer, judged as one) or changes nothing on screen. The value on screen is the pending
+    read-back's, else the one an earlier read-back held (after Change), else the confirmed one, else the file's. The
+    element's file pointed at again (the same file uploaded again, nothing unread) starts it from the file."""
+    if phase != "define" or not field:
+        return None
+    pending = dict(entry.get("pending") or {})
+    file_words = str(pending.get("file_words") or entry.get("file_words") or "")
+    file_name = str(pending.get("upload") or entry.get("upload") or "")
+    from backend.phases.define import parse
+    edits = parse.chat_edits(belt)
+    if edits is None and upload is None and file_words and points_at_file(belt) and file_name \
+            and file_name.lower() in str(belt or "").lower():
+        edits = [{"op": "file"}]                                   # the file again: start from it
+    if not edits:
+        return None
+    on_screen = next((v for v in ((pending.get("store") or {}).get(field), (entry.get("earlier") or {}).get(field),
+                                  artifacts.get(field)) if v not in (None, "", [], {})), None)
+    if field in parse.TABLE_ELEMENTS:
+        file_rows = parse.team_rows(file_words)
+        current = on_screen if isinstance(on_screen, list) else file_rows
+        if not current:
+            return None
+        # A change that names no one in the team is still answered in code (who is not in it) — never judged as a new
+        # answer, which once judged an unchanged team "incomplete".
+        result = parse.apply_team_edits(current, edits, file_rows)
+        return {"value": result["team"], "words": parse.team_lines(result["team"]), "done": result["done"],
+                "missing": result["missing"]}
+    if isinstance(on_screen, str) or file_words:
+        text = parse.apply_text_edits(on_screen if isinstance(on_screen, str) else "", edits, file_words)
+        if text is None or not text["done"]:
+            return None
+        return {"value": text["text"], "words": text["text"], "done": text["done"], "missing": text["missing"]}
+    return None
+
+
+def still_the_file(field: str, value: Any, pending: dict[str, Any]) -> bool:
+    """G-353: "from your file" only while the value on screen still matches the file it came from — True when the
+    read-back carries no file's words to compare (an older case)."""
+    file_words = str(pending.get("file_words") or "")
+    if not file_words:
+        return True
+    from backend.phases.define import parse
+    if field in parse.TABLE_ELEMENTS:
+        return parse.same_team(value, parse.team_rows(file_words))
+    return " ".join(str(value or "").split()) == " ".join(file_words.split())
 
 
 def partial_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
@@ -571,8 +626,10 @@ def _link_added(phase: str, field: str, entry: dict[str, Any],
 def _upload_kw(*sources: Optional[dict[str, Any]]) -> dict[str, Any]:
     """G-301 (DEF-264, founder test 2026-10-27 #28): the uploaded file an element's answer started from, carried
     through a Change and the Belt's typed additions — a Confirm then still stores the file's own rows, never the
-    coach's re-typing of them. `{"upload": filename}` from the first source that names one, else nothing."""
-    return next(({"upload": s["upload"]} for s in sources if s and s.get("upload")), {})
+    coach's re-typing of them. `{"upload": filename}` from the first source that names one, else nothing — with the
+    file's own words (`file_words`, G-353) when that source kept them."""
+    return next(({"upload": s["upload"], **({"file_words": s["file_words"]} if s.get("file_words") else {})}
+                 for s in sources if s and s.get("upload")), {})
 
 
 async def decide(phase: str, artifacts: dict[str, Any],
@@ -682,7 +739,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
     if covered is not None:
         words = covered["value"]
         new_pending = {"field": field, "fields": list(fields), "belt_words": words, "messages": 1,
-                       "upload": covered["filename"], **_earlier_kw(entry, None)}
+                       "upload": covered["filename"], "file_words": words, **_earlier_kw(entry, None)}
         after[field] = {"status": ANSWERED, "answer": words, "messages": 1, "pending": new_pending,
                         **_attempts(entry)}
         return done(field, fields, status, READ_BACK, answer=words, messages=1, pending=new_pending,
@@ -693,7 +750,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
     if partial is not None:
         words = partial["value"]
         new_pending = {"field": field, "fields": list(fields), "belt_words": words, "messages": 1,
-                       "upload": partial["filename"], "draft": True, "missing": partial["missing"],
+                       "upload": partial["filename"], "file_words": words, "draft": True, "missing": partial["missing"],
                        **_earlier_kw(entry, None)}
         after[field] = {"status": ANSWERED, "answer": words, "messages": 1, "pending": new_pending,
                         **_attempts(entry)}
@@ -717,6 +774,21 @@ async def decide(phase: str, artifacts: dict[str, Any],
                         or 1), "pending": added["pending"], "link_raised": True, **_attempts(entry)}
         return done(field, fields, status, READ_BACK, answer=str(entry.get("answer") or ""), pending=added["pending"],
                     reason=LINK_ADDED_REASON.format(steps=", ".join(added["steps"])))
+    # G-353 (W9, founder walk 2026-10-30): a typed change to the value on screen — a rename, a removal, an addition, the
+    # file again — is made in code and read back for one Confirm; nothing is judged again. Ahead of the Confirm: "Yes,
+    # only rename …" is a change, never a yes.
+    edit = chat_edit(phase, field, entry, artifacts, belt, upload) if action is None and status in (ASKED, ANSWERED) \
+        else None
+    if edit is not None:
+        held = dict(entry.get("pending") or {})
+        new_pending = {"field": field, "fields": list(fields), "belt_words": edit["words"], "messages": 1,
+                       "store": {field: edit["value"]}, "edited": True, "edit_done": edit["done"],
+                       "edit_missing": edit["missing"], **_earlier_kw(entry, held or None),
+                       **_upload_kw(held or None, entry)}
+        after[field] = {"status": ANSWERED, "answer": edit["words"], "messages": 1, "pending": new_pending,
+                        **_attempts(entry)}
+        return done(field, fields, status, READ_BACK, answer=edit["words"], messages=1, pending=new_pending,
+                    reason=CHAT_EDIT_REASON.format(done=" ".join(edit["done"])))
     pending = entry.get("pending") if status == ANSWERED else None
     if pending and (action == CONFIRM_CLICK or (action is None and (is_confirmation(belt)
                                                                      or uses_upload(belt, pending)))):
@@ -898,7 +970,10 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
             # DEF-230 (ADR-0093): the seven answers as the Belt labelled them, read in code — the card's rows and
             # the stored value — the coach's proposal only for what the Belt did not label.
             value = parse.five_w_two_h_store(words, value) or value
-        if phase == "define" and f in parse.TABLE_ELEMENTS and pending.get("upload") and parse.team_rows(words):
+        if phase == "define" and f in parse.TABLE_ELEMENTS and pending.get("upload") and parse.team_rows(words) \
+                and not pending.get("edited"):
+            # (Not after a change by chat, G-353: those rows are held exactly as edited — rebuilt from the file with the
+            # coach's names added, a rename once became a second person.)
             # G-236 (DEF-229): a read-back of an uploaded table stores the file's rows, read in code from its
             # labelled lines (every column, training included) — never the coach's re-typing of them. G-301
             # (DEF-264): a training line the Belt typed to complete the file goes to each named member's own column.

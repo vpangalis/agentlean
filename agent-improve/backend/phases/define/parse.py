@@ -296,6 +296,136 @@ def table_lines(text: Any) -> str:
     return "\n".join(x for x in lines[1:] if ": " in x)
 
 
+#: G-353 (W9, founder walk 2026-10-30): a change the Belt types to the value on screen, one clause at a time — a rename,
+#: a removal, an addition or a return to the file. A clause may open with a courtesy ("Yes, only …").
+_EDIT_LEAD = r"(?i:(?:yes|ok(?:ay)?|please|so)[,!]?\s+)?(?i:(?:only|just|please)\s+)*"
+_EDIT_WHO = r"(?i:(?:the\s+name\s+of\s+)?(?:the\s+)?(?:team\s+member|member|person)\s+)?"
+_RENAME = re.compile(_EDIT_LEAD + r"(?i:rename|re-name|change|chainge|chnage|replace|correct)\s+" + _EDIT_WHO
+                     + r"(?P<old>.+?)\s+(?i:to|with|into)\s+(?P<new>.+?)$")
+_REMOVE = re.compile(_EDIT_LEAD + r"(?i:remove|delete|drop|take\s+out)\s+" + _EDIT_WHO
+                     + r"(?P<name>.+?)(?:\s+(?i:from\s+the\s+team))?$")
+_ADD = re.compile(_EDIT_LEAD + r"(?i:add)\s+" + _EDIT_WHO + r"(?P<name>[^,]+?)(?:\s+(?i:as)\s+(?P<rest>.+))?$")
+#: "Use the file" stays ADR-0085's Confirm (`moves.uses_upload`); this is the return to the file the Belt asks for.
+_AS_FILE = re.compile(r"(?i)^(?:yes,?\s+)?(?:please\s+)?(?:keep|restore|reset|go\s+back\s+to)\b.{0,40}?"
+                      r"\b(?:as\s+(?:in|it\s+is\s+in|it\s+was\s+in)\s+the\s+file|the\s+file(?:'s\s+\w+)?)\s*$")
+_EDIT_COURTESY = re.compile(r"(?i)^(?:yes|ok(?:ay)?|nothing\s+else|that'?s\s+(?:all|it)|thanks?(?:\s+you)?|please|"
+                            r"no\s+other\s+changes?)$")
+#: Where one clause of a change ends: a sentence end, a semicolon, or "and" before the next change.
+_EDIT_SPLIT = re.compile(r"(?<=[.;!?])\s+|\s*;\s*|\s+(?i:and|then)\s+(?=(?i:rename|change|chainge|replace|remove|delete|"
+                         r"drop|add)\b)")
+#: A time commitment as a Belt types it beside a person ("4 h per week", "10%").
+_TIME_GIVEN = re.compile(r"(?i)\d+(?:[.,]\d+)?\s*(?:%|h\b|hours?|days?)")
+
+
+def _clean(name: str) -> str:
+    return " ".join(str(name or "").strip().strip("\"'“”‘’").rstrip(".!,;").split())
+
+
+def chat_edits(text: Any) -> Optional[list[dict[str, str]]]:
+    """G-353 (W9): the changes a message types to the value on screen, in order — {op: rename, old, new},
+    {op: remove, name}, {op: add, name, rest}, {op: file} — when EVERY clause of it is one, or a courtesy. None for
+    any other message, which is an answer and is judged as one."""
+    said = " ".join(str(text or "").split())
+    if not said:
+        return None
+    out: list[dict[str, str]] = []
+    for clause in (c.strip().rstrip(".!") for c in _EDIT_SPLIT.split(said)):
+        if not clause or _EDIT_COURTESY.fullmatch(clause.strip(" ,")):
+            continue
+        if _AS_FILE.fullmatch(clause):
+            out.append({"op": "file"})
+        elif m := _RENAME.fullmatch(clause):
+            out.append({"op": "rename", "old": _clean(m["old"]), "new": _clean(m["new"])})
+        elif m := _REMOVE.fullmatch(clause):
+            out.append({"op": "remove", "name": _clean(m["name"])})
+        elif m := _ADD.fullmatch(clause):
+            out.append({"op": "add", "name": _clean(m["name"]), "rest": str(m["rest"] or "").strip()})
+        else:
+            return None
+    return out or None
+
+
+def _same_person(a: Any, b: Any) -> bool:
+    return " ".join(str(a or "").lower().split()) == " ".join(str(b or "").lower().split()) != ""
+
+
+def apply_team_edits(team: list[dict[str, Any]], edits: list[dict[str, str]],
+                     file_rows: list[dict[str, str]]) -> dict[str, Any]:
+    """G-353 (W9): the team after the Belt's typed changes, in code. A rename replaces the person in place — the exact
+    spelling given, every other field kept; a removal deletes the row; an addition appends what is given ("Add Anna
+    Berger as Team Member, Customer Care, 4 h per week"); "as in the file" starts again from the file's rows.
+    {"team", "done": [what was changed], "missing": [a name not in the team]}."""
+    rows = [dict(r) for r in team if isinstance(r, dict)]
+    done: list[str] = []
+    missing: list[str] = []
+    for e in edits:
+        if e["op"] == "file":
+            if file_rows:
+                rows = [dict(r) for r in file_rows]
+                done.append("The team is as in the file again.")
+            else:
+                missing.append("the file")
+        elif e["op"] == "rename":
+            hits = [r for r in rows if _same_person(r.get("name"), e["old"])]
+            for r in hits:
+                r["name"] = e["new"]
+            (done.append(f"Renamed {e['old']} to {e['new']}.") if hits else missing.append(e["old"]))
+        elif e["op"] == "remove":
+            kept = [r for r in rows if not _same_person(r.get("name"), e["name"])]
+            (done.append(f"Removed {e['name']}.") if len(kept) < len(rows) else missing.append(e["name"]))
+            rows = kept
+        elif e["op"] == "add":
+            if any(_same_person(r.get("name"), e["name"]) for r in rows):
+                missing.append(f"{e['name']} (already in the team)")
+                continue
+            parts = [p.strip() for p in str(e.get("rest") or "").split(",") if p.strip()]
+            time = next((p for p in parts if _TIME_GIVEN.search(p)), "")
+            words = [p for p in parts if p != time]
+            row = {"name": e["name"], **({"role": words[0]} if words else {}),
+                   **({"function": words[1]} if len(words) > 1 else {}), **({"time_commitment": time} if time else {})}
+            rows.append(row)
+            done.append(f"Added {e['name']}.")
+    return {"team": rows, "done": done, "missing": missing}
+
+
+def apply_text_edits(value: str, edits: list[dict[str, str]], file_value: str = "") -> Optional[dict[str, Any]]:
+    """G-353 (W9): a text element after the Belt's typed renames — each old wording replaced where it stands, in the
+    exact spelling given; "as in the file" starts again from the file's text. None when a change is not a rename or
+    a return to the file (a removal or an addition is an answer for the judgment)."""
+    text = str(value or "")
+    done: list[str] = []
+    missing: list[str] = []
+    for e in edits:
+        if e["op"] == "file" and file_value:
+            text = file_value
+            done.append("The answer is as in the file again.")
+        elif e["op"] == "rename" and e["old"]:
+            if e["old"] in text:
+                text = text.replace(e["old"], e["new"])
+                done.append(f"Changed “{e['old']}” to “{e['new']}”.")
+            else:
+                missing.append(e["old"])
+        else:
+            return None
+    return {"text": text, "done": done, "missing": missing}
+
+
+def team_lines(team: list[dict[str, Any]]) -> str:
+    """The team as labelled lines, one per person ("name: … | role: … | …") — what `team_rows` reads back."""
+    return "\n".join(" | ".join(f"{k}: {v}" for k, v in r.items() if str(v or "").strip())
+                     for r in team if isinstance(r, dict) and r.get("name"))
+
+
+def same_team(a: Any, b: Any) -> bool:
+    """Whether two teams state the same people with the same name, role, function and time — the file's rows against
+    the value on screen (G-353: "from your file" only while the value still matches the file)."""
+    def key(rows: Any) -> list[tuple[str, ...]]:
+        return sorted(tuple(" ".join(str(r.get(k) or "").lower().split())
+                            for k in ("name", "role", "function", "time_commitment"))
+                      for r in (rows if isinstance(rows, list) else []) if isinstance(r, dict))
+    return key(a) == key(b)
+
+
 def readable_rows(text: Any) -> str:
     """G-296 (DEF-280): a file's labelled rows ("name: Katharina Huber | role: Project Sponsor | …") as the Belt reads
     them, one line each: the first column's value, a dash, the others in the file's order ("Katharina Huber — Project
@@ -1116,7 +1246,7 @@ def link_mismatch(problem_steps: Any, sipoc: Any) -> dict[str, Any]:
     return {"unmatched": where["unmatched"], "ends": where["ends"], "quiet": quiet, "ignored": ignored}
 
 
-__all__ = ["has_step_times", "sipoc_steps", "SCOPE_DIMENSIONS", "scope_rows", "uploaded_team", "unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
+__all__ = ["chat_edits", "apply_team_edits", "apply_text_edits", "team_lines", "same_team", "has_step_times", "sipoc_steps", "SCOPE_DIMENSIONS", "scope_rows", "uploaded_team", "unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns", "METRIC_FIELDS",
            "normal_unit", "is_estimate", "metric_value", "as_metric", "metric_text", "primary_unit",
            "STEP_KEYS", "DURATION_KEYS", "PROCESS_PERFORMANCE_KEYS", "period_value", "duration_value",
            "process_steps", "process_performance", "sipoc_with_performance", "step_names", "link_mismatch",

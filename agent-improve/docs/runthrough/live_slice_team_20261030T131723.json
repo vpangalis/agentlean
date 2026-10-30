@@ -1,0 +1,203 @@
+{
+ "kind": "live_slice",
+ "element": "team",
+ "case_id": "IMPR-2026-X5FTNB",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "75ab019ae42498ce",
+ "seeded": [
+  "business_case"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "📎 team_field_service.csv",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 10.5,
+   "failed": null,
+   "answer": "I've read your file team_field_service.csv. For Team it shows: names a champion (sponsor) by name; names the process owner by name; each person has a name, a role and a function. It covers everything Team asks for.\n\nHere is the team structure you provided. Please confirm if this is correct:\n\n- Katharina Huber: Project Sponsor, Head of Field Service Austria, time commitment: 2 hours per month\n- Mar",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.31 s",
+    "input guard 1.30 s",
+    "coach 5.44 s",
+    "grader 1.89 s",
+    "after the answer (steps, save) 0.99 s",
+    "total 10.49 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "chainge the name of the team Member Thomas Wagner to Tomi Wagner",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 4.1,
+   "failed": null,
+   "answer": "Renamed Thomas Wagner to Tomi Wagner.\nHere it is as it is now — nothing is saved until you confirm. Confirm to save it, or Change to correct it.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.28 s",
+    "input guard 1.27 s",
+    "after the answer (steps, save) 1.94 s",
+    "total 4.12 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Change",
+   "action": "change",
+   "http": 200,
+   "move": "challenge",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 4.0,
+   "failed": null,
+   "answer": "Katharina Huber — Project Sponsor, Head of Field Service Austria, 2 h per month, Head of Field Service Austria\nMarkus Steiner — Process Owner, Service Desk Lead Vienna, 4 h per week, Service Desk Lead Vienna\nElena Gruber — Team Member, Field Technician Coordinator, 4 h per week, Field Technician Coordinator\nTomi Wagner — Team Member, Customer Care Analyst, 4 h per week, Customer Care Analyst\nSabin",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.36 s",
+    "input guard 1.41 s",
+    "after the answer (steps, save) 1.82 s",
+    "total 3.98 s"
+   ]
+  },
+  {
+   "n": 4,
+   "belt": "Remove Tomi Wagner and rename Thomas Wagner to Tomin Wagner",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 4.2,
+   "failed": null,
+   "answer": "Removed Tomi Wagner.\nThomas Wagner is not in it — nothing changed there.\nHere it is as it is now — nothing is saved until you confirm. Confirm to save it, or Change to correct it.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.35 s",
+    "input guard 1.25 s",
+    "after the answer (steps, save) 2.14 s",
+    "total 4.23 s"
+   ]
+  },
+  {
+   "n": 5,
+   "belt": "📎 team_field_service.csv",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 4.5,
+   "failed": null,
+   "answer": "The team is as in the file again.\nHere it is as it is now — nothing is saved until you confirm. Confirm to save it, or Change to correct it.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.31 s",
+    "input guard 1.42 s",
+    "after the answer (steps, save) 2.37 s",
+    "total 4.51 s"
+   ]
+  },
+  {
+   "n": 6,
+   "belt": "Yes, only rename Thomas Wagner to Tomin Wagner. Nothing else.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 5.0,
+   "failed": null,
+   "answer": "Renamed Thomas Wagner to Tomin Wagner.\nHere it is as it is now — nothing is saved until you confirm. Confirm to save it, or Change to correct it.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.39 s",
+    "input guard 1.84 s",
+    "after the answer (steps, save) 2.37 s",
+    "total 5.04 s"
+   ]
+  },
+  {
+   "n": 7,
+   "belt": "Keep the team exactly as in the file. Remove Tomin Wagner.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 6.0,
+   "failed": null,
+   "answer": "The team is as in the file again.\nTomin Wagner is not in it — nothing changed there.\nHere it is as it is now — nothing is saved until you confirm. Confirm to save it, or Change to correct it.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.41 s",
+    "input guard 2.14 s",
+    "after the answer (steps, save) 2.89 s",
+    "total 6.03 s"
+   ]
+  },
+  {
+   "n": 8,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "voc_summary",
+   "recorded_move": null,
+   "seconds": 5.3,
+   "failed": null,
+   "answer": "Team saved: 5 people.\n\nElement 3 of 13 · Voice of the customer and CTQs: Who are the customers of your process, and what do they need or complain about most? For each need, how would you measure that it is met?",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.72 s",
+    "input guard 1.55 s",
+    "after the answer (steps, save) 2.43 s",
+    "total 5.34 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 4,
+ "cost": {
+  "usd": 0.0156,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0143,
+   "gpt-4o-mini-2024-07-18": 0.0013
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 101.12,
+  "calls": 245,
+  "case": {
+   "seconds": 0.91,
+   "calls": 14
+  },
+  "checkpoint": {
+   "seconds": 98.71,
+   "calls": 204
+  },
+  "store": {
+   "seconds": 1.5,
+   "calls": 27
+  }
+ },
+ "started": "20261030T131723"
+}

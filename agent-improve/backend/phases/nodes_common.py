@@ -1583,9 +1583,11 @@ def _element_card(phase: str, record: dict | None, artifacts: dict[str, Any],
                   if f == record["stored_field"] or any(k in (kept or {}) for k in (f, *(keys or ())))]
         strip = templates.strip(stored, artifacts)
     if pending and field in templates.TEMPLATES and record.get("move") == moves.READ_BACK:
-        card = templates.card(field, {**artifacts, **dict(pending.get("store") or {})}, spans=pending.get("spans"),
-                              upload=pending.get("upload"), belt_words=str(pending.get("belt_words") or ""),
-                              case=case)
+        store = dict(pending.get("store") or {})
+        # G-353: "from your file" only while the value still matches the file it came from.
+        upload = pending.get("upload") if moves.still_the_file(field, store.get(field), pending) else None
+        card = templates.card(field, {**artifacts, **store}, spans=pending.get("spans"), upload=upload,
+                              belt_words=str(pending.get("belt_words") or ""), case=case)
         return card, strip
     return None, strip
 
@@ -1796,7 +1798,8 @@ def _written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], 
     no coach call. An upload turn stays the coach's (W5, DEF-108; locked 2026-10-28: an upload starts its own turn)."""
     written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
                                                     or _goal_target_reply(phase, plan) or _offer_reply(phase, plan)
-                                                    or _link_added_reply(plan) or _sipoc_upload_reply(plan))
+                                                    or _link_added_reply(plan) or _sipoc_upload_reply(plan)
+                                                    or _chat_edit_reply(plan))
     if written is not None or engine_timeout or turn_type == turn_tools.UPLOAD:
         return written, None
     teaching = _teaching_card(phase, state, plan)
@@ -1814,6 +1817,21 @@ def _link_added_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse
         return None
     from backend.core.prompts import LINK_ADDED
     return CoachingResponse(message=LINK_ADDED.format(steps=str(plan.reason)[len(head):].split(".")[0]))
+
+
+def _chat_edit_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
+    """G-353 (W9, founder walk 2026-10-30): the read-back of a change the Belt typed — what was changed, anything named
+    that is not there, and the ask for a Confirm — written in code under the card that shows the value as it now is.
+    No judgment, no coach call."""
+    head = moves.CHAT_EDIT_REASON.split("{")[0]
+    if plan is None or plan.move != moves.READ_BACK or not str(plan.reason or "").startswith(head):
+        return None
+    from backend.core import prompts as P
+    pending = dict(plan.pending or {})
+    lines = [" ".join(pending.get("edit_done") or [])]
+    lines += [P.CHAT_EDIT_MISSING.format(name=n) for n in pending.get("edit_missing") or []]
+    lines.append(P.CHAT_EDIT_ASK)
+    return CoachingResponse(message="\n".join(x for x in lines if x), prompt=P.CHAT_EDIT_ASK)
 
 
 def _sipoc_upload_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:

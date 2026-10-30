@@ -12481,3 +12481,171 @@ def test_r10_element_12_end_to_end_a_file_that_is_no_process_word_typed_gap_leav
     element = next(e for e in _gate_section(report, "F")["elements"] if e["field"] == "process_map_sipoc")
     gate_row = next(r for r in element["rows"] if r["id"] == "performance")
     assert element["status"] == "confirmed" and gate_row["required"] is False, (element["status"], gate_row)
+
+
+#: The founder's walk of 2026-10-30 (IMPR-2026-DVTZ38): the team file as uploaded (no training column).
+TEAM_FILE_WALK = (
+    "name,role,department,time_commitment\n"
+    "Katharina Huber,Project Sponsor,Head of Field Service Austria,2 h per month\n"
+    "Markus Steiner,Process Owner,Service Desk Lead Vienna,4 h per week\n"
+    "Elena Gruber,Team Member,Field Technician Coordinator,4 h per week\n"
+    "Thomas Wagner,Team Member,Customer Care Analyst,4 h per week\n"
+    "Sabine Hofer,Team Member,Quality and Complaints Manager,3 h per week\n")
+#: The founder's business case on that walk, word for word.
+BUSINESS_CASE_WALK = (
+    "In Field Service Austria, 38% of customer complaints were closed later than the 5 working days we promise, from "
+    "March to September 2026. We handle about 1,200 complaints a year; each late one costs about €45 in callbacks and "
+    "rework — about €20,500 a year — and late cases escalate to account managers.")
+
+
+def _models_counted(monkeypatch) -> list:
+    """Every coach call and every judgment from here on, counted — a change by chat calls neither."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+    seen: list = []
+
+    def replies():
+        seen.append("coach")
+        yield AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": {**REPLY, "message": "COACH"},
+                                                 "id": "call_g353"}])
+    real, judge = nodes_common.get_llm, nodes_common._judge
+
+    async def judging(phase, state, field, *a, **k):
+        seen.append(f"judge:{field}")
+        return await judge(phase, state, field, *a, **k)
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=replies())
+                        if role == "coach" else real(role, **kw))
+    monkeypatch.setattr(nodes_common, "_judge", judging)
+    return seen
+
+
+def test_def_299_a_change_by_chat_edits_the_value_on_screen_in_code(env, monkeypatch, stub_planner) -> None:
+    """DEF-299 — W9: a change typed by chat (rename, remove, add, back to the file) is made in code to the value on screen: a rename replaces the person in place in the exact spelling given, every other field kept; remove deletes the row; add appends what is given; it is read back with the card and Confirm, never judged again
+
+    The founder's walk of 2026-10-30 (IMPR-2026-DVTZ38, G-353), through POST /upload and POST /ask on the founder's own
+    team file and the founder's own sentences, in the walk's order. Each change is read back in code — no judgment and
+    no coach call — with the card and an open Confirm, and the people and their fields are exactly as expected:
+    - "chainge the name of the team Member Thomas Wagner to Tomi Wagner": five people, Thomas's row now Tomi's, his
+      role, function and time kept (it once became a sixth person, Thomas kept);
+    - after Change, "Remove Tomi Wagner and rename Thomas Wagner to Tomin Wagner": four people, and Thomas named as not
+      in the team (it was once judged "function missing");
+    - "Yes, only rename Thomas Wagner to Tomin Wagner. Nothing else." is a change, never a yes;
+    - "Keep the team exactly as in the file. Remove Tomin Wagner.": the file's five, Tomin named as not in it;
+    - "Add Anna Berger as Team Member, Customer Care Analyst, 4 h per week": six, Anna as given.
+    Confirm stores exactly the value on screen. A rename on a text element (the founder's business case) replaces the
+    words in place and is read back in code too."""
+    from backend.gateway import routes
+    from backend.middleware.skills import acceptance_criteria
+    from backend.phases import moves
+    from backend.storage.models import ElementCheck, UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/{a[1] if len(a) > 1 else k.get('filename')}"
+
+    async def index(*a, **k):
+        return "idx-team"
+
+    async def interpret(filename_, parsed, case_meta, phase, element=None):
+        return UploadInterpretation(summary="The project team.", element_check=ElementCheck(
+            element=element, value="the team as listed",
+            criteria=[{"criterion": cid, "result": "supported"} for cid, _ in acceptance_criteria("define", element)]))
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    monkeypatch.setattr(routes, "TURNS_PER_MINUTE", 1000)     # a dozen turns in seconds: T93's rate is not under test
+    _shields(monkeypatch)
+    _at_element(env, "team")
+    env.case.phases["define"].field_status["team"] = {"status": moves.ASKED}
+    _coach_saying(monkeypatch, "Here is the team from your file. Is this right?")
+
+    def upload() -> None:
+        r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                            files={"file": ("team_field_service.csv", TEAM_FILE_WALK.encode(), "text/csv")})
+        assert r.status_code == 200, r.text
+
+    def team() -> list:
+        return _define(env)["field_status"]["team"]["pending"]["store"]["team"]
+
+    def names() -> list:
+        return [m["name"] for m in team()]
+
+    def person(name: str) -> dict:
+        return next(m for m in team() if m["name"] == name)
+
+    def sources(read: dict) -> set:
+        return {r["source"] for r in read["readback_card"]["rows"]}
+    file_people = ["Katharina Huber", "Markus Steiner", "Elena Gruber", "Thomas Wagner", "Sabine Hofer"]
+    upload()
+    read = _askd(env, message="📎 team_field_service.csv")
+    assert (read["move"], read["move_field"]) == ("read_back", "team") and names() == file_people, names()
+    assert "from your file" in sources(read), read["readback_card"]["rows"]
+    seen = _models_counted(monkeypatch)
+
+    # 1 — the rename: in place, every other field kept, five people.
+    r1 = _askd(env, message="chainge the name of the team Member Thomas Wagner to Tomi Wagner")
+    assert r1["move"] == "read_back" and "Renamed Thomas Wagner to Tomi Wagner." in r1["answer"], r1["answer"]
+    assert names() == ["Katharina Huber", "Markus Steiner", "Elena Gruber", "Tomi Wagner", "Sabine Hofer"], names()
+    tomi = person("Tomi Wagner")
+    assert (tomi["role"], tomi["function"], tomi["time_commitment"]) == (
+        "Team Member", "Customer Care Analyst", "4 h per week"), tomi
+    assert r1["readback_card"]["confirm"] is True and "from your file" not in sources(r1), r1["readback_card"]
+
+    # 2 — after Change: remove and rename in one message.
+    _askd(env, message="Change", action="change")
+    r2 = _askd(env, message="Remove Tomi Wagner and rename Thomas Wagner to Tomin Wagner")
+    assert names() == ["Katharina Huber", "Markus Steiner", "Elena Gruber", "Sabine Hofer"], names()
+    assert "Removed Tomi Wagner." in r2["answer"] and "Thomas Wagner is not in it" in r2["answer"], r2["answer"]
+    assert r2["readback_card"]["confirm"] is True, r2["readback_card"]
+
+    # 3 — the same file again starts from the file, nothing carried over; "from your file" again.
+    upload()
+    r3 = _askd(env, message="📎 team_field_service.csv")
+    assert r3["move"] == "read_back" and names() == file_people, (r3["answer"], names())
+    assert "from your file" in sources(r3), r3["readback_card"]["rows"]
+
+    # 4 — "Yes, only rename …" is a change, never a yes.
+    r4 = _askd(env, message="Yes, only rename Thomas Wagner to Tomin Wagner. Nothing else.")
+    assert r4["move"] == "read_back" and "team" not in (_define(env).get("structured") or {}), r4["move"]
+    assert names() == ["Katharina Huber", "Markus Steiner", "Elena Gruber", "Tomin Wagner", "Sabine Hofer"], names()
+    assert person("Tomin Wagner")["time_commitment"] == "4 h per week", person("Tomin Wagner")
+
+    # 5 — back to the file, and someone not in it.
+    r5 = _askd(env, message="Keep the team exactly as in the file. Remove Tomin Wagner.")
+    assert names() == file_people and "Tomin Wagner is not in it" in r5["answer"], (names(), r5["answer"])
+    assert "from your file" in sources(r5), r5["readback_card"]["rows"]
+
+    # 6 — an addition, as given.
+    r6 = _askd(env, message="Add Anna Berger as Team Member, Customer Care Analyst, 4 h per week")
+    anna = person("Anna Berger")
+    assert names() == [*file_people, "Anna Berger"] and anna == {
+        "name": "Anna Berger", "role": "Team Member", "function": "Customer Care Analyst",
+        "time_commitment": "4 h per week"}, team()
+    assert r6["readback_card"]["confirm"] is True, r6["readback_card"]
+
+    # Confirm stores exactly the value on screen; nothing above was judged or coached.
+    held = team()
+    done = _askd(env, message="Confirm", action="confirm")
+    assert done["move"] == "store_and_advance" and _define(env)["structured"]["team"] == held, done["move"]
+    assert seen == [], f"a change by chat called a model: {seen}"
+
+    # A text element: the founder's business case, one rename in place.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_element(env, "business_case")
+    env.case.phases["define"].field_status["business_case"] = {"status": moves.ASKED}
+    from backend.core.substate import SufficiencyJudgment
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="all five parts")
+    _coach_saying(monkeypatch, "Here is your business case. Is this right?")
+    _askd(env, message=BUSINESS_CASE_WALK)
+    seen = _models_counted(monkeypatch)
+    renamed = _askd(env, message="Rename Field Service Austria to Field Service Vienna.")
+    held = _define(env)["field_status"]["business_case"]["pending"]["store"]["business_case"]
+    assert renamed["move"] == "read_back" and held == BUSINESS_CASE_WALK.replace("Field Service Austria",
+                                                                                 "Field Service Vienna"), held
+    assert seen == [], f"the rename called a model: {seen}"
+    # An answer that only says "change … to …" with words not on screen is judged, as any answer is.
+    assert moves.chat_edit("define", "business_case", {"pending": {"store": {"business_case": held}}}, {},
+                           "change the cost to about €30,000 a year") is None

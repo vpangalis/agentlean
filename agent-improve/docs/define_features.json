@@ -10566,6 +10566,45 @@
    "stage": "coached",
    "layer": "screen",
    "pilot": true
+  },
+  {
+   "id": "DEF-299",
+   "description": "W9: a change typed by chat (rename, remove, add, back to the file) is made in code to the value on screen: a rename replaces the person in place in the exact spelling given, every other field kept; remove deletes the row; add appends what is given; it is read back with the card and Confirm, never judged again",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-169",
+    "DEF-264"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_def_299_a_change_by_chat_edits_the_value_on_screen_in_code",
+   "sources": {
+    "architecture": [],
+    "procedure": [
+     "G-353 (the founder's walk, 2026-10-30, IMPR-2026-DVTZ38)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py::chat_edit",
+     "agent-improve/backend/phases/define/parse.py::chat_edits",
+     "agent-improve/backend/phases/define/parse.py::apply_team_edits"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-353"
+    ]
+   },
+   "requirement": "W9",
+   "belt_impact": "wrong_data",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api",
+   "pilot": true
   }
  ]
 }

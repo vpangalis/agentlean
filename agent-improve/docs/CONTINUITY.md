@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 232 of 248 Define features pass (core 224 of 239) — A 95/102 · B 40/40 · C 73/81 · integrator 24/25 · M1: 95 proven · 0 awaiting fresh run · 5 open |
+| **Headline** | 194 of 249 Define features pass, 33 more proven on earlier code (core 191 of 240) — A 69/103 · B 37/40 · C 72/81 · integrator 16/25 · M1: 72 proven · 22 awaiting fresh run · 8 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | every feature passes |
+| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-274 — The create form: the lead's typed name replaces 'You'; the lead's country and site are asked (R8b's amendment) |
-| **Next — lane integrator** | DEF-276 — The page calls the origin it was loaded from; the startup log names the real port |
-| **Run-through record** | current |
+| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.3 |
 | **Block regenerated** | 2026-10-30 |
