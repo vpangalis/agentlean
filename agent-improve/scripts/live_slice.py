@@ -167,11 +167,27 @@ async def copy_case(source: str, case_id: str, element: str, title: str) -> dict
             "sign_in": head.email if head is not None and access.required(copied) else ""}
 
 
+#: The founder's ruling of 2026-10-30: no customer material in a live slice, ever — a slice's record is public, so the
+#: files it uploads come only from this folder of test fixtures.
+LIVE_FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "live"
+
+
+def fixture(path: Any) -> Path:
+    """The file a slice uploads — refused, before any live call, unless it is in `LIVE_FIXTURES`."""
+    p, root = Path(str(path)).resolve(), LIVE_FIXTURES.resolve()
+    if root not in p.parents:
+        raise SystemExit(f"live slice refused: {path} is not in {root}. A slice uploads only test fixtures from that "
+                         "folder — never customer material (founder ruling 2026-10-30; the record is public).")
+    return p
+
+
 def scripted_turns(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """`--messages`: the Belt's exact messages as the slice's turns. An entry {"upload": path} is the Belt uploading
-    that file (wave 1, element 2: the founder's team file): POST /upload, then the page's own "📎 name" turn."""
+    that file (wave 1, element 2: the founder's team file): POST /upload, then the page's own "📎 name" turn. The file
+    must be a test fixture (`fixture`)."""
     return [{"n": i, "belt": str(m.get("message") or f"📎 {Path(str(m['upload'])).name}"), "action": m.get("action"),
-             "element": m.get("element"), "upload": m.get("upload"), "recorded_move": None}
+             "element": m.get("element"), "upload": str(fixture(m["upload"])) if m.get("upload") else None,
+             "recorded_move": None}
             for i, m in enumerate(messages, 1)]
 
 

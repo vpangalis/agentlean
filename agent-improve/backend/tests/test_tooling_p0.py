@@ -392,10 +392,10 @@ def test_a_scripted_slice_uploads_a_file_as_the_page_does(tmp_path) -> None:
     import sys
     sys.path.insert(0, str(PROJECT))
     from scripts import live_slice
-    team = tmp_path / "team_field_service.csv"
-    team.write_text("name,role\nElena Gruber,Team Member\n", encoding="utf-8")
+    # The founder's ruling of 2026-10-30: a slice uploads only a test fixture (test_a_live_slice_uploads_only_…).
+    team = live_slice.LIVE_FIXTURES / "team_field_service_walk.csv"
     turns = live_slice.scripted_turns([{"upload": str(team)}, {"message": "Confirm", "action": "confirm"}])
-    assert [t["belt"] for t in turns] == ["📎 team_field_service.csv", "Confirm"], turns
+    assert [t["belt"] for t in turns] == ["📎 team_field_service_walk.csv", "Confirm"], turns
     sent: list = []
 
     class Client:
@@ -411,4 +411,26 @@ def test_a_scripted_slice_uploads_a_file_as_the_page_does(tmp_path) -> None:
                     return {"move": "read_back", "move_field": "team"}
             return R()
     live_slice.replay(Client(), "IMPR-X", {"element": "team", "turns": turns})
-    assert sent[:2] == [("/upload", "team_field_service.csv", None), ("/ask", None, "📎 team_field_service.csv")], sent
+    assert sent[:2] == [("/upload", "team_field_service_walk.csv", None),
+                        ("/ask", None, "📎 team_field_service_walk.csv")], sent
+
+
+def test_a_live_slice_uploads_only_test_fixtures(tmp_path) -> None:
+    """The founder's ruling of 2026-10-30: no customer material in a live slice, ever — a slice's record is public. A
+    file the slice uploads is accepted only from `tests/fixtures/live/`; any other path is refused before any live
+    call, with a message naming the folder and the rule; the folder holds only test data."""
+    import pytest
+
+    from scripts import live_slice
+    inside = live_slice.LIVE_FIXTURES / "team_field_service_walk.csv"
+    turns = live_slice.scripted_turns([{"upload": str(inside)}, {"message": "Confirm", "action": "confirm"}])
+    assert turns[0]["upload"] == str(inside.resolve()) and turns[0]["belt"] == "📎 team_field_service_walk.csv"
+    outside = tmp_path / "brownpaper_photo.jpg"
+    outside.write_bytes(b"JPEG")
+    for path in (outside, live_slice.LIVE_FIXTURES / ".." / "elsewhere.csv", "C:/customer/workflow.png"):
+        with pytest.raises(SystemExit) as refused:
+            live_slice.scripted_turns([{"upload": str(path)}])
+        assert "live slice refused" in str(refused.value) and "never customer material" in str(refused.value)
+    held = sorted(p.name for p in live_slice.LIVE_FIXTURES.iterdir())
+    assert held == ["README.md", "ap_late_payments_jan_jun_2026.csv", "complaints_process_finding60.docx",
+                    "team_field_service_walk.csv"], held
