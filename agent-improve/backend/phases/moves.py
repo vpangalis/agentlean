@@ -111,6 +111,9 @@ REJECTED = "rejected"
 UPLOAD_READ_BACK_REASON = ("Decided in code (ADR-0085): the Belt's file {filename} covers every criterion of this "
                            "element. Read its values back — the answer so far is the file's — and ask the Belt "
                            "to confirm them.")
+#: R10 (ADR-0095, DEF-295) — the read-back an upload turn makes at element 12 of the draft the SIPOC tool read.
+SIPOC_UPLOAD_REASON = ("Decided in code (ADR-0095): the SIPOC tool read the Belt's file {filename} as the upload's one "
+                       "reading. Its draft is read back in code — the card and the flow — with only its gaps asked.")
 #: ADR-0094 decision 2 (DEF-208) — the read-back an upload turn makes of a file that covers the element only partly.
 UPLOAD_DRAFT_REASON = ("Decided in code (ADR-0094): the Belt's file {filename} answers this element only partly — "
                        "still missing: {missing}. Read back what the file gives as a DRAFT, name what is missing, and "
@@ -259,6 +262,18 @@ def covering_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> O
     if any(c.get("result") != "supported" for c in criteria) or any(str(m).strip() for m in check.get("missing") or []):
         return None
     return {"filename": str((upload or {}).get("filename") or "the file"), "value": value}
+
+
+def sipoc_upload(phase: str, field: Optional[str], upload: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """R10 (ADR-0095, DEF-295): {filename, draft, gaps} when the upload this turn reads is a file the SIPOC
+    tool read as a process at Define's element 12. None otherwise — another element, a failed reading, or a file
+    that describes no process."""
+    reading = (upload or {}).get("sipoc") or {}
+    if phase != "define" or field != SIPOC_FIELD or not reading.get("is_process") \
+            or not isinstance(reading.get("draft"), dict):
+        return None
+    return {"filename": str((upload or {}).get("filename") or "the file"), "draft": reading["draft"],
+            "gaps": list(reading.get("gaps") or [])}
 
 
 def partial_upload(field: Optional[str], upload: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
@@ -664,6 +679,22 @@ async def decide(phase: str, artifacts: dict[str, Any],
                     messages=int(entry.get("messages") or 1),
                     reason=REJECT_REASON.format(reason=reason))
 
+    # R10 (ADR-0095, DEF-295) — at element 12 the SIPOC tool read the file at upload: its draft is read back in code,
+    # held as what a Confirm stores (the card, the flow and Gate F from that one value); only its gaps are asked.
+    read = sipoc_upload(phase, field, upload) if action is None else None
+    if read is not None:
+        from backend.knowledge.sipoc import as_text
+        words = as_text(read["draft"])
+        needed = [str(g.get("question") or "") for g in read["gaps"] if not g.get("optional")]
+        # A required part missing: a DRAFT (ADR-0094 decision 2) — read back with the gaps marked, Confirm closed.
+        new_pending = {"field": field, "fields": list(fields), "belt_words": words, "messages": 1,
+                       "upload": read["filename"], "store": {field: read["draft"]}, "sipoc_gaps": read["gaps"],
+                       **({"draft": True, "missing": needed} if needed else {}),
+                       **_earlier_kw(entry, None)}
+        after[field] = {"status": ANSWERED, "answer": words, "messages": 1, "pending": new_pending,
+                        **_attempts(entry)}
+        return done(field, fields, status, READ_BACK, answer=words, messages=1, pending=new_pending,
+                    reason=SIPOC_UPLOAD_REASON.format(filename=read["filename"]))
     # ADR-0085 (G-169) — the upload turn of a file that covers this element reads the file's values back,
     # decided in code (no judgment call); a Confirm, or "use the file", stores them on the path below.
     covered = covering_upload(field, upload) if action is None else None

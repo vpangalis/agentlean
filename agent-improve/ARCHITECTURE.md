@@ -172,8 +172,10 @@ sequenceDiagram
    column before the model runs. The interpretation call judged the file against the element
    current at upload (`element_check`, ADR-0074); code writes the reply's file part from it, ahead
    of the coach's words. A file that covers the element (its check gives the `value`) is read back,
-   decided in code; "use the file" confirms it (ADR-0085, `moves.covering_upload`). The file is then
-   read, kept in the phase record's `consumed`, unless the read raised.
+   decided in code; "use the file" confirms it (ADR-0085, `moves.covering_upload`). At Define's
+   element 12 that call is the SIPOC tool's reading (ADR-0095, `knowledge/sipoc.py`): its draft is
+   read back in code — card, flow and Gate F from the value a Confirm stores — asking only its gaps.
+   The file is then read, kept in the phase record's `consumed`, unless the read raised.
 5a. Calculations run in code, never by the coach (ADR-0077, `phases/calculations.py`): inputs from
    confirmed values, the rest from the judgment's `calculation_inputs`; the row joins
    `computation_results`; the read-back carries the figure and how; the teaching turn explains it.

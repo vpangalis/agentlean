@@ -1,0 +1,122 @@
+{
+ "kind": "live_slice",
+ "element": "process_map_sipoc",
+ "case_id": "IMPR-2026-2VD4W2",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "c068ff41ffdee63f",
+ "seeded": [
+  "baseline_estimate",
+  "benefits_analysis",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "secondary_metrics",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "📎 complaints_process.docx",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 4.3,
+   "failed": null,
+   "answer": "I've read your file complaints_process.docx as your process. Here it is as a SIPOC — nothing is saved until you confirm.\nThe steps add up to 4 working days, you said 8 working days from start to end — is there waiting time between the steps?\nIs this right? Confirm to save it, or Change to correct it.\n\nThe steps add up to 4 working days, you said 8 working days from start to end — is there waiting ",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.32 s",
+    "input guard 1.27 s",
+    "after the answer (steps, save) 2.13 s",
+    "total 4.32 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Outputs: the closed complaint and the customer informed of the repair.",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 18.0,
+   "failed": null,
+   "answer": "Here is the SIPOC map for your process, based on your inputs. Please review it and let me know if it is correct:\n\n- **Suppliers:** customers; field technicians; the spare-parts team\n- **Inputs:** the complaint by phone or e-mail; customer and device data; technician reports\n- **Process Steps:**\n  1. log the complaint (about 15 minutes)\n  2. diagnose and dispatch a technician (about 2 working days,",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.37 s",
+    "input guard 1.19 s",
+    "planner judgment 2.23 s",
+    "coach 8.38 s",
+    "grader 2.39 s",
+    "after the answer (steps, save) 2.61 s",
+    "total 18.00 s"
+   ]
+  },
+  {
+   "n": 3,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "issues_and_barriers",
+   "recorded_move": null,
+   "seconds": 4.3,
+   "failed": null,
+   "answer": "High-level process (SIPOC, as-is) saved: 4 steps.\n\nElement 13 of 13 · Issues and barriers: What could get in the way — data, people, systems, time? If genuinely none, \"none identified at this stage\" is a fine answer, but have a think first.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.40 s",
+    "input guard 1.23 s",
+    "after the answer (steps, save) 2.17 s",
+    "total 4.34 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 4,
+ "cost": {
+  "usd": 0.0232,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0224,
+   "gpt-4o-mini-2024-07-18": 0.0008
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 40.75,
+  "calls": 97,
+  "case": {
+   "seconds": 0.81,
+   "calls": 8
+  },
+  "checkpoint": {
+   "seconds": 39.29,
+   "calls": 78
+  },
+  "store": {
+   "seconds": 0.65,
+   "calls": 11
+  }
+ },
+ "started": "20261030T081740"
+}

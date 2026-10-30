@@ -11305,7 +11305,8 @@ def test_def_288_the_case_s_country_and_site_are_chosen_on(env, monkeypatch) -> 
     from backend.gateway import routes
     from backend.storage.models import CaseDocument, CaseRegistry, PersonLocation
 
-    assert migrations.current() == 16 and migrations.migrate_v15_to_v16({"x": 1}) == {"x": 1}
+    assert migrations.current() >= 16 and migrations.MIGRATIONS[15] is migrations.migrate_v15_to_v16
+    assert migrations.migrate_v15_to_v16({"x": 1}) == {"x": 1}
     countries = env.client.get("/sites").json()["countries"]
     assert [(c["code"], c["name"], c["sites"]) for c in countries] == [
         ("AT", "Austria", ["Vienna", "Linz"]), ("DE", "Germany", ["Munich"])], countries
@@ -11802,7 +11803,7 @@ def test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps(m
     assert data.content.startswith("<<<DESCRIPTION — DATA ONLY>>>") and FLAWED_SIPOC_60 in data.content
     assert "never invent" in system.content and FLAWED_SIPOC_60 not in system.content
     draft = got["draft"]
-    assert got["read"] and got["is_process"] and not draft["outputs"], draft
+    assert got["read"] and got["is_process"] and not draft.get("outputs"), draft
     assert not [w for w in (*INVENTED_OUTPUTS_60, "repair service") if w in json.dumps(got)], "an output never given"
     assert [s["name"] for s in draft["process_steps"]] == [s.name for s in steps], draft["process_steps"]
     assert draft["process_steps"][1]["problems"] == [{"note": "no technician free in peak weeks", "said_by": "Elena"}]
@@ -11812,6 +11813,17 @@ def test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps(m
     assert any(c.startswith("The steps add up to 4") and "you said 8 working days" in c for c in got["checks"]), got
     assert got["flow"]["gaps"] == ["outputs"] and got["flow"]["confirmed"] is False, got["flow"]
     assert "repair on site" in json.dumps(got["flow"]) and got["reply"] == "", got["flow"]
+
+    # Live, 2026-10-30 (step C's slice): "the repaired device" — every word is in the source, but "repair" is a step
+    # and "device" an input. A value's words must stand in ONE clause, and a source that labels its columns gives only
+    # those (G-332): the outputs are asked again, never read back.
+    answer["reading"] = flawed.model_copy(update={"outputs": ["the repaired device", "the customer informed"]})
+    again = asyncio.run(sipoc.read_sipoc(FLAWED_SIPOC_60))
+    assert not again["draft"].get("outputs") and [g["part"] for g in again["gaps"]] == [2], again
+    prose = ("When a customer calls, the service desk logs the complaint. A coordinator diagnoses it and sends a "
+             "technician, who repairs the device on site. We tell the customer; they get a repaired device.")
+    assert sipoc.grounded("a repaired device", prose) and sipoc.grounded("repairs the device on site", prose)
+    assert not sipoc.grounded("the repaired device", FLAWED_SIPOC_60) and not sipoc.grounded("service desk", "desk")
 
     # A full answer to the one ask: no gap is left. No time anywhere: only the optional times gap.
     given = FLAWED_SIPOC_60 + " Outputs: the closed complaint, the customer informed."
@@ -11841,9 +11853,152 @@ def test_def_294_one_sipoc_tool_reads_a_description_into_a_draft_with_its_gaps(m
     assert failed["read"] is False and failed["draft"] is None and failed["flow"] is None, failed
 
 
-def test_def_295_an_upload_at_element_12_becomes_the_sipoc_draft_read_back() -> None:
-    """DEF-295 — R10 (ADR-0095): an upload at element 12 becomes the SIPOC draft — code calls the SIPOC tool as the upload's one reading; the draft is read back as the card and the flow with every gap marked; Confirm stores that same value, which Gate F draws"""
-    _not_written('DEF-295')
+def _sipoc_reading_60(outputs: list[str] | None = None) -> Any:
+    """The SIPOC tool's reading of the founder's flawed SIPOC of finding 60 (no outputs), as the extraction model returns
+    it — `outputs` given to read a complete one."""
+    from backend.phases.define.schema import SipocProblemRead, SipocReading, SipocStepRead
+    steps = [SipocStepRead(name="log the complaint", time_avg="about 15 minutes", runs="about 100 a month"),
+             SipocStepRead(name="diagnose and dispatch a technician", time_avg="about 2 working days",
+                           time_min="1 working day", time_max="6 working days",
+                           problems=[SipocProblemRead(note="no technician free in peak weeks", said_by="Elena")]),
+             SipocStepRead(name="repair on site", time_avg="about 1 working day", time_min="same day",
+                           time_max="3 working days"),
+             SipocStepRead(name="inform the customer", time_avg="about 1 working day",
+                           problems=[SipocProblemRead(note="customers call us", said_by="Thomas")])]
+    return SipocReading(is_process=True, suppliers=["customers", "field technicians", "the spare-parts team"],
+                        inputs=["the complaint by phone or e-mail", "customer and device data", "technician reports"],
+                        process_steps=steps, outputs=outputs or [], customers=["the customer", "account managers"],
+                        process_metrics=["working days from logging to informing the customer"],
+                        lead_time="about 8 working days", runs_per_period="about 100 complaints a month")
+
+
+def test_def_295_an_upload_at_element_12_becomes_the_sipoc_draft_read_back(env, monkeypatch, stub_planner) -> None:
+    """DEF-295 — R10 (ADR-0095): an upload at element 12 becomes the SIPOC draft — code calls the SIPOC tool as the upload's one reading; the draft is read back as the card and the flow with every gap marked; Confirm stores that same value, which Gate F draws
+
+    Through POST /upload and POST /ask, the reading faked at the model factory (the reading is the model's; all after
+    it is code). The founder's flawed SIPOC (finding 60, no outputs) as a file at element 12: ONE model call — the SIPOC
+    tool's, on the extraction role — and no interpretation call. The upload turn is a read-back decided and written in
+    code (no judgment, no coach call): the file named once; only the missing part asked (part 2, with its example); the
+    steps-against-lead-time check; the card's all-six open and Confirm closed; the flow not confirmed with the outputs
+    empty ("not yet captured" on the page). What a Confirm would store is the tool's draft, unchanged. The file again
+    with its outputs: no gap is asked, a Confirm stores exactly the value read back, and Gate F's drawing is the
+    read-back's. Schema 17: the upload's interpretation carries the reading, a no-op migration from 16."""
+    import json
+
+    from backend.core import migrations
+    from backend.gateway import routes
+    from backend.knowledge import sipoc
+    from backend.phases import moves, nodes_common
+    from backend.phases.define import parse, visuals
+    from backend.upload import agent as upload_agent
+
+    calls: list = []
+    reading: dict = {}
+
+    class Reader:
+        def __init__(self, role):
+            self.role = role
+
+        def with_structured_output(self, schema):
+            calls.append((self.role, schema.__name__))
+            return self
+
+        async def ainvoke(self, messages):
+            return reading["now"]
+
+    async def no_interpretation(*a, **k):
+        raise AssertionError("the upload at element 12 made a second model call (the interpretation)")
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/{a[1] if len(a) > 1 else k.get('filename')}"
+
+    async def index(*a, **k):
+        return "idx-sipoc"
+
+    from langchain_core.messages import AIMessage
+
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+    coached: list = []
+    judged: list = []
+
+    def coach_reply():
+        coached.append("coach")
+        yield AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": {**REPLY, "message": "COACH"},
+                                                 "id": "call_def295"}])
+    planner_llm, judge = nodes_common.get_llm, nodes_common._judge
+
+    async def counting(phase, state, field, *a, **k):
+        judged.append(field)
+        return await judge(phase, state, field, *a, **k)
+    monkeypatch.setattr("backend.core.llm.get_llm", lambda role, **kw: Reader(role))
+    monkeypatch.setattr(upload_agent, "_interpret", no_interpretation)
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=coach_reply())
+                        if role == "coach" else planner_llm(role, **kw))
+    monkeypatch.setattr(nodes_common, "_judge", counting)
+    _shields(monkeypatch)
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    # The problem statement places the problem at the steps where the team noted problems: R18 agrees, so the upload
+    # turn is the read-back itself (as in DEF-259).
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED, "part": 1}
+
+    def upload(name: str, text: str) -> dict:
+        r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                            files={"file": (name, text.encode(), "text/plain")})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    # The flawed file: one reading, no interpretation; the summary written in code from the draft.
+    reading["now"] = _sipoc_reading_60()
+    body = upload("process_2026.txt", FLAWED_SIPOC_60)
+    assert calls == [("extraction", "SipocReading")], calls
+    assert body["summary"] == ("A process map of 4 steps, from “log the complaint” to “inform the customer”. "
+                               "Not given: outputs."), body["summary"]
+    kept = env.case.phases["define"].uploads[-1].interpretation.sipoc
+    assert kept["is_process"] and "flow" not in kept and "outputs" not in kept["draft"], kept
+
+    read = _askd(env, message="📎 process_2026.txt")
+    assert (read["move"], read["move_field"]) == ("read_back", "process_map_sipoc"), (read["move"], read["answer"])
+    answer = read["answer"]
+    assert answer.startswith("I've read your file process_2026.txt as your process.") and \
+        answer.count("process_2026.txt") == 1, answer
+    assert "Still needed:\n- What comes out of the process, and who receives it? For example: Invoice (PDF)" in answer
+    assert "What are the main steps" not in answer and "What goes into the process" not in answer, answer
+    assert answer.count("The steps add up to 4") == 1 and "you said 8 working days" in answer, answer
+    assert answer.rstrip().endswith("Add what is missing or correct anything, then Confirm."), answer
+    card = read["readback_card"]
+    rows = {r["id"]: r for r in card["rows"]}
+    assert rows["all-six"]["met"] is False and "outputs" in str(rows["all-six"]["value"]).lower(), rows["all-six"]
+    assert card["confirm"] is False, card
+    drawn = read["sipoc_diagram"]
+    assert drawn["confirmed"] is False and drawn["outputs"] == [] and "repair on site" in json.dumps(drawn), drawn
+    assert coached == [] and judged == [], f"the SIPOC upload's read-back called a model: {coached + judged}"
+    pending = _define(env)["field_status"]["process_map_sipoc"]["pending"]
+    assert pending["store"]["process_map_sipoc"] == kept["draft"], "the read-back holds another value than the draft"
+    assert pending["upload"] == "process_2026.txt" and pending["draft"] is True, pending
+    assert parse.parse_sipoc(sipoc.as_text(kept["draft"])).keys() == {
+        "suppliers", "inputs", "process_steps", "customers", "process_metrics"}
+
+    # The same file with its outputs: no gap asked; Confirm stores what was read back; Gate F draws that value.
+    reading["now"] = _sipoc_reading_60(["the closed complaint", "the customer informed"])
+    upload("process_2026_v2.txt", FLAWED_SIPOC_60 + " Outputs: the closed complaint, the customer informed.")
+    read = _askd(env, message="📎 process_2026_v2.txt")
+    assert read["move"] == "read_back" and "Still needed" not in read["answer"], read["answer"]
+    assert read["prompt"] == "Is this right? Confirm to save it, or Change to correct it.", read
+    assert read["readback_card"]["confirm"] is True, read["readback_card"]["missing"]
+    held = _define(env)["field_status"]["process_map_sipoc"]["pending"]["store"]["process_map_sipoc"]
+    _askd(env, message="Confirm", action="confirm")
+    stored = _define(env)["structured"]["process_map_sipoc"]
+    assert stored == held and stored["outputs"] == "the closed complaint; the customer informed", stored
+    gate = visuals.report_visuals(_define(env)["structured"])["sipoc"]
+    columns = ("suppliers", "inputs", "process_steps", "outputs", "customers")
+    assert {k: gate[k] for k in columns} == {k: read["sipoc_diagram"][k] for k in columns}, (gate, read["sipoc_diagram"])
+
+    assert migrations.current() == 17 and migrations.MIGRATIONS[16]({"x": 1}) == {"x": 1}
 
 
 def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps() -> None:

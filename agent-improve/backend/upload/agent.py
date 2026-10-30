@@ -43,6 +43,9 @@ from backend.core.clock import utc_now
 
 logger = logging.getLogger(__name__)
 
+#: R10 (ADR-0095): Define's element 12, where the SIPOC tool reads the file (`moves.SIPOC_FIELD`).
+_SIPOC_ELEMENT = "process_map_sipoc"
+
 #: Characters of parsed text shown to the interpretation call. The call is
 #: given the measured structure in full and only a window of the contents —
 #: it is being asked what the file means, not to read all of it.
@@ -120,8 +123,13 @@ async def process_upload(
     # model interprets and the index embeds; the file itself stays in Blob for the Belt. Names stay.
     masked_text, pii_masked = pii.mask(parsed.get("text") or "")
     parsed = {**parsed, "text": masked_text}
-    interpretation = await _interpret(filename, parsed, case_meta, phase, element)
-    interpretation = _table_value(interpretation, parsed, phase, element)
+    if phase == "define" and element == _SIPOC_ELEMENT:
+        # R10 (ADR-0095, DEF-295): at element 12 the SIPOC tool's reading IS the upload's one interpretation call —
+        # no model decision, no second call. The upload turn reads its draft back.
+        interpretation = await _sipoc_reading(filename, parsed)
+    else:
+        interpretation = await _interpret(filename, parsed, case_meta, phase, element)
+        interpretation = _table_value(interpretation, parsed, phase, element)
 
     return {
         **base,
@@ -233,6 +241,18 @@ async def _interpret(
         logger.warning("Upload interpretation failed for %s: %s", filename, exc)
 
     return _interpretation_unavailable(filename, parsed, citation)
+
+
+async def _sipoc_reading(filename: str, parsed: dict[str, Any]) -> UploadInterpretation:
+    """R10 (ADR-0095, DEF-295): a file at Define's element 12, read by the SIPOC tool (`knowledge/sipoc.read_sipoc`) —
+    its one structured reading of the screened, masked text, then code. The summary is written in code from the
+    draft. A failed reading is never a draft: the file is kept with the stated fallback, as any upload is."""
+    from backend.knowledge import sipoc
+    result = await sipoc.read_sipoc(parsed.get("text") or "")
+    citation = {"source_filename": filename, "source_blob_path": ""}
+    if not result.get("read"):
+        return _interpretation_unavailable(filename, parsed, citation).model_copy(update={"sipoc": sipoc.kept(result)})
+    return UploadInterpretation(summary=sipoc.summary(result), sipoc=sipoc.kept(result), **citation)
 
 
 def _table_value(interpretation: UploadInterpretation, parsed: dict[str, Any], phase: str,

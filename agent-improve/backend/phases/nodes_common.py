@@ -1794,7 +1794,7 @@ def _written_reply(phase: str, state: PhaseState, plan: Optional[CoachingPlan], 
     no coach call. An upload turn stays the coach's (W5, DEF-108; locked 2026-10-28: an upload starts its own turn)."""
     written = written if written is not None else (_change_reply(plan) or _status_reply(phase, state, plan)
                                                     or _goal_target_reply(phase, plan) or _offer_reply(phase, plan)
-                                                    or _link_added_reply(plan))
+                                                    or _link_added_reply(plan) or _sipoc_upload_reply(plan))
     if written is not None or engine_timeout or turn_type == turn_tools.UPLOAD:
         return written, None
     teaching = _teaching_card(phase, state, plan)
@@ -1812,6 +1812,30 @@ def _link_added_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse
         return None
     from backend.core.prompts import LINK_ADDED
     return CoachingResponse(message=LINK_ADDED.format(steps=str(plan.reason)[len(head):].split(".")[0]))
+
+
+def _sipoc_upload_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]:
+    """R10 (ADR-0095, DEF-295): the read-back of a file the SIPOC tool read at element 12, written in code — the file
+    named, the draft shown by the card and the flow (drawn from what a Confirm stores), and only its gaps asked: R-G's
+    parts that are missing, each with its example, then the optional times question; the number checks follow, as on
+    every SIPOC read-back (`duration_questions`). With nothing required missing, the ask for a Confirm. No coach call."""
+    head = moves.SIPOC_UPLOAD_REASON.split("{")[0]
+    if plan is None or plan.move != moves.READ_BACK or not str(plan.reason or "").startswith(head):
+        return None
+    from backend.core import prompts as P
+    pending = dict(plan.pending or {})
+    gaps = list(pending.get("sipoc_gaps") or [])
+    needed = [g for g in gaps if not g.get("optional")]
+    lines = [P.SIPOC_UPLOAD_HEAD.format(filename=pending.get("upload") or "the file")]
+    if needed:
+        lines.append(P.SIPOC_UPLOAD_NEEDED)
+        lines += [f"- {g['question']} {P.SIPOC_UPLOAD_EXAMPLE.format(example=g['example'])}" for g in needed]
+    lines += [str(g["question"]) for g in gaps if g.get("optional")]
+    if needed:
+        # A draft: its gaps are the questions, in the message; the draft's own ask closes it (ADR-0094 decision 2).
+        return CoachingResponse(message="\n".join(lines))
+    lines.append(P.SIPOC_UPLOAD_COMPLETE)
+    return CoachingResponse(message="\n".join(lines), prompt=P.SIPOC_UPLOAD_COMPLETE)
 
 
 def _link_check(phase: str, pending: Optional[dict], prior: dict[str, Any]) -> Optional[dict[str, Any]]:
@@ -1915,7 +1939,8 @@ def upload_check_text(phase: str, upload: Optional[dict], focus: Optional[str]) 
     on since the file arrived, it says which element the file was checked against (point 4). With no
     check (a fallback interpretation, a phase without criteria, a record from before schema 4):
     the file named and its interpretation."""
-    if not upload or not upload.get("filename"):
+    if not upload or not upload.get("filename") or moves.sipoc_upload(phase, focus, upload) is not None:
+        # R10 (DEF-295): a file the SIPOC tool read at element 12 is named by its own read-back, written in code.
         return ""
     from backend.core import guard_messages
     from backend.core import prompts as P

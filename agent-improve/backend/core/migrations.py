@@ -274,6 +274,13 @@ def migrate_v15_to_v16(values: Mapping[str, Any]) -> dict[str, Any]:
     return dict(values)
 
 
+def migrate_v16_to_v17(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0095 "One plain SIPOC tool" (R10, DEF-295): an upload's interpretation carries `sipoc`, the SIPOC tool's
+    reading of a file at Define's element 12. A no-op: an upload without it reads as None, as every upload at another
+    element does."""
+    return dict(values)
+
+
 def case_people_v12(case: Mapping[str, Any]) -> dict[str, Any]:
     """ADR-0090 decision 6: a version-11 case record's typed `leader` becomes the lead's person record and each
     `team` entry ({name, role}) a member's, all without an e-mail — the lead completes them on the next open.
@@ -301,7 +308,8 @@ MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3, 3:
                                     7: migrate_v7_to_v8, 8: migrate_v8_to_v9, 9: migrate_v9_to_v10,
                                     10: migrate_v10_to_v11, 11: migrate_v11_to_v12,
                                     12: migrate_v12_to_v13, 13: migrate_v13_to_v14,
-                                    14: migrate_v14_to_v15, 15: migrate_v15_to_v16}
+                                    14: migrate_v14_to_v15, 15: migrate_v15_to_v16,
+                                    16: migrate_v16_to_v17}
 
 
 def current() -> int:

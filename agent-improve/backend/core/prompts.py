@@ -563,6 +563,13 @@ UPLOAD_CHECK_COMPLETE = "It covers everything {element} asks for."
 
 #: ADR-0094 decision 2 (DEF-208) — the ask under a file read back as a draft (written in code).
 UPLOAD_DRAFT_ASK = "Add what is missing or correct anything, then Confirm."
+#: R10 (ADR-0095, DEF-295) — the read-back of a file the SIPOC tool read at element 12, written in code: the head, the
+#: gaps (each its question and example), and the ask when nothing required is missing.
+SIPOC_UPLOAD_HEAD = ("I've read your file {filename} as your process. Here it is as a SIPOC — nothing is saved until "
+                     "you confirm.")
+SIPOC_UPLOAD_NEEDED = "Still needed:"
+SIPOC_UPLOAD_EXAMPLE = "For example: {example}"
+SIPOC_UPLOAD_COMPLETE = "Is this right? Confirm to save it, or Change to correct it."
 #: ADR-0086 — after the goal's Confirm, the target it states, read back in code for one Confirm.
 GOAL_TARGET_HEAD = "Your goal already states the target. Here is what I read from it:"
 GOAL_TARGET_NEXT = "The target date comes next."

@@ -70,26 +70,53 @@ def _stem(word: str) -> str:
     return word.lower()[:5]
 
 
+#: Where a clause of the source ends, for the grounding check: a sentence end, a semicolon, a colon (a label), a line
+#: break, a bracket or a dash between words.
+_CLAUSE_END = re.compile(r"[.;:!?()\[\]\n]|\s[—–-]\s")
+
+
+def _matches(word: str, stems: set[str]) -> bool:
+    return _stem(word) in stems or any(s.startswith(word.lower()) for s in stems)
+
+
 def grounded(value: str, source: str) -> bool:
-    """§6.4 guard 2 (DEF-294, found live 2026-10-29): a value the reading returned is the Belt's only when every word
-    of four letters or more in it is in the source — compared on its first five letters, so "sends" is "send" and
-    "diagnoses" is "diagnose". The live reading of the founder's flawed SIPOC (no outputs) returned the outputs "the
-    repair service": "service" is in no word of the source, so it is dropped and the outputs are asked."""
-    stems = {_stem(w) for w in _WORD.findall(source)}
-    return all(_stem(w) in stems or any(s.startswith(w.lower()) for s in stems) for w in _WORD.findall(value))
+    """§6.4 guard 2 (DEF-294, found live 2026-10-29 and 2026-10-30): a value the reading returned is the Belt's only when
+    every word of four letters or more in it stands in ONE clause of the source — compared on its first five letters,
+    so "sends" is "send" and "diagnoses" is "diagnose". The live readings of the founder's flawed SIPOC (no outputs)
+    returned the outputs "the repair service" ("service" is nowhere in the source) and "the repaired device" ("repair"
+    is a step, "device" an input: two clauses). Both are dropped, and the outputs are asked."""
+    words = _WORD.findall(value)
+    if not words:
+        return True
+    for clause in _CLAUSE_END.split(source):
+        stems = {_stem(w) for w in _WORD.findall(clause)}
+        if stems and all(_matches(w, stems) for w in words):
+            return True
+    return False
+
+
+#: The reading's columns as text lists, keyed as the SIPOC stores them.
+_COLUMNS = ("suppliers", "inputs", "outputs", "customers", "process_metrics")
 
 
 def keep_grounded(reading: SipocReading, source: str) -> SipocReading:
     """The reading with every value the source does not contain left out — a column, a step, a problem or who said
-    it. A dropped column is then a gap the Belt is asked, never an invented value read back."""
-    def items(values: list[str]) -> list[str]:
-        return [v for v in values if grounded(v, source)]
+    it. A source that labels its columns ("Suppliers: …. Inputs: …", two or more) gives only those columns: one it does
+    not label is not taken (G-332, the rule a Confirm already applies). A dropped column is then a gap the Belt is
+    asked, never an invented value read back."""
+    labelled = parse.parse_sipoc(source)
+    by_label = len(labelled) >= 2
+
+    def items(key: str) -> list[str]:
+        if by_label and key not in labelled:
+            return []
+        return [v for v in getattr(reading, key) if grounded(v, source)]
     steps = [s.model_copy(update={"problems": [p if grounded(p.said_by, source) else p.model_copy(update={"said_by": ""})
                                                for p in s.problems if grounded(p.note, source)]})
              for s in reading.process_steps if grounded(s.name, source)]
-    return reading.model_copy(update={k: items(getattr(reading, k)) for k in
-                                      ("suppliers", "inputs", "outputs", "customers", "process_metrics")}
-                              | {"process_steps": steps})
+    if by_label and "process_steps" not in labelled:
+        steps = []
+    return reading.model_copy(update={k: items(k) for k in _COLUMNS} | {"process_steps": steps})
 
 
 def captured(reading: SipocReading) -> dict[str, Any]:
@@ -105,9 +132,12 @@ def captured(reading: SipocReading) -> dict[str, Any]:
                                    for p in s.problems if p.note.strip()]})
     perf = {k: v.strip() for k, v in (("lead_time", reading.lead_time), ("runs_per_period", reading.runs_per_period))
             if v and v.strip()}
-    return {"suppliers": _joined(reading.suppliers), "inputs": _joined(reading.inputs), "process_steps": steps,
-            "outputs": _joined(reading.outputs), "customers": _joined(reading.customers),
-            "process_metrics": _joined(reading.process_metrics), **({"process_performance": perf} if perf else {})}
+    columns = {k: _joined(getattr(reading, k)) for k in ("suppliers", "inputs", "outputs", "customers",
+                                                        "process_metrics")}
+    # A column the source does not give is left out, as a Confirm's label check leaves it out: the draft read back
+    # is the value stored.
+    return {**{k: v for k, v in columns.items() if v}, **({"process_steps": steps} if steps else {}),
+            **({"process_performance": perf} if perf else {})}
 
 
 def gaps(draft: dict[str, Any]) -> list[dict[str, Any]]:
@@ -161,6 +191,51 @@ def sipoc_draft(reading: Optional[SipocReading], prior: Any = None, source: str 
             "flow": flow(draft, parse.missing_columns(draft)), "reply": ""}
 
 
+#: The labels the draft is written with, which `parse.parse_sipoc` reads back.
+_LABELS = {"suppliers": "Suppliers", "inputs": "Inputs", "process_steps": "Process steps", "outputs": "Outputs",
+           "customers": "Customers", "process_metrics": "Process metrics"}
+
+
+def _step_line(n: int, step: dict[str, Any]) -> str:
+    times = [str((step["duration"].get(k) or {}).get("raw") or "").strip() for k in parse.DURATION_KEYS]
+    said = ", ".join(dict.fromkeys(t for t in times if t))
+    return f"{n}. {step['name']}" + (f" ({said})" if said else "")
+
+
+def as_text(draft: dict[str, Any]) -> str:
+    """The draft as the Belt reads it: one labelled line per column it has, the steps numbered with their times. It is
+    the upload read-back's words; a Confirm's label check (`moves._sipoc_store`) reads the same labels back, so every
+    column of the draft is kept and none is added."""
+    lines = []
+    for key in SIPOC_KEYS:
+        if key == "process_steps":
+            steps = parse.process_steps(draft.get(key))
+            if steps:
+                lines.append(f"{_LABELS[key]}: " + "; ".join(_step_line(i, s) for i, s in enumerate(steps, 1)))
+        elif str(draft.get(key) or "").strip():
+            lines.append(f"{_LABELS[key]}: {str(draft[key]).strip()}")
+    return "\n".join(lines)
+
+
+def summary(result: dict[str, Any]) -> str:
+    """The upload's summary, written in code from the tool's result (the file list and the gate document show it)."""
+    if not result.get("read"):
+        return ""
+    if not result.get("is_process"):
+        return "Not a process description."
+    steps = parse.step_names(result["draft"])
+    missing = parse.missing_columns(result["draft"])
+    return (f"A process map of {len(steps)} step{'s' if len(steps) != 1 else ''}"
+            + (f", from “{steps[0]}” to “{steps[-1]}”" if len(steps) > 1 else "") + "."
+            + (f" Not given: {', '.join(_LABELS[c].lower() for c in missing)}." if missing else ""))
+
+
+def kept(result: dict[str, Any]) -> dict[str, Any]:
+    """What an upload record keeps of the tool's result: everything but the drawing, which the read-back draws again
+    from the draft by the same function."""
+    return {k: v for k, v in result.items() if k != "flow"}
+
+
 async def read_sipoc(text: str = "", *, image: Optional[bytes] = None, mime: str = "",
                      prior: Any = None) -> dict[str, Any]:
     """THE SIPOC TOOL (ADR-0095): one structured reading call, then `sipoc_draft` in code. `text` is the Belt's
@@ -195,4 +270,5 @@ async def _reading(text: str, image: Optional[bytes], mime: str) -> Optional[Sip
 
 
 __all__ = ["GAP_PARTS", "TIMES_QUESTION", "TIMES_EXAMPLE", "NOT_A_PROCESS", "FEWEST_STEPS", "MOST_STEPS",
-           "READ_CHARS", "captured", "grounded", "keep_grounded", "gaps", "flow", "sipoc_draft", "read_sipoc"]
+           "READ_CHARS", "captured", "grounded", "keep_grounded", "gaps", "flow", "sipoc_draft", "as_text", "summary",
+           "kept", "read_sipoc"]

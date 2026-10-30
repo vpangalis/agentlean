@@ -101,6 +101,10 @@ class UploadInterpretation(BaseModel):
     #: ADR-0074 — None on the fallback, on a phase without acceptance criteria, and on every
     #: record written before schema version 4.
     element_check: Optional[ElementCheck] = None
+    #: R10 (ADR-0095, DEF-295): a file at Define's element 12 is read by the SIPOC tool as its one reading —
+    #: {read, is_process, draft, gaps, checks, reply} (`knowledge/sipoc.read_sipoc`). The draft is what the upload
+    #: turn reads back and a Confirm stores. None on every other upload and on every record before schema 17.
+    sipoc: Optional[dict[str, Any]] = None
 
 
 class ImageSipoc(BaseModel):
@@ -238,6 +242,8 @@ class UploadRecord(BaseModel):
             # ADR-0074 — the upload turn writes the file part of its reply from this.
             "element_check": (self.interpretation.element_check.model_dump()
                               if self.interpretation and self.interpretation.element_check else None),
+            # R10 (ADR-0095): the SIPOC tool's reading of a file at element 12, read back by the upload turn.
+            "sipoc": self.interpretation.sipoc if self.interpretation else None,
             # Carried so the shape is stable rather than growing under the
             # gate document.
             "ask_id": self.ask_id,
