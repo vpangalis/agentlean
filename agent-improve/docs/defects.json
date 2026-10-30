@@ -4566,6 +4566,20 @@
     "A"
    ],
    "escape_class": "path_test"
+  },
+  {
+   "id": "G-354",
+   "symptom": "A CHANGE THE CODE COULD NOT READ WAS JUDGED AGAIN. The founder's ruling on G-353, 2026-10-30: 'what happens to a change sentence the code does not recognise — does it fall back to the planner path (the old bug)? It must end in the card with \"I didn't understand the change — use the pencil or say 'rename X to Y'\", never re-judge.' On da59db4 it did fall back: 'Thomas's surname is actually Wagener' and 'swap Elena and Sabine's roles' on the team, and on a text element a rename of words not there ('change the cost to …') and a removal, went to the planner's judgment as a new answer; 'Add a training column' added a person named 'a training column'; 'change it to …' replaced every 'it' inside other words of the text. D4 OCCURRENCE: moves.chat_edit returned None for any message parse.chat_edits could not read, and for a text change that changed nothing, so the message reached the judgment; parse._ADD took any words as a name; apply_text_edits matched inside words. D4 ESCAPE (path_test): DEF-299's test typed only sentences the parser reads, and asserted that a rename of words not there IS judged. D5 FIX: a message that asks for a change (parse.change_asked: a change verb leads it, or it corrects a word in place; on the team also an addition, or a correction beside a name on screen) and is not a confirmation is answered in code with the value on screen unchanged, the founder's line and the card with Confirm; a text rename or removal works on whole words and names words not there; a person added is named, never 'a …'/'the …'. An addition to a text element ('add that …') stays an answer for the judgment: new words. D6 VERIFY: DEF-299's test, with the founder's two sentences. D7 PREVENT: DEF-299's test types changes the parser cannot read, on the team and on a text element, and fails on any model call.",
+   "requirement": [
+    "W9"
+   ],
+   "feature": [
+    "DEF-299"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {

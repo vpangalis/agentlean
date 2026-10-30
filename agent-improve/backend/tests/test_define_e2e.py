@@ -12533,9 +12533,13 @@ def test_def_299_a_change_by_chat_edits_the_value_on_screen_in_code(env, monkeyp
       in the team (it was once judged "function missing");
     - "Yes, only rename Thomas Wagner to Tomin Wagner. Nothing else." is a change, never a yes;
     - "Keep the team exactly as in the file. Remove Tomin Wagner.": the file's five, Tomin named as not in it;
-    - "Add Anna Berger as Team Member, Customer Care Analyst, 4 h per week": six, Anna as given.
+    - "Add Anna Berger as Team Member, Customer Care Analyst, 4 h per week": six, Anna as given;
+    - G-354 (founder ruling 2026-10-30): a change the code cannot read — "Thomas's surname is actually Wagener", "swap
+      Elena and Sabine's roles", "Add a training column" — leaves the six as they are and ends in the card with "I
+      didn't understand the change — use the pencil or say 'rename X to Y'" and Confirm, never judged.
     Confirm stores exactly the value on screen. A rename on a text element (the founder's business case) replaces the
-    words in place and is read back in code too."""
+    words in place and is read back in code too; words not there ("change the cost to …", "change it to …") and a
+    correction the code cannot place ("… is actually …") leave it unchanged, read back in code with what was not found."""
     from backend.gateway import routes
     from backend.middleware.skills import acceptance_criteria
     from backend.phases import moves
@@ -12625,6 +12629,14 @@ def test_def_299_a_change_by_chat_edits_the_value_on_screen_in_code(env, monkeyp
         "time_commitment": "4 h per week"}, team()
     assert r6["readback_card"]["confirm"] is True, r6["readback_card"]
 
+    # 7 — G-354: a change the code cannot read leaves the six as they are, in the card with Confirm, never judged.
+    from backend.core.prompts import CHAT_EDIT_UNCLEAR
+    six = team()
+    for said in ("Thomas's surname is actually Wagener", "swap Elena and Sabine's roles", "Add a training column"):
+        r7 = _askd(env, message=said)
+        assert r7["move"] == "read_back" and CHAT_EDIT_UNCLEAR in r7["answer"], (said, r7["move"], r7["answer"])
+        assert team() == six and r7["readback_card"]["confirm"] is True, (said, team(), r7["readback_card"])
+
     # Confirm stores exactly the value on screen; nothing above was judged or coached.
     held = team()
     done = _askd(env, message="Confirm", action="confirm")
@@ -12645,7 +12657,15 @@ def test_def_299_a_change_by_chat_edits_the_value_on_screen_in_code(env, monkeyp
     held = _define(env)["field_status"]["business_case"]["pending"]["store"]["business_case"]
     assert renamed["move"] == "read_back" and held == BUSINESS_CASE_WALK.replace("Field Service Austria",
                                                                                  "Field Service Vienna"), held
-    assert seen == [], f"the rename called a model: {seen}"
-    # An answer that only says "change … to …" with words not on screen is judged, as any answer is.
+    # G-354: words not there, a word that names no place, a correction the code cannot place — the business case
+    # unchanged ("it" once replaced every "it" inside other words), read back in code, never judged.
+    for said, line in (("change the cost to about €30,000 a year", "“the cost” is not in it"),
+                       ("Change it to Field Service Graz", CHAT_EDIT_UNCLEAR),
+                       ("The cost is actually €50 per complaint", CHAT_EDIT_UNCLEAR)):
+        again = _askd(env, message=said)
+        still = _define(env)["field_status"]["business_case"]["pending"]["store"]["business_case"]
+        assert again["move"] == "read_back" and line in again["answer"] and still == held, (said, again["answer"], still)
+    assert seen == [], f"a change on the business case called a model: {seen}"
+    # An addition to a text element is new words, judged as an answer.
     assert moves.chat_edit("define", "business_case", {"pending": {"store": {"business_case": held}}}, {},
-                           "change the cost to about €30,000 a year") is None
+                           "Add that late cases escalate to account managers") is None

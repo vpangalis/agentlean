@@ -292,6 +292,8 @@ def sipoc_not_a_process(phase: str, field: Optional[str], upload: Optional[dict[
 #: G-353 (W9, founder walk 2026-10-30) — a change typed to the value on screen, made in code and read back.
 CHAT_EDIT_REASON = ("Decided in code (G-353): the Belt's typed change was made to the value on screen — {done} It is "
                     "read back in code for one Confirm; nothing is judged again.")
+#: G-354: a change asked that the code could not make (not understood, or the words named are not there).
+CHAT_EDIT_NOTHING = "nothing: the change was not understood or names words not there."
 
 
 def chat_edit(phase: str, field: Optional[str], entry: dict[str, Any], artifacts: dict[str, Any], belt: str,
@@ -310,8 +312,6 @@ def chat_edit(phase: str, field: Optional[str], entry: dict[str, Any], artifacts
     if edits is None and upload is None and file_words and points_at_file(belt) and file_name \
             and file_name.lower() in str(belt or "").lower():
         edits = [{"op": "file"}]                                   # the file again: start from it
-    if not edits:
-        return None
     on_screen = next((v for v in ((pending.get("store") or {}).get(field), (entry.get("earlier") or {}).get(field),
                                   artifacts.get(field)) if v not in (None, "", [], {})), None)
     if field in parse.TABLE_ELEMENTS:
@@ -319,17 +319,29 @@ def chat_edit(phase: str, field: Optional[str], entry: dict[str, Any], artifacts
         current = on_screen if isinstance(on_screen, list) else file_rows
         if not current:
             return None
+        if not edits:
+            # G-354: a change asked in words the code cannot make — the team as it is, never judged as a new answer.
+            asked = parse.change_asked(belt, [r.get("name") for r in current if isinstance(r, dict)])
+            return _unclear(current, parse.team_lines(current)) if asked and not is_confirmation(belt) else None
         # A change that names no one in the team is still answered in code (who is not in it) — never judged as a new
         # answer, which once judged an unchanged team "incomplete".
         result = parse.apply_team_edits(current, edits, file_rows)
         return {"value": result["team"], "words": parse.team_lines(result["team"]), "done": result["done"],
                 "missing": result["missing"]}
-    if isinstance(on_screen, str) or file_words:
-        text = parse.apply_text_edits(on_screen if isinstance(on_screen, str) else "", edits, file_words)
-        if text is None or not text["done"]:
-            return None
-        return {"value": text["text"], "words": text["text"], "done": text["done"], "missing": text["missing"]}
-    return None
+    if not isinstance(on_screen, str) and not (file_words and edits):
+        return None
+    if not edits:
+        return _unclear(on_screen, str(on_screen)) if parse.change_asked(belt) and not is_confirmation(belt) else None
+    text = parse.apply_text_edits(on_screen if isinstance(on_screen, str) else "", edits, file_words)
+    if text is None or (not text["done"] and not isinstance(on_screen, str)):
+        return None                                                # an addition: new words, judged
+    return {"value": text["text"], "words": text["text"], "done": text["done"], "missing": text["missing"],
+            "unclear": text["unclear"]}
+
+
+def _unclear(value: Any, words: str) -> dict[str, Any]:
+    """G-354: the value on screen, unchanged, for a change the code could not read — read back with the ways to make it."""
+    return {"value": value, "words": words, "done": [], "missing": [], "unclear": True}
 
 
 def still_the_file(field: str, value: Any, pending: dict[str, Any]) -> bool:
@@ -783,12 +795,12 @@ async def decide(phase: str, artifacts: dict[str, Any],
         held = dict(entry.get("pending") or {})
         new_pending = {"field": field, "fields": list(fields), "belt_words": edit["words"], "messages": 1,
                        "store": {field: edit["value"]}, "edited": True, "edit_done": edit["done"],
-                       "edit_missing": edit["missing"], **_earlier_kw(entry, held or None),
-                       **_upload_kw(held or None, entry)}
+                       "edit_missing": edit["missing"], "edit_unclear": bool(edit.get("unclear")),
+                       **_earlier_kw(entry, held or None), **_upload_kw(held or None, entry)}
         after[field] = {"status": ANSWERED, "answer": edit["words"], "messages": 1, "pending": new_pending,
                         **_attempts(entry)}
         return done(field, fields, status, READ_BACK, answer=edit["words"], messages=1, pending=new_pending,
-                    reason=CHAT_EDIT_REASON.format(done=" ".join(edit["done"])))
+                    reason=CHAT_EDIT_REASON.format(done=" ".join(edit["done"]) or CHAT_EDIT_NOTHING))
     pending = entry.get("pending") if status == ANSWERED else None
     if pending and (action == CONFIRM_CLICK or (action is None and (is_confirmation(belt)
                                                                      or uses_upload(belt, pending)))):

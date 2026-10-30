@@ -1830,6 +1830,7 @@ def _chat_edit_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingResponse]
     pending = dict(plan.pending or {})
     lines = [" ".join(pending.get("edit_done") or [])]
     lines += [P.CHAT_EDIT_MISSING.format(name=n) for n in pending.get("edit_missing") or []]
+    lines += [P.CHAT_EDIT_UNCLEAR] if pending.get("edit_unclear") else []      # G-354
     lines.append(P.CHAT_EDIT_ASK)
     return CoachingResponse(message="\n".join(x for x in lines if x), prompt=P.CHAT_EDIT_ASK)
 

@@ -578,6 +578,8 @@ SIPOC_UPLOAD_COMPLETE = "Is this right? Confirm to save it, or Change to correct
 #: R10 (ADR-0095 decision 7, DEF-298) — a file at element 12 that describes no process.
 #: G-353 (W9) — the read-back of a change the Belt typed, written in code under the card.
 CHAT_EDIT_MISSING = "{name} is not in it — nothing changed there."
+#: G-354 — the founder's words (ruling 2026-10-30) for a change the code could not read.
+CHAT_EDIT_UNCLEAR = "I didn't understand the change — use the pencil or say 'rename X to Y'."
 CHAT_EDIT_ASK = "Here it is as it is now — nothing is saved until you confirm. Confirm to save it, or Change to correct it."
 SIPOC_NOT_PROCESS = ("I've read your file {filename}: it does not describe a process I can map. Describe the main steps "
                      "in a few lines, or upload a process map, a picture of one or a process description.")

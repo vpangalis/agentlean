@@ -304,7 +304,9 @@ _RENAME = re.compile(_EDIT_LEAD + r"(?i:rename|re-name|change|chainge|chnage|rep
                      + r"(?P<old>.+?)\s+(?i:to|with|into)\s+(?P<new>.+?)$")
 _REMOVE = re.compile(_EDIT_LEAD + r"(?i:remove|delete|drop|take\s+out)\s+" + _EDIT_WHO
                      + r"(?P<name>.+?)(?:\s+(?i:from\s+the\s+team))?$")
-_ADD = re.compile(_EDIT_LEAD + r"(?i:add)\s+" + _EDIT_WHO + r"(?P<name>[^,]+?)(?:\s+(?i:as)\s+(?P<rest>.+))?$")
+#: A person added is named, never "a training column" or "that …" (G-354: those once became a person).
+_ADD = re.compile(_EDIT_LEAD + r"(?i:add)\s+" + _EDIT_WHO + r"(?!(?i:a|an|the|some|another|more|their|his|her|that|this|these|those|it)\s)"
+                  + r"(?P<name>[^,]+?)(?:\s+(?i:as)\s+(?P<rest>.+))?$")
 #: "Use the file" stays ADR-0085's Confirm (`moves.uses_upload`); this is the return to the file the Belt asks for.
 _AS_FILE = re.compile(r"(?i)^(?:yes,?\s+)?(?:please\s+)?(?:keep|restore|reset|go\s+back\s+to)\b.{0,40}?"
                       r"\b(?:as\s+(?:in|it\s+is\s+in|it\s+was\s+in)\s+the\s+file|the\s+file(?:'s\s+\w+)?)\s*$")
@@ -315,6 +317,17 @@ _EDIT_SPLIT = re.compile(r"(?<=[.;!?])\s+|\s*;\s*|\s+(?i:and|then)\s+(?=(?i:rena
                          r"drop|add)\b)")
 #: A time commitment as a Belt types it beside a person ("4 h per week", "10%").
 _TIME_GIVEN = re.compile(r"(?i)\d+(?:[.,]\d+)?\s*(?:%|h\b|hours?|days?)")
+#: G-354 (founder ruling 2026-10-30 on G-353): a message that asks to change the value on screen in words `chat_edits`
+#: cannot make into a change — led by a change verb, or correcting a word in place. Answered in code with the card.
+_CHANGE_VERB = re.compile(_EDIT_LEAD + r"(?i:rename|re-name|change|chainge|chnage|replace|correct|swap|switch|exchange|"
+                          r"remove|delete|drop|take\s+out|update|fix|edit|amend)\s+\S")
+_ADD_VERB = re.compile(_EDIT_LEAD + r"(?i:add)\s+\S")
+_CORRECTION = re.compile(r"(?i)\b(?:is|are)\s+actually\b|\bshould\s+(?:read|say)\b|\bspel(?:led|t|ling)\b|\btypo\b")
+#: On a list, beside a name on screen: "Elena should be …", "Thomas's surname …", "not Thomas but Tomin".
+_CORRECTS_PERSON = re.compile(r"(?i)\bshould\s+be\b|\binstead\s+of\b|\bnot\s+\S+(?:\s+\S+)?\s+but\b|\bsurname\b|"
+                              r"\bfirst\s+name\b|'s\s+(?:role|function|department|time|name|title)\b")
+#: A word a rename cannot find its place by ("change it to …").
+_VAGUE = frozenset({"it", "this", "that", "these", "those", "them", "the answer", "the text", "everything", "all"})
 
 
 def _clean(name: str) -> str:
@@ -343,6 +356,28 @@ def chat_edits(text: Any) -> Optional[list[dict[str, str]]]:
         else:
             return None
     return out or None
+
+
+def change_asked(text: Any, names: Any = ()) -> bool:
+    """G-354: whether a message `chat_edits` could not read asks to change the value on screen all the same — led by a
+    change verb ("swap Elena and Sabine's roles"), or correcting a word in place ("Thomas's surname is actually
+    Wagener"). On a list (`names`, the people on screen) also an addition, and a correction beside a name on screen.
+    An addition to a text element ("add that …") is new words, an answer for the judgment."""
+    said = " ".join(str(text or "").split())
+    if not said:
+        return False
+    if _CHANGE_VERB.match(said) or _CORRECTION.search(said):
+        return True
+    tokens = {t.lower() for n in names or () for t in re.findall(r"\w{3,}", str(n or ""))}
+    if not tokens:
+        return False
+    named = any(t.lower() in tokens for t in re.findall(r"\w{3,}", said))
+    return bool(_ADD_VERB.match(said) or (named and _CORRECTS_PERSON.search(said)))
+
+
+def _in_place(old: str) -> Optional[re.Pattern[str]]:
+    """The words a rename replaces, as whole words — None for a word that names no place ("change it to …")."""
+    return None if old.lower() in _VAGUE else re.compile(r"(?<!\w)" + re.escape(old) + r"(?!\w)")
 
 
 def _same_person(a: Any, b: Any) -> bool:
@@ -389,25 +424,34 @@ def apply_team_edits(team: list[dict[str, Any]], edits: list[dict[str, str]],
 
 
 def apply_text_edits(value: str, edits: list[dict[str, str]], file_value: str = "") -> Optional[dict[str, Any]]:
-    """G-353 (W9): a text element after the Belt's typed renames — each old wording replaced where it stands, in the
-    exact spelling given; "as in the file" starts again from the file's text. None when a change is not a rename or
-    a return to the file (a removal or an addition is an answer for the judgment)."""
+    """G-353 (W9): a text element after the Belt's typed renames — each old wording replaced where it stands, as whole
+    words, in the exact spelling given; G-354: a removal deletes the words named; "as in the file" starts again from
+    the file's text. Words not found are named, nothing changed. None for an addition (new words, an answer for the
+    judgment)."""
     text = str(value or "")
     done: list[str] = []
     missing: list[str] = []
+    unclear = False
     for e in edits:
         if e["op"] == "file" and file_value:
             text = file_value
             done.append("The answer is as in the file again.")
-        elif e["op"] == "rename" and e["old"]:
-            if e["old"] in text:
-                text = text.replace(e["old"], e["new"])
-                done.append(f"Changed “{e['old']}” to “{e['new']}”.")
+        elif e["op"] in ("rename", "remove"):
+            old = e["old"] if e["op"] == "rename" else e["name"]
+            place = _in_place(old) if old else None
+            if place is None:
+                unclear = True                                     # "change it to …": no place named
+            elif not place.search(text):
+                missing.append(f"“{old}”")
+            elif e["op"] == "rename":
+                text = place.sub(lambda _m: e["new"], text)
+                done.append(f"Changed “{old}” to “{e['new']}”.")
             else:
-                missing.append(e["old"])
+                text = re.sub(r"[ \t]{2,}", " ", place.sub("", text)).replace(" ,", ",").replace(" .", ".").strip()
+                done.append(f"Removed “{old}”.")
         else:
             return None
-    return {"text": text, "done": done, "missing": missing}
+    return {"text": text, "done": done, "missing": missing, "unclear": unclear}
 
 
 def team_lines(team: list[dict[str, Any]]) -> str:

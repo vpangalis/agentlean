@@ -10584,7 +10584,8 @@
     "code": [
      "agent-improve/backend/phases/moves.py::chat_edit",
      "agent-improve/backend/phases/define/parse.py::chat_edits",
-     "agent-improve/backend/phases/define/parse.py::apply_team_edits"
+     "agent-improve/backend/phases/define/parse.py::apply_team_edits",
+     "agent-improve/backend/phases/define/parse.py::change_asked"
     ],
     "guidance": []
    },
@@ -10593,7 +10594,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-353"
+     "G-353",
+     "G-354"
     ]
    },
    "requirement": "W9",
