@@ -12001,14 +12001,195 @@ def test_def_295_an_upload_at_element_12_becomes_the_sipoc_draft_read_back(env, 
     assert migrations.current() == 17 and migrations.MIGRATIONS[16]({"x": 1}) == {"x": 1}
 
 
-def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps() -> None:
-    """DEF-296 — R10 (ADR-0095): a typed description or a gap's answer at element 12 — the coach is offered the SIPOC tool there only; a full answer to the one ask gets no further question; only the gaps are asked"""
-    _not_written('DEF-296')
+def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps(env, monkeypatch, stub_planner) -> None:
+    """DEF-296 — R10 (ADR-0095): a typed description or a gap's answer at element 12 — the coach is offered the SIPOC tool there only; a full answer to the one ask gets no further question; only the gaps are asked
+
+    Through POST /ask, the coach and the reading faked (the words are the models'; what is held is code's). The
+    founder's flawed SIPOC (finding 60) typed at element 12: the coach's first call is offered `read_sipoc` and
+    `read_upload` and nothing else; it calls the tool with the Belt's words; the tool tells it the SIPOC as read and
+    ONLY the missing part (part 2); the read-back holds the tool's draft — the outputs the coach's own capture invented
+    are on neither the card nor what a Confirm stores. The answer to the gap: the tool merges it over the draft held,
+    nothing required is missing, Confirm opens and stores exactly that. A full answer to the one ask: nothing to ask
+    but the optional times question when no time is given. At any other element the tool is never offered."""
+    import asyncio
+    import json
+
+    from langchain_core.messages import AIMessage
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.knowledge import sipoc, tools
+    from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
+    from backend.middleware import turn_tools
+    from backend.phases import moves, nodes_common
+    from backend.phases.define.schema import SipocReading
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    readings: list = []
+
+    class Reader:
+        def __init__(self, role):
+            self.role = role
+
+        def with_structured_output(self, schema):
+            return self
+
+        async def ainvoke(self, messages):
+            return readings.pop(0)
+    monkeypatch.setattr("backend.core.llm.get_llm", lambda role, **kw: Reader(role))
+    bound: list = []
+
+    class Coach(_FakeCoach):
+        def bind_tools(self, tools: Any, **kwargs: Any) -> "_FakeCoach":
+            bound.append(sorted(str(getattr(t, "name", "") or (t.get("name") if isinstance(t, dict) else ""))
+                                for t in tools))
+            return self
+
+    def coach_calling(description: str, message: str) -> None:
+        reply = {**REPLY, "message": message,
+                 "fields_captured": [{"field_name": "process_map_sipoc", "value": CAPTURED_SIPOC_60, "source": "belt"}]}
+        script = iter([AIMessage(content="", tool_calls=[{"name": "read_sipoc", "args": {"description": description},
+                                                          "id": "call_sipoc"}]),
+                       AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply,
+                                                          "id": "call_reply"}])])
+        real = nodes_common.get_llm
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: Coach(messages=script)
+                            if role == "coach" else real(role, **kw))
+
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="the process is described")
+
+    # The flawed SIPOC typed: the tool is offered, called with the Belt's words, and its draft is what is held.
+    readings.append(_sipoc_reading_60(["Complaint resolved"]))
+    coach_calling(FLAWED_SIPOC_60, "Here is your process. What comes out of it, and who receives it?")
+    read = _askd(env, message=FLAWED_SIPOC_60)
+    assert read["move"] == "read_back" and read["move_field"] == "process_map_sipoc", (read["move"], read["answer"])
+    assert bound and bound[0] == ["CoachingResponse", "read_sipoc", "read_upload"], bound
+    pending = _define(env)["field_status"]["process_map_sipoc"]["pending"]
+    held = pending["store"]["process_map_sipoc"]
+    seen = json.dumps({"store": held, "card": read["readback_card"], "drawn": read.get("sipoc_diagram")})
+    assert not [w for w in INVENTED_OUTPUTS_60 if w.lower() in seen.lower()], "the coach's invented outputs are held"
+    assert [s["name"] for s in held["process_steps"]][:2] == ["log the complaint", "diagnose and dispatch a technician"]
+    assert read["readback_card"]["confirm"] is False, read["readback_card"]
+
+    # What the tool told the coach: the SIPOC as read and ONLY the missing part.
+    sipoc.TURN_PRIOR.set(None)
+    readings.append(_sipoc_reading_60())
+    told, _ = asyncio.run(sipoc.coach_reading(FLAWED_SIPOC_60))
+    assert "Still missing — ask only this:\nWhat comes out of the process, and who receives it?" in told, told
+    assert "What are the main steps" not in told and "What goes into the process" not in told, told
+
+    # The answer to the gap: merged over the draft held; nothing required missing; Confirm stores that value.
+    readings.append(SipocReading(is_process=False, outputs=["the closed complaint", "the customer informed"]))
+    coach_calling("Outputs: the closed complaint, the customer informed.", "Here is your whole process. Is this right?")
+    read = _askd(env, message="Outputs: the closed complaint, the customer informed.")
+    held = _define(env)["field_status"]["process_map_sipoc"]["pending"]["store"]["process_map_sipoc"]
+    assert held["outputs"] == "the closed complaint; the customer informed" and held["suppliers"], held
+    assert read["readback_card"]["confirm"] is True, read["readback_card"]["missing"]
+    _coach_saying(monkeypatch, "Thank you.")
+    _askd(env, message="Confirm", action="confirm")
+    assert _define(env)["structured"]["process_map_sipoc"] == held
+
+    # A full answer to the one ask with no time given: only the optional times question.
+    sipoc.TURN_PRIOR.set(None)
+    untimed = _sipoc_reading_60(["the closed complaint"])
+    readings.append(untimed.model_copy(update={"process_steps": [s.model_copy(update={"time_avg": "", "time_min": "",
+                                                                                      "time_max": ""})
+                                                                 for s in untimed.process_steps], "lead_time": ""}))
+    told, _ = asyncio.run(sipoc.coach_reading(FLAWED_SIPOC_60 + " Outputs: the closed complaint."))
+    assert "Nothing required is missing." in told and f"Optional: {sipoc.TIMES_QUESTION}" in told, told
+
+    # Offered at element 12 only.
+    registered = [*tools.UNIVERSAL_TOOLS, *COMPUTATION_TOOLS_BY_PHASE["define"], *tools.DEFINE_TOOLS]
+    names = {f: sorted(turn_tools._name(t) for t in turn_tools.offered(turn_tools.ANSWER, registered, f))
+             for f in ("process_map_sipoc", "team", None)}
+    assert names == {"process_map_sipoc": ["read_sipoc", "read_upload"], "team": ["read_upload"],
+                     None: ["read_upload"]}, names
+    assert "read_sipoc" not in [turn_tools._name(t) for t in turn_tools.offered(
+        turn_tools.TEACHING, registered, "process_map_sipoc")]
 
 
-def test_def_297_a_process_picture_is_read_in_one_call_with_its_true_type() -> None:
-    """DEF-297 — R10 (ADR-0095): a picture of the process (a whiteboard photo, a diagram screenshot) is read in the same single call, sent as its true type"""
-    _not_written('DEF-297')
+def test_def_297_a_process_picture_is_read_in_one_call_with_its_true_type(env, monkeypatch, stub_planner) -> None:
+    """DEF-297 — R10 (ADR-0095): a picture of the process (a whiteboard photo, a diagram screenshot) is read in the same single call, sent as its true type
+
+    Through POST /upload and POST /ask, the reading faked at the model factory. A photo of the founder's flawed SIPOC
+    (finding 60) at element 12: ONE model call — the SIPOC tool's, on the vision role — with the picture sent as its
+    true type (a .webp the browser sent untyped goes as image/webp), and no separate image read. The founder's ruling
+    of 2026-10-30: the words check uses the text read from the picture — a value the picture does not carry ("the
+    repaired device") is dropped and asked. That text is screened as the file's text and kept as it; the upload turn
+    reads the draft back in code. A picture with no text read is refused, nothing stored."""
+    from backend.gateway import routes
+    from backend.phases import moves
+    from backend.upload import agent as upload_agent
+
+    calls: list = []
+    reading: dict = {}
+
+    class Reader:
+        def __init__(self, role):
+            self.role = role
+
+        def with_structured_output(self, schema):
+            calls.append((self.role, schema.__name__))
+            return self
+
+        async def ainvoke(self, messages):
+            calls.append(list(messages))
+            return reading["now"]
+
+    async def no_image_read(*a, **k):
+        raise AssertionError("the picture at element 12 was read twice (the separate image read)")
+
+    async def upload_file(*a, **k):
+        return f"uploads/{CASE_ID}/{a[1] if len(a) > 1 else k.get('filename')}"
+
+    async def index(*a, **k):
+        return "idx-picture"
+    monkeypatch.setattr("backend.core.llm.get_llm", lambda role, **kw: Reader(role))
+    monkeypatch.setattr(upload_agent, "_extract_from_image", no_image_read)
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    screened = _shields(monkeypatch)
+    _at_element(env, "process_map_sipoc")
+    record = env.case.phases["define"]
+    record.structured["problem_5w2h"] = {**record.structured["problem_5w2h"],
+                                         "steps": ["diagnose and dispatch a technician", "inform the customer"]}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED, "part": 1}
+
+    def upload(name: str, mime: str) -> Any:
+        return env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                               files={"file": (name, b"RIFF-whiteboard-photo", mime)})
+
+    # The photo's text is the founder's words; the reading adds an output the photo does not carry.
+    reading["now"] = _sipoc_reading_60(["the repaired device"]).model_copy(update={"picture_text": FLAWED_SIPOC_60})
+    r = upload("whiteboard.webp", "application/octet-stream")
+    assert r.status_code == 200, r.text
+    assert [c for c in calls if isinstance(c, tuple)] == [("vision", "SipocReading")], calls
+    [(_, picture)] = [c for c in calls if isinstance(c, list)]
+    assert picture.content[0]["image_url"]["url"].startswith("data:image/webp;base64,"), picture.content[0]
+    assert any(FLAWED_SIPOC_60[:40] in str(body) for body in screened), "the text read from the picture was not screened"
+    kept = record.uploads[-1]
+    assert kept.interpretation.sipoc["picture_text"] == FLAWED_SIPOC_60
+    assert "outputs" not in kept.interpretation.sipoc["draft"], "a value the picture does not carry was kept"
+    read = _askd(env, message="📎 whiteboard.webp")
+    assert (read["move"], read["move_field"]) == ("read_back", "process_map_sipoc"), read["answer"]
+    assert "What comes out of the process, and who receives it?" in read["answer"], read["answer"]
+    assert read["sipoc_diagram"]["confirmed"] is False and "repair on site" in str(read["sipoc_diagram"])
+
+    # A screenshot sent typed: that type. A picture with no text read: refused, nothing stored.
+    calls.clear()
+    reading["now"] = _sipoc_reading_60().model_copy(update={"picture_text": FLAWED_SIPOC_60 + " (v2)"})
+    assert upload("diagram.png", "image/png").status_code == 200
+    [(_, picture)] = [c for c in calls if isinstance(c, list)]
+    assert picture.content[0]["image_url"]["url"].startswith("data:image/png;base64,"), picture.content[0]
+    before = len(record.uploads)
+    reading["now"] = _sipoc_reading_60()                       # nothing read off the picture
+    refused = upload("blurred.jpg", "image/jpeg")
+    assert refused.status_code == 422 and "could not read any text" in refused.text, refused.text
+    assert len(record.uploads) == before
 
 
 def test_def_298_a_file_at_element_12_gets_its_plain_reply() -> None:

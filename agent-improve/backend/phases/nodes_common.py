@@ -63,7 +63,7 @@ from backend.core.request_context import mark_answered, turn_step   # R-F, #63
 from backend.core.conversation import CARD_KEY, COMPLETION_KEY, ELEMENT_KEY, STRIP_KEY  # ADR-0093
 from backend.core.conversation import LINK_CHECK_KEY, TEACHING_CARD_KEY  # R-C (ADR-0114), R-H
 from backend.core.llm import get_fallback_llm, get_llm
-from backend.knowledge import fusion
+from backend.knowledge import fusion, sipoc
 from backend.core.prompts import (
     FALLBACK_RESEND,
     PHASE_COACH_PROMPT,
@@ -95,6 +95,7 @@ from backend.knowledge.computation import (
 )
 from backend.phases.define.schema import DEFINE_FIELD_ORDER, define_progress
 from backend.knowledge.tools import (
+    DEFINE_TOOLS,
     RAG_LOOKUP_TOOLS,
     UNIVERSAL_TOOLS,
     first_numeric_column,
@@ -1040,7 +1041,8 @@ def _executor_tools(
     Any other budget binds all seven, with the retrieval three counted
     (`_budgeted_rag_tools`).
     """
-    tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    # R10 (ADR-0095 decision 4): Define's own SIPOC tool is registered here; the turn-tools layer offers it at element 12.
+    tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase] + (DEFINE_TOOLS if phase == "define" else [])
     if hop_budget <= 0:
         return [t for t in tools if t not in RAG_LOOKUP_TOOLS]
     return _budgeted_rag_tools(tools, hop_budget, hops_spent
@@ -1127,7 +1129,7 @@ def _build_executor(
             # ADR-0069 — LangChain's dynamic tool selection: every tool stays registered; this
             # wrap_model_call offers the model only the turn type's tools (`request.override(tools=…)`)
             # — none on an answer turn.
-            turn_tools.turn_tools_middleware(turn_type, coach_limit),
+            turn_tools.turn_tools_middleware(turn_type, coach_limit, _focus_of(state)),
             # T69 / G-119 (ADR-0059) — the coach's share of the turn's model calls. Declared
             # before the retry, so it encloses it: a retried call is one call of the budget.
             # Its state schema (ModelCallLimitState) is its own; the list is typed on AgentState.
@@ -1836,6 +1838,39 @@ def _sipoc_upload_reply(plan: Optional[CoachingPlan]) -> Optional[CoachingRespon
         return CoachingResponse(message="\n".join(lines))
     lines.append(P.SIPOC_UPLOAD_COMPLETE)
     return CoachingResponse(message="\n".join(lines), prompt=P.SIPOC_UPLOAD_COMPLETE)
+
+
+def _focus_of(state: PhaseState) -> Optional[str]:
+    plan = state.get("coaching_plan")
+    return plan.focus_field if plan is not None else None
+
+
+def _sipoc_so_far(phase: str, state: PhaseState, plan: Optional[CoachingPlan]) -> Optional[dict[str, Any]]:
+    """R10 (DEF-296): the SIPOC the Belt's new words at element 12 add to — the pending read-back's draft, else the one
+    an earlier read-back carried, else the confirmed one. None at any other element."""
+    if phase != "define" or plan is None or plan.focus_field != moves.SIPOC_FIELD:
+        return None
+    entry = dict((state.get("field_status") or {}).get(moves.SIPOC_FIELD) or {})
+    for source in ((entry.get("pending") or {}).get("store"), (plan.pending or {}).get("earlier"),
+                   entry.get("earlier"), state.get("artifacts")):
+        value = (source or {}).get(moves.SIPOC_FIELD) if isinstance(source, dict) else None
+        if isinstance(value, dict) and value:
+            return value
+    return None
+
+
+def _with_sipoc_read(move: Optional[str], kept: dict[str, Any], pending: Optional[dict],
+                     reads: list[dict[str, Any]]) -> tuple[dict[str, Any], Optional[dict]]:
+    """R10 (DEF-296, ADR-0095 decision 6): when the coach called the SIPOC tool this turn, a read-back holds the tool's
+    draft — what the card, the flow and a Confirm read — never the coach's copy of it. A draft with a required part
+    missing is read back as a DRAFT, as an uploaded one is (ADR-0094 decision 2): its gaps marked, Confirm closed, and
+    the draft held, so the answer to a gap is merged over it."""
+    read = next((r for r in reversed(reads) if isinstance(r.get("draft"), dict)), None)
+    if move != moves.READ_BACK or read is None or pending is None:
+        return kept, pending
+    needed = [str(g.get("question") or "") for g in read.get("gaps") or [] if not g.get("optional")]
+    return {**kept, moves.SIPOC_FIELD: read["draft"]}, (
+        {**pending, "draft": True, "missing": needed} if needed else pending)
 
 
 def _link_check(phase: str, pending: Optional[dict], prior: dict[str, Any]) -> Optional[dict[str, Any]]:
@@ -3697,6 +3732,11 @@ async def executor(
     # G-139 (ADR-0075) — each `fields_captured` the parse normalized this turn, by shape.
     normalized: list[str] = []
     FIELDS_CAPTURED_NORMALIZED.set(normalized)
+    # R10 (ADR-0095 decision 4, DEF-296): at element 12 the SIPOC tool merges over the SIPOC read so far, and leaves its
+    # result here for the read-back.
+    sipoc_reads: list[dict[str, Any]] = []
+    sipoc.TURN_READS.set(sipoc_reads)
+    sipoc.TURN_PRIOR.set(_sipoc_so_far(phase, state, plan))
 
     calc_row, state = _turn_calculation(phase, state, plan)
 
@@ -3858,6 +3898,7 @@ async def executor(
     kept, empty_captures, malformed, example_refused, belt_own = _refused_captures(
         phase, state, candidate, prior_artifacts)
 
+    kept, pending = _with_sipoc_read(move, kept, pending, sipoc_reads)
     kept, pending, carried, link, located_line, copied, short, unfilled = _read_back_pending(
         phase, state, plan, move, pending, kept, prior_artifacts, belt_own, reply)
     artifacts = {**prior_artifacts, **kept}

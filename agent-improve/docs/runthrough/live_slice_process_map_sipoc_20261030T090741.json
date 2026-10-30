@@ -1,0 +1,80 @@
+{
+ "kind": "live_slice",
+ "element": "process_map_sipoc",
+ "case_id": "IMPR-2026-6MLEM4",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "picture.json",
+ "recorded_product_hash": null,
+ "product_hash": "6ef50dd70ec73a9c",
+ "seeded": [
+  "baseline_estimate",
+  "benefits_analysis",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "secondary_metrics",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "📎 process_sketch.png",
+   "action": null,
+   "http": 200,
+   "move": "challenge",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 4.0,
+   "failed": null,
+   "answer": "Before this is stored: the problem statement and the process steps should point at the same place. The problem statement names “dispatch technician”, which is not one of the process steps. Name the step(s) where the problem shows, or add the problems the team sees at those steps — or tell me to keep it as it is.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.23 s",
+    "input guard 1.17 s",
+    "after the answer (steps, save) 1.55 s",
+    "total 3.95 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 1,
+ "cost": {
+  "usd": 0.0072,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0072
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 9.91,
+  "calls": 39,
+  "case": {
+   "seconds": 0.5,
+   "calls": 6
+  },
+  "checkpoint": {
+   "seconds": 9.17,
+   "calls": 28
+  },
+  "store": {
+   "seconds": 0.25,
+   "calls": 5
+  }
+ },
+ "started": "20261030T090741"
+}

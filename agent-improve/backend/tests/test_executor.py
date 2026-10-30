@@ -39,7 +39,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from backend.tests.conftest import store_plan
 from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
-from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
+from backend.knowledge.tools import DEFINE_TOOLS, RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
 from backend.phases import nodes_common as _c
 from backend.phases.mappers_common import PHASE_ORDER
 
@@ -162,7 +162,8 @@ def test_tools_are_passed_to_create_agent_not_bound_to_the_model(
     _run(_c.executor(phase, _state(current_phase=phase)))
 
     kwargs = stub_coach.calls[-1]
-    expected = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    # R10 (ADR-0095 decision 4): Define registers its own SIPOC tool, offered at element 12 only (turn_tools).
+    expected = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase] + (DEFINE_TOOLS if phase == "define" else [])
     passed = kwargs["tools"]
     assert [t.name for t in passed] == [t.name for t in expected]
     for got, want in zip(passed, expected):

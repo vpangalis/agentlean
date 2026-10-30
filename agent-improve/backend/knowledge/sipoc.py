@@ -18,6 +18,7 @@ from __future__ import annotations
 import base64
 import logging
 import re
+from contextvars import ContextVar
 from typing import Any, Optional
 
 import openai
@@ -174,14 +175,14 @@ def flow(draft: dict[str, Any], missing: list[str]) -> Optional[dict[str, Any]]:
 
 def sipoc_draft(reading: Optional[SipocReading], prior: Any = None, source: str = "") -> dict[str, Any]:
     """The code half of the tool — no model: the draft, its gaps, its number checks and its flow from one reading.
-    `prior` is the SIPOC confirmed before, so a step keeps its id. `source` is the text the reading was given: every
-    value not grounded in it is left out (`keep_grounded`); a picture has no text to check, and its read-back is the
-    Belt's to confirm. A reading that is no process returns its plain reply and no draft."""
+    `prior` is the SIPOC confirmed before, so a step keeps its id. `source` is the text the reading was given — for a
+    picture, the text read from it (the founder's ruling 2026-10-30): every value not grounded in it is left out
+    (`keep_grounded`), so a picture with no text read gives no draft. A reading that is no process returns its plain
+    reply and no draft."""
     if reading is None:
         return {"read": False, "is_process": False, "draft": None, "gaps": [], "checks": [], "flow": None,
                 "reply": ""}
-    if source.strip():
-        reading = keep_grounded(reading, source)
+    reading = keep_grounded(reading, source)
     if not reading.is_process or not any(getattr(reading, k) for k in SIPOC_KEYS):
         return {"read": True, "is_process": False, "draft": None, "gaps": [], "checks": [], "flow": None,
                 "reply": NOT_A_PROCESS}
@@ -240,8 +241,56 @@ async def read_sipoc(text: str = "", *, image: Optional[bytes] = None, mime: str
                      prior: Any = None) -> dict[str, Any]:
     """THE SIPOC TOOL (ADR-0095): one structured reading call, then `sipoc_draft` in code. `text` is the Belt's
     description or a file's screened text; `image` a picture of the map, read in the same single call through the
-    vision role with its true type (`mime`). A failed reading is never an invented draft: `read` is False."""
-    return sipoc_draft(await _reading(text, image, mime), prior, source="" if image else text)
+    vision role with its true type (`mime`); its values are checked against the text read from it, which the result
+    carries as `picture_text`. A failed reading is never an invented draft: `read` is False."""
+    reading = await _reading(text, image, mime)
+    if not image:
+        return sipoc_draft(reading, prior, source=text)
+    seen = reading.picture_text.strip() if reading else ""
+    return {**sipoc_draft(reading, prior, source=seen), "picture_text": seen}
+
+
+#: R10 (ADR-0095 decision 4, DEF-296): the coach's call at element 12. TURN_PRIOR is the SIPOC read so far (the pending
+#: read-back's draft, else the one carried or confirmed before), which the Belt's new words are merged over; TURN_READS
+#: is where the executor finds the tool's result, so the read-back holds the tool's draft, never the coach's copy of it.
+TURN_PRIOR: ContextVar[Optional[dict[str, Any]]] = ContextVar("sipoc_turn_prior", default=None)
+TURN_READS: ContextVar[Optional[list[dict[str, Any]]]] = ContextVar("sipoc_turn_reads", default=None)
+
+
+def merged(prior: dict[str, Any], added: dict[str, Any]) -> dict[str, Any]:
+    """The Belt's new words over the SIPOC read so far: a column, the steps or the whole-process figures the new words
+    give replace the earlier ones; everything else is kept as it was."""
+    out = {k: v for k, v in prior.items() if k in (*SIPOC_KEYS, "process_performance")}
+    out.update({k: v for k, v in added.items() if v})
+    return parse.sipoc_with_performance(out, prior)
+
+
+async def coach_reading(description: str) -> tuple[str, dict[str, Any]]:
+    """The SIPOC tool as the coach calls it — the same one reading (`_reading`) and the same code (`sipoc_draft`). With
+    a SIPOC read so far, the new words are an addition (the answer to a gap): what they give is merged over it, and the
+    gaps are those of the whole. Returns what the coach reads — the SIPOC as read, the gaps to ask (the times question
+    optional), the number checks, or the plain reply — and the result, also left for the executor."""
+    prior = TURN_PRIOR.get()
+    reading = await _reading(description, None, "")
+    result = sipoc_draft(reading, prior, source=description)
+    if reading is not None and isinstance(prior, dict) and prior:
+        draft = merged(prior, captured(keep_grounded(reading, description)))
+        result = {"read": True, "is_process": True, "draft": draft, "gaps": gaps(draft),
+                  "checks": parse.duration_questions(draft), "flow": None, "reply": ""}
+    sink = TURN_READS.get()
+    if sink is not None:
+        sink.append(kept(result))
+    if not result["read"]:
+        return "The description could not be read just now. Ask the Belt to send it again.", kept(result)
+    if not result["is_process"]:
+        return result["reply"], kept(result)
+    needed = [g["question"] for g in result["gaps"] if not g["optional"]]
+    lines = ["The SIPOC as read from the Belt's words (read it back as it is; nothing is stored until they confirm):",
+             as_text(result["draft"])]
+    lines += ["Still missing — ask only this:", *needed] if needed else ["Nothing required is missing."]
+    lines += [f"Optional: {g['question']}" for g in result["gaps"] if g["optional"]]
+    lines += result["checks"]
+    return "\n".join(lines), kept(result)
 
 
 async def _reading(text: str, image: Optional[bytes], mime: str) -> Optional[SipocReading]:
@@ -271,4 +320,4 @@ async def _reading(text: str, image: Optional[bytes], mime: str) -> Optional[Sip
 
 __all__ = ["GAP_PARTS", "TIMES_QUESTION", "TIMES_EXAMPLE", "NOT_A_PROCESS", "FEWEST_STEPS", "MOST_STEPS",
            "READ_CHARS", "captured", "grounded", "keep_grounded", "gaps", "flow", "sipoc_draft", "as_text", "summary",
-           "kept", "read_sipoc"]
+           "kept", "read_sipoc", "TURN_PRIOR", "TURN_READS", "merged", "coach_reading"]

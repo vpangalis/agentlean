@@ -332,6 +332,15 @@ class LoadEvidenceSeriesArgs(BaseModel):
     )
 
 
+class ReadSipocArgs(BaseModel):
+    """Args for `read_sipoc` (ADR-0095, DEF-296) — Define's element 12 only."""
+
+    description: str = Field(
+        description="What the Belt gave for their process, in their own words: the whole description, or their answer "
+                    "to a part that was missing. Do not reword, complete or summarise it."
+    )
+
+
 class ReadUploadArgs(BaseModel):
     """Args for `read_upload` (ADR-0106, DEF-057)."""
 

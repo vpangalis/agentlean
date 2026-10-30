@@ -73,6 +73,7 @@ from backend.knowledge.tool_args import (
     LoadEvidenceSeriesArgs,
     ProposeDiagramArgs,
     ProposeTemplateArgs,
+    ReadSipocArgs,
     ReadUploadArgs,
 )
 from backend.knowledge.retriever import (
@@ -754,6 +755,22 @@ async def read_upload(blob_path: str) -> tuple[str, dict]:
             + (f" · the first {READ_UPLOAD_MAX_CHARS} characters of {len(body)}" if truncated else ""))
     return (head + chr(10) + shown, {"ok": True, "filename": filename, "blob_path": blob_path, "kind": kind,
                                    "truncated": truncated, "chars": len(body)})
+
+
+@tool(args_schema=ReadSipocArgs, response_format="content_and_artifact")
+async def read_sipoc(description: str) -> tuple[str, dict]:
+    """Read the Belt's process into the SIPOC (suppliers, inputs, steps, outputs, customers, measures).
+
+    USE THIS when the Belt describes their process, or answers a part of it that was missing: pass what they gave, in
+    their own words. It returns the SIPOC as read so far and the parts still missing. Read back what it returns, as it
+    is, and ask only the missing parts. Nothing is stored until the Belt confirms.
+    """
+    from backend.knowledge import sipoc
+    return await sipoc.coach_reading(description)
+
+
+#: R10 (ADR-0095 decision 4): Define's own tool — registered on Define's executor, offered at element 12 only.
+DEFINE_TOOLS: list[BaseTool] = [read_sipoc]
 
 
 def _content_type_for(filename: str) -> str:

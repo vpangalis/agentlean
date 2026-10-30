@@ -500,7 +500,7 @@ What each role reads, part by part in order, with each part's owner: ADR-0111's 
   |---|---|---|
   | teaching | teach, or store and advance | lookups, `propose_template`, `load_skill`, `read_upload` (ADR-0106) |
   | upload | a new upload, or an unread one the Belt refers to | `rag_lookup_evidence`, `load_evidence_series`, `read_upload` |
-  | answer | anything else | `read_upload` only (ADR-0115), else a structured reply |
+  | answer | anything else | `read_upload` (ADR-0115); at element 12 also `read_sipoc` (ADR-0095) |
 
   Visuals (ADR-0070): each read-back's visual is drawn in code from the coach's structured values,
   marked not yet confirmed; after Confirm the same function draws it from the stored values into

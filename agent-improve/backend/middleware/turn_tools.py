@@ -9,7 +9,7 @@ files that may hold one.
     teaching   lookups, `propose_template`, `load_skill`, `read_upload`
     upload     `rag_lookup_evidence`, `load_evidence_series`, `read_upload`
     answer     `read_upload` only (ADR-0115, founder 2026-10-29) — else the structured reply (the response format
-               is not a tool in `request.tools`)
+               is not a tool in `request.tools`); at Define's element 12 also `read_sipoc` (ADR-0095 decision 4)
 
 The turn type is decided in code by the executor from the move and the phase state, never by a model,
 and recorded in `step_log` (`phases/nodes_common.py::turn_type_of`).
@@ -29,17 +29,23 @@ TOOLS_BY_TURN: dict[str, frozenset[str]] = {
 }
 
 
+#: R10 (ADR-0095 decision 4, DEF-296): the SIPOC tool, offered on an answer turn at Define's element 12 only — no other
+#: element's model call carries its schema.
+SIPOC_FIELD, SIPOC_TOOL = "process_map_sipoc", "read_sipoc"
+
+
 def _name(tool: Any) -> str:
     return str(getattr(tool, "name", None) or (tool.get("name") if isinstance(tool, dict) else "") or "")
 
 
-def offered(turn_type: str, tools: list[Any]) -> list[Any]:
-    """The registered tools a turn of `turn_type` may offer the model."""
-    keep = TOOLS_BY_TURN.get(turn_type, frozenset())
+def offered(turn_type: str, tools: list[Any], focus: str | None = None) -> list[Any]:
+    """The registered tools a turn of `turn_type` on the element `focus` may offer the model."""
+    keep = TOOLS_BY_TURN.get(turn_type, frozenset()) | (
+        {SIPOC_TOOL} if turn_type == ANSWER and focus == SIPOC_FIELD else frozenset())
     return [t for t in tools if _name(t) in keep]
 
 
-def turn_tools_middleware(turn_type: str, coach_limit: int | None = None) -> Any:
+def turn_tools_middleware(turn_type: str, coach_limit: int | None = None, focus: str | None = None) -> Any:
     """The `wrap_model_call` middleware that offers only this turn type's tools — and none on the
     coach's LAST allowed call (G-131), so that call must be the structured reply, never a tool
     call the call limit then ends with a reply written in code. The count is the call limit's own
@@ -49,7 +55,7 @@ def turn_tools_middleware(turn_type: str, coach_limit: int | None = None) -> Any
         state: dict[str, Any] = dict(request.state or {})
         made = int(state.get("run_model_call_count") or 0)
         last = coach_limit is not None and made >= coach_limit - 1
-        tools = [] if last else offered(turn_type, list(request.tools or []))
+        tools = [] if last else offered(turn_type, list(request.tools or []), focus)
         # G-139 (ADR-0073, option B): one tool call per response. The coach's structured reply is a
         # tool call (ToolStrategy); with parallel calls allowed it once came back TWICE in one
         # response, ToolStrategy rejected the pair and asked again, and the answer turn's one-call
@@ -60,4 +66,5 @@ def turn_tools_middleware(turn_type: str, coach_limit: int | None = None) -> Any
     return wrap_model_call(name=f"TurnTools[{turn_type}]")(select_tools)
 
 
-__all__ = ["TEACHING", "UPLOAD", "ANSWER", "TOOLS_BY_TURN", "offered", "turn_tools_middleware"]
+__all__ = ["TEACHING", "UPLOAD", "ANSWER", "TOOLS_BY_TURN", "SIPOC_FIELD", "SIPOC_TOOL", "offered",
+           "turn_tools_middleware"]

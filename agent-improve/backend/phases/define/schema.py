@@ -409,7 +409,10 @@ class SipocStepRead(BaseModel):
 
 class SipocReading(BaseModel):
     """R10 (ADR-0095 decision 2): the SIPOC tool's one structured reading of a description, a file or a picture —
-    every list empty when the source does not state it; nothing completed from general knowledge."""
+    every list empty when the source does not state it; nothing completed from general knowledge. For a picture,
+    `picture_text` is what code checks every value against (the founder's ruling 2026-10-30)."""
+    picture_text: str = Field(default="", description="only when the source is a picture: every word written on it, "
+                                                       "exactly as written, in reading order; empty for a text source")
     is_process: bool = Field(description="true when the source describes a process: steps that turn inputs into outputs")
     suppliers: list[str] = Field(default_factory=list, description="who supplies what goes into the process")
     inputs: list[str] = Field(default_factory=list, description="what goes into the process (things)")
