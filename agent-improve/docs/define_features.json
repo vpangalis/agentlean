@@ -10489,7 +10489,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-352"
+    ]
    },
    "requirement": "R10",
    "belt_impact": "degraded",

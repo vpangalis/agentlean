@@ -9,7 +9,7 @@ files that may hold one.
     teaching   lookups, `propose_template`, `load_skill`, `read_upload`
     upload     `rag_lookup_evidence`, `load_evidence_series`, `read_upload`
     answer     `read_upload` only (ADR-0115, founder 2026-10-29) — else the structured reply (the response format
-               is not a tool in `request.tools`); at Define's element 12 also `read_sipoc` (ADR-0095 decision 4)
+               is not a tool in `request.tools`); at Define's element 12, here and on an upload turn, also `read_sipoc`
 
 The turn type is decided in code by the executor from the move and the phase state, never by a model,
 and recorded in `step_log` (`phases/nodes_common.py::turn_type_of`).
@@ -29,8 +29,9 @@ TOOLS_BY_TURN: dict[str, frozenset[str]] = {
 }
 
 
-#: R10 (ADR-0095 decision 4, DEF-296): the SIPOC tool, offered on an answer turn at Define's element 12 only — no other
-#: element's model call carries its schema.
+#: R10 (ADR-0095 decision 4, DEF-296): the SIPOC tool, offered on an answer or upload turn at Define's element 12 only —
+#: no other element's model call carries its schema. An upload turn there whose file the code read as a SIPOC calls no
+#: coach; one whose file is no process may carry the Belt's typed description (the run-through of 2026-10-30 10:24).
 SIPOC_FIELD, SIPOC_TOOL = "process_map_sipoc", "read_sipoc"
 
 
@@ -41,7 +42,7 @@ def _name(tool: Any) -> str:
 def offered(turn_type: str, tools: list[Any], focus: str | None = None) -> list[Any]:
     """The registered tools a turn of `turn_type` on the element `focus` may offer the model."""
     keep = TOOLS_BY_TURN.get(turn_type, frozenset()) | (
-        {SIPOC_TOOL} if turn_type == ANSWER and focus == SIPOC_FIELD else frozenset())
+        {SIPOC_TOOL} if turn_type in (ANSWER, UPLOAD) and focus == SIPOC_FIELD else frozenset())
     return [t for t in tools if _name(t) in keep]
 
 

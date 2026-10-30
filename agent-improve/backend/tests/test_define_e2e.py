@@ -12131,6 +12131,11 @@ def test_def_296_a_typed_description_at_element_12_is_asked_only_its_gaps(env, m
                      None: ["read_upload"]}, names
     assert "read_sipoc" not in [turn_tools._name(t) for t in turn_tools.offered(
         turn_tools.TEACHING, registered, "process_map_sipoc")]
+    # The run-through of 2026-10-30 10:24: an upload turn at element 12 (a file that is no process, the description
+    # typed) is told to call the tool first, so it is offered there too — and on no other element's upload turn.
+    upload_turn = {f: [turn_tools._name(t) for t in turn_tools.offered(turn_tools.UPLOAD, registered, f)]
+                   for f in ("process_map_sipoc", "team")}
+    assert "read_sipoc" in upload_turn["process_map_sipoc"] and "read_sipoc" not in upload_turn["team"], upload_turn
 
 
 def test_def_297_a_process_picture_is_read_in_one_call_with_its_true_type(env, monkeypatch, stub_planner) -> None:

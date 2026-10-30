@@ -4538,6 +4538,20 @@
     "C"
    ],
    "escape_class": "path_test"
+  },
+  {
+   "id": "G-352",
+   "symptom": "AT ELEMENT 12 AN UPLOAD TURN WAS TOLD TO CALL THE SIPOC TOOL, WHICH IT WAS NOT OFFERED. Run-through of 2026-10-30 10:24 (on a6aa8c9), turn 27: the walk uploads a data file at element 12 and types the SIPOC in the same turn; section 5 opened with SIPOC_TOOL_FIRST, but the turn was an upload turn and turn_tools offered read_sipoc on answer turns only, so the coach composed the read-back without the tool (3 calls). D4 OCCURRENCE: R10 step E put the line on every read-back and challenge at element 12, while step D offered the tool by turn type; an upload whose file is no process leaves the Belt's typed description to the coach. D4 ESCAPE (path_test): DEF-296's test drove answer turns only, and the live slices typed with no file. D5 FIX: the tool is offered on an upload turn at element 12 too (an upload the code read as a SIPOC calls no coach). D6 VERIFY: DEF-296's test checks the upload turn's offer at element 12 and not at element 2; live, a data file with the founder's SIPOC typed in the same turn: the coach called the tool (6 calls, 25.8 s), Confirm stored it. D7 PREVENT: DEF-296's test pins the offer on every turn type that carries section 5's line.",
+   "requirement": [
+    "R10"
+   ],
+   "feature": [
+    "DEF-296"
+   ],
+   "lane": [
+    "A"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {

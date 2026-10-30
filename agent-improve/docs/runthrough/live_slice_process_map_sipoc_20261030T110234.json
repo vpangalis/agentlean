@@ -1,0 +1,103 @@
+{
+ "kind": "live_slice",
+ "element": "process_map_sipoc",
+ "case_id": "IMPR-2026-QUH8G6",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "a839d3276e0fd393",
+ "seeded": [
+  "baseline_estimate",
+  "benefits_analysis",
+  "business_case",
+  "critical_to_quality",
+  "goal_statement",
+  "metric_definitions",
+  "problem_5w2h",
+  "problem_statement",
+  "project_scope",
+  "secondary_metrics",
+  "target_date",
+  "target_value",
+  "team",
+  "voc_summary"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "Suppliers: customers, field technicians, the spare-parts team. Inputs: the complaint by phone or e-mail, customer and device data, technician reports. Process: (1) log the complaint — about 15 minutes",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "process_map_sipoc",
+   "recorded_move": null,
+   "seconds": 25.8,
+   "failed": null,
+   "answer": "I've read your file ap_late_payments_jan_jun_2026.csv. Not a process description.\n\nThank you for providing the details of your process. Here is the SIPOC map based on your input:\n\nSuppliers: customers; field technicians; the spare-parts team\nInputs: the complaint by phone or e-mail; customer and device data; technician reports\nProcess steps:\n1. log the complaint (about 15 minutes)\n2. diagnose and ",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.24 s",
+    "input guard 1.89 s",
+    "planner judgment 5.31 s",
+    "coach 13.08 s",
+    "grader 2.14 s",
+    "after the answer (steps, save) 1.68 s",
+    "total 25.73 s"
+   ]
+  },
+  {
+   "n": 2,
+   "belt": "Confirm",
+   "action": "confirm",
+   "http": 200,
+   "move": "store_and_advance",
+   "move_field": "issues_and_barriers",
+   "recorded_move": null,
+   "seconds": 5.0,
+   "failed": null,
+   "answer": "High-level process (SIPOC, as-is) saved: 4 steps.\n\nElement 13 of 13 · Issues and barriers: What could get in the way — data, people, systems, time? If genuinely none, \"none identified at this stage\" is a fine answer, but have a think first.",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.42 s",
+    "input guard 1.56 s",
+    "after the answer (steps, save) 2.22 s",
+    "total 5.03 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 6,
+ "cost": {
+  "usd": 0.0425,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0415,
+   "gpt-4o-mini-2024-07-18": 0.001
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 23.63,
+  "calls": 68,
+  "case": {
+   "seconds": 0.6,
+   "calls": 7
+  },
+  "checkpoint": {
+   "seconds": 22.51,
+   "calls": 53
+  },
+  "store": {
+   "seconds": 0.52,
+   "calls": 8
+  }
+ },
+ "started": "20261030T110234"
+}
