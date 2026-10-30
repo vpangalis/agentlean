@@ -347,7 +347,7 @@
    "sentence": "- Never render a bare number or a bare code in anything a human reads:",
    "from": "agent-improve/CLAUDE.md",
    "class": "equivalent",
-   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md Reports — never a bare number or code"
+   "reason": "kept in other words, same strength: .claude/rules/reports.md (CLAUDE.md's Reports until v2.3.4) — never a bare number or code"
   },
   {
    "sentence": "It loads when you invoke it, which is when you are working a defect — the rules above bind always and are seven lines; the reference is thirty and was carried in every session that never opened it.",

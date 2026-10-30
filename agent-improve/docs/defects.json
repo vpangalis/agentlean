@@ -4589,6 +4589,6 @@
   "path_test": "founder ruling 2026-10-23 afternoon, item 1d: the Define eval set (DEF-142; scripts/define_evals.py, each task three times, every run must pass) and the live slice per package (DEF-253; scripts/live_slice.py) run the real path on live models",
   "join": "founder ruling 2026-10-23 afternoon, item 1d: one shared check function for the element check and the gate (G-244; parse.missing_parts called by rubric.py); one owner per rule follows in wave 2; backend/tests/test_one_owner.py pins one owner for the empty-value rule, the methodology phase filter and the clock (G-266, B2)",
   "assumption": "founder ruling 2026-10-23 afternoon, item 1d: the assumption rule in .claude/rules/planning.md — before coding a package, list its assumptions (framework, ADRs, repo rules), each probed by a test",
-  "claim": "founder ruling 2026-10-23 afternoon, item 1d: agent-improve/CLAUDE.md, Reports — every claim in a report carries its command and an output excerpt; a claim without them is marked unverified"
+  "claim": "founder ruling 2026-10-23 afternoon, item 1d: .claude/rules/reports.md (CLAUDE.md's Reports until v2.3.4) — every claim in a report carries its command and an output excerpt; a claim without them is marked unverified"
  }
 }

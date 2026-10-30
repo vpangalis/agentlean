@@ -14,7 +14,7 @@
 | **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
-| **CLAUDE.md** | v2.3.3 |
+| **CLAUDE.md** | v2.3.4 |
 | **Block regenerated** | 2026-10-30 |
 
 *Every figure comes from `docs/define_features.json` and

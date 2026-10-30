@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve: how to work here
-# Version 2.3.3 — October 2026
+# Version 2.3.4 — October 2026
 # Earlier versions, the why and the history: docs/_archive/CLAUDE_md_v2.2.46_2026-09-26.md
 
 DMAIC coaching agent (LangGraph, `create_agent` + middleware, Azure). **These rules win over
@@ -19,6 +19,7 @@ History and retired documents: `docs/_archive/`. Never cite them as current.
 
 - Use `agent-improve/.venv` only; the root venv is stale.
 - Live model calls: at most 150 per prompt, diagnosis included, unless it says otherwise; ask first.
+- A live slice uploads only `tests/fixtures/live/` files; `scripts/live_slice.py` refuses others.
 - **Never run `./start.ps1`**: it hard-resets to `origin/main` and discards uncommitted work.
 - `.claude/` sits one level up, so every `paths:` glob is `agent-improve/...`; the OneDrive
   mirror does not carry `.claude/` — resolve files through git, never a directory listing.
@@ -42,8 +43,7 @@ your lane and make its end-to-end test pass. Never edit a feature to say it pass
 
 ## Commit conventions
 
-- A feature lands as `refactor(arch-v2): DEF-xxx — <what changed>`; `chore(tooling):` names
-  no DEF id; anything else carries `Step: X.Y` or `Feature: DEF-xxx`. End with `Co-Authored-By:`.
+- A feature lands as `<type>(<area>): DEF-xxx — <what changed>`; end with `Co-Authored-By:`.
 - **Stage by name, in a command of its own**, then commit — the hooks test what is STAGED.
   Push once per package. Never `--no-verify`.
 - Scratch never enters the tree and is never evidence; a new file needs a step or feature
@@ -69,10 +69,3 @@ Guard rule 22 applies `deprecated_patterns.yaml` to every added line.
 
 ### 0.32 — The tree at HEAD is the only source of truth
 A claim about a file is made against that file at its repo path, read now — never a copy.
-
-## Reports
-
-A decision or explanation is a table or diagram with the full detail, never prose threaded with
-section numbers or a bare code ("6.20 — the write paths", never "6.20"). A claim about code
-quotes its lines (file, line).
-Every claim in a report carries its command and an output excerpt; a claim without them is marked unverified. Every report ends with its timing line from `.claude/logs/timing.jsonl`.
