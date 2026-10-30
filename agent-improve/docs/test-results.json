@@ -1,9 +1,9 @@
 {
- "source_hash": "430401b53b06e602",
- "commit": "95f8d6e",
+ "source_hash": "15572da97069ecda",
+ "commit": "a6aa8c9",
  "commit_matches_source": false,
  "full_run_hash": "be9e57a8859bda27",
- "recorded_at": "2026-10-30T10:09:56+00:00",
+ "recorded_at": "2026-10-30T10:58:01+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1914,6 +1914,7 @@
   "backend/tests/test_uploads.py::test_docx_prose_parses_when_there_is_no_table": "passed",
   "backend/tests/test_uploads.py::test_docx_table_parses_to_columns_and_rows": "passed",
   "backend/tests/test_uploads.py::test_every_supported_non_image_type_has_a_parser": "passed",
+  "backend/tests/test_uploads.py::test_g351_every_schema_an_upload_reading_binds_is_valid_for_strict_structured_output": "passed",
   "backend/tests/test_uploads.py::test_is_supported_no_longer_claims_formats_with_no_extractor": "passed",
   "backend/tests/test_uploads.py::test_no_shape_hardcodes_a_unit": "passed",
   "backend/tests/test_uploads.py::test_pdf_with_text_parses_rather_than_being_dropped": "passed",

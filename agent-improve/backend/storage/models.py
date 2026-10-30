@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal, Optional, Any
 
 from pydantic import BaseModel, Field, PrivateAttr
+from pydantic.json_schema import SkipJsonSchema
 
 from backend.core.citations import CitationRecord
 from backend.core.clock import utc_now
@@ -104,7 +105,9 @@ class UploadInterpretation(BaseModel):
     #: R10 (ADR-0095, DEF-295): a file at Define's element 12 is read by the SIPOC tool as its one reading —
     #: {read, is_process, draft, gaps, checks, reply} (`knowledge/sipoc.read_sipoc`). The draft is what the upload
     #: turn reads back and a Confirm stores. None on every other upload and on every record before schema 17.
-    sipoc: Optional[dict[str, Any]] = None
+    #: G-351: written by code, never by the model — left out of the JSON schema the interpretation call binds, whose
+    #: strict structured output refuses an open object (every other upload's interpretation failed with it there).
+    sipoc: SkipJsonSchema[Optional[dict[str, Any]]] = None
 
 
 class ImageSipoc(BaseModel):

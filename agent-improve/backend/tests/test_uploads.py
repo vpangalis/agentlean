@@ -615,3 +615,35 @@ def test_the_entry_shape_carries_what_6_13_backfills_from():
     for key in ("role", "shape_match", "content_digest", "blob_path",
                 "consumed_at"):
         assert key in entry, f"6.13's backfill needs {key}"
+
+
+def test_g351_every_schema_an_upload_reading_binds_is_valid_for_strict_structured_output() -> None:
+    """G-351 (found by the run-through of 2026-10-30 10:24, scenario (e)): R10 step C added `sipoc` — an open
+    dict[str, Any] — to `UploadInterpretation`, the schema the interpretation call binds; the provider's strict
+    structured output refused it ("'additionalProperties' is required to be supplied and to be false"), and every
+    upload outside element 12 fell back to "INTERPRETATION UNAVAILABLE". The fallback hid it from every offline test.
+    Read with the OpenAI SDK's own converter, as the deployment receives it: no schema an upload's model call binds
+    holds an open object, and the code-written reading stays on the record, out of the schema."""
+    import json
+
+    from openai.lib._pydantic import to_strict_json_schema
+
+    from backend.phases.define.schema import SipocReading
+    from backend.storage.models import ImageRead, UploadInterpretation
+
+    def open_objects(node: object, path: str = "$") -> list[str]:
+        found: list[str] = []
+        if isinstance(node, dict):
+            if node.get("type") == "object" and node.get("additionalProperties") is not False:
+                found.append(path)
+            for key, value in node.items():
+                found += open_objects(value, f"{path}.{key}")
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                found += open_objects(value, f"{path}[{i}]")
+        return found
+    for schema in (UploadInterpretation, ImageRead, SipocReading):
+        assert open_objects(to_strict_json_schema(schema)) == [], schema.__name__
+    assert '"sipoc"' not in json.dumps(to_strict_json_schema(UploadInterpretation))
+    kept = UploadInterpretation(summary="A process map of 4 steps.", sipoc={"read": True, "is_process": True})
+    assert UploadInterpretation.model_validate(kept.model_dump()).sipoc == {"read": True, "is_process": True}

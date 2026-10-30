@@ -1,0 +1,70 @@
+{
+ "kind": "live_slice",
+ "element": "team",
+ "case_id": "IMPR-2026-5PYZFA",
+ "from_record": "IMPR-2026-PDLWG9",
+ "messages": "messages.json",
+ "recorded_product_hash": null,
+ "product_hash": "0893d8d19aa0fed8",
+ "seeded": [
+  "business_case"
+ ],
+ "turns": [
+  {
+   "n": 1,
+   "belt": "📎 team_field_service.csv",
+   "action": null,
+   "http": 200,
+   "move": "read_back",
+   "move_field": "team",
+   "recorded_move": null,
+   "seconds": 11.4,
+   "failed": null,
+   "answer": "I've read your file team_field_service.csv. For Team it shows: names a champion (sponsor) by name; names the process owner by name; each person has a name, a role and a function. It covers everything Team asks for.\n\nHere is the team composition you provided. Please review it and confirm if it is correct:\n\n- Katharina Huber | Role: Project Sponsor | Department: Head of Field Service Austria | Time ",
+   "asks_to_send_again": false,
+   "steps": [
+    "before the graph 0.28 s",
+    "input guard 1.36 s",
+    "coach 5.98 s",
+    "grader 1.55 s",
+    "after the answer (steps, save) 1.11 s",
+    "total 11.33 s"
+   ]
+  }
+ ],
+ "checks": {
+  "every message was sent": true,
+  "no turn was discarded (HTTP 200, not failed)": true,
+  "no reply asks the Belt to send again": true,
+  "every turn logged its steps": true
+ },
+ "passed": true,
+ "model_calls": 3,
+ "cost": {
+  "usd": 0.0163,
+  "by_model": {
+   "gpt-4o-2024-11-20": 0.0155,
+   "gpt-4o-mini-2024-07-18": 0.0008
+  },
+  "ceiling_usd": 1.5,
+  "within_ceiling": true,
+  "prices_taken": "2026-09-30"
+ },
+ "storage": {
+  "seconds": 10.41,
+  "calls": 37,
+  "case": {
+   "seconds": 0.35,
+   "calls": 4
+  },
+  "checkpoint": {
+   "seconds": 9.79,
+   "calls": 28
+  },
+  "store": {
+   "seconds": 0.27,
+   "calls": 5
+  }
+ },
+ "started": "20261030T104707"
+}

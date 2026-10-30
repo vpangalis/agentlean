@@ -4524,6 +4524,20 @@
    ],
    "escape_class": "assumption",
    "control": "backend/tests/test_runthrough_inputs.py::test_g350_scenario_c_puts_its_deadline_on_an_answer_turn; scenario (c) checks the opening was taught before it narrows the limit"
+  },
+  {
+   "id": "G-351",
+   "symptom": "EVERY UPLOAD OUTSIDE ELEMENT 12 READ 'INTERPRETATION UNAVAILABLE' SINCE R10 STEP C (44585a4, pushed 2026-10-30). Run-through of 2026-10-30 10:24 (on a6aa8c9), scenario (e): the team file's upload turn showed the fallback; the log: Error code 400, \"Invalid schema for response_format 'UploadInterpretation': In context=('properties', 'sipoc', 'anyOf', '0'), 'additionalProperties' is required to be supplied and to be false\". D4 OCCURRENCE: step C added `sipoc: Optional[dict[str, Any]]` — the SIPOC tool's code-written reading — to UploadInterpretation, which is also the schema the interpretation call binds with strict structured output; an open object is refused there. D4 ESCAPE (path_test): every offline test fakes the model, so the schema never reached a strict converter; the fallback is a soft failure, so the upload still 'landed'; step C's live slices uploaded only at element 12, whose reading binds SipocReading, not UploadInterpretation. D5 FIX: the field stays on the record but leaves the JSON schema (pydantic SkipJsonSchema) — the model never writes it. D6 VERIFY: test_g351 (new) reads every schema an upload's model call binds through the OpenAI SDK's own strict converter; a live slice of the founder's team file at element 2 is interpreted again; the re-run's scenario (e). D7 PREVENT: backend/tests/test_uploads.py::test_g351_every_schema_an_upload_reading_binds_is_valid_for_strict_structured_output — no open object in any schema an upload's model call binds, read as the deployment receives it.",
+   "requirement": [
+    "R10"
+   ],
+   "feature": [
+    "DEF-295"
+   ],
+   "lane": [
+    "C"
+   ],
+   "escape_class": "path_test"
   }
  ],
  "escape_controls": {
