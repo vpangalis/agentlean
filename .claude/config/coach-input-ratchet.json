@@ -1,6 +1,12 @@
 {
- "_rule": "Founder rulings 2026-10-27, item 10 and ADR-0111 D7 (b): the coach's input tokens per call in a live Define run-through (the record's summary.tokens.by_role[\"coach\"] input_tokens / calls) may fall, never rise above this figure + the allowance, rounded down — scripts/define_runthrough.py lowers the figure when a complete run falls below it, test_define_runthrough.py refuses a record above the ceiling, and the figure is never edited upward.",
- "coach_input_tokens_per_call": 6214,
+ "_rule": "Founder rulings 2026-10-27, item 10 and ADR-0111 D7 (b), split by the founder's ruling 2026-10-30 (item 2: \"re-base on this run, but split it into two ceilings — read-back calls and question calls — each at this run's value +5%\"): the coach's input tokens per call of each kind in a live Define run-through (the record's summary.tokens.by_coach_class, input_tokens / calls; a coach call is a read-back call when its move is READ BACK, else a question call) may fall, never rise above its figure + the allowance, rounded down. scripts/define_runthrough.py sets a kind's figure from a complete run while it has none (the re-base) and lowers it when a complete run falls below it; test_run_records.py refuses a record above a ceiling; a figure is never edited upward. Before the split, one figure held every coach call: 6,214 (define_runthrough_20261027T140847).",
+ "input_tokens_per_call": {
+  "read_back": 6500,
+  "question": 8167
+ },
  "allowance": 0.05,
- "measured_on": "define_runthrough_20261027T140847"
+ "measured_on": {
+  "read_back": "define_runthrough_20261030T073728",
+  "question": "define_runthrough_20261030T073728"
+ }
 }

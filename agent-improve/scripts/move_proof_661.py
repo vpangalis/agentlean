@@ -62,6 +62,16 @@ class CapReached(RuntimeError):
 
 CALLS: list[dict[str, Any]] = []
 COACH_INPUTS: list[list[dict[str, Any]]] = []
+#: Founder ruling 2026-10-30 (the coach-input ratchet, two ceilings): a coach call is a read-back call when the move
+#: code gave it in its section 5 is READ BACK (`prompts`' move lines); every other coach call is a question call.
+READ_BACK_MOVE = "MOVE: READ BACK "
+
+
+def coach_class(system_text: str) -> str:
+    """The kind of coach call, from the move its system prompt carries: "read_back" or "question"."""
+    return "read_back" if READ_BACK_MOVE in system_text else "question"
+
+
 #: G-232 (owner G-220 "Checkpoint weight") — every storage call a run makes: {"kind", "op", "seconds"}.
 STORAGE: list[dict[str, Any]] = []
 
@@ -190,6 +200,7 @@ def _count_model_calls(cap: int) -> None:
         call = {"kind": kind, "at": dt.datetime.now(dt.timezone.utc).isoformat()}
         CALLS.append(call)
         if kind == "coach":
+            call["coach_class"] = coach_class(text)
             COACH_INPUTS.append([_serialise(m) for m in first])
         result = await original(self, messages, *args, **kwargs)
         call.update(_usage(self, result))
@@ -243,8 +254,9 @@ _TOKEN_KEYS = ("input_tokens", "cached_input_tokens", "output_tokens")
 
 def token_totals(calls: list[dict[str, Any]]) -> dict[str, Any]:
     """The run's tokens per role, per model and in total (item 4), with the input tokens served from the
-    provider's prompt cache beside the input tokens (ADR-0111 D7 (a)). A call recorded before the cache was
-    counted adds 0 to it."""
+    provider's prompt cache beside the input tokens (ADR-0111 D7 (a)), and the coach's calls per kind
+    (`by_coach_class`: read-back and question calls, founder ruling 2026-10-30). A call recorded before the cache
+    was counted adds 0 to it."""
     def empty() -> dict[str, int]:
         return {"calls": 0, **{k: 0 for k in _TOKEN_KEYS}}
 
@@ -255,12 +267,16 @@ def token_totals(calls: list[dict[str, Any]]) -> dict[str, Any]:
             b[k] += int(c.get(k) or 0)
     by_role: dict[str, dict] = {}
     by_model: dict[str, dict] = {}
+    by_class: dict[str, dict] = {}
     total: dict[str, dict] = {}
     for c in calls:
         add(by_role, c.get("kind", "other"), c)
         add(by_model, c.get("model", "?"), c)
+        if c.get("kind") == "coach" and c.get("coach_class"):
+            add(by_class, c["coach_class"], c)
         add(total, "total", c)
-    return {"by_role": by_role, "by_model": by_model, "total": total.get("total", empty())}
+    return {"by_role": by_role, "by_model": by_model, "by_coach_class": by_class,
+            "total": total.get("total", empty())}
 
 
 def _write(path: Path, record: dict) -> None:

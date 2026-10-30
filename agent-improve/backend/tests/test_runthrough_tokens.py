@@ -69,3 +69,34 @@ def test_the_cached_input_is_read_where_langchain_openai_puts_the_providers_cach
     old = [{"kind": "coach", "model": "m", "input_tokens": 6800, "output_tokens": 250}]
     assert mp.token_totals(old)["by_role"]["coach"] == {"calls": 1, "input_tokens": 6800, "cached_input_tokens": 0,
                                                         "output_tokens": 250}
+
+
+def test_each_coach_call_is_counted_as_a_read_back_or_a_question_call(monkeypatch) -> None:
+    """Founder ruling 2026-10-30 (the coach-input ratchet, two ceilings): a coach call is a read-back call when the
+    move code gave it in section 5 is READ BACK — the verbatim and the composed read-back — and a question call
+    for every other move, `respond_pending`'s repeated read-back included (it answers a question first). The run
+    totals the coach's tokens per kind (`by_coach_class`); a call of another role is in neither."""
+    from backend.core.prompts import MOVE_INSTRUCTIONS
+    read_backs = {k for k in MOVE_INSTRUCTIONS if mp.coach_class(MOVE_INSTRUCTIONS[k]) == "read_back"}
+    assert read_backs == {"read_back_verbatim", "read_back_composed"}, read_backs
+    assert mp.coach_class("") == "question"
+
+    from langchain_core.language_models.chat_models import BaseChatModel
+    monkeypatch.setattr(BaseChatModel, "agenerate", BaseChatModel.agenerate)   # restored after
+    monkeypatch.setattr(mp, "CALLS", [])
+    monkeypatch.setattr(mp, "COACH_INPUTS", [])
+    mp._count_model_calls(cap=10)
+
+    def reply(n: int) -> AIMessage:
+        return AIMessage(content="ok", usage_metadata={"input_tokens": n, "output_tokens": 10, "total_tokens": n + 10},
+                         response_metadata={"model_name": "gpt-4o-2024-11-20"})
+    model = GenericFakeChatModel(messages=iter([reply(9000), reply(7000), reply(5000), reply(1500)]))
+    rules = "## 1 · COACHING RULES — how to behave\n## 5 · THIS TURN'S MOVE\n"
+    for text in (rules + MOVE_INSTRUCTIONS["read_back_composed"], rules + MOVE_INSTRUCTIONS["read_back_verbatim"],
+                 rules + MOVE_INSTRUCTIONS["challenge"], "You judge ONE thing"):
+        asyncio.run(model.ainvoke([SystemMessage(content=text), HumanMessage(content="hi")]))
+    assert [c.get("coach_class") for c in mp.CALLS] == ["read_back", "read_back", "question", None]
+    by_class = mp.token_totals(mp.CALLS)["by_coach_class"]
+    assert by_class["read_back"] == {"calls": 2, "input_tokens": 16000, "cached_input_tokens": 0, "output_tokens": 20}
+    assert by_class["question"] == {"calls": 1, "input_tokens": 5000, "cached_input_tokens": 0, "output_tokens": 10}
+    assert set(by_class) == {"read_back", "question"}

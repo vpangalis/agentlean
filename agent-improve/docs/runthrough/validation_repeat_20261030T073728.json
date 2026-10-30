@@ -1,0 +1,89 @@
+{
+ "kind": "validation_repeat",
+ "requirement": "R3",
+ "runs_per_case": 5,
+ "product_hash": "f011a0895eaf2acd",
+ "at": "2026-10-30T07:37:28+00:00",
+ "runs": [
+  {
+   "case": "proposes-a-solution",
+   "run": 1,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 2,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 3,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 4,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "proposes-a-solution",
+   "run": 5,
+   "verdict": "insufficient",
+   "move": "challenge",
+   "failed_criterion": "no-cause-no-fix",
+   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 1,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's latest message provides all required elements for the business case field, meeting the acceptance criteria."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 2,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's answer provides all required elements for the business case, including the issue, location and timeframe, baseline, and cost."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 3,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's latest message provides all required elements for the business case field, meeting the acceptance criteria."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 4,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's answer provides all required elements for the business case field, including what is wrong, where and since when, the baseline, and the cost."
+  },
+  {
+   "case": "all-five-elements",
+   "run": 5,
+   "verdict": "sufficient",
+   "move": "read_back",
+   "failed_criterion": null,
+   "reason": "The Belt's latest message provides all required elements for the business case field, meeting the acceptance criteria."
+  }
+ ]
+}
