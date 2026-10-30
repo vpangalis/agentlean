@@ -425,7 +425,7 @@ def test_a_live_slice_uploads_only_test_fixtures(tmp_path) -> None:
     inside = live_slice.LIVE_FIXTURES / "team_field_service_walk.csv"
     turns = live_slice.scripted_turns([{"upload": str(inside)}, {"message": "Confirm", "action": "confirm"}])
     assert turns[0]["upload"] == str(inside.resolve()) and turns[0]["belt"] == "📎 team_field_service_walk.csv"
-    outside = tmp_path / "brownpaper_photo.jpg"
+    outside = tmp_path / "fixture_photo.jpg"
     outside.write_bytes(b"JPEG")
     for path in (outside, live_slice.LIVE_FIXTURES / ".." / "elsewhere.csv", "C:/customer/workflow.png"):
         with pytest.raises(SystemExit) as refused:
