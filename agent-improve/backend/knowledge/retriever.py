@@ -24,7 +24,6 @@ from azure.search.documents.indexes.models import (
     SimpleField,
 )
 from azure.search.documents.models import VectorizedQuery
-from dotenv import load_dotenv
 from backend.core.tracing import child_span, child_trace
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings
@@ -37,7 +36,7 @@ from openai import (
 )
 from openai import AuthenticationError as OpenAIAuthenticationError
 
-from backend.core.config import settings
+from backend.core.config import load_root_env, settings
 from backend.storage import layout
 from backend.core.errors import AgentImproveError, KnowledgeSearchError
 from backend.core.llm import build_embeddings
@@ -257,8 +256,8 @@ def close_clients() -> None:
 @child_span(run_type="chain", name="retriever.get_embeddings")
 def get_embeddings() -> AzureOpenAIEmbeddings:
     """The cached embeddings client — text-embedding-3-large, built by core/llm.build_embeddings from the
-    environment (load_dotenv first, as the search clients do)."""
-    load_dotenv(override=True)
+    environment (the root .env loaded first, as the search clients do)."""
+    load_root_env()
     return build_embeddings()
 
 

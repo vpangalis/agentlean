@@ -31,9 +31,9 @@ def init_tracing() -> None:
     """
     Initialise LangSmith tracing at app startup.
 
-    Reads settings.LANGCHAIN_API_KEY and settings.LANGCHAIN_PROJECT.
-    Sets the LANGCHAIN_TRACING_V2 environment variable to "true"
-    so all LangChain / LangGraph calls are traced.
+    Reads settings.LANGSMITH_API_KEY, LANGSMITH_PROJECT and LANGSMITH_ENDPOINT — LangSmith's own names, the
+    only spelling (founder ruling 2026-10-31). Sets LANGSMITH_TRACING to "true" so all LangChain / LangGraph
+    calls are traced: tracing is mandatory, so a key turns it on whatever LANGSMITH_TRACING said.
 
     In production (settings.ENVIRONMENT == "production"), missing
     credentials raise RuntimeError. In development, missing
@@ -41,31 +41,31 @@ def init_tracing() -> None:
 
     Called once from app.py at FastAPI startup.
     """
-    api_key = (settings.LANGCHAIN_API_KEY or "").strip()
-    project = (settings.LANGCHAIN_PROJECT or "agentlean-improve").strip()
+    api_key = (settings.LANGSMITH_API_KEY or "").strip()
+    project = (settings.LANGSMITH_PROJECT or "agentlean-improve").strip()
     environment = (getattr(settings, "ENVIRONMENT", "development") or "").lower()
 
     if not api_key:
         message = (
             "LangSmith tracing is not configured. "
-            "Set LANGCHAIN_API_KEY in the environment. "
+            "Set LANGSMITH_API_KEY in the environment. "
             "Per CLAUDE.md §1.8 and §9 this is required."
         )
         if environment == "production":
             raise RuntimeError(message)
         logger.warning("%s Tracing disabled for this run (non-production).", message)
         # Explicitly disable tracing so partial config doesn't leak
-        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+        os.environ["LANGSMITH_TRACING"] = "false"
         return
 
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGCHAIN_API_KEY"] = api_key
-    os.environ["LANGCHAIN_PROJECT"] = project
+    os.environ["LANGSMITH_TRACING"] = "true"
+    os.environ["LANGSMITH_API_KEY"] = api_key
+    os.environ["LANGSMITH_PROJECT"] = project
 
     # Endpoint default is LangSmith Cloud; allow override
-    endpoint = getattr(settings, "LANGCHAIN_ENDPOINT", "") or ""
+    endpoint = getattr(settings, "LANGSMITH_ENDPOINT", "") or ""
     if endpoint:
-        os.environ["LANGCHAIN_ENDPOINT"] = endpoint
+        os.environ["LANGSMITH_ENDPOINT"] = endpoint
 
     logger.info(
         "LangSmith tracing enabled. project=%s endpoint=%s",
@@ -79,7 +79,7 @@ def tracing_enabled() -> bool:
     Return True if tracing is currently enabled for this process.
     Useful for diagnostics and health checks.
     """
-    return os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true"
+    return os.environ.get("LANGSMITH_TRACING", "").lower() == "true"
 
 
 # ── child-only spans — gap G-95 ──────────────────────────────────────────

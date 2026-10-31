@@ -550,8 +550,8 @@ def traced_turn(client: Any, case_id: str) -> dict[str, Any]:
         setattr(Client, method, fn)
     for name in ("LANGCHAIN_TRACING_V2", "LANGSMITH_TRACING_V2", "LANGSMITH_TRACING", "LANGCHAIN_TRACING"):
         os.environ[name] = "true"
-    os.environ.setdefault("LANGCHAIN_API_KEY", settings.LANGCHAIN_API_KEY or "")
-    os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT or "agentlean-improve"
+    os.environ.setdefault("LANGSMITH_API_KEY", settings.LANGSMITH_API_KEY or "")
+    os.environ["LANGSMITH_PROJECT"] = settings.LANGSMITH_PROJECT or "agentlean-improve"
     getattr(ls_utils.get_env_var, "cache_clear")()
     configure(enabled=True)
     inputs_before = _parent_inputs(case_id)

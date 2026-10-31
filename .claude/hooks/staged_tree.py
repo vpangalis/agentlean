@@ -11,7 +11,7 @@ OneDrive, and sets it to exactly what the commit will contain:
     files     that same tree, and nothing else  (`git clean` removes strays)
 
 plus the two ignored inputs the suite needs: a junction to the pinned venv and
-a copy of `agent-improve/.env`. The developer's working tree is never touched —
+a copy of the repository root's `.env`. The developer's working tree is never touched —
 no stash, no checkout — which is why this is a second worktree and not the
 classic stash-and-restore.
 
@@ -106,9 +106,9 @@ def sync(root: Path = ROOT, tree: str | None = None) -> Path:
     # Strays a previous tree left (never the ignored inputs: .env, the venv junction).
     _git(["clean", "-fdq"], wt, env)
     _link_venv(wt, root)
-    src_env = root / PROJECT / ".env"
+    src_env = root / ".env"                         # the one .env, at the repository root (founder 2026-10-31)
     if src_env.is_file():
-        shutil.copyfile(src_env, wt / PROJECT / ".env")
+        shutil.copyfile(src_env, wt / ".env")
     return wt
 
 

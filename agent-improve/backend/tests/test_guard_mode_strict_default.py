@@ -20,7 +20,7 @@ def test_nothing_in_the_set_up_sets_development_mode() -> None:
     hits = [str(p.relative_to(_REPO)) for p in SET_UP
             if p.is_file() and _SETS_DEVELOPMENT.search(p.read_text(encoding="utf-8", errors="replace"))]
     assert hits == [], hits
-    env = _PROJECT / ".env"
+    env = _REPO / ".env"                             # the one .env, at the repository root
     if env.is_file():
         assert not re.search(r"^\s*GUARD_MODE\s*=\s*development", env.read_text(encoding="utf-8"), re.M | re.I)
 

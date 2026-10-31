@@ -225,11 +225,11 @@ def _all_subgraph_finals(cp, case_id: str = CASE_ID) -> list[dict]:
 def _langsmith():
     """A LangSmith client and project, or the reason there is none."""
     from backend.core.config import settings
-    key = (settings.LANGCHAIN_API_KEY or "").strip()
+    key = (settings.LANGSMITH_API_KEY or "").strip()
     if not key:
-        return None, None, "no LANGSMITH_API_KEY / LANGCHAIN_API_KEY in this environment"
+        return None, None, "no LANGSMITH_API_KEY in this environment"
     from langsmith import Client
-    return Client(api_key=key), settings.LANGCHAIN_PROJECT, None
+    return Client(api_key=key), settings.LANGSMITH_PROJECT, None
 
 
 def _thread_filter() -> str:

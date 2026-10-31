@@ -16,14 +16,13 @@ from functools import lru_cache
 from typing import Any
 
 import openai
-from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from backend.core.tracing import child_span
 
-from backend.core.config import settings
+from backend.core.config import load_root_env, settings
 
-load_dotenv(override=True)  # MUST use override=True — project requirement
+load_root_env()  # the repository root's .env, override=True — project requirement
 
 # G-194: AzureChatOpenAI._create_chat_result (langchain-openai 1.1.11, chat_models/azure.py) dumps
 # the raw response to look for a content-filter stop, `parsed` included — and the SDK types that field None, so
@@ -46,13 +45,13 @@ quiet_parsed_field_warning()
 # ── The two deployment tiers ──────────────────────────────────────────────
 #
 # Two deployment tiers, addressed by role. Two, not three: `intent` is on the
-# operational tier with the other cheap roles, so the LLM_INTENT_DEPLOYMENT
+# operational tier with the other cheap roles, so the AZURE_OPENAI_INTENT_DEPLOYMENT
 # setting in config.py is not read here.
 #
 # Model tiering is a COST rule, not a style preference: gpt-4o-mini is roughly
 # 15x cheaper, so only genuinely premium work is addressed to the premium tier.
-PREMIUM_TIER = settings.LLM_PREMIUM_DEPLOYMENT       # operational-premium, gpt-4o
-OPERATIONAL_TIER = settings.LLM_REASONING_DEPLOYMENT  # operational-model, gpt-4o-mini
+PREMIUM_TIER = settings.AZURE_OPENAI_PREMIUM_DEPLOYMENT          # operational-premium, gpt-4o
+OPERATIONAL_TIER = settings.AZURE_OPENAI_OPERATIONAL_DEPLOYMENT  # operational-model, gpt-4o-mini
 
 
 # ── The twelve roles ──────────────────────────────────────────────────────

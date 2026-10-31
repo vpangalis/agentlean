@@ -2,9 +2,23 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import Optional
 
+import dotenv
 from pydantic.v1 import BaseSettings, Field
+
+#: ONE .env for the platform, at the repository root (founder ruling 2026-10-31): Agent Improve's settings under
+#: their own names, Agent Resolve's legacy block beside them. `backend/core/config.py` → core, backend,
+#: agent-improve, the repository.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+ENV_FILE = REPO_ROOT / ".env"
+
+
+def load_root_env() -> bool:
+    """The one place Agent Improve loads its environment: the repository root's `.env`, overriding the process
+    (`override=True`, the project's rule). Called through the `dotenv` module so a test that stubs it stubs this."""
+    return dotenv.load_dotenv(ENV_FILE, override=True)
 
 #: The methodology index the coach reads when `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`
 #: is unset — the CURRENT one: the BB-eBook-only rebuild (1,184 docs). The index it
@@ -38,17 +52,18 @@ class Settings(BaseSettings):
         description="Azure OpenAI API version.",
     )
 
-    LLM_INTENT_DEPLOYMENT: str = Field(
+    # One name per deployment (founder ruling 2026-10-31): each setting is the variable it reads.
+    AZURE_OPENAI_INTENT_DEPLOYMENT: str = Field(
         "intent-model",
         env="AZURE_OPENAI_INTENT_DEPLOYMENT",
         description="Azure deployment for fast/cheap intent classification and routing.",
     )
-    LLM_REASONING_DEPLOYMENT: str = Field(
+    AZURE_OPENAI_OPERATIONAL_DEPLOYMENT: str = Field(
         "operational-model",
         env="AZURE_OPENAI_OPERATIONAL_DEPLOYMENT",
         description="Azure deployment for operational reasoning and phase extraction.",
     )
-    LLM_PREMIUM_DEPLOYMENT: str = Field(
+    AZURE_OPENAI_PREMIUM_DEPLOYMENT: str = Field(
         "operational-premium",
         env="AZURE_OPENAI_PREMIUM_DEPLOYMENT",
         description="Azure deployment for premium reasoning and reflection.",
@@ -140,29 +155,25 @@ class Settings(BaseSettings):
         description="Logging level for the Agent Improve backend.",
     )
 
+    # Tracing under LangSmith's own names only (founder ruling 2026-10-31) — no LANGCHAIN_* spelling is read.
+    LANGSMITH_TRACING: str = Field(
+        "true",
+        env="LANGSMITH_TRACING",
+        description="LangSmith tracing switch; tracing is mandatory, so init_tracing turns it on whenever a key is set.",
+    )
     LANGSMITH_API_KEY: Optional[str] = Field(
         None,
         env="LANGSMITH_API_KEY",
         description="LangSmith API key for tracing.",
     )
-    LANGSMITH_PROJECT: Optional[str] = Field(
-        None,
+    LANGSMITH_PROJECT: str = Field(
+        "agentlean-improve",
         env="LANGSMITH_PROJECT",
         description="LangSmith project name for tracing.",
     )
-    LANGCHAIN_API_KEY: Optional[str] = Field(
+    LANGSMITH_ENDPOINT: Optional[str] = Field(
         None,
-        env="LANGCHAIN_API_KEY",
-        description="LangChain/LangSmith API key for tracing (CLAUDE.md §1.8).",
-    )
-    LANGCHAIN_PROJECT: str = Field(
-        "agentlean-improve",
-        env="LANGCHAIN_PROJECT",
-        description="LangSmith project name for tracing (CLAUDE.md §9).",
-    )
-    LANGCHAIN_ENDPOINT: Optional[str] = Field(
-        None,
-        env="LANGCHAIN_ENDPOINT",
+        env="LANGSMITH_ENDPOINT",
         description="LangSmith endpoint override; default is LangSmith Cloud.",
     )
     ENVIRONMENT: str = Field(
@@ -187,20 +198,18 @@ class Settings(BaseSettings):
     )
 
     class Config(BaseSettings.Config):
-        env_file = ".env"
+        env_file = str(ENV_FILE)
 
 
-from dotenv import load_dotenv
-
-load_dotenv(override=True)
+load_root_env()
 
 settings = Settings(
     AZURE_OPENAI_ENDPOINT=os.getenv("AZURE_OPENAI_ENDPOINT", ""),
     AZURE_OPENAI_API_KEY=os.getenv("AZURE_OPENAI_API_KEY", ""),
     AZURE_OPENAI_API_VERSION=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-    LLM_INTENT_DEPLOYMENT=os.getenv("AZURE_OPENAI_INTENT_DEPLOYMENT", "intent-model"),
-    LLM_REASONING_DEPLOYMENT=os.getenv("AZURE_OPENAI_OPERATIONAL_DEPLOYMENT", "operational-model"),
-    LLM_PREMIUM_DEPLOYMENT=os.getenv("AZURE_OPENAI_PREMIUM_DEPLOYMENT", "operational-premium"),
+    AZURE_OPENAI_INTENT_DEPLOYMENT=os.getenv("AZURE_OPENAI_INTENT_DEPLOYMENT", "intent-model"),
+    AZURE_OPENAI_OPERATIONAL_DEPLOYMENT=os.getenv("AZURE_OPENAI_OPERATIONAL_DEPLOYMENT", "operational-model"),
+    AZURE_OPENAI_PREMIUM_DEPLOYMENT=os.getenv("AZURE_OPENAI_PREMIUM_DEPLOYMENT", "operational-premium"),
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-large"),
     AZURE_SEARCH_ENDPOINT=os.getenv("AZURE_SEARCH_ENDPOINT", ""),
     AZURE_SEARCH_API_KEY=os.getenv("AZURE_SEARCH_API_KEY", ""),
@@ -217,11 +226,10 @@ settings = Settings(
     GATE_MAX_ATTEMPTS=int(os.getenv("GATE_MAX_ATTEMPTS", "3")),
     SESSION_SECRET=os.getenv("SESSION_SECRET", ""),
     LOG_LEVEL=os.getenv("LOG_LEVEL", "INFO"),
+    LANGSMITH_TRACING=os.getenv("LANGSMITH_TRACING", "true"),
     LANGSMITH_API_KEY=os.getenv("LANGSMITH_API_KEY"),
-    LANGSMITH_PROJECT=os.getenv("LANGSMITH_PROJECT"),
-    LANGCHAIN_API_KEY=os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY"),
-    LANGCHAIN_PROJECT=os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "agentlean-improve",
-    LANGCHAIN_ENDPOINT=os.getenv("LANGCHAIN_ENDPOINT"),
+    LANGSMITH_PROJECT=os.getenv("LANGSMITH_PROJECT") or "agentlean-improve",
+    LANGSMITH_ENDPOINT=os.getenv("LANGSMITH_ENDPOINT"),
     ENVIRONMENT=os.getenv("ENVIRONMENT", "development"),
     GUARD_MODE=os.getenv("GUARD_MODE", "strict"),
     CONTENT_SAFETY_ENDPOINT=os.getenv("CONTENT_SAFETY_ENDPOINT"),
@@ -255,8 +263,9 @@ def check_credentials() -> None:
     missing = missing_credentials()
     if missing:
         print("Agent Improve cannot start — required credential(s) missing: " + ", ".join(missing)
-              + ". Set them in agent-improve/.env or the environment.", file=sys.stderr)
+              + ". Set them in the repository root's .env or the environment.", file=sys.stderr)
         raise SystemExit(1)
 
 
-__all__ = ["Settings", "settings", "REQUIRED_CREDENTIALS", "missing_credentials", "check_credentials"]
+__all__ = ["Settings", "settings", "REQUIRED_CREDENTIALS", "missing_credentials", "check_credentials", "REPO_ROOT",
+           "ENV_FILE", "load_root_env"]

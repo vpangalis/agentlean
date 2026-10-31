@@ -439,16 +439,14 @@ def test_the_knowledge_index_default_is_the_current_index_never_the_retired_one(
     assert fresh.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX == "improve_knowledge_index_v3"
 
 
-def test_the_example_env_names_the_same_knowledge_index_as_the_default() -> None:
-    import pathlib
-
+def test_the_example_env_names_the_knowledge_index_variable() -> None:
+    """The one example, at the repository root, carries names only (founder ruling 2026-10-31); the default it
+    leaves to the code is `KNOWLEDGE_INDEX_DEFAULT`, checked above."""
     from backend.core import config
 
-    example = pathlib.Path(config.__file__).resolve().parents[2] / ".env.example"
-    lines = example.read_text(encoding="utf-8").splitlines()
-    named = [ln.split("=", 1)[1].strip() for ln in lines
-             if ln.startswith("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=")]
-    assert named == [config.KNOWLEDGE_INDEX_DEFAULT]
+    lines = (config.REPO_ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+    named = [ln.split("=", 1)[1].strip() for ln in lines if ln.startswith("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=")]
+    assert named == [""], named
 
 
 def test_b9_the_semantic_ranker_is_switched_by_the_index_configuration(monkeypatch) -> None:

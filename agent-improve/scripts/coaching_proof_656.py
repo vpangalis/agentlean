@@ -132,7 +132,7 @@ def _tracing_off() -> None:
 def _langsmith():
     from langsmith import Client
     from backend.core.config import settings
-    return Client(api_key=settings.LANGCHAIN_API_KEY), settings.LANGCHAIN_PROJECT
+    return Client(api_key=settings.LANGSMITH_API_KEY), settings.LANGSMITH_PROJECT
 
 
 def _root_count(since: dt.datetime) -> int:

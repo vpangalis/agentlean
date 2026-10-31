@@ -15,7 +15,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | `core/` | `checkpointer.py` C | Azure Blob checkpointer for Agent Improve. | `ConcurrentTurnError`, `AzureBlobCheckpointSaver`, `get_checkpointer` |
 |  | `citations.py` C | Citation models for Agent Improve. | `CitationRecord`, `CitationBundle`, `as_records` |
 |  | `clock.py` | The one clock: the current time in UTC, timezone-aware — every stamp the product writes reads it. | `utc_now` |
-|  | `config.py` | — | `KNOWLEDGE_INDEX_DEFAULT`, `TURN_LIMIT_S`, `TURN_HARD_LIMIT_S`, `TURN_CLOSE_RESERVE_S`, `Settings`, `REQUIRED_CREDENTIALS`, `missing_credentials`, `check_credentials` |
+|  | `config.py` | — | `REPO_ROOT`, `ENV_FILE`, `load_root_env`, `KNOWLEDGE_INDEX_DEFAULT`, `TURN_LIMIT_S`, `TURN_HARD_LIMIT_S`, `TURN_CLOSE_RESERVE_S`, `Settings`, `REQUIRED_CREDENTIALS`, `missing_credentials`, `check_credentials` |
 |  | `content_safety.py` | Azure AI Content Safety — Prompt Shields. ADR-0057 (ACCEPTED, fail closed); T71, T72. | `API_VERSION`, `TIMEOUT_S`, `MAX_CHARS`, `configured`, `development_mode`, `required`, `is_content_filter`, `retry_on`, `check_startup`, `shield`, `transient` |
 |  | `conversation.py` | Conversation <-> `messages` marshalling. | `V1_PRESENTATION_KEYS`, `COACHING_BLOCK_KEYS`, `MOVE_RECORD_KEY`, `QUALITY_FEEDBACK_KEY`, `ELEMENT_KEY`, `COMPLETION_KEY`, `TEACHING_CARD_KEY`, `LINK_CHECK_KEY`, `TURN_RECORD_KEYS`, `message_to_turn`, `turn_to_message`, `transport`, `strip_transport` |
 |  | `diagrams.py` | Diagram types and schemas for `propose_diagram`. | `DIAGRAM_TYPES`, `SIPOC_COLUMNS`, `SIPOC_SOURCES`, `DiagramError`, `sipoc_columns`, `build_sipoc`, `build_mindmap_5w2h`, `build_baseline_target`, `BUILDERS` |

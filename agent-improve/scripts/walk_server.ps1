@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  The founder's walk server at one commit (founder ruling 2026-10-30): a locked worktree in Temp, the .env copied,
+  The founder's walk server at one commit (founder ruling 2026-10-30): a locked worktree in Temp, the root .env copied,
   uvicorn started detached so it outlives the session that started it, and ready on /health.
 .DESCRIPTION
   Refuses when the port is already in use: the walk server is the founder's while they walk, and is never restarted
@@ -35,7 +35,7 @@ if (-not (Test-Path $wt)) {
     git -C $repo worktree lock --reason "founder walk server :$Port" $wt
     if ($LASTEXITCODE -ne 0) { throw "git worktree lock failed for $wt" }
 }
-Copy-Item -LiteralPath (Join-Path $repo 'agent-improve\.env') -Destination (Join-Path $wt 'agent-improve\.env') -Force
+Copy-Item -LiteralPath (Join-Path $repo '.env') -Destination (Join-Path $wt '.env') -Force   # the one root .env
 
 $py = Join-Path $repo 'agent-improve\.venv\Scripts\python.exe'
 $p = Start-Process -FilePath $py -ArgumentList '-m', 'uvicorn', 'backend.app:app', '--host', '127.0.0.1', '--port', "$Port" `
