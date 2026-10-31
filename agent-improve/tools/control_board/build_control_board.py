@@ -39,6 +39,7 @@ from __future__ import annotations
 import datetime as dt
 import html
 import json
+import os
 import re
 import subprocess
 import sys
@@ -711,6 +712,23 @@ def build(out: Path = OUT) -> Path:
     return out
 
 
+def main(argv: list[str]) -> int:
+    args = [a for a in argv if not a.startswith("--")]
+    target = Path(args[0]) if args else OUT
+    if "--staged" in argv and not os.environ.get(features.STAGED_ENV):
+        # DEF-252: built from the staged tree (its features, its record, its source), then copied to `target` here
+        # for the hook to stage — never from the checkout's uncommitted edits.
+        wt, run = features.in_staged_tree("build_control_board.py")
+        if run.returncode != 0:
+            features.echo(sys.stderr, run.stdout + run.stderr)
+            return run.returncode
+        target.write_text((wt / features.PROJECT.name / "docs" / "control-board.html").read_text(encoding="utf-8"),
+                          encoding="utf-8")
+        print(f"control board -> {target} (from the staged tree)")
+        return 0
+    print(f"control board -> {build(target)}")
+    return 0
+
+
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    print(f"control board -> {build(Path(args[0]) if args else OUT)}")
+    sys.exit(main(sys.argv[1:]))

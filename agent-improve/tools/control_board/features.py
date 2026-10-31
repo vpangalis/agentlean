@@ -28,12 +28,36 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 PROJECT = _HERE.parents[1]
+#: DEF-252: set in a board tool's own run inside the staged worktree, so it does not hand off again.
+STAGED_ENV = "AGENT_IMPROVE_IN_STAGED_TREE"
+
+
+def in_staged_tree(script: str, args: list[str] | None = None) -> tuple[Path, subprocess.CompletedProcess]:
+    """DEF-252 (founder ruling 2026-10-21, item 4): run this tool's OWN copy in the worktree of the index
+    (`.claude/hooks/staged_tree.sync`) — every path the board derives from its file's location then names the staged
+    tree, so it describes what the commit carries, never the checkout's uncommitted edits. Returns the worktree and
+    the run."""
+    sys.path.insert(0, str(PROJECT.parent / ".claude" / "hooks"))
+    import staged_tree
+    wt = Path(staged_tree.sync(PROJECT.parent))
+    run = subprocess.run([sys.executable, str(wt / PROJECT.name / "tools" / "control_board" / script), *(args or [])],
+                         cwd=str(wt), capture_output=True, encoding="utf-8", errors="replace", timeout=300,
+                         env={**os.environ, STAGED_ENV: "1", "PYTHONIOENCODING": "utf-8"})
+    return wt, run
+
+
+def echo(stream, text: str) -> None:
+    """Write a staged run's output on a console of any code page — what it cannot show is replaced, never raised."""
+    enc = getattr(stream, "encoding", None) or "utf-8"
+    stream.write(text.encode(enc, errors="replace").decode(enc, errors="replace"))
 FEATURES = PROJECT / "docs" / "define_features.json"
 RESULTS = PROJECT / "docs" / "test-results.json"
 RATCHET = PROJECT / "docs" / "features-ratchet.json"

@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,7 +37,8 @@ def _git(args: list[str], root: str) -> subprocess.CompletedProcess:
                           cwd=root, timeout=30)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    staged = "--staged" in (sys.argv[1:] if argv is None else argv)
     root = _git(["git", "rev-parse", "--show-toplevel"], ".").stdout.strip()
     if not root:
         note("could not locate the repo root — skipped")
@@ -48,11 +50,20 @@ def main() -> int:
     elif os.path.isfile(path):
         with open(path, encoding="utf-8", newline="") as fh:
             before = fh.read()
-        after = cs.splice(before, cs.build_block(root))
+        # DEF-252 (founder ruling 2026-10-21, item 4): with --staged, as the commit hook calls it, the block is built
+        # from the worktree of the index the commit's tests ran in — never from the checkout, whose uncommitted
+        # edits the commit will not carry.
+        if staged:
+            import staged_tree
+            src = str(staged_tree.sync(Path(root)))
+        else:
+            src = root
+        block = cs.build_block(src)
+        after = cs.splice(before, block) if block else before    # nothing built: the block stays as it was
         if after != before:
             with open(path, "w", encoding="utf-8", newline="") as fh:
                 fh.write(after)
-            note("status block regenerated — from the features")
+            note("status block regenerated — from the " + ("staged tree" if staged else "features"))
         _git(["git", "add", "--", cs.CONTINUITY], root)
     try:
         f = cs._features(root)

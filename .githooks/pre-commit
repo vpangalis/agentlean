@@ -102,6 +102,9 @@ if [ -n "$VENV" ] && [ -n "$SYSPY" ] && git diff --cached --name-only \
     echo "  [tests] $SUMMARY" >&2
     t_log "$MODE test run" "$T0"
     RAN=1
+    # DEF-252: the run's record is staged now (the board stages it again below), so the status block built from the
+    # staged tree reads this commit's record.
+    git add agent-improve/docs/test-results.json 2>/dev/null
 fi
 
 # Founder 2026-09-27 — the whole-tree type-error count may fall, never rise.
@@ -123,7 +126,7 @@ fi
 
 T0=$(date +%s)
 if [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ]; then
-    "$SYSPY" "$CONTINUITY"
+    "$SYSPY" "$CONTINUITY" --staged          # DEF-252: the block from the staged tree, never the checkout
 fi
 t_log continuity "$T0"
 
@@ -172,9 +175,9 @@ if [ -f "$CONTROL" ] && { [ -n "$RAN" ] || git diff --cached --name-only | grep 
         # Controls review, item 6 (founder, 2026-09-30): when the page or CONTINUITY's headline
         # still disagrees with the tree, and regenerating is the whole fix, regenerate both once and
         # re-stage them here — rule 10 then refuses only what regenerating cannot mend.
-        if ! "$VENV" agent-improve/tools/control_board/check_board.py </dev/null >/dev/null 2>&1; then
+        if ! "$VENV" agent-improve/tools/control_board/check_board.py --staged </dev/null >/dev/null 2>&1; then
             echo "  [control-board] disagreed with the tree after the build — regenerated and re-staged (item 6)" >&2
-            [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ] && "$SYSPY" "$CONTINUITY"
+            [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ] && "$SYSPY" "$CONTINUITY" --staged
             "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged \
                 && git add agent-improve/docs/control-board.html agent-improve/docs/test-results.json 2>/dev/null
         fi

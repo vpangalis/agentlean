@@ -1,9 +1,9 @@
 {
- "source_hash": "67209088567de8fb",
- "commit": "b6d6146b",
+ "source_hash": "c7ba873fc08f3ae2",
+ "commit": "358a3d88",
  "commit_matches_source": false,
  "full_run_hash": "be9e57a8859bda27",
- "recorded_at": "2026-10-31T13:01:08+00:00",
+ "recorded_at": "2026-10-31T13:08:35+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1868,7 +1868,7 @@
   "backend/tests/test_tooling_p0.py::test_the_hooks_run_with_the_projects_python": "passed",
   "backend/tests/test_tooling_p0.py::test_the_server_log_is_quiet_and_the_favicon_is_served": "passed",
   "backend/tests/test_tooling_p0.py::test_the_session_start_reports_a_guard_that_cannot_run": "passed",
-  "backend/tests/test_tooling_p0.py::test_the_status_block_is_built_from_the_staged_tree": "skipped",
+  "backend/tests/test_tooling_p0.py::test_the_status_block_is_built_from_the_staged_tree": "passed",
   "backend/tests/test_tooling_p0.py::test_the_test_summary_is_pytests_result_line_not_the_last_line": "passed",
   "backend/tests/test_tooling_p0.py::test_the_tests_close_every_client_they_open": "passed",
   "backend/tests/test_turn_budget.py::test_no_knowledge_tool_blocks_the_loop": "passed",

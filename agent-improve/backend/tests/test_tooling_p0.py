@@ -286,6 +286,26 @@ def test_the_status_block_is_built_from_the_staged_tree(tmp_path, monkeypatch) -
         args, 0, stdout=str(ROOT) if "rev-parse" in args else "", stderr=""))
     cont.main(["--staged"])
     assert built and built[0] == str(tmp_path), f"the block was built from {built}, not the staged tree"
+    # The board reads the same tree as the block (as its check reads it): with --staged, the build and the check run
+    # their own copy in the staged worktree, and the build's page is copied back for the hook to stage.
+    sys.path.insert(0, str(PROJECT / "tools" / "control_board"))
+    import build_control_board as bcb
+    import check_board
+    import features
+    staged_page = tmp_path / "agent-improve" / "docs" / "control-board.html"
+    staged_page.parent.mkdir(parents=True)
+    staged_page.write_text("<html>staged</html>", encoding="utf-8")
+    ran: list[str] = []
+
+    def in_staged(script, args=None):
+        ran.append(script)
+        return tmp_path, subprocess.CompletedProcess([script], 0, stdout="board check: PASS\n", stderr="")
+    monkeypatch.setattr(features, "in_staged_tree", in_staged)
+    monkeypatch.delenv(features.STAGED_ENV, raising=False)
+    out = tmp_path / "out.html"
+    assert bcb.main([str(out), "--staged"]) == 0 and out.read_text(encoding="utf-8") == "<html>staged</html>"
+    monkeypatch.setattr(sys, "argv", ["check_board.py", "--staged"])
+    assert check_board.main() == 0 and ran == ["build_control_board.py", "check_board.py"], ran
 
 
 def test_a_live_slice_replays_up_to_the_element_and_runs_only_it() -> None:

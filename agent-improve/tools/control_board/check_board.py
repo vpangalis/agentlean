@@ -11,6 +11,7 @@ so a disagreement means it was not regenerated or was edited by hand.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -49,6 +50,12 @@ def check(page: str, continuity: str | None) -> list[str]:
 
 
 def main() -> int:
+    if "--staged" in sys.argv[1:] and not os.environ.get(features.STAGED_ENV):
+        # DEF-252: the check reads the staged page, CONTINUITY and record — the index, as the commit carries them.
+        _wt, run = features.in_staged_tree("check_board.py")
+        features.echo(sys.stdout, run.stdout)
+        features.echo(sys.stderr, run.stderr)
+        return run.returncode
     page = bcb.OUT.read_text(encoding="utf-8") if bcb.OUT.is_file() else ""
     cont = CONTINUITY.read_text(encoding="utf-8") if CONTINUITY.is_file() else None
     bad = check(page, cont)
