@@ -17,10 +17,12 @@ paths:
 ### 11.1 — LangSmith required
 
 ```env
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_API_KEY=...
-LANGCHAIN_PROJECT=agentlean-improve
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=...
+LANGSMITH_PROJECT=agentlean-improve
 ```
+
+No `LANGCHAIN_*` spelling is read.
 
 Production environments without LangSmith fail startup with a clear
 error (§11.4).
@@ -54,17 +56,17 @@ grader model, cheapest-first validation (§9.2).
 Validate all required credentials at startup, before the first request:
 
 ```
-AZURE_OPENAI_KEY        — coaching LLM
+AZURE_OPENAI_API_KEY    — coaching LLM
 AZURE_SEARCH_API_KEY    — retrieval        (NOT "AZURE_SEARCH_KEY")
-LANGCHAIN_API_KEY       — observability
+LANGSMITH_API_KEY       — observability
 ```
 
 Missing credentials exit 1 with a clear message. This integrates with
 Docker health checks — a container failing startup receives no traffic.
+Deployments: `AZURE_OPENAI_{INTENT,OPERATIONAL,PREMIUM,EMBEDDING}_DEPLOYMENT`.
 
-**`.env` hygiene:** the app loads `agent-improve/.env`. A root `.env`
-can silently shadow values depending on `load_dotenv()` search order —
-audit and remove it if redundant.
+**`.env` hygiene:** ONE `.env`, at the repo root; Improve loads it only via
+`core/config.py::load_root_env()`.
 
 ### 11.5 — Logs
 

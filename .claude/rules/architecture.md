@@ -145,7 +145,7 @@ Blob has no row-level locking: acceptable for single-developer refactoring,
 
 ### 1.8 — LangSmith Tracing Mandatory
 
-- `LANGCHAIN_TRACING_V2=true` is required in all environments
+- `LANGSMITH_TRACING=true` is required in all environments (root `.env`, §11.1)
 - Every LLM call must be traced
 - Every tool call must be traced
 - Every graph node must be a traceable span
