@@ -121,38 +121,10 @@ def main() -> int:
     except Exception:                               # noqa: BLE001
         return 0
 
-    owner_of = {}
-    for owner in reg.get("owners", []):
-        for s in owner.get("symbols", []) or []:
-            owner_of[s["name"]] = s["path"]
-    symbols = [s for s in owner_of if s in content]
-
-    # Dependency versions declare no `symbols:` — the PACKAGE NAMES are the
-    # symbols, derived from requirements.txt. This is the half G-56's Done-when
-    # clause [2] was failing on: a version pin in a governing document went
-    # undetected, which is the exact class that produced the three-week false
-    # blocker in §16.1 and §53.
-    pins = []
-    version_owner = next((o.get("owner_path", "requirements.txt")
-                          for o in reg.get("owners", [])
-                          if o.get("symbol_source") == "requirements"), None)
-    if version_owner:
-        packages = [k for k, v in values.items() if isinstance(v, str)]
-        pins = fo.version_claims(content, packages, values)
-
-    if not symbols and not pins:
-        return 0
-
-    hits, held = [], []
-    lines = content.splitlines()
-    for line_no, sym, raw_num, val in fo.assertions(content, symbols):
-        line = lines[line_no - 1] if line_no <= len(lines) else ""
-        if fo.cites_owner(line):
-            continue                                # a citation, not a copy
-        if sym in pending:
-            held.append(sym)                        # no owner yet — nothing to copy
-            continue
-        hits.append((line_no, sym, raw_num, owner_of[sym], values.get(sym)))
+    # Owned symbols, and the dependency versions (the PACKAGE NAMES are their symbols, derived from
+    # requirements.txt — the half G-56's Done-when clause [2] was failing on). DEF-241: the same function the commit
+    # gate runs on the index (`_fact_owners.restatements`).
+    hits, pins, held, version_owner = fo.restatements(content, reg, values, pending)
 
     if held:
         sys.stderr.write(

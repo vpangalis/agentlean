@@ -83,6 +83,15 @@ def test_the_fact_ownership_check_runs_at_the_commit_gate() -> None:
     spec.loader.exec_module(guard)
     assert hasattr(guard, "check_fact_ownership"), "the commit guard has no fact-ownership check"
     assert "check_fact_ownership(" in (HOOKS / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
+    # The refusal case (P0b's build): the one function the commit gate and the editor hook share flags a count beside
+    # an owned symbol with no owner on its line, and passes the same sentence citing its owner.
+    import yaml
+    import _fact_owners as fo
+    reg = yaml.safe_load((ROOT / ".claude" / "config" / "fact_owners.yaml").read_text(encoding="utf-8"))
+    hits = fo.restatements("SupervisorState carries 42 fields.\n", reg, {"SupervisorState": 17}, [])[0]
+    assert [(h[1], h[2]) for h in hits] == [("SupervisorState", "42")], hits
+    assert fo.restatements("SupervisorState carries 42 fields (core/state.py).\n", reg, {"SupervisorState": 17},
+                           [])[0] == []
 
 
 def test_search_index_schemas_have_a_registered_owner() -> None:

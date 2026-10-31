@@ -353,3 +353,30 @@ def version_claims(text: str, packages: list[str],
                     continue
             out.append((i, best[1], m.group(1)))
     return out
+
+
+def restatements(content: str, reg: dict, values: dict[str, object], pending: list[str]
+                 ) -> tuple[list[tuple[int, str, str, str, object]], list[tuple[int, str, str]], list[str], str | None]:
+    """DEF-241 (G-59): what a governed document's text restates — one function for the editor hook
+    (`fact-ownership-guard.py`, on a write) and the commit gate (the commit guard's rule 26, on the index), so the two
+    cannot disagree. Returns (hits: line, symbol, number, owner path, live value; pins: line, package, version;
+    held: symbols whose owner does not exist yet; the owner of the version pins). A line that names its owner is a
+    citation, not a copy."""
+    owner_of = {s["name"]: s["path"] for owner in reg.get("owners", []) for s in owner.get("symbols", []) or []}
+    symbols = [s for s in owner_of if s in content]
+    version_owner = next((o.get("owner_path", "requirements.txt") for o in reg.get("owners", [])
+                          if o.get("symbol_source") == "requirements"), None)
+    pins = version_claims(content, [k for k, v in values.items() if isinstance(v, str)], values) \
+        if version_owner else []
+    hits: list[tuple[int, str, str, str, object]] = []
+    held: list[str] = []
+    lines = content.splitlines()
+    for line_no, sym, raw_num, _val in (assertions(content, symbols) if symbols else []):
+        line = lines[line_no - 1] if line_no <= len(lines) else ""
+        if cites_owner(line):
+            continue                                # a citation, not a copy
+        if sym in pending:
+            held.append(sym)                        # no owner yet — nothing to copy
+            continue
+        hits.append((line_no, sym, raw_num, owner_of[sym], values.get(sym)))
+    return hits, pins, held, version_owner

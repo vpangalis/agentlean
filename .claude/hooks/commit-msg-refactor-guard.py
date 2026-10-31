@@ -33,6 +33,8 @@ Numbers are never reused, so every older reference still points at the right rul
   22. DEPRECATED PATTERNS — `.claude/config/deprecated_patterns.yaml`, the editor hook's
      registry with its exclusions, applied to the lines a commit ADDS in every staged code
      file, so an edit made through the shell or a script meets it too (G-165, 2026-10-12).
+  26. FACT OWNERSHIP — every staged governed document, read from the index, restates no owned
+     fact without naming its owner on the line (DEF-241, G-59; the editor hook's check, one function).
 
   3. TYPE-CHECK — mypy over the changed Python, against the PINNED venv, so an
      invented LangGraph/LangChain/LangSmith method or a wrong signature fails
@@ -1531,6 +1533,40 @@ def check_normative(root: str, staged: list[str]) -> None:
         note("rule 14 normative: PASS — every must / never / always sentence kept")
 
 
+def check_fact_ownership(root: str, staged: list[str]) -> None:
+    """Rule 26 — FACT OWNERSHIP at the commit gate (DEF-241; G-59, ruled 2026-09-14; requirement T99). Every staged
+    governed document (`.claude/config/fact_owners.yaml`'s governed paths) is read FROM THE INDEX — the final content,
+    whatever wrote it: a Bash edit, a script, a peer — and checked as the editor hook checks a write
+    (`_fact_owners.restatements`, the one function both use): a count beside an owned symbol, or a current version
+    pin, with no owner named on its line, is refused. The guard failing to run (its registry unreadable) is a note,
+    never a refusal — the editor hook is the other half."""
+    sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
+    try:
+        import _fact_owners as fo
+        reg = fo.load_registry()
+        governed = [p for p in staged if fo.is_governed(p, reg) and os.path.basename(p) != "fact_owners.yaml"]
+        if not governed:
+            return
+        values, pending = fo.derive(reg)
+    except Exception as exc:  # noqa: BLE001 — the guard's own failure is reported, never a refusal
+        note(f"rule 26 fact ownership: not run — {exc.__class__.__name__}: {exc}")
+        return
+    found: list[str] = []
+    for rel in governed:
+        try:
+            text = _staged_text(root, rel)
+        except RuntimeError:
+            continue                                # removed by this commit: nothing to restate
+        hits, pins, _held, version_owner = fo.restatements(text, reg, values, pending)
+        found += [f"  {rel}:{ln}: `{pkg}` {ver} — owned by `{version_owner}`" for ln, pkg, ver in pins]
+        found += [f"  {rel}:{ln}: `{sym}` … {num} — owned by `{owner}`" for ln, sym, num, owner, _live in hits]
+    if found:
+        fail("a governed document restates a fact it does not own (rule 26)", *found[:20], "",
+             "Name the owner on the same line — CITE, NOT RESTATE (ARCHITECTURE.md §55.4, the editor hook's rule,",
+             "applied here to what the commit carries).")
+    note(f"rule 26 fact ownership: PASS — {len(governed)} governed document(s) cite their owners")
+
+
 def main(argv: list[str]) -> int:
     if len(argv) >= 2 and argv[1] == "--update-baseline":
         return update_baseline()
@@ -1618,6 +1654,10 @@ def main(argv: list[str]) -> int:
     # Rule 14 — no must / never / always sentence weakens (6.68).
     with _timer("rule 14 normative"):
         check_normative(root, all_staged)
+
+    # Rule 26 — the fact-ownership check, over what the commit carries (DEF-241).
+    with _timer("rule 26 fact ownership"):
+        check_fact_ownership(root, all_staged)
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs
