@@ -20,6 +20,7 @@
   ".claude/rules/trusted-sources.md": 5635,
   ".claude/rules/adr.md": 1500,
   ".claude/rules/planning.md": 2200,
-  ".claude/rules/reports.md": 610
+  ".claude/rules/reports.md": 610,
+  ".claude/rules/tests-current.md": 290
  }
 }
