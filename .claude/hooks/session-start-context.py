@@ -251,6 +251,27 @@ def get_harness() -> str:
         return f"(feature list unreadable: {exc.__class__.__name__})"
 
 
+#: DEF-245 (the rest of G-229): the guards a session relies on, and the module each cannot run without — the
+#: drift check and the fact-ownership guard read their registries as YAML.
+GUARD_NEEDS: tuple[tuple[str, str], ...] = (
+    ("the drift check (pre-tool-use-drift-check.py)", "yaml"),
+    ("the fact-ownership guard (fact-ownership-guard.py)", "yaml"),
+)
+
+
+def get_guard_status() -> str:
+    """DEF-245: each guard whose module does not import is named — it cannot run, so its silence is not a pass.
+    Empty when every guard can run."""
+    import importlib
+    lines = []
+    for guard, module in GUARD_NEEDS:
+        try:
+            importlib.import_module(module)
+        except Exception as exc:  # noqa: BLE001 - hook must never propagate
+            lines.append(f"⚠ {guard} cannot run: '{module}' does not import ({exc.__class__.__name__}: {exc})")
+    return "\n".join(lines)
+
+
 def assemble_output(sections: list[tuple[str, str]]) -> str:
     """Join titled sections; enforce the character cap as a safety net."""
     blocks = [f"── {title} ──\n{body}" for title, body in sections]
@@ -277,6 +298,9 @@ def main() -> int:
         ("DEPENDENCY VERSIONS", get_version_info()),
         ("DRIFT WARNINGS", get_drift_warnings()),
     ]
+    guards = get_guard_status()
+    if guards:                                             # first, so the output cap never cuts it
+        sections.insert(0, ("GUARDS THAT CANNOT RUN", guards))
     sys.stdout.write(assemble_output(sections))
     return 0
 
